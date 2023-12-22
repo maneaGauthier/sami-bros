@@ -1,0 +1,87 @@
+<html>
+<head>
+<title>ProtoPaletteBase.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #7a7e85;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ProtoPaletteBase.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Palette for Prototyping 
+&quot;&quot;&quot;</span>
+<span class="s2">import </span><span class="s1">imp</span>
+
+<span class="s2">from </span><span class="s3">.</span><span class="s1">ObjectPaletteBase </span><span class="s2">import </span><span class="s3">*</span>
+
+<span class="s2">class </span><span class="s1">ProtoPaletteBase</span><span class="s3">(</span><span class="s1">ObjectPaletteBase</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">ObjectPaletteBase</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s4"># self.dirname should be defined in inherited class</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">dirname</span>
+
+    <span class="s2">def </span><span class="s1">addItems</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">type</span><span class="s3">(</span><span class="s1">protoData</span><span class="s3">) == </span><span class="s1">dict</span><span class="s3">:</span>
+            <span class="s2">for </span><span class="s1">key </span><span class="s2">in </span><span class="s1">list</span><span class="s3">(</span><span class="s1">protoData</span><span class="s3">.</span><span class="s1">keys</span><span class="s3">()):</span>
+                <span class="s2">if </span><span class="s1">type</span><span class="s3">(</span><span class="s1">protoData</span><span class="s3">[</span><span class="s1">key</span><span class="s3">]) == </span><span class="s1">dict</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">key</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">addItems</span><span class="s3">(</span><span class="s1">protoData</span><span class="s3">[</span><span class="s1">key</span><span class="s3">], </span><span class="s1">key</span><span class="s3">)</span>
+                <span class="s2">else</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">protoData</span><span class="s3">[</span><span class="s1">key</span><span class="s3">], </span><span class="s1">parent</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">populate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">moduleName </span><span class="s3">= </span><span class="s5">'protoPaletteData'</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">file</span><span class="s3">, </span><span class="s1">pathname</span><span class="s3">, </span><span class="s1">description </span><span class="s3">= </span><span class="s1">imp</span><span class="s3">.</span><span class="s1">find_module</span><span class="s3">(</span><span class="s1">moduleName</span><span class="s3">, [</span><span class="s1">self</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">])</span>
+            <span class="s1">module </span><span class="s3">= </span><span class="s1">imp</span><span class="s3">.</span><span class="s1">load_module</span><span class="s3">(</span><span class="s1">moduleName</span><span class="s3">, </span><span class="s1">file</span><span class="s3">, </span><span class="s1">pathname</span><span class="s3">, </span><span class="s1">description</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">data </span><span class="s3">= </span><span class="s1">module</span><span class="s3">.</span><span class="s1">protoData</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">dataStruct </span><span class="s3">= </span><span class="s1">module</span><span class="s3">.</span><span class="s1">protoDataStruct</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;protoPaletteData doesn't exist&quot;</span><span class="s3">)</span>
+            <span class="s2">return</span>
+
+        <span class="s4">#self.addItems()</span>
+
+    <span class="s2">def </span><span class="s1">saveProtoDataStruct</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">f</span><span class="s3">):</span>
+        <span class="s2">if not </span><span class="s1">f</span><span class="s3">:</span>
+            <span class="s2">return</span>
+
+        <span class="s2">for </span><span class="s1">key </span><span class="s2">in </span><span class="s1">list</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">dataStruct</span><span class="s3">.</span><span class="s1">keys</span><span class="s3">()):</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;</span><span class="s2">\t</span><span class="s5">'%s':'%s',</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">%(</span><span class="s1">key</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">dataStruct</span><span class="s3">[</span><span class="s1">key</span><span class="s3">]))</span>
+
+    <span class="s2">def </span><span class="s1">saveProtoData</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">f</span><span class="s3">):</span>
+        <span class="s2">if not </span><span class="s1">f</span><span class="s3">:</span>
+           <span class="s2">return</span>
+
+        <span class="s2">for </span><span class="s1">key </span><span class="s2">in </span><span class="s1">list</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">.</span><span class="s1">keys</span><span class="s3">()):</span>
+            <span class="s2">if </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">[</span><span class="s1">key</span><span class="s3">], </span><span class="s1">ObjectBase</span><span class="s3">):</span>
+               <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;</span><span class="s2">\t</span><span class="s5">'%s':ObjectBase(name='%s', model='%s', anims=%s, actor=%s),</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">%(</span><span class="s1">key</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">[</span><span class="s1">key</span><span class="s3">].</span><span class="s1">name</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">[</span><span class="s1">key</span><span class="s3">].</span><span class="s1">model</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">[</span><span class="s1">key</span><span class="s3">].</span><span class="s1">anims</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">[</span><span class="s1">key</span><span class="s3">].</span><span class="s1">actor</span><span class="s3">))</span>
+            <span class="s2">else</span><span class="s3">:</span>
+               <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;</span><span class="s2">\t</span><span class="s5">'%s':ObjectGen(name='%s'),</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">%(</span><span class="s1">key</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">data</span><span class="s3">[</span><span class="s1">key</span><span class="s3">].</span><span class="s1">name</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">saveToFile</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">f </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">dirname </span><span class="s3">+ </span><span class="s5">'/protoPaletteData.py'</span><span class="s3">, </span><span class="s5">'w'</span><span class="s3">)</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;from direct.leveleditor.ObjectPaletteBase import *</span><span class="s2">\n\n</span><span class="s5">&quot;</span><span class="s3">)</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;protoData = {</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">saveProtoData</span><span class="s3">(</span><span class="s1">f</span><span class="s3">)</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;}</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">)</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;protoDataStruct = {</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">saveProtoDataStruct</span><span class="s3">(</span><span class="s1">f</span><span class="s3">)</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s5">&quot;}</span><span class="s2">\n</span><span class="s5">&quot;</span><span class="s3">)</span>
+            <span class="s1">f</span><span class="s3">.</span><span class="s1">close</span><span class="s3">()</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s2">pass</span>
+</pre>
+</body>
+</html>

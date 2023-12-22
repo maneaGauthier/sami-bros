@@ -1,0 +1,334 @@
+<html>
+<head>
+<title>ClusterMsgs.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #bcbec4;}
+.s5 { color: #2aacb8;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ClusterMsgs.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;ClusterMsgs module: Message types for Cluster rendering&quot;&quot;&quot;</span>
+
+<span class="s2"># This module is intended to supply routines and dataformats common to</span>
+<span class="s2"># both ClusterClient and ClusterServer.</span>
+
+<span class="s3">from </span><span class="s1">panda3d</span><span class="s4">.</span><span class="s1">core </span><span class="s3">import </span><span class="s4">*</span>
+<span class="s3">from </span><span class="s1">direct</span><span class="s4">.</span><span class="s1">distributed</span><span class="s4">.</span><span class="s1">PyDatagram </span><span class="s3">import </span><span class="s1">PyDatagram</span>
+<span class="s3">from </span><span class="s1">direct</span><span class="s4">.</span><span class="s1">distributed</span><span class="s4">.</span><span class="s1">PyDatagramIterator </span><span class="s3">import </span><span class="s1">PyDatagramIterator</span>
+<span class="s3">import </span><span class="s1">time</span>
+
+<span class="s2">#these are the types of messages that are currently supported.</span>
+<span class="s1">CLUSTER_NONE                  </span><span class="s4">= </span><span class="s5">0</span>
+<span class="s1">CLUSTER_CAM_OFFSET            </span><span class="s4">= </span><span class="s5">1</span>
+<span class="s1">CLUSTER_CAM_FRUSTUM           </span><span class="s4">= </span><span class="s5">2</span>
+<span class="s1">CLUSTER_CAM_MOVEMENT          </span><span class="s4">= </span><span class="s5">3</span>
+<span class="s1">CLUSTER_SWAP_READY            </span><span class="s4">= </span><span class="s5">4</span>
+<span class="s1">CLUSTER_SWAP_NOW              </span><span class="s4">= </span><span class="s5">5</span>
+<span class="s1">CLUSTER_COMMAND_STRING        </span><span class="s4">= </span><span class="s5">6</span>
+<span class="s1">CLUSTER_SELECTED_MOVEMENT     </span><span class="s4">= </span><span class="s5">7</span>
+<span class="s1">CLUSTER_TIME_DATA             </span><span class="s4">= </span><span class="s5">8</span>
+<span class="s1">CLUSTER_NAMED_OBJECT_MOVEMENT </span><span class="s4">= </span><span class="s5">9</span>
+<span class="s1">CLUSTER_NAMED_MOVEMENT_DONE   </span><span class="s4">= </span><span class="s5">10</span>
+<span class="s1">CLUSTER_EXIT                  </span><span class="s4">= </span><span class="s5">100</span>
+
+<span class="s2">#Port number for cluster rendering</span>
+<span class="s2"># DAEMON PORT IS PORT USED FOR STARTUP MESSAGE EXCHANGE</span>
+<span class="s2"># CAN BE OVERRIDEN WITH cluster-daemon-client-port for client</span>
+<span class="s2"># and cluster-daemon-server-port for server</span>
+<span class="s1">CLUSTER_DAEMON_PORT </span><span class="s4">= </span><span class="s5">8001</span>
+<span class="s2"># THIS IS THE TCP PORT USED FOR EXCHANGE OF DATA ONCE STARTUP IS COMPLETE</span>
+<span class="s1">CLUSTER_SERVER_PORT </span><span class="s4">= </span><span class="s5">1970</span>
+
+<span class="s2"># Precede command string with ! to tell server to execute command string</span>
+<span class="s2"># NOTE: Had to stick with the import __builtin__ scheme, at startup,</span>
+<span class="s2"># __builtins__ is a module, not a dictionary, like it is inside of a module</span>
+<span class="s2"># Note, this startup string obviates the need to set any cluster related</span>
+<span class="s2"># config variables in the client Configrc files</span>
+<span class="s1">SERVER_STARTUP_STRING </span><span class="s4">= (</span>
+    <span class="s6">'!bash ppython -c ' </span><span class="s4">+</span>
+    <span class="s6">'&quot;import __builtin__; ' </span><span class="s4">+</span>
+    <span class="s6">'__builtin__.clusterMode = </span><span class="s3">\'</span><span class="s6">server</span><span class="s3">\'</span><span class="s6">;' </span><span class="s4">+</span>
+    <span class="s6">'__builtin__.clusterServerPort = %s;' </span><span class="s4">+</span>
+    <span class="s6">'__builtin__.clusterSyncFlag = %d;' </span><span class="s4">+</span>
+    <span class="s6">'__builtin__.clusterDaemonClient = </span><span class="s3">\'</span><span class="s6">%s</span><span class="s3">\'</span><span class="s6">;' </span><span class="s4">+</span>
+    <span class="s6">'__builtin__.clusterDaemonPort = %d;'</span>
+    <span class="s6">'from direct.directbase.DirectStart import *; run()&quot;'</span><span class="s4">)</span>
+
+<span class="s3">class </span><span class="s1">ClusterMsgHandler</span><span class="s4">:</span>
+    <span class="s0">&quot;&quot;&quot;ClusterMsgHandler: wrapper for PC clusters/multi-piping networking&quot;&quot;&quot;</span>
+    <span class="s3">def </span><span class="s1">__init__</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">packetStart</span><span class="s4">, </span><span class="s1">notify</span><span class="s4">):</span>
+        <span class="s2"># packetStart can be used to distinguish which ClusterMsgHandler</span>
+        <span class="s2"># sends a given packet.</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">packetStart</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify </span><span class="s4">= </span><span class="s1">notify</span>
+
+    <span class="s3">def </span><span class="s1">nonBlockingRead</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">qcr</span><span class="s4">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return a datagram iterator and type if data is available on the 
+        queued connection reader 
+        &quot;&quot;&quot;</span>
+        <span class="s3">if </span><span class="s1">qcr</span><span class="s4">.</span><span class="s1">dataAvailable</span><span class="s4">():</span>
+            <span class="s1">datagram </span><span class="s4">= </span><span class="s1">NetDatagram</span><span class="s4">()</span>
+            <span class="s3">if </span><span class="s1">qcr</span><span class="s4">.</span><span class="s1">getData</span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">):</span>
+                <span class="s4">(</span><span class="s1">dgi</span><span class="s4">, </span><span class="s1">type</span><span class="s4">) = </span><span class="s1">self</span><span class="s4">.</span><span class="s1">readHeader</span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">)</span>
+            <span class="s3">else</span><span class="s4">:</span>
+                <span class="s1">dgi </span><span class="s4">= </span><span class="s3">None</span>
+                <span class="s1">type </span><span class="s4">= </span><span class="s1">CLUSTER_NONE</span>
+                <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">warning</span><span class="s4">(</span><span class="s6">&quot;getData returned false&quot;</span><span class="s4">)</span>
+        <span class="s3">else</span><span class="s4">:</span>
+            <span class="s1">datagram </span><span class="s4">= </span><span class="s3">None</span>
+            <span class="s1">dgi </span><span class="s4">= </span><span class="s3">None</span>
+            <span class="s1">type </span><span class="s4">= </span><span class="s1">CLUSTER_NONE</span>
+        <span class="s2"># Note, return datagram to keep a handle on the data</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">, </span><span class="s1">type</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">blockingRead</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">qcr</span><span class="s4">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Block until data is available on the queued connection reader. 
+        Returns a datagram iterator and type 
+        &quot;&quot;&quot;</span>
+        <span class="s3">while not </span><span class="s1">qcr</span><span class="s4">.</span><span class="s1">dataAvailable</span><span class="s4">():</span>
+            <span class="s2"># The following may not be necessary.</span>
+            <span class="s2"># I just wanted some</span>
+            <span class="s2"># time given to the operating system while</span>
+            <span class="s2"># busy waiting.</span>
+            <span class="s1">time</span><span class="s4">.</span><span class="s1">sleep</span><span class="s4">(</span><span class="s5">0.002</span><span class="s4">)</span>
+        <span class="s2"># Data is available, create a datagram iterator</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">NetDatagram</span><span class="s4">()</span>
+        <span class="s3">if </span><span class="s1">qcr</span><span class="s4">.</span><span class="s1">getData</span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">):</span>
+            <span class="s4">(</span><span class="s1">dgi</span><span class="s4">, </span><span class="s1">type</span><span class="s4">) = </span><span class="s1">self</span><span class="s4">.</span><span class="s1">readHeader</span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">)</span>
+        <span class="s3">else</span><span class="s4">:</span>
+            <span class="s4">(</span><span class="s1">dgi</span><span class="s4">, </span><span class="s1">type</span><span class="s4">) = (</span><span class="s3">None</span><span class="s4">, </span><span class="s1">CLUSTER_NONE</span><span class="s4">)</span>
+            <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">warning</span><span class="s4">(</span><span class="s6">&quot;getData returned false&quot;</span><span class="s4">)</span>
+        <span class="s2"># Note, return datagram to keep a handle on the data</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">, </span><span class="s1">type</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">readHeader</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">datagram</span><span class="s4">):</span>
+        <span class="s1">dgi </span><span class="s4">= </span><span class="s1">PyDatagramIterator</span><span class="s4">(</span><span class="s1">datagram</span><span class="s4">)</span>
+        <span class="s1">number </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getUint32</span><span class="s4">()</span>
+        <span class="s1">type </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getUint8</span><span class="s4">()</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">debug</span><span class="s4">(</span><span class="s6">&quot;Packet %d type %d received&quot; </span><span class="s4">% (</span><span class="s1">number</span><span class="s4">, </span><span class="s1">type</span><span class="s4">))</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">dgi</span><span class="s4">, </span><span class="s1">type</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">makeCamOffsetDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">xyz</span><span class="s4">, </span><span class="s1">hpr</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_CAM_OFFSET</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">parseCamOffsetDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">x</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">y</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">z</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">h</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">p</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">r</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">debug</span><span class="s4">(</span><span class="s6">'new offset=%f %f %f  %f %f %f' </span><span class="s4">% (</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">))</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">makeCamFrustumDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">focalLength</span><span class="s4">, </span><span class="s1">filmSize</span><span class="s4">, </span><span class="s1">filmOffset</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_CAM_FRUSTUM</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">focalLength</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">filmSize</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">filmSize</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">filmOffset</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">filmOffset</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">parseCamFrustumDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">focalLength </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">filmSize    </span><span class="s4">= (</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">(), </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">())</span>
+        <span class="s1">filmOffset  </span><span class="s4">= (</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">(), </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">())</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">debug</span><span class="s4">(</span><span class="s6">'fl, fs, fo=%f, (%f, %f), (%f, %f)' </span><span class="s4">%</span>
+                          <span class="s4">(</span><span class="s1">focalLength</span><span class="s4">, </span><span class="s1">filmSize</span><span class="s4">[</span><span class="s5">0</span><span class="s4">], </span><span class="s1">filmSize</span><span class="s4">[</span><span class="s5">1</span><span class="s4">],</span>
+                           <span class="s1">filmOffset</span><span class="s4">[</span><span class="s5">0</span><span class="s4">], </span><span class="s1">filmOffset</span><span class="s4">[</span><span class="s5">1</span><span class="s4">]))</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">focalLength</span><span class="s4">, </span><span class="s1">filmSize</span><span class="s4">, </span><span class="s1">filmOffset</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">makeCamMovementDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">xyz</span><span class="s4">, </span><span class="s1">hpr</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_CAM_MOVEMENT</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+
+    <span class="s3">def </span><span class="s1">makeNamedMovementDone</span><span class="s4">(</span><span class="s1">self</span><span class="s4">):</span>
+
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_NAMED_MOVEMENT_DONE</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+
+    <span class="s3">def </span><span class="s1">makeNamedObjectMovementDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">xyz</span><span class="s4">, </span><span class="s1">hpr</span><span class="s4">, </span><span class="s1">scale</span><span class="s4">, </span><span class="s1">color</span><span class="s4">, </span><span class="s1">hidden</span><span class="s4">, </span><span class="s1">name</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_NAMED_OBJECT_MOVEMENT</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addString</span><span class="s4">(</span><span class="s1">name</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">scale</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">scale</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">scale</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">color</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">color</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">color</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">color</span><span class="s4">[</span><span class="s5">3</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addBool</span><span class="s4">(</span><span class="s1">hidden</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">parseCamMovementDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">x</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">y</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">z</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">h</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">p</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">r</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">debug</span><span class="s4">((</span><span class="s6">'  new position=%f %f %f  %f %f %f' </span><span class="s4">%</span>
+                           <span class="s4">(</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">)))</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">parseNamedMovementDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">name </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getString</span><span class="s4">()</span>
+        <span class="s1">x</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">y</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">z</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">h</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">p</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">r</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">sx </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">sy </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">sz </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">red </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">g </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">b </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">a </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">hidden </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getBool</span><span class="s4">()</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">name</span><span class="s4">,</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">, </span><span class="s1">sx</span><span class="s4">, </span><span class="s1">sy</span><span class="s4">, </span><span class="s1">sz</span><span class="s4">, </span><span class="s1">red</span><span class="s4">, </span><span class="s1">g</span><span class="s4">, </span><span class="s1">b</span><span class="s4">, </span><span class="s1">a</span><span class="s4">, </span><span class="s1">hidden</span><span class="s4">)</span>
+
+
+    <span class="s3">def </span><span class="s1">makeSelectedMovementDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">xyz</span><span class="s4">, </span><span class="s1">hpr</span><span class="s4">, </span><span class="s1">scale</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_SELECTED_MOVEMENT</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">xyz</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">hpr</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">scale</span><span class="s4">[</span><span class="s5">0</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">scale</span><span class="s4">[</span><span class="s5">1</span><span class="s4">])</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">scale</span><span class="s4">[</span><span class="s5">2</span><span class="s4">])</span>
+        <span class="s2">#datagram.addBool(hidden)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">parseSelectedMovementDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">x</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">y</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">z</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">h</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">p</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">r</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">sx</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">sy</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">sz</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">debug</span><span class="s4">(</span><span class="s6">'  new position=%f %f %f  %f %f %f %f %f %f' </span><span class="s4">%</span>
+                          <span class="s4">(</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">, </span><span class="s1">sx</span><span class="s4">, </span><span class="s1">sy</span><span class="s4">, </span><span class="s1">sz</span><span class="s4">))</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">x</span><span class="s4">, </span><span class="s1">y</span><span class="s4">, </span><span class="s1">z</span><span class="s4">, </span><span class="s1">h</span><span class="s4">, </span><span class="s1">p</span><span class="s4">, </span><span class="s1">r</span><span class="s4">, </span><span class="s1">sx</span><span class="s4">, </span><span class="s1">sy</span><span class="s4">, </span><span class="s1">sz</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">makeCommandStringDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">commandString</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_COMMAND_STRING</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addString</span><span class="s4">(</span><span class="s1">commandString</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">parseCommandStringDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">command </span><span class="s4">= </span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getString</span><span class="s4">()</span>
+        <span class="s3">return </span><span class="s1">command</span>
+
+    <span class="s3">def </span><span class="s1">makeSwapNowDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_SWAP_NOW</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">makeSwapReadyDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_SWAP_READY</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">makeExitDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_EXIT</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">makeTimeDataDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">frameCount</span><span class="s4">, </span><span class="s1">frameTime</span><span class="s4">, </span><span class="s1">dt</span><span class="s4">):</span>
+        <span class="s1">datagram </span><span class="s4">= </span><span class="s1">PyDatagram</span><span class="s4">()</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber</span><span class="s4">)</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">packetNumber </span><span class="s4">+ </span><span class="s5">1</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint8</span><span class="s4">(</span><span class="s1">CLUSTER_TIME_DATA</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addUint32</span><span class="s4">(</span><span class="s1">frameCount</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">frameTime</span><span class="s4">)</span>
+        <span class="s1">datagram</span><span class="s4">.</span><span class="s1">addFloat32</span><span class="s4">(</span><span class="s1">dt</span><span class="s4">)</span>
+        <span class="s3">return </span><span class="s1">datagram</span>
+
+    <span class="s3">def </span><span class="s1">parseTimeDataDatagram</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">dgi</span><span class="s4">):</span>
+        <span class="s1">frameCount</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getUint32</span><span class="s4">()</span>
+        <span class="s1">frameTime</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">dt</span><span class="s4">=</span><span class="s1">dgi</span><span class="s4">.</span><span class="s1">getFloat32</span><span class="s4">()</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">notify</span><span class="s4">.</span><span class="s1">debug</span><span class="s4">(</span><span class="s6">'time data=%f %f' </span><span class="s4">% (</span><span class="s1">frameTime</span><span class="s4">, </span><span class="s1">dt</span><span class="s4">))</span>
+        <span class="s3">return </span><span class="s4">(</span><span class="s1">frameCount</span><span class="s4">, </span><span class="s1">frameTime</span><span class="s4">, </span><span class="s1">dt</span><span class="s4">)</span>
+
+
+
+
+
+
+
+
+
+</pre>
+</body>
+</html>

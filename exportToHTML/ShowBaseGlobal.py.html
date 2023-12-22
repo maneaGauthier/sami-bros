@@ -1,0 +1,112 @@
+<html>
+<head>
+<title>ShowBaseGlobal.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ShowBaseGlobal.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This module serves as a container to hold the global 
+:class:`~.ShowBase.ShowBase` instance, as an alternative to using the builtin 
+scope. 
+ 
+Many of the variables contained in this module are also automatically written 
+to the :mod:`builtins` module when ShowBase is instantiated, making them 
+available to any Python code.  Importing them from this module instead can make 
+it easier to see where these variables are coming from. 
+ 
+Note that you cannot directly import :data:`~builtins.base` from this module 
+since ShowBase may not have been created yet; instead, ShowBase dynamically 
+adds itself to this module's scope when instantiated.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= []</span>
+
+<span class="s3">from </span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s3">import </span><span class="s1">ShowBase</span><span class="s2">, </span><span class="s1">WindowControls</span>
+<span class="s3">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s3">import </span><span class="s1">directNotify</span><span class="s2">, </span><span class="s1">giveNotify</span>
+<span class="s3">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s3">import </span><span class="s1">VirtualFileSystem</span><span class="s2">, </span><span class="s1">Notify</span><span class="s2">, </span><span class="s1">ClockObject</span><span class="s2">, </span><span class="s1">PandaSystem</span>
+<span class="s3">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s3">import </span><span class="s1">ConfigPageManager</span><span class="s2">, </span><span class="s1">ConfigVariableManager</span>
+<span class="s3">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s3">import </span><span class="s1">NodePath</span><span class="s2">, </span><span class="s1">PGTop</span>
+<span class="s3">from </span><span class="s2">. </span><span class="s3">import </span><span class="s1">DConfig </span><span class="s3">as </span><span class="s1">config</span>
+
+<span class="s1">__dev__ </span><span class="s2">= </span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s4">'want-dev'</span><span class="s2">, </span><span class="s3">__debug__</span><span class="s2">)</span>
+
+<span class="s5">#: The global instance of the :ref:`virtual-file-system`, as obtained using</span>
+<span class="s5">#: :meth:`panda3d.core.VirtualFileSystem.getGlobalPtr()`.</span>
+<span class="s1">vfs </span><span class="s2">= </span><span class="s1">VirtualFileSystem</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+
+<span class="s5">#: The default Panda3D output stream for notifications and logging, as</span>
+<span class="s5">#: obtained using :meth:`panda3d.core.Notify.out()`.</span>
+<span class="s1">ostream </span><span class="s2">= </span><span class="s1">Notify</span><span class="s2">.</span><span class="s1">out</span><span class="s2">()</span>
+
+<span class="s5">#: The clock object used by default for rendering and animation, obtained using</span>
+<span class="s5">#: :meth:`panda3d.core.ClockObject.getGlobalClock()`.</span>
+<span class="s1">globalClock </span><span class="s2">= </span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">getGlobalClock</span><span class="s2">()</span>
+
+<span class="s5">#: See :meth:`panda3d.core.ConfigPageManager.getGlobalPtr()`.</span>
+<span class="s1">cpMgr </span><span class="s2">= </span><span class="s1">ConfigPageManager</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+
+<span class="s5">#: See :meth:`panda3d.core.ConfigVariableManager.getGlobalPtr()`.</span>
+<span class="s1">cvMgr </span><span class="s2">= </span><span class="s1">ConfigVariableManager</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+
+<span class="s5">#: See :meth:`panda3d.core.PandaSystem.getGlobalPtr()`.</span>
+<span class="s1">pandaSystem </span><span class="s2">= </span><span class="s1">PandaSystem</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+
+<span class="s5">#: The root of the 2-D scene graph.  The coordinate system of this node runs</span>
+<span class="s5">#: from -1 to 1, with the X axis running from left to right and the Z axis from</span>
+<span class="s5">#: bottom to top.</span>
+<span class="s1">render2d </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s4">&quot;render2d&quot;</span><span class="s2">)</span>
+
+<span class="s5">#: The root of the 2-D scene graph used for GUI rendering.  Unlike render2d,</span>
+<span class="s5">#: which may result in elements being stretched in windows that do not have a</span>
+<span class="s5">#: square aspect ratio, this node is scaled automatically to ensure that nodes</span>
+<span class="s5">#: parented to it do not appear stretched.</span>
+<span class="s1">aspect2d </span><span class="s2">= </span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">PGTop</span><span class="s2">(</span><span class="s4">&quot;aspect2d&quot;</span><span class="s2">))</span>
+
+<span class="s5">#: A dummy scene graph that is not being rendered by anything.</span>
+<span class="s1">hidden </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s4">&quot;hidden&quot;</span><span class="s2">)</span>
+
+<span class="s5"># Set direct notify categories now that we have config</span>
+<span class="s1">directNotify</span><span class="s2">.</span><span class="s1">setDconfigLevels</span><span class="s2">()</span>
+
+
+<span class="s3">def </span><span class="s1">run</span><span class="s2">():</span>
+    <span class="s0">&quot;&quot;&quot;Deprecated alias for :meth:`base.run() &lt;.ShowBase.run&gt;`.&quot;&quot;&quot;</span>
+    <span class="s3">assert </span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">&quot;run() is deprecated, use base.run() instead&quot;</span><span class="s2">)</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+
+
+<span class="s3">def </span><span class="s1">inspect</span><span class="s2">(</span><span class="s1">anObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;Opens up a :mod:`direct.tkpanels.Inspector` GUI panel for inspecting an 
+    object.&quot;&quot;&quot;</span>
+    <span class="s5"># Don't use a regular import, to prevent ModuleFinder from picking</span>
+    <span class="s5"># it up as a dependency when building a .p3d package.</span>
+    <span class="s3">import </span><span class="s1">importlib</span>
+    <span class="s1">Inspector </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s4">'direct.tkpanels.Inspector'</span><span class="s2">)</span>
+    <span class="s3">return </span><span class="s1">Inspector</span><span class="s2">.</span><span class="s1">inspect</span><span class="s2">(</span><span class="s1">anObject</span><span class="s2">)</span>
+
+
+<span class="s3">import </span><span class="s1">sys</span>
+<span class="s3">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+    <span class="s3">import </span><span class="s1">builtins</span>
+<span class="s3">else</span><span class="s2">:</span>
+    <span class="s3">import </span><span class="s1">__builtin__ </span><span class="s3">as </span><span class="s1">builtins</span>
+<span class="s1">builtins</span><span class="s2">.</span><span class="s1">inspect </span><span class="s2">= </span><span class="s1">inspect</span>
+
+<span class="s5"># this also appears in AIBaseGlobal</span>
+<span class="s3">if </span><span class="s2">(</span><span class="s3">not __debug__</span><span class="s2">) </span><span class="s3">and </span><span class="s1">__dev__</span><span class="s2">:</span>
+    <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s4">&quot;You must set 'want-dev' to false in non-debug mode.&quot;</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

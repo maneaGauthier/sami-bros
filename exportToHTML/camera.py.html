@@ -1,0 +1,244 @@
+<html>
+<head>
+<title>camera.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+camera.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">entity </span><span class="s0">import </span><span class="s1">Entity</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">PerspectiveLens</span><span class="s2">, </span><span class="s1">OrthographicLens</span><span class="s2">, </span><span class="s1">LensNode</span><span class="s2">, </span><span class="s1">NodePath</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">Camera </span><span class="s0">as </span><span class="s1">PandaCamera</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">Texture </span><span class="s0">as </span><span class="s1">PandaTexture</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">filter</span><span class="s2">.</span><span class="s1">FilterManager </span><span class="s0">import </span><span class="s1">FilterManager</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">application</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">scene </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">scene</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">window </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">window</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">color</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">texture </span><span class="s0">import </span><span class="s1">Texture</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">shader </span><span class="s0">import </span><span class="s1">Shader</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">string_utilities </span><span class="s0">import </span><span class="s1">print_info</span>
+
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">.</span><span class="s1">property_generator </span><span class="s0">import </span><span class="s1">generate_properties_for_class</span>
+<span class="s2">@</span><span class="s1">generate_properties_for_class</span><span class="s2">()</span>
+<span class="s0">class </span><span class="s1">Camera</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">add_to_scene_entities</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parent </span><span class="s2">= </span><span class="s1">scene</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s3">'camera'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">eternal </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_cam </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_render </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_size </span><span class="s2">= </span><span class="s4">40</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_ui_lens_node </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fov </span><span class="s2">= </span><span class="s4">40</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic </span><span class="s2">= </span><span class="s0">False</span>
+
+
+    <span class="s0">def </span><span class="s1">set_up</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">display_region </span><span class="s2">= </span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">camNode</span><span class="s2">.</span><span class="s1">get_display_region</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s1">win </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">display_region</span><span class="s2">.</span><span class="s1">get_window</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens </span><span class="s2">= </span><span class="s1">PerspectiveLens</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens </span><span class="s2">= </span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">camLens </span><span class="s5"># use panda3d's default for automatic aspect ratio on window resize</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span><span class="s2">.</span><span class="s1">set_aspect_ratio</span><span class="s2">(</span><span class="s1">window</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens_node </span><span class="s2">= </span><span class="s1">LensNode</span><span class="s2">(</span><span class="s3">'perspective_lens_node'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens_node </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens_node</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens </span><span class="s2">= </span><span class="s1">OrthographicLens</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">.</span><span class="s1">set_film_size</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fov </span><span class="s2">* </span><span class="s1">window</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fov</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens_node </span><span class="s2">= </span><span class="s1">LensNode</span><span class="s2">(</span><span class="s3">'orthographic_lens_node'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">)</span>
+
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">set_lens</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fov </span><span class="s2">= </span><span class="s4">40   </span><span class="s5"># horizontal fov</span>
+        <span class="s5"># self.fov = 22.5</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">clip_plane_near </span><span class="s2">= </span><span class="s4">0.1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">clip_plane_far </span><span class="s2">= </span><span class="s4">10000</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_display_region </span><span class="s2">= </span><span class="s1">win</span><span class="s2">.</span><span class="s1">make_display_region</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_display_region</span><span class="s2">.</span><span class="s1">set_sort</span><span class="s2">(</span><span class="s4">20</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_camera </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">PandaCamera</span><span class="s2">(</span><span class="s3">'ui_camera'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_lens </span><span class="s2">= </span><span class="s1">OrthographicLens</span><span class="s2">()</span>
+        <span class="s5"># moved set_film_size() to window module for correct aspect ratio after setting window size</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_lens</span><span class="s2">.</span><span class="s1">set_near_far</span><span class="s2">(-</span><span class="s4">1000</span><span class="s2">, </span><span class="s4">1000</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_camera</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">set_lens</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_lens</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_ui_lens_node </span><span class="s2">= </span><span class="s1">LensNode</span><span class="s2">(</span><span class="s3">'_ui_lens_node'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_lens</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_render </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s3">'ui_render'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_render</span><span class="s2">.</span><span class="s1">set_depth_test</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_render</span><span class="s2">.</span><span class="s1">set_depth_write</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_camera</span><span class="s2">.</span><span class="s1">reparent_to</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_render</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui_display_region</span><span class="s2">.</span><span class="s1">set_camera</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_camera</span><span class="s2">)</span>
+        <span class="s1">scene</span><span class="s2">.</span><span class="s1">ui_camera </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_camera</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ui </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s3">'ui'</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_camera</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_size</span><span class="s2">*</span><span class="s4">.5</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui_size</span><span class="s2">*</span><span class="s4">.5</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">overlay </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s3">'quad'</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">99</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=-</span><span class="s4">99</span><span class="s2">)</span>
+
+        <span class="s5"># these get created when setting a shader</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_manager </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render_texture </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">depth_texture </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s5"># self.normals_texture = None</span>
+
+
+    <span class="s0">def </span><span class="s1">orthographic_getter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_orthographic'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">orthographic_setter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_orthographic </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens_node </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens_node</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens_node</span><span class="s2">)[</span><span class="s1">value</span><span class="s2">] </span><span class="s5"># this need to be set for the mouse raycasting</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">set_lens</span><span class="s2">((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">)[</span><span class="s1">value</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fov </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fov</span>
+
+    <span class="s0">def </span><span class="s1">fov_getter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_fov'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">fov_setter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">value </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fov </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'perspective_lens'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span><span class="s2">.</span><span class="s1">set_fov</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5"># self.perspective_lens.set_fov(value*window.aspect_ratio, value)</span>
+
+        <span class="s0">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'orthographic_lens'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">.</span><span class="s1">set_film_size</span><span class="s2">(</span><span class="s1">value </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">set_lens</span><span class="s2">((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">)[</span><span class="s1">value</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">clip_plane_near_getter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_clip_plane_near</span>
+    <span class="s0">def </span><span class="s1">clip_plane_near_setter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_clip_plane_near </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">set_near</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">clip_plane_far_getter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_clip_plane_far</span>
+    <span class="s0">def </span><span class="s1">clip_plane_far_setter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_clip_plane_far </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">set_far</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">aspect_ratio_getter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspective_lens</span><span class="s2">.</span><span class="s1">get_aspect_ratio</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">shader_setter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_shader </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if </span><span class="s1">value </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_manager</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_manager </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+                <span class="s5"># print('removed shader')</span>
+            <span class="s0">return None</span>
+
+        <span class="s1">shader </span><span class="s2">= </span><span class="s1">value</span>
+
+        <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">Shader</span><span class="s2">) </span><span class="s0">and not </span><span class="s1">shader</span><span class="s2">.</span><span class="s1">compiled</span><span class="s2">:</span>
+            <span class="s1">shader</span><span class="s2">.</span><span class="s1">compile</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">Shader</span><span class="s2">):</span>
+            <span class="s1">shader </span><span class="s2">= </span><span class="s1">shader</span><span class="s2">.</span><span class="s1">_shader</span>
+
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">filter_manager</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_manager </span><span class="s2">= </span><span class="s1">FilterManager</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">, </span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">render_texture </span><span class="s2">= </span><span class="s1">PandaTexture</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">depth_texture </span><span class="s2">= </span><span class="s1">PandaTexture</span><span class="s2">()</span>
+            <span class="s5"># self.normals_texture = PandaTexture()</span>
+            <span class="s5"># from panda3d.core import AuxBitplaneAttrib</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">filter_manager</span><span class="s2">.</span><span class="s1">renderSceneInto</span><span class="s2">(</span>
+                <span class="s1">colortex</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_texture</span><span class="s2">,</span>
+                <span class="s1">depthtex</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">depth_texture</span><span class="s2">,</span>
+                <span class="s5"># auxtex=self.normals_texture,</span>
+                <span class="s5"># auxbits=AuxBitplaneAttrib.ABOAuxNormal</span>
+                <span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s3">&quot;tex&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_texture</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s3">&quot;dtex&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">depth_texture</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">clip_plane_near </span><span class="s2">= </span><span class="s4">1</span>
+            <span class="s5"># self.filter_quad.set_shader_input(&quot;ntex&quot;, self.normals_texture)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad</span><span class="s2">.</span><span class="s1">setShader</span><span class="s2">(</span><span class="s1">shader</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s3">'default_input'</span><span class="s2">):</span>
+            <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">value</span><span class="s2">.</span><span class="s1">default_input</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                <span class="s0">if </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">value</span><span class="s2">):</span>
+                    <span class="s1">value </span><span class="s2">= </span><span class="s1">value</span><span class="s2">()</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'set camera shader to:'</span><span class="s2">, </span><span class="s1">shader</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'filter_quad'</span><span class="s2">) </span><span class="s0">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">Texture</span><span class="s2">):</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">value</span><span class="s2">.</span><span class="s1">_texture    </span><span class="s5"># make sure to send the panda3d texture to the shader</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">filter_quad</span><span class="s2">.</span><span class="s1">setShaderInput</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+
+<span class="s1">instance </span><span class="s2">= </span><span class="s1">Camera</span><span class="s2">()</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Ursina</span><span class="s2">, </span><span class="s1">camera</span><span class="s2">, </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">EditorCamera</span>
+
+    <span class="s1">window</span><span class="s2">.</span><span class="s1">borderless </span><span class="s2">= </span><span class="s0">False</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">orthographic </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s1">e </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">()</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">model </span><span class="s2">= </span><span class="s3">'quad'</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">random_color</span><span class="s2">()</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= (-</span><span class="s4">2</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">10</span><span class="s2">)</span>
+
+    <span class="s1">e </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">()</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">model </span><span class="s2">= </span><span class="s3">'quad'</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">random_color</span><span class="s2">()</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= (</span><span class="s4">2</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">10</span><span class="s2">)</span>
+
+    <span class="s1">e </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">()</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">model </span><span class="s2">= </span><span class="s3">'quad'</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">random_color</span><span class="s2">()</span>
+    <span class="s1">e</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= (</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">40</span><span class="s2">)</span>
+
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s5"># from ursina import *</span>
+    <span class="s5"># Button(text='test button')</span>
+    <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">shaders </span><span class="s0">import </span><span class="s1">camera_grayscale_shader</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">shader </span><span class="s2">= </span><span class="s1">camera_grayscale_shader</span>
+
+    <span class="s5"># def update():</span>
+    <span class="s5">#     t = Texture(camera.render_texture)</span>
+    <span class="s5">#     print(t.pixels)</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

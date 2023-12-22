@@ -1,0 +1,167 @@
+<html>
+<head>
+<title>DistributedCartesianGridAI.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedCartesianGridAI.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core </span><span class="s1">import </span><span class="s2">*</span>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">direct </span><span class="s1">import </span><span class="s2">*</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directnotify</span><span class="s2">.</span><span class="s0">DirectNotifyGlobal </span><span class="s1">import </span><span class="s0">directNotify</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">task </span><span class="s1">import </span><span class="s0">Task</span>
+<span class="s1">from </span><span class="s2">.</span><span class="s0">DistributedNodeAI </span><span class="s1">import </span><span class="s0">DistributedNodeAI</span>
+<span class="s1">from </span><span class="s2">.</span><span class="s0">CartesianGridBase </span><span class="s1">import </span><span class="s0">CartesianGridBase</span>
+
+<span class="s1">class </span><span class="s0">DistributedCartesianGridAI</span><span class="s2">(</span><span class="s0">DistributedNodeAI</span><span class="s2">, </span><span class="s0">CartesianGridBase</span><span class="s2">):</span>
+    <span class="s0">notify </span><span class="s2">= </span><span class="s0">directNotify</span><span class="s2">.</span><span class="s0">newCategory</span><span class="s2">(</span><span class="s3">&quot;DistributedCartesianGridAI&quot;</span><span class="s2">)</span>
+
+    <span class="s0">RuleSeparator </span><span class="s2">= </span><span class="s3">&quot;:&quot;</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">, </span><span class="s0">startingZone</span><span class="s2">, </span><span class="s0">gridSize</span><span class="s2">, </span><span class="s0">gridRadius</span><span class="s2">, </span><span class="s0">cellWidth</span><span class="s2">,</span>
+            <span class="s0">style</span><span class="s2">=</span><span class="s3">&quot;Cartesian&quot;</span><span class="s2">):</span>
+        <span class="s0">DistributedNodeAI</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">style </span><span class="s2">= </span><span class="s0">style</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone </span><span class="s2">= </span><span class="s0">startingZone</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize </span><span class="s2">= </span><span class="s0">gridSize</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">gridRadius </span><span class="s2">= </span><span class="s0">gridRadius</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">= </span><span class="s0">cellWidth</span>
+
+        <span class="s4"># Keep track of all AI objects added to the grid</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects </span><span class="s2">= {}</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">updateTaskStarted </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s1">def </span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">DistributedNodeAI</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">stopUpdateGridTask</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">isGridParent</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s4"># If this distributed object is a DistributedGrid return 1.</span>
+        <span class="s4"># 0 by default</span>
+        <span class="s1">return </span><span class="s5">1</span>
+
+    <span class="s1">def </span><span class="s0">getCellWidth</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth</span>
+
+    <span class="s1">def </span><span class="s0">getParentingRules</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s3">&quot;calling getter&quot;</span><span class="s2">)</span>
+        <span class="s0">rule </span><span class="s2">= (</span><span class="s3">&quot;%i%s%i%s%i&quot; </span><span class="s2">% (</span><span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">RuleSeparator</span><span class="s2">,</span>
+                                <span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">RuleSeparator</span><span class="s2">,</span>
+                                <span class="s0">self</span><span class="s2">.</span><span class="s0">gridRadius</span><span class="s2">))</span>
+        <span class="s1">return </span><span class="s2">[</span><span class="s0">self</span><span class="s2">.</span><span class="s0">style</span><span class="s2">, </span><span class="s0">rule</span><span class="s2">]</span>
+
+    <span class="s4"># Reparent and setLocation on av to DistributedOceanGrid</span>
+    <span class="s1">def </span><span class="s0">addObjectToGrid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">, </span><span class="s0">useZoneId</span><span class="s2">=-</span><span class="s5">1</span><span class="s2">, </span><span class="s0">startAutoUpdate</span><span class="s2">=</span><span class="s1">True</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s3">&quot;setting parent to grid %s&quot; </span><span class="s2">% </span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">avId </span><span class="s2">= </span><span class="s0">av</span><span class="s2">.</span><span class="s0">doId</span>
+
+        <span class="s4"># Create a grid parent</span>
+        <span class="s4">#gridParent = self.attachNewNode(&quot;gridParent-%s&quot; % avId)</span>
+        <span class="s4">#self.gridParents[avId] = gridParent</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">[</span><span class="s0">avId</span><span class="s2">] = </span><span class="s0">av</span>
+
+        <span class="s4"># Put the avatar on the grid</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">handleAvatarZoneChange</span><span class="s2">(</span><span class="s0">av</span><span class="s2">, </span><span class="s0">useZoneId</span><span class="s2">)</span>
+
+        <span class="s1">if </span><span class="s2">(</span><span class="s1">not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">updateTaskStarted</span><span class="s2">) </span><span class="s1">and </span><span class="s0">startAutoUpdate</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">startUpdateGridTask</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">removeObjectFromGrid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">):</span>
+        <span class="s4"># TODO: WHAT LOCATION SHOULD WE SET THIS TO?</span>
+        <span class="s4">#av.wrtReparentTo(self.parentNP)</span>
+        <span class="s4">#av.setLocation(self.air.districtId, 1000)</span>
+
+        <span class="s4"># Remove grid parent for this av</span>
+        <span class="s0">avId </span><span class="s2">= </span><span class="s0">av</span><span class="s2">.</span><span class="s0">doId</span>
+        <span class="s1">if </span><span class="s0">avId </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">:</span>
+            <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">[</span><span class="s0">avId</span><span class="s2">]</span>
+
+        <span class="s4"># Stop task if there are no more av's being managed</span>
+        <span class="s1">if </span><span class="s0">len</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">) == </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">stopUpdateGridTask</span><span class="s2">()</span>
+
+    <span class="s4">#####################################################################</span>
+    <span class="s4"># updateGridTask</span>
+    <span class="s4"># This task is similar to the processVisibility task for the local client.</span>
+    <span class="s4"># A couple differences:</span>
+    <span class="s4">#  - we are not doing setInterest on the AI (that is a local client</span>
+    <span class="s4">#    specific call).</span>
+    <span class="s4">#  - we assume that the moving objects on the grid are parented to a</span>
+    <span class="s4">#    gridParent, and are broadcasting their position relative to that</span>
+    <span class="s4">#    gridParent.  This makes the task's math easy.  Just check to see</span>
+    <span class="s4">#    when our position goes out of the current grid cell.  When it does,</span>
+    <span class="s4">#    call handleAvatarZoneChange</span>
+
+    <span class="s1">def </span><span class="s0">startUpdateGridTask</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">stopUpdateGridTask</span><span class="s2">()</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">updateTaskStarted </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s0">taskMgr</span><span class="s2">.</span><span class="s0">add</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">updateGridTask</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">taskName</span><span class="s2">(</span><span class="s3">&quot;updateGridTask&quot;</span><span class="s2">))</span>
+
+    <span class="s1">def </span><span class="s0">stopUpdateGridTask</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">taskMgr</span><span class="s2">.</span><span class="s0">remove</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">taskName</span><span class="s2">(</span><span class="s3">&quot;updateGridTask&quot;</span><span class="s2">))</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">updateTaskStarted </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s1">def </span><span class="s0">updateGridTask</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">task</span><span class="s2">=</span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s4"># Run through all grid objects and update their parents if needed</span>
+        <span class="s0">missingObjs </span><span class="s2">= []</span>
+        <span class="s1">for </span><span class="s0">avId </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">.</span><span class="s0">keys</span><span class="s2">()):</span>
+            <span class="s0">av </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">[</span><span class="s0">avId</span><span class="s2">]</span>
+            <span class="s4"># handle a missing object after it is already gone?</span>
+            <span class="s1">if </span><span class="s2">(</span><span class="s0">av</span><span class="s2">.</span><span class="s0">isEmpty</span><span class="s2">()):</span>
+                <span class="s0">task</span><span class="s2">.</span><span class="s0">setDelay</span><span class="s2">(</span><span class="s5">1.0</span><span class="s2">)</span>
+                <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridObjects</span><span class="s2">[</span><span class="s0">avId</span><span class="s2">]</span>
+                <span class="s1">continue</span>
+            <span class="s0">pos </span><span class="s2">= </span><span class="s0">av</span><span class="s2">.</span><span class="s0">getPos</span><span class="s2">()</span>
+            <span class="s1">if </span><span class="s2">((</span><span class="s0">pos</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] &lt; </span><span class="s5">0 </span><span class="s1">or </span><span class="s0">pos</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] &lt; </span><span class="s5">0</span><span class="s2">) </span><span class="s1">or</span>
+                <span class="s2">(</span><span class="s0">pos</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] &gt; </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s1">or </span><span class="s0">pos</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] &gt; </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth</span><span class="s2">)):</span>
+                <span class="s4"># we are out of the bounds of this current cell</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">handleAvatarZoneChange</span><span class="s2">(</span><span class="s0">av</span><span class="s2">)</span>
+        <span class="s4"># Do this every second, not every frame</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">task</span><span class="s2">):</span>
+            <span class="s0">task</span><span class="s2">.</span><span class="s0">setDelay</span><span class="s2">(</span><span class="s5">1.0</span><span class="s2">)</span>
+        <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">again</span>
+
+    <span class="s1">def </span><span class="s0">handleAvatarZoneChange</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">, </span><span class="s0">useZoneId</span><span class="s2">=-</span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s4"># Calculate zone id</span>
+        <span class="s4"># Get position of av relative to this grid</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">useZoneId </span><span class="s2">== -</span><span class="s5">1</span><span class="s2">):</span>
+            <span class="s0">pos </span><span class="s2">= </span><span class="s0">av</span><span class="s2">.</span><span class="s0">getPos</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+            <span class="s0">zoneId </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getZoneFromXYZ</span><span class="s2">(</span><span class="s0">pos</span><span class="s2">)</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s4"># zone already calculated, position of object might not</span>
+            <span class="s4"># give the correct zone</span>
+            <span class="s0">pos </span><span class="s2">= </span><span class="s1">None</span>
+            <span class="s0">zoneId </span><span class="s2">= </span><span class="s0">useZoneId</span>
+
+        <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">isValidZone</span><span class="s2">(</span><span class="s0">zoneId</span><span class="s2">):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">warning</span><span class="s2">(</span>
+                <span class="s3">&quot;%s handleAvatarZoneChange %s: not a valid zone (%s) for pos %s&quot; </span><span class="s2">%(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">av</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">, </span><span class="s0">pos</span><span class="s2">))</span>
+            <span class="s1">return</span>
+
+        <span class="s4"># Set the location on the server.</span>
+        <span class="s4"># setLocation will update the gridParent</span>
+        <span class="s0">av</span><span class="s2">.</span><span class="s0">b_setLocation</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">handleSetLocation</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">, </span><span class="s0">parentId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">):</span>
+        <span class="s1">pass</span>
+        <span class="s4">#if (av.parentId != parentId):</span>
+            <span class="s4"># parent changed, need to look up instance tree</span>
+            <span class="s4"># to see if avatar's named area location information</span>
+            <span class="s4"># changed</span>
+            <span class="s4">#av.requestRegionUpdateTask(regionegionUid)</span>
+
+</pre>
+</body>
+</html>

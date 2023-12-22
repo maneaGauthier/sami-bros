@@ -1,0 +1,91 @@
+<html>
+<head>
+<title>DirectFastrak.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectFastrak.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; Class used to create and control radamec device &quot;&quot;&quot;</span>
+<span class="s2">from </span><span class="s1">math </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">DirectObject </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">DirectDeviceManager </span><span class="s2">import </span><span class="s3">*</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directnotify </span><span class="s2">import </span><span class="s1">DirectNotifyGlobal</span>
+
+<span class="s4">&quot;&quot;&quot; 
+TODO: 
+Handle interaction between widget, followSelectedTask and updateTask 
+&quot;&quot;&quot;</span>
+
+<span class="s5"># ANALOGS</span>
+<span class="s1">NULL_AXIS </span><span class="s3">= -</span><span class="s6">1</span>
+<span class="s1">FAST_X </span><span class="s3">= </span><span class="s6">0</span>
+<span class="s1">FAST_Y </span><span class="s3">= </span><span class="s6">1</span>
+<span class="s1">FAST_Z </span><span class="s3">= </span><span class="s6">2</span>
+
+<span class="s2">class </span><span class="s1">DirectFastrak</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">fastrakCount </span><span class="s3">= </span><span class="s6">0</span>
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">DirectNotifyGlobal</span><span class="s3">.</span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s4">'DirectFastrak'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device </span><span class="s3">= </span><span class="s4">'Tracker0'</span><span class="s3">, </span><span class="s1">nodePath </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s5"># See if device manager has been initialized</span>
+        <span class="s2">if </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager </span><span class="s3">= </span><span class="s1">DirectDeviceManager</span><span class="s3">()</span>
+
+        <span class="s5"># Set name</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= </span><span class="s4">'Fastrak-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectFastrak</span><span class="s3">.</span><span class="s1">fastrakCount</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">deviceNo </span><span class="s3">= </span><span class="s1">DirectFastrak</span><span class="s3">.</span><span class="s1">fastrakCount</span>
+        <span class="s1">DirectFastrak</span><span class="s3">.</span><span class="s1">fastrakCount </span><span class="s3">+= </span><span class="s6">1</span>
+
+        <span class="s5"># Get analogs</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">device </span><span class="s3">= </span><span class="s1">device</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tracker </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">trackerPos </span><span class="s3">= </span><span class="s2">None</span>
+
+        <span class="s5"># Spawn update task</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">updateFunc </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">fastrakUpdate</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">enable</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Kill existing task</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">disable</span><span class="s3">()</span>
+        <span class="s5"># Initialize tracker</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tracker </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager</span><span class="s3">.</span><span class="s1">createTracker</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s5"># Update task</span>
+        <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">updateTask</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-updateTask'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-updateTask'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">disable</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">updateTask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">state</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">updateFunc</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">fastrakUpdate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Get tracker position in feet.  Flip x, z axes.</span>
+        <span class="s1">pos </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">fastrak</span><span class="s3">[</span><span class="s1">self</span><span class="s3">.</span><span class="s1">deviceNo</span><span class="s3">].</span><span class="s1">tracker</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">trackerPos </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s6">3.280839895013123 </span><span class="s3">* </span><span class="s1">pos</span><span class="s3">[</span><span class="s6">2</span><span class="s3">],</span>
+                               <span class="s6">3.280839895013123 </span><span class="s3">* </span><span class="s1">pos</span><span class="s3">[</span><span class="s6">1</span><span class="s3">],</span>
+                               <span class="s6">3.280839895013123 </span><span class="s3">* </span><span class="s1">pos</span><span class="s3">[</span><span class="s6">0</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s4">&quot;Tracker(%d) Pos = %s&quot; </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">deviceNo</span><span class="s3">, </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">trackerPos</span><span class="s3">)))</span>
+
+</pre>
+</body>
+</html>

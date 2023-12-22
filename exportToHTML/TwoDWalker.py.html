@@ -1,0 +1,83 @@
+<html>
+<head>
+<title>TwoDWalker.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+TwoDWalker.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+TwoDWalker.py is for controlling the avatars in a 2D scroller game environment. 
+&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s3">.</span><span class="s1">GravityWalker </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s1">ConfigVariableBool</span>
+
+
+<span class="s2">class </span><span class="s1">TwoDWalker</span><span class="s3">(</span><span class="s1">GravityWalker</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    The TwoDWalker is primarily for a 2D Scroller game environment. Eg - Toon Blitz minigame. 
+    TODO: This class is still work in progress. 
+    Currently Toon Blitz is using this only for jumping. 
+    Moving the Toon left to right is handled by toontown/src/minigame/TwoDDrive.py. 
+    I eventually want this class to control all the 2 D movements, possibly with a 
+    customizable input list. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s4">&quot;TwoDWalker&quot;</span><span class="s3">)</span>
+    <span class="s1">wantDebugIndicator </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'want-avatar-physics-indicator'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+    <span class="s1">wantFloorSphere </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'want-floor-sphere'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+    <span class="s1">earlyEventSphere </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'early-event-sphere'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+
+    <span class="s5"># special methods</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">gravity </span><span class="s3">= -</span><span class="s6">32.1740</span><span class="s3">, </span><span class="s1">standableGround</span><span class="s3">=</span><span class="s6">0.707</span><span class="s3">,</span>
+            <span class="s1">hardLandingForce</span><span class="s3">=</span><span class="s6">16.0</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s4">'Constructing TwoDWalker'</span><span class="s3">)</span>
+        <span class="s1">GravityWalker</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">handleAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Check on the arrow keys and update the avatar. 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># get the button states:</span>
+        <span class="s1">jump </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;forward&quot;</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">isOnGround</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s6">0</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;isAirborne 0 due to isOnGround() true&quot;</span><span class="s3">)</span>
+                <span class="s1">impact </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getImpactVelocity</span><span class="s3">()</span>
+                <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;jumpLand&quot;</span><span class="s3">)</span>
+            <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">== </span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">zero</span><span class="s3">()</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">== </span><span class="s6">0</span><span class="s3">:</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;isAirborne 1 due to isOnGround() false&quot;</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s6">1</span>
+
+        <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">jumpPressed</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;This function should be called from TwoDDrive when the jump key is pressed.&quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">isOnGround</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">== </span><span class="s6">0</span><span class="s3">:</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump</span><span class="s3">:</span>
+                    <span class="s5"># The jump button is down and we're close enough to the ground to jump.</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addVelocity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlJumpForce</span><span class="s3">)</span>
+                    <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;jumpStart&quot;</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s6">1</span>
+                    <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;isAirborne 1 due to jump&quot;</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

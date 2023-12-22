@@ -1,0 +1,108 @@
+<html>
+<head>
+<title>direct.dc</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+direct.dc</font>
+</center></td></tr></table>
+<pre><span class="s0">// This is a sample dc file for some of the classes defined within the</span>
+<span class="s0">// direct source tree.  It is suggested that you copy this file into</span>
+<span class="s0">// your own project (or load it from the direct source tree) and build</span>
+<span class="s0">// on it with your own dc file for your own classes.</span>
+
+<span class="s0">keyword broadcast;</span>
+<span class="s0">keyword ram;</span>
+<span class="s0">keyword p2p;</span>
+
+<span class="s0">from direct.distributed import DistributedObject/AI</span>
+<span class="s0">from direct.distributed import TimeManager/AI</span>
+<span class="s0">from direct.distributed import DistributedNode/AI</span>
+<span class="s0">from direct.distributed import DistributedSmoothNode/AI</span>
+
+<span class="s0">struct BarrierData {</span>
+  <span class="s0">uint16 context;</span>
+  <span class="s0">string name;</span>
+  <span class="s0">uint32 avIds[];</span>
+<span class="s0">};</span>
+
+<span class="s0">// The most fundamental class</span>
+<span class="s0">dclass DistributedObject {</span>
+  <span class="s0">// These are used to support DistributedObjectAI.beginBarrier() and</span>
+  <span class="s0">// the matching DistributedObject.doneBarrier().  If you don't call</span>
+  <span class="s0">// these functions, you don't care about these distributed methods.</span>
+  <span class="s0">// (Actually, you probably don't care anyway.)</span>
+  <span class="s0">setBarrierData(BarrierData data[]) broadcast ram;</span>
+  <span class="s0">setBarrierReady(uint16 context);</span>
+  <span class="s0">setLocation(uint32 parentId, uint32 zoneId) broadcast ram;</span>
+<span class="s0">};</span>
+
+<span class="s0">dclass TimeManager: DistributedObject {</span>
+  <span class="s0">requestServerTime(uint8 context) p2p;</span>
+  <span class="s0">serverTime(uint8 context, int32 timestamp);</span>
+<span class="s0">};</span>
+
+<span class="s0">dclass DistributedNode: DistributedObject {</span>
+  <span class="s0">setX(int16 / 10) broadcast ram;</span>
+  <span class="s0">setY(int16 / 10) broadcast ram;</span>
+  <span class="s0">setZ(int16 / 10) broadcast ram;</span>
+  <span class="s0">setH(int16 % 360 / 10) broadcast ram;</span>
+  <span class="s0">setP(int16 % 360 / 10) broadcast ram;</span>
+  <span class="s0">setR(int16 % 360 / 10) broadcast ram;</span>
+
+  <span class="s0">setPos: setX, setY, setZ;</span>
+  <span class="s0">setHpr: setH, setP, setR;</span>
+  <span class="s0">setPosHpr: setX, setY, setZ, setH, setP, setR;</span>
+  <span class="s0">setXY: setX, setY;</span>
+  <span class="s0">setXZ: setX, setZ;</span>
+  <span class="s0">setXYH: setX, setY, setH;</span>
+  <span class="s0">setXYZH: setX, setY, setZ, setH;</span>
+<span class="s0">};</span>
+
+<span class="s0">dclass DistributedSmoothNode: DistributedNode {</span>
+  <span class="s0">// Component set pos and hpr functions.</span>
+
+  <span class="s0">setComponentL(uint64) broadcast ram;</span>
+  <span class="s0">setComponentX(int16 / 10) broadcast ram;</span>
+  <span class="s0">setComponentY(int16 / 10) broadcast ram;</span>
+  <span class="s0">setComponentZ(int16 / 10) broadcast ram;</span>
+  <span class="s0">setComponentH(int16 % 360 / 10) broadcast ram;</span>
+  <span class="s0">setComponentP(int16 % 360 / 10) broadcast ram;</span>
+  <span class="s0">setComponentR(int16 % 360 / 10) broadcast ram;</span>
+  <span class="s0">setComponentT(int16 timestamp) broadcast ram;</span>
+
+  <span class="s0">// Composite set pos and hpr functions.  These map to combinations</span>
+  <span class="s0">// of one or more of the above components.  They all include</span>
+  <span class="s0">// setComponentT(), which must be called last.</span>
+  <span class="s0">setSmStop: setComponentT;</span>
+  <span class="s0">setSmH: setComponentH, setComponentT;</span>
+  <span class="s0">setSmZ: setComponentZ, setComponentT;</span>
+  <span class="s0">setSmXY: setComponentX, setComponentY, setComponentT;</span>
+  <span class="s0">setSmXZ: setComponentX, setComponentZ, setComponentT;</span>
+  <span class="s0">setSmPos: setComponentX, setComponentY, setComponentZ, setComponentT;</span>
+  <span class="s0">setSmHpr: setComponentH, setComponentP, setComponentR, setComponentT;</span>
+  <span class="s0">setSmXYH: setComponentX, setComponentY, setComponentH, setComponentT;</span>
+  <span class="s0">setSmXYZH: setComponentX, setComponentY, setComponentZ, setComponentH, setComponentT;</span>
+  <span class="s0">setSmPosHpr: setComponentX, setComponentY, setComponentZ, setComponentH, setComponentP, setComponentR, setComponentT;</span>
+  <span class="s0">// special update if L (being location, such as zoneId) changes, send everything, intended to</span>
+  <span class="s0">// keep position and 'location' in sync</span>
+  <span class="s0">setSmPosHprL: setComponentL, setComponentX, setComponentY, setComponentZ, setComponentH, setComponentP, setComponentR, setComponentT;</span>
+
+  <span class="s0">clearSmoothing(int8 bogus) broadcast;</span>
+
+  <span class="s0">suggestResync(uint32 avId, int16 timestampA, int16 timestampB,</span>
+                <span class="s0">int32 serverTimeSec, uint16 serverTimeUSec,</span>
+                <span class="s0">uint16 / 100 uncertainty);</span>
+  <span class="s0">returnResync(uint32 avId, int16 timestampB,</span>
+               <span class="s0">int32 serverTimeSec, uint16 serverTimeUSec,</span>
+               <span class="s0">uint16 / 100 uncertainty);</span>
+<span class="s0">}; </span>
+</pre>
+</body>
+</html>

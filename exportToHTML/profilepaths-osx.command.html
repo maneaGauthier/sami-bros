@@ -1,0 +1,140 @@
+<html>
+<head>
+<title>profilepaths-osx.command</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4; font-weight: bold;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #cf8e6d;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+profilepaths-osx.command</font>
+</center></td></tr></table>
+<pre><span class="s0">#!/bin/bash</span>
+
+<span class="s2"># We should only need to adjust the version in the future, hopefully.</span>
+<span class="s1">PANDA_VERSION=</span><span class="s3">$1</span>
+<span class="s1">PANDA_PATH=/Applications/Panda3D/\$PANDA_VERSION</span>
+<span class="s1">PROFILE=</span><span class="s3">$HOME</span><span class="s1">/.bash_profile</span>
+<span class="s1">PROFILE_BACKUP=</span><span class="s3">$HOME</span><span class="s1">/.bash_profile_backup</span>
+
+<span class="s2"># Build the block of stuff to put in the user's BASH profile</span>
+<span class="s1">BASH_BLOCK=</span><span class="s4">'if [ -d $PANDA_PATH ] 
+then 
+    export PATH=$PANDA_PATH/bin:$PATH 
+    export PYTHONPATH=$PANDA_PATH/lib:$PYTHONPATH 
+    export DYLD_LIBRARY_PATH=$PANDA_PATH/lib:$DYLD_LIBRARY_PATH 
+    export MAYA_SCRIPT_PATH=$PANDA_PATH/plugins:$MAYA_SCRIPT_PATH 
+    export MAYA_PLUG_IN_PATH=$PANDA_PATH/plugins:$MAYA_PLUG_IN_PATH 
+fi 
+'</span>
+
+<span class="s1">BASH_BLOCK=</span><span class="s4">&quot;</span>
+<span class="s4">PANDA_VERSION=</span><span class="s3">$PANDA_VERSION</span>
+<span class="s4">PANDA_PATH=</span><span class="s3">$PANDA_PATH</span>
+<span class="s3">$BASH_BLOCK</span><span class="s4">&quot;</span>
+
+<span class="s2"># Let's get started!</span>
+<span class="s1">clear</span>
+<span class="s5">if </span><span class="s3">[ </span><span class="s1">-f </span><span class="s3">$PROFILE ]</span>
+<span class="s5">then</span>
+    <span class="s2"># Back it up first</span>
+    <span class="s1">cp </span><span class="s3">$PROFILE $PROFILE_BACKUP</span>
+    
+    <span class="s2"># Check if it isn't already configured</span>
+    <span class="s5">if </span><span class="s3">[ </span><span class="s4">&quot;</span><span class="s5">$</span><span class="s3">(</span><span class="s1">grep PANDA_VERSION=</span><span class="s3">$PANDA_VERSION $PROFILE)</span><span class="s4">&quot; </span><span class="s1">!= </span><span class="s4">&quot;&quot; </span><span class="s3">]</span>
+    <span class="s5">then</span>
+        <span class="s1">echo </span><span class="s4">&quot;It looks like your version of Panda3D is already configured!&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;Exiting. You can close this window.&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">exit</span>
+    <span class="s5">elif </span><span class="s3">[ </span><span class="s4">&quot;</span><span class="s5">$</span><span class="s3">(</span><span class="s1">grep </span><span class="s4">'PANDA_VERSION=[0-9].[0-9].[0-9]' </span><span class="s3">$PROFILE)</span><span class="s4">&quot; </span><span class="s1">!= </span><span class="s4">&quot;&quot; </span><span class="s3">]</span>
+    <span class="s5">then</span>
+        <span class="s5">$</span><span class="s3">(</span><span class="s1">sed -e s@PANDA_VERSION=</span><span class="s3">[</span><span class="s1">0-9</span><span class="s3">]</span><span class="s1">.</span><span class="s3">[</span><span class="s1">0-9</span><span class="s3">]</span><span class="s1">.</span><span class="s3">[</span><span class="s1">0-9</span><span class="s3">]</span><span class="s1">@PANDA_VERSION=</span><span class="s3">$PANDA_VERSION</span><span class="s1">@ -e s@PANDA_PATH=/Applications/Panda3D/</span><span class="s3">[</span><span class="s1">0-9</span><span class="s3">]</span><span class="s1">.</span><span class="s3">[</span><span class="s1">0-9</span><span class="s3">]</span><span class="s1">.</span><span class="s3">[</span><span class="s1">0-9</span><span class="s3">]</span><span class="s1">@PANDA_PATH=</span><span class="s3">$PANDA_PATH</span><span class="s1">@ </span><span class="s5">&lt; </span><span class="s3">$PROFILE_BACKUP </span><span class="s5">&gt; </span><span class="s3">$PROFILE)</span>
+        <span class="s1">echo </span><span class="s4">&quot;Success! Your version of Panda3D has been changed to </span><span class="s3">$PANDA_VERSION</span><span class="s4">.&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;All done! You can close this window.&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">exit</span>
+    <span class="s5">fi</span>
+<span class="s5">fi</span>
+
+<span class="s1">echo </span><span class="s4">&quot;This script will attempt to look at your BASH profile and add&quot;</span>
+<span class="s1">echo </span><span class="s4">&quot;appropriate entries so that Panda3D will work for you. This means&quot;</span>
+<span class="s1">echo </span><span class="s4">&quot;adding the following to </span><span class="s3">$PROFILE </span><span class="s4">:&quot;</span>
+<span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+<span class="s1">echo </span><span class="s4">&quot;</span><span class="s3">$BASH_BLOCK</span><span class="s4">&quot;</span>
+<span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+<span class="s1">echo </span><span class="s4">&quot;Continue? (Y/N)&quot;</span>
+<span class="s1">read CONTINUE</span>
+<span class="s1">clear</span>
+<span class="s5">if </span><span class="s3">[ $CONTINUE </span><span class="s1">!= </span><span class="s4">'Y' </span><span class="s1">-a </span><span class="s3">$CONTINUE </span><span class="s1">!= </span><span class="s4">'y' </span><span class="s3">]</span>
+<span class="s5">then</span>
+    <span class="s1">echo </span><span class="s4">&quot;Please note that Panda3D will not function properly unless&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;your environment is configured properly.&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;Exiting. You can close this window.&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+    <span class="s1">exit</span>
+<span class="s5">fi</span>
+
+<span class="s5">if </span><span class="s3">[ </span><span class="s5">! </span><span class="s1">-f </span><span class="s3">$PROFILE ]</span>
+<span class="s5">then</span>
+    <span class="s1">echo </span><span class="s4">&quot;No </span><span class="s3">$PROFILE </span><span class="s4">file found. Creating one.&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+    <span class="s5">$</span><span class="s3">(</span><span class="s1">touch </span><span class="s3">$PROFILE)</span>
+<span class="s5">fi</span>
+
+<span class="s5">if </span><span class="s3">[ </span><span class="s4">&quot;</span><span class="s5">$</span><span class="s3">(</span><span class="s1">grep -i panda3d </span><span class="s3">$PROFILE)</span><span class="s4">&quot; </span><span class="s1">!= </span><span class="s4">&quot;&quot; </span><span class="s3">]</span>
+<span class="s5">then</span>
+    <span class="s1">echo </span><span class="s4">&quot;Your profile already has some reference to 'panda3d'!&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;It looks like you might already have the paths set up. If you're&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;upgrading, might just need to change PANDA_VERSION to </span><span class="s3">$PANDA_VERSION</span><span class="s4">&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;Open your profile in TextEdit so you can review it? (Y/N)&quot;</span>
+    <span class="s1">read OPEN_PROFILE</span>
+    <span class="s5">if </span><span class="s3">[ $OPEN_PROFILE </span><span class="s5">== </span><span class="s4">'Y' </span><span class="s1">-o </span><span class="s3">$OPEN_PROFILE </span><span class="s5">== </span><span class="s4">'y' </span><span class="s3">]</span>
+    <span class="s5">then</span>
+        <span class="s1">clear</span>
+        <span class="s1">echo </span><span class="s4">&quot;Opening </span><span class="s3">$PROFILE</span><span class="s4">&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;This is the sort of block you are looking for:&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;</span><span class="s3">$BASH_BLOCK</span><span class="s4">&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;Exiting. You can close this window.&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s5">$</span><span class="s3">(</span><span class="s1">open /Applications/TextEdit.app </span><span class="s3">$PROFILE)</span>
+        <span class="s1">exit</span>
+    <span class="s5">else</span>
+        <span class="s1">clear</span>
+        <span class="s1">echo </span><span class="s4">&quot;Cowardly refusing to touch your profile because you already&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;have some reference to 'panda3d'. Here is what needs to be in&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;</span><span class="s3">$PROFILE </span><span class="s4">:&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;</span><span class="s3">$BASH_BLOCK</span><span class="s4">&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;Exiting. You can close this window.&quot;</span>
+        <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+        <span class="s1">exit</span>
+    <span class="s5">fi</span>
+<span class="s5">else</span>
+    <span class="s1">echo </span><span class="s4">&quot;Adding the following to </span><span class="s3">$PROFILE </span><span class="s4">:&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;</span><span class="s3">$BASH_BLOCK</span><span class="s4">&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;</span><span class="s3">$BASH_BLOCK</span><span class="s4">&quot; </span><span class="s3">&gt;&gt; $PROFILE</span>
+    <span class="s1">echo </span><span class="s4">&quot;All done! You can close this window.&quot;</span>
+    <span class="s1">echo </span><span class="s4">&quot;&quot;</span>
+<span class="s5">fi</span>
+
+</pre>
+</body>
+</html>

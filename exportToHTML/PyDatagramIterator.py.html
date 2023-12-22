@@ -1,0 +1,147 @@
+<html>
+<head>
+<title>PyDatagramIterator.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #7a7e85;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+PyDatagramIterator.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1"># This is built as a subclass instead of an extension so we can define the</span>
+<span class="s1"># class variable FuncDict and so we can import DCSubatomicType at the top</span>
+<span class="s1"># of the file rather than every time we call the putArg function.</span>
+
+<span class="s2">from </span><span class="s0">panda3d</span><span class="s3">.</span><span class="s0">core </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s0">panda3d</span><span class="s3">.</span><span class="s0">direct </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s1"># Import the type numbers</span>
+
+
+<span class="s2">class </span><span class="s0">PyDatagramIterator</span><span class="s3">(</span><span class="s0">DatagramIterator</span><span class="s3">):</span>
+
+    <span class="s1"># This is a little helper Dict to replace the huge &lt;if&gt; statement</span>
+    <span class="s1"># for trying to match up datagram subatomic types with add funtions</span>
+    <span class="s1"># If Python had an O(1) &quot;case&quot; statement we would use that instead</span>
+    <span class="s0">FuncDict </span><span class="s3">= {</span>
+        <span class="s0">STInt8</span><span class="s3">:  </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getInt8</span><span class="s3">,</span>
+        <span class="s0">STInt16</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getInt16</span><span class="s3">,</span>
+        <span class="s0">STInt32</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getInt32</span><span class="s3">,</span>
+        <span class="s0">STInt64</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getInt64</span><span class="s3">,</span>
+        <span class="s0">STUint8</span><span class="s3">:  </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">,</span>
+        <span class="s0">STUint16</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">,</span>
+        <span class="s0">STUint32</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getUint32</span><span class="s3">,</span>
+        <span class="s0">STUint64</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getUint64</span><span class="s3">,</span>
+        <span class="s0">STFloat64</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getFloat64</span><span class="s3">,</span>
+        <span class="s0">STString</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getString</span><span class="s3">,</span>
+        <span class="s0">STBlob</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getBlob</span><span class="s3">,</span>
+        <span class="s0">STBlob32</span><span class="s3">: </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getBlob32</span><span class="s3">,</span>
+        <span class="s3">}</span>
+
+    <span class="s0">getChannel </span><span class="s3">= </span><span class="s0">DatagramIterator</span><span class="s3">.</span><span class="s0">getUint64</span>
+
+    <span class="s2">def </span><span class="s0">getArg</span><span class="s3">(</span><span class="s0">self</span><span class="s3">, </span><span class="s0">subatomicType</span><span class="s3">, </span><span class="s0">divisor</span><span class="s3">=</span><span class="s4">1</span><span class="s3">):</span>
+        <span class="s1"># Import the type numbers</span>
+        <span class="s2">if </span><span class="s0">divisor </span><span class="s3">== </span><span class="s4">1</span><span class="s3">:</span>
+            <span class="s1"># See if it is in the handy dict</span>
+            <span class="s0">getFunc </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">FuncDict</span><span class="s3">.</span><span class="s0">get</span><span class="s3">(</span><span class="s0">subatomicType</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s0">getFunc</span><span class="s3">:</span>
+                <span class="s0">retVal </span><span class="s3">= </span><span class="s0">getFunc</span><span class="s3">(</span><span class="s0">self</span><span class="s3">)</span>
+            <span class="s1"># No division necessary</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STInt8array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">()</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getInt8</span><span class="s3">())</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STInt16array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">1</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getInt16</span><span class="s3">())</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STInt32array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">2</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getInt32</span><span class="s3">())</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint8array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">()</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">())</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint16array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">1</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">())</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint32array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">2</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint32</span><span class="s3">())</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint32uint8array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() / </span><span class="s4">5</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">a </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint32</span><span class="s3">()</span>
+                    <span class="s0">b </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">()</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">((</span><span class="s0">a</span><span class="s3">, </span><span class="s0">b</span><span class="s3">))</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s2">raise </span><span class="s0">Exception</span><span class="s3">(</span><span class="s5">&quot;Error: No such type as: &quot; </span><span class="s3">+ </span><span class="s0">str</span><span class="s3">(</span><span class="s0">subatomicType</span><span class="s3">))</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1"># See if it is in the handy dict</span>
+            <span class="s0">getFunc </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">FuncDict</span><span class="s3">.</span><span class="s0">get</span><span class="s3">(</span><span class="s0">subatomicType</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s0">getFunc</span><span class="s3">:</span>
+                <span class="s0">retVal </span><span class="s3">= (</span><span class="s0">getFunc</span><span class="s3">(</span><span class="s0">self</span><span class="s3">)/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STInt8array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">() &gt;&gt; </span><span class="s4">1</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getInt8</span><span class="s3">()/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STInt16array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">1</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getInt16</span><span class="s3">()/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STInt32array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">2</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getInt32</span><span class="s3">()/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint8array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">() &gt;&gt; </span><span class="s4">1</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">()/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint16array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">1</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">()/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint32array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() &gt;&gt; </span><span class="s4">2</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">(</span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint32</span><span class="s3">()/</span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">))</span>
+            <span class="s2">elif </span><span class="s0">subatomicType </span><span class="s3">== </span><span class="s0">STUint32uint8array</span><span class="s3">:</span>
+                <span class="s0">len </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint16</span><span class="s3">() / </span><span class="s4">5</span>
+                <span class="s0">retVal </span><span class="s3">= []</span>
+                <span class="s2">for </span><span class="s0">i </span><span class="s2">in </span><span class="s0">range</span><span class="s3">(</span><span class="s0">len</span><span class="s3">):</span>
+                    <span class="s0">a </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint32</span><span class="s3">()</span>
+                    <span class="s0">b </span><span class="s3">= </span><span class="s0">self</span><span class="s3">.</span><span class="s0">getUint8</span><span class="s3">()</span>
+                    <span class="s0">retVal</span><span class="s3">.</span><span class="s0">append</span><span class="s3">((</span><span class="s0">a </span><span class="s3">/ </span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">), </span><span class="s0">b </span><span class="s3">/ </span><span class="s0">float</span><span class="s3">(</span><span class="s0">divisor</span><span class="s3">)))</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s2">raise </span><span class="s0">Exception</span><span class="s3">(</span><span class="s5">&quot;Error: No such type as: &quot; </span><span class="s3">+ </span><span class="s0">str</span><span class="s3">(</span><span class="s0">subatomicType</span><span class="s3">))</span>
+
+        <span class="s2">return </span><span class="s0">retVal</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<html>
+<head>
+<title>DirectEntry.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectEntry.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the DirectEntry class, a type of DirectGUI widget that accepts 
+text entered using the keyboard. 
+ 
+See the :ref:`directentry` page in the programming manual for a more in-depth 
+explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectEntry'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">ShowBaseGlobal</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectFrame </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenText </span><span class="s4">import </span><span class="s1">OnscreenText</span>
+<span class="s4">import </span><span class="s1">sys</span>
+<span class="s5"># import this to make sure it gets pulled into the publish</span>
+<span class="s4">import </span><span class="s1">encodings</span><span class="s2">.</span><span class="s1">utf_8</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+
+<span class="s5"># DirectEntry States:</span>
+<span class="s1">ENTRY_FOCUS_STATE    </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">SFocus      </span><span class="s5"># 0</span>
+<span class="s1">ENTRY_NO_FOCUS_STATE </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">SNoFocus    </span><span class="s5"># 1</span>
+<span class="s1">ENTRY_INACTIVE_STATE </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">SInactive   </span><span class="s5"># 2</span>
+
+<span class="s4">class </span><span class="s1">DirectEntry</span><span class="s2">(</span><span class="s1">DirectFrame</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    DirectEntry(parent) - Create a DirectGuiWidget which responds 
+    to keyboard buttons 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">directWtext </span><span class="s2">= </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'direct-wtext'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s1">AllowCapNamePrefixes </span><span class="s2">= (</span><span class="s3">&quot;Al&quot;</span><span class="s2">, </span><span class="s3">&quot;Ap&quot;</span><span class="s2">, </span><span class="s3">&quot;Ben&quot;</span><span class="s2">, </span><span class="s3">&quot;De&quot;</span><span class="s2">, </span><span class="s3">&quot;Del&quot;</span><span class="s2">, </span><span class="s3">&quot;Della&quot;</span><span class="s2">, </span><span class="s3">&quot;Delle&quot;</span><span class="s2">, </span><span class="s3">&quot;Der&quot;</span><span class="s2">, </span><span class="s3">&quot;Di&quot;</span><span class="s2">, </span><span class="s3">&quot;Du&quot;</span><span class="s2">,</span>
+                            <span class="s3">&quot;El&quot;</span><span class="s2">, </span><span class="s3">&quot;Fitz&quot;</span><span class="s2">, </span><span class="s3">&quot;La&quot;</span><span class="s2">, </span><span class="s3">&quot;Las&quot;</span><span class="s2">, </span><span class="s3">&quot;Le&quot;</span><span class="s2">, </span><span class="s3">&quot;Les&quot;</span><span class="s2">, </span><span class="s3">&quot;Lo&quot;</span><span class="s2">, </span><span class="s3">&quot;Los&quot;</span><span class="s2">,</span>
+                            <span class="s3">&quot;Mac&quot;</span><span class="s2">, </span><span class="s3">&quot;St&quot;</span><span class="s2">, </span><span class="s3">&quot;Te&quot;</span><span class="s2">, </span><span class="s3">&quot;Ten&quot;</span><span class="s2">, </span><span class="s3">&quot;Van&quot;</span><span class="s2">, </span><span class="s3">&quot;Von&quot;</span><span class="s2">, )</span>
+    <span class="s1">ForceCapNamePrefixes </span><span class="s2">= (</span><span class="s3">&quot;D'&quot;</span><span class="s2">, </span><span class="s3">&quot;DeLa&quot;</span><span class="s2">, </span><span class="s3">&quot;Dell'&quot;</span><span class="s2">, </span><span class="s3">&quot;L'&quot;</span><span class="s2">, </span><span class="s3">&quot;M'&quot;</span><span class="s2">, </span><span class="s3">&quot;Mc&quot;</span><span class="s2">, </span><span class="s3">&quot;O'&quot;</span><span class="s2">, )</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s5"># A Direct Frame can have:</span>
+        <span class="s5"># - A background texture (pass in path to image, or Texture Card)</span>
+        <span class="s5"># - A midground geometry item (pass in geometry)</span>
+        <span class="s5"># - A foreground text Node (pass in text string or Onscreen Text)</span>
+        <span class="s5"># For a direct entry:</span>
+        <span class="s5"># Each button has 3 states (focus, noFocus, disabled)</span>
+        <span class="s5"># The same image/geom/text can be used for all three states or each</span>
+        <span class="s5"># state can have a different text/geom/image</span>
+        <span class="s5"># State transitions happen automatically based upon mouse interaction</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'pgFunc'</span><span class="s2">,          </span><span class="s1">PGEntry</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numStates'</span><span class="s2">,       </span><span class="s6">3</span><span class="s2">,                </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'state'</span><span class="s2">,           </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'entryFont'</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">,             </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'width'</span><span class="s2">,           </span><span class="s6">10</span><span class="s2">,               </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateWidth</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numLines'</span><span class="s2">,        </span><span class="s6">1</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateNumLines</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'focus'</span><span class="s2">,           </span><span class="s6">0</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setFocus</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'cursorKeys'</span><span class="s2">,      </span><span class="s6">1</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setCursorKeysActive</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'obscured'</span><span class="s2">,        </span><span class="s6">0</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setObscureMode</span><span class="s2">),</span>
+            <span class="s5"># Setting backgroundFocus allows the entry box to get keyboard</span>
+            <span class="s5"># events that are not handled by other things (i.e. events that</span>
+            <span class="s5"># fall through to the background):</span>
+            <span class="s2">(</span><span class="s3">'backgroundFocus'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBackgroundFocus</span><span class="s2">),</span>
+            <span class="s5"># Text used for the PGEntry text node</span>
+            <span class="s5"># NOTE: This overrides the DirectFrame text option</span>
+            <span class="s2">(</span><span class="s3">'initialText'</span><span class="s2">,     </span><span class="s3">''</span><span class="s2">,               </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s5"># Enable or disable text overflow scrolling</span>
+            <span class="s2">(</span><span class="s3">'overflow'</span><span class="s2">,        </span><span class="s6">0</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setOverflowMode</span><span class="s2">),</span>
+            <span class="s5"># Command to be called on hitting Enter</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,        </span><span class="s4">None</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'extraArgs'</span><span class="s2">,      [],                </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Command to be called when enter is hit but we fail to submit</span>
+            <span class="s2">(</span><span class="s3">'failedCommand'</span><span class="s2">,  </span><span class="s4">None</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'failedExtraArgs'</span><span class="s2">,[],                </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># commands to be called when focus is gained or lost</span>
+            <span class="s2">(</span><span class="s3">'focusInCommand'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'focusInExtraArgs'</span><span class="s2">, [],              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'focusOutCommand'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'focusOutExtraArgs'</span><span class="s2">, [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Sounds to be used for button events</span>
+            <span class="s2">(</span><span class="s3">'rolloverSound'</span><span class="s2">,   </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultRolloverSound</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setRolloverSound</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'clickSound'</span><span class="s2">,      </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultClickSound</span><span class="s2">(),    </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setClickSound</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'autoCapitalize'</span><span class="s2">,  </span><span class="s6">0</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeFunc</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'autoCapitalizeAllowPrefixes'</span><span class="s2">, </span><span class="s1">DirectEntry</span><span class="s2">.</span><span class="s1">AllowCapNamePrefixes</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'autoCapitalizeForcePrefixes'</span><span class="s2">, </span><span class="s1">DirectEntry</span><span class="s2">.</span><span class="s1">ForceCapNamePrefixes</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s5"># Initialize superclasses</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'entryFont'</span><span class="s2">] == </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">font </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultFont</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">font </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'entryFont'</span><span class="s2">]</span>
+
+        <span class="s5"># Create Text Node Component</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onscreenText </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">'text'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">OnscreenText</span><span class="s2">,</span>
+            <span class="s2">(), </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">hidden</span><span class="s2">,</span>
+            <span class="s5"># Pass in empty text to avoid extra work, since its really</span>
+            <span class="s5"># The PGEntry which will use the TextNode to generate geometry</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">''</span><span class="s2">,</span>
+            <span class="s1">align </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ALeft</span><span class="s2">,</span>
+            <span class="s1">font </span><span class="s2">= </span><span class="s1">font</span><span class="s2">,</span>
+            <span class="s1">scale </span><span class="s2">= </span><span class="s6">1</span><span class="s2">,</span>
+            <span class="s5"># Don't get rid of the text node</span>
+            <span class="s1">mayChange </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s5"># We can get rid of the node path since we're just using the</span>
+        <span class="s5"># onscreenText as an easy way to access a text node as a</span>
+        <span class="s5"># component</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onscreenText</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+
+        <span class="s5"># Bind command function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ACCEPT</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">commandFunc</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ACCEPTFAILED</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">failedCommandFunc</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getFocusInEvent</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">focusInCommandFunc</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getFocusOutEvent</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">focusOutCommandFunc</span><span class="s2">)</span>
+
+        <span class="s5"># listen for auto-capitalize events on a separate object to prevent</span>
+        <span class="s5"># clashing with other parts of the system</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapListener </span><span class="s2">= </span><span class="s1">DirectObject</span><span class="s2">()</span>
+
+        <span class="s5"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectEntry</span><span class="s2">)</span>
+
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'autoCapitalizeAllowPrefixes'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeAllowPrefixes </span><span class="s2">= </span><span class="s1">DirectEntry</span><span class="s2">.</span><span class="s1">AllowCapNamePrefixes</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'autoCapitalizeForcePrefixes'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeForcePrefixes </span><span class="s2">= </span><span class="s1">DirectEntry</span><span class="s2">.</span><span class="s1">ForceCapNamePrefixes</span>
+
+        <span class="s5"># Update TextNodes for each state</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setTextDef</span><span class="s2">(</span><span class="s1">i</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onscreenText</span><span class="s2">.</span><span class="s1">textNode</span><span class="s2">)</span>
+
+        <span class="s5"># Now we should call setup() again to make sure it has the</span>
+        <span class="s5"># right font def.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setup</span><span class="s2">()</span>
+
+        <span class="s5"># Update initial text</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">unicodeText </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'initialText'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enterText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'initialText'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapListener</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">()</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setupMinimal</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'width'</span><span class="s2">], </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numLines'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">updateWidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setMaxWidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'width'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">updateNumLines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setNumLines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numLines'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setFocus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">setFocus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'focus'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setCursorKeysActive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">setCursorKeysActive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'cursorKeys'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setOverflowMode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">set_overflow_mode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'overflow'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setObscureMode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">setObscureMode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'obscured'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setBackgroundFocus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">setBackgroundFocus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'backgroundFocus'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setRolloverSound</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">rolloverSound </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'rolloverSound'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">rolloverSound</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ENTER </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">rolloverSound</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ENTER </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setClickSound</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">clickSound </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'clickSound'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">clickSound</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ACCEPT </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">clickSound</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ACCEPT </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">commandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+            <span class="s5"># Pass any extra args to command</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'extraArgs'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">failedCommandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'failedCommand'</span><span class="s2">]:</span>
+            <span class="s5"># Pass any extra args</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'failedCommand'</span><span class="s2">](*[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'failedExtraArgs'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">autoCapitalizeFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'autoCapitalize'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapListener</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getTypeEvent</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleTyping</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapListener</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getEraseEvent</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleErasing</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapListener</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getTypeEvent</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapListener</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getEraseEvent</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">focusInCommandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'focusInCommand'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'focusInCommand'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'focusInExtraArgs'</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'autoCapitalize'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getTypeEvent</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleTyping</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getEraseEvent</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleErasing</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">_handleTyping</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">guiEvent</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapitalize</span><span class="s2">()</span>
+    <span class="s4">def </span><span class="s1">_handleErasing</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">guiEvent</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_autoCapitalize</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_autoCapitalize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getWtext</span><span class="s2">()</span>
+        <span class="s5"># capitalize each word, allowing for things like McMutton</span>
+        <span class="s1">capName </span><span class="s2">= </span><span class="s3">u''</span>
+        <span class="s5"># track each individual word to detect prefixes like Mc</span>
+        <span class="s1">wordSoFar </span><span class="s2">= </span><span class="s3">u''</span>
+        <span class="s5"># track whether the previous character was part of a word or not</span>
+        <span class="s1">wasNonWordChar </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s4">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">character </span><span class="s4">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+            <span class="s5"># test to see if we are between words</span>
+            <span class="s5"># - Count characters that can't be capitalized as a break between words</span>
+            <span class="s5">#   This assumes that string.lower and string.upper will return different</span>
+            <span class="s5">#   values for all unicode letters.</span>
+            <span class="s5"># - Don't count apostrophes as a break between words</span>
+            <span class="s4">if </span><span class="s1">character</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">() == </span><span class="s1">character</span><span class="s2">.</span><span class="s1">upper</span><span class="s2">() </span><span class="s4">and </span><span class="s1">character </span><span class="s2">!= </span><span class="s3">u&quot;'&quot;</span><span class="s2">:</span>
+                <span class="s5"># we are between words</span>
+                <span class="s1">wordSoFar </span><span class="s2">= </span><span class="s3">u''</span>
+                <span class="s1">wasNonWordChar </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">capitalize </span><span class="s2">= </span><span class="s4">False</span>
+                <span class="s4">if </span><span class="s1">wasNonWordChar</span><span class="s2">:</span>
+                    <span class="s5"># first letter of a word, capitalize it unconditionally;</span>
+                    <span class="s1">capitalize </span><span class="s2">= </span><span class="s4">True</span>
+                <span class="s4">elif </span><span class="s2">(</span><span class="s1">character </span><span class="s2">== </span><span class="s1">character</span><span class="s2">.</span><span class="s1">upper</span><span class="s2">() </span><span class="s4">and</span>
+                      <span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeAllowPrefixes</span><span class="s2">) </span><span class="s4">and</span>
+                      <span class="s1">wordSoFar </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeAllowPrefixes</span><span class="s2">):</span>
+                    <span class="s5"># first letter after one of the prefixes, allow it to be capitalized</span>
+                    <span class="s1">capitalize </span><span class="s2">= </span><span class="s4">True</span>
+                <span class="s4">elif </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeForcePrefixes</span><span class="s2">) </span><span class="s4">and</span>
+                      <span class="s1">wordSoFar </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCapitalizeForcePrefixes</span><span class="s2">):</span>
+                    <span class="s5"># first letter after one of the force prefixes, force it to be capitalized</span>
+                    <span class="s1">capitalize </span><span class="s2">= </span><span class="s4">True</span>
+                <span class="s4">if </span><span class="s1">capitalize</span><span class="s2">:</span>
+                    <span class="s5"># allow this letter to remain capitalized</span>
+                    <span class="s1">character </span><span class="s2">= </span><span class="s1">character</span><span class="s2">.</span><span class="s1">upper</span><span class="s2">()</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">character </span><span class="s2">= </span><span class="s1">character</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">()</span>
+                <span class="s1">wordSoFar </span><span class="s2">+= </span><span class="s1">character</span>
+                <span class="s1">wasNonWordChar </span><span class="s2">= </span><span class="s4">False</span>
+            <span class="s1">capName </span><span class="s2">+= </span><span class="s1">character</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setWtext</span><span class="s2">(</span><span class="s1">capName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setCursorPosition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getNumCharacters</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">focusOutCommandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'focusOutCommand'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'focusOutCommand'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'focusOutExtraArgs'</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'autoCapitalize'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getTypeEvent</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getEraseEvent</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Changes the text currently showing in the typable region; 
+        does not change the current cursor position.  Also see 
+        enterText(). &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s4">assert not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">text</span><span class="s2">, </span><span class="s1">bytes</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">unicodeText </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setWtext</span><span class="s2">(</span><span class="s1">text</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">unicodeText </span><span class="s2">= </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">text</span><span class="s2">, </span><span class="s1">unicode</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">unicodeText</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setWtext</span><span class="s2">(</span><span class="s1">text</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">(</span><span class="s1">text</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">plain </span><span class="s2">= </span><span class="s4">False</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the text currently showing in the typable region. 
+        If plain is True, the returned text will not include any 
+        formatting characters like nested color-change codes. &quot;&quot;&quot;</span>
+
+        <span class="s1">wantWide </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">unicodeText </span><span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">isWtext</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directWtext</span><span class="s2">.</span><span class="s1">getValue</span><span class="s2">():</span>
+            <span class="s5"># If the user has configured wide-text off, then always</span>
+            <span class="s5"># return an 8-bit string.  This will be encoded if</span>
+            <span class="s5"># necessary, according to Panda's default encoding.</span>
+            <span class="s1">wantWide </span><span class="s2">= </span><span class="s4">False</span>
+
+        <span class="s4">if </span><span class="s1">plain</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">wantWide</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getPlainWtext</span><span class="s2">()</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getPlainText</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">wantWide</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getWtext</span><span class="s2">()</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getText</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getCursorPosition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getCursorPosition</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setCursorPosition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">pos </span><span class="s2">&lt; </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setCursorPosition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getNumCharacters</span><span class="s2">() + </span><span class="s1">pos</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setCursorPosition</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getNumCharacters</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getNumCharacters</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">enterText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; sets the entry's text, and moves the cursor to the end &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">text</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setCursorPosition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getNumCharacters</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">getFont</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onscreenText</span><span class="s2">.</span><span class="s1">getFont</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getBounds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state </span><span class="s2">= </span><span class="s6">0</span><span class="s2">):</span>
+        <span class="s5"># Compute the width and height for the entry itself, ignoring</span>
+        <span class="s5"># geometry etc.</span>
+        <span class="s1">tn </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onscreenText</span><span class="s2">.</span><span class="s1">textNode</span>
+        <span class="s1">mat </span><span class="s2">= </span><span class="s1">tn</span><span class="s2">.</span><span class="s1">getTransform</span><span class="s2">()</span>
+        <span class="s1">align </span><span class="s2">= </span><span class="s1">tn</span><span class="s2">.</span><span class="s1">getAlign</span><span class="s2">()</span>
+        <span class="s1">lineHeight </span><span class="s2">= </span><span class="s1">tn</span><span class="s2">.</span><span class="s1">getLineHeight</span><span class="s2">()</span>
+        <span class="s1">numLines </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numLines'</span><span class="s2">]</span>
+        <span class="s1">width </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'width'</span><span class="s2">]</span>
+
+        <span class="s4">if </span><span class="s1">align </span><span class="s2">== </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ALeft</span><span class="s2">:</span>
+            <span class="s1">left </span><span class="s2">= </span><span class="s6">0.0</span>
+            <span class="s1">right </span><span class="s2">= </span><span class="s1">width</span>
+        <span class="s4">elif </span><span class="s1">align </span><span class="s2">== </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ACenter</span><span class="s2">:</span>
+            <span class="s1">left </span><span class="s2">= -</span><span class="s1">width </span><span class="s2">/ </span><span class="s6">2.0</span>
+            <span class="s1">right </span><span class="s2">= </span><span class="s1">width </span><span class="s2">/ </span><span class="s6">2.0</span>
+        <span class="s4">elif </span><span class="s1">align </span><span class="s2">== </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ARight</span><span class="s2">:</span>
+            <span class="s1">left </span><span class="s2">= -</span><span class="s1">width</span>
+            <span class="s1">right </span><span class="s2">= </span><span class="s6">0.0</span>
+
+        <span class="s1">bottom </span><span class="s2">= -</span><span class="s6">0.3 </span><span class="s2">* </span><span class="s1">lineHeight </span><span class="s2">- (</span><span class="s1">lineHeight </span><span class="s2">* (</span><span class="s1">numLines </span><span class="s2">- </span><span class="s6">1</span><span class="s2">))</span>
+        <span class="s1">top </span><span class="s2">= </span><span class="s1">lineHeight</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">left</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">bottom</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">right</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">top</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ll </span><span class="s2">= </span><span class="s1">mat</span><span class="s2">.</span><span class="s1">xformPoint</span><span class="s2">(</span><span class="s1">Point3</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">(</span><span class="s1">left</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">bottom</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ur </span><span class="s2">= </span><span class="s1">mat</span><span class="s2">.</span><span class="s1">xformPoint</span><span class="s2">(</span><span class="s1">Point3</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">(</span><span class="s1">right</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">top</span><span class="s2">))</span>
+
+        <span class="s1">vec_right </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">.</span><span class="s1">right</span><span class="s2">()</span>
+        <span class="s1">vec_up </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">.</span><span class="s1">up</span><span class="s2">()</span>
+        <span class="s1">left </span><span class="s2">= (</span><span class="s1">vec_right</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+              <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+              <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+        <span class="s1">right </span><span class="s2">= (</span><span class="s1">vec_right</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+               <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+               <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+        <span class="s1">bottom </span><span class="s2">= (</span><span class="s1">vec_up</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+        <span class="s1">top </span><span class="s2">= (</span><span class="s1">vec_up</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+             <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+             <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ll </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">left</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">bottom</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ur </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">right</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">top</span><span class="s2">)</span>
+
+        <span class="s5"># Scale bounds to give a pad around graphics.  We also want to</span>
+        <span class="s5"># scale around the border width.</span>
+        <span class="s1">pad </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pad'</span><span class="s2">]</span>
+        <span class="s1">borderWidth </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderWidth'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds </span><span class="s2">= [</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] - </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] - </span><span class="s1">borderWidth</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] + </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] + </span><span class="s1">borderWidth</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] - </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] - </span><span class="s1">borderWidth</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] + </span><span class="s1">borderWidth</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]]</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span>
+</pre>
+</body>
+</html>

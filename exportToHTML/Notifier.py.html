@@ -1,0 +1,323 @@
+<html>
+<head>
+<title>Notifier.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Notifier.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Notifier module: contains methods for handling information output 
+for the programmer/user 
+&quot;&quot;&quot;</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">LoggerGlobal </span><span class="s2">import </span><span class="s1">defaultLogger</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase </span><span class="s2">import </span><span class="s1">PythonUtil</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s1">ConfigVariableBool</span><span class="s3">, </span><span class="s1">NotifyCategory</span><span class="s3">, </span><span class="s1">StreamWriter</span><span class="s3">, </span><span class="s1">Notify</span>
+<span class="s2">import </span><span class="s1">time</span>
+<span class="s2">import </span><span class="s1">sys</span>
+
+
+<span class="s2">class </span><span class="s1">Notifier</span><span class="s3">:</span>
+    <span class="s1">serverDelta </span><span class="s3">= </span><span class="s4">0</span>
+
+    <span class="s5"># If this object is set to something, it is used to print output</span>
+    <span class="s5"># messages instead of writing them to the console.  This is</span>
+    <span class="s5"># particularly useful for integrating the Python notify system</span>
+    <span class="s5"># with the C++ notify system.</span>
+    <span class="s1">streamWriter </span><span class="s3">= </span><span class="s2">None</span>
+    <span class="s2">if </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s6">'notify-integrate'</span><span class="s3">, </span><span class="s2">True</span><span class="s3">):</span>
+        <span class="s1">streamWriter </span><span class="s3">= </span><span class="s1">StreamWriter</span><span class="s3">(</span><span class="s1">Notify</span><span class="s3">.</span><span class="s1">out</span><span class="s3">(), </span><span class="s2">False</span><span class="s3">)</span>
+
+    <span class="s1">showTime </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s6">'notify-timestamp'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">logger</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Parameters: 
+            name (str): a string name given to this Notifier instance. 
+            logger (Logger, optional): an optional Logger object for 
+                piping output to.  If none is specified, the global 
+                :data:`~.LoggerGlobal.defaultLogger` is used. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">= </span><span class="s1">name</span>
+
+        <span class="s2">if </span><span class="s3">(</span><span class="s1">logger</span><span class="s3">==</span><span class="s2">None</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__logger </span><span class="s3">= </span><span class="s1">defaultLogger</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__logger </span><span class="s3">= </span><span class="s1">logger</span>
+
+        <span class="s5"># Global default levels are initialized here</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__info </span><span class="s3">= </span><span class="s4">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__warning </span><span class="s3">= </span><span class="s4">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__debug </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__logging </span><span class="s3">= </span><span class="s4">0</span>
+
+    <span class="s2">def </span><span class="s1">setServerDelta</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">delta</span><span class="s3">, </span><span class="s1">timezone</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Call this method on any Notify object to globally change the 
+        timestamp printed for each line of all Notify objects. 
+ 
+        This synchronizes the timestamp with the server's known time 
+        of day, and also switches into the server's timezone. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">delta </span><span class="s3">= </span><span class="s1">int</span><span class="s3">(</span><span class="s1">round</span><span class="s3">(</span><span class="s1">delta</span><span class="s3">))</span>
+        <span class="s1">Notifier</span><span class="s3">.</span><span class="s1">serverDelta </span><span class="s3">= </span><span class="s1">delta </span><span class="s3">+ </span><span class="s1">time</span><span class="s3">.</span><span class="s1">timezone </span><span class="s3">- </span><span class="s1">timezone</span>
+
+        <span class="s5"># The following call is necessary to make the output from C++</span>
+        <span class="s5"># notify messages show the same timestamp as those generated</span>
+        <span class="s5"># from Python-level notify messages.</span>
+        <span class="s1">NotifyCategory</span><span class="s3">.</span><span class="s1">setServerDelta</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">serverDelta</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s6">&quot;Notify clock adjusted by %s (and timezone adjusted by %s hours) to synchronize with server.&quot; </span><span class="s3">% (</span><span class="s1">PythonUtil</span><span class="s3">.</span><span class="s1">formatElapsedSeconds</span><span class="s3">(</span><span class="s1">delta</span><span class="s3">), (</span><span class="s1">time</span><span class="s3">.</span><span class="s1">timezone </span><span class="s3">- </span><span class="s1">timezone</span><span class="s3">) / </span><span class="s4">3600</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">getTime</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return the time as a string suitable for printing at the 
+        head of any notify message 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># for some strange reason, time.time() updates only once/minute if</span>
+        <span class="s5"># the task is out of focus on win32.  time.clock doesn't have this problem.</span>
+        <span class="s2">return </span><span class="s1">time</span><span class="s3">.</span><span class="s1">strftime</span><span class="s3">(</span><span class="s6">&quot;:%m-%d-%Y %H:%M:%S &quot;</span><span class="s3">, </span><span class="s1">time</span><span class="s3">.</span><span class="s1">localtime</span><span class="s3">(</span><span class="s1">time</span><span class="s3">.</span><span class="s1">time</span><span class="s3">() + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">serverDelta</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">getOnlyTime</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return the time as a string. 
+        The Only in the name is referring to not showing the date. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">time</span><span class="s3">.</span><span class="s1">strftime</span><span class="s3">(</span><span class="s6">&quot;%H:%M:%S&quot;</span><span class="s3">, </span><span class="s1">time</span><span class="s3">.</span><span class="s1">localtime</span><span class="s3">(</span><span class="s1">time</span><span class="s3">.</span><span class="s1">time</span><span class="s3">() + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">serverDelta</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">__str__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Print handling routine 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s6">&quot;%s: info = %d, warning = %d, debug = %d, logging = %d&quot; </span><span class="s3">% </span><span class="s1">\</span>
+               <span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__info</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__warning</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__debug</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__logging</span><span class="s3">)</span>
+
+    <span class="s5"># Severity funcs</span>
+    <span class="s2">def </span><span class="s1">setSeverity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">severity</span><span class="s3">):</span>
+        <span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s1">NSDebug</span><span class="s3">, </span><span class="s1">NSInfo</span><span class="s3">, </span><span class="s1">NSWarning</span><span class="s3">, </span><span class="s1">NSError</span>
+        <span class="s2">if </span><span class="s1">severity </span><span class="s3">&gt;= </span><span class="s1">NSError</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setWarning</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setInfo</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setDebug</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+        <span class="s2">elif </span><span class="s1">severity </span><span class="s3">== </span><span class="s1">NSWarning</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setWarning</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setInfo</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setDebug</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+        <span class="s2">elif </span><span class="s1">severity </span><span class="s3">== </span><span class="s1">NSInfo</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setWarning</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setInfo</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setDebug</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+        <span class="s2">elif </span><span class="s1">severity </span><span class="s3">&lt;= </span><span class="s1">NSDebug</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setWarning</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setInfo</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setDebug</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getSeverity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s1">NSDebug</span><span class="s3">, </span><span class="s1">NSInfo</span><span class="s3">, </span><span class="s1">NSWarning</span><span class="s3">, </span><span class="s1">NSError</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getDebug</span><span class="s3">():</span>
+            <span class="s2">return </span><span class="s1">NSDebug</span>
+        <span class="s2">elif </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getInfo</span><span class="s3">():</span>
+            <span class="s2">return </span><span class="s1">NSInfo</span>
+        <span class="s2">elif </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getWarning</span><span class="s3">():</span>
+            <span class="s2">return </span><span class="s1">NSWarning</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">NSError</span>
+
+    <span class="s5"># error funcs</span>
+    <span class="s2">def </span><span class="s1">error</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">errorString</span><span class="s3">, </span><span class="s1">exception</span><span class="s3">=</span><span class="s1">Exception</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Raise an exception with given string and optional type: 
+        Exception: error 
+        &quot;&quot;&quot;</span>
+        <span class="s1">message </span><span class="s3">= </span><span class="s1">str</span><span class="s3">(</span><span class="s1">errorString</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">Notifier</span><span class="s3">.</span><span class="s1">showTime</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">():</span>
+            <span class="s1">string </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getTime</span><span class="s3">() + </span><span class="s1">str</span><span class="s3">(</span><span class="s1">exception</span><span class="s3">) + </span><span class="s6">&quot;: &quot; </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">&quot;(error): &quot; </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">string </span><span class="s3">= (</span><span class="s1">str</span><span class="s3">(</span><span class="s1">exception</span><span class="s3">) + </span><span class="s6">&quot;: &quot; </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">&quot;(error): &quot; </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__log</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+        <span class="s2">raise </span><span class="s1">exception</span><span class="s3">(</span><span class="s1">errorString</span><span class="s3">)</span>
+
+    <span class="s5"># warning funcs</span>
+    <span class="s2">def </span><span class="s1">warning</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">warningString</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Issue the warning message if warn flag is on 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__warning</span><span class="s3">:</span>
+            <span class="s1">message </span><span class="s3">= </span><span class="s1">str</span><span class="s3">(</span><span class="s1">warningString</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">Notifier</span><span class="s3">.</span><span class="s1">showTime</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">():</span>
+                <span class="s1">string </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getTime</span><span class="s3">() + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">'(warning): ' </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">string </span><span class="s3">= (</span><span class="s6">&quot;:&quot; </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">'(warning): ' </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__log</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__print</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s4">1 </span><span class="s5"># to allow assert myNotify.warning(&quot;blah&quot;)</span>
+
+    <span class="s2">def </span><span class="s1">setWarning</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bool</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Enable/Disable the printing of warning messages 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__warning </span><span class="s3">= </span><span class="s1">bool</span>
+
+    <span class="s2">def </span><span class="s1">getWarning</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return whether the printing of warning messages is on or off 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__warning</span><span class="s3">)</span>
+
+    <span class="s5"># debug funcs</span>
+    <span class="s2">def </span><span class="s1">debug</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">debugString</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Issue the debug message if debug flag is on 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__debug</span><span class="s3">:</span>
+            <span class="s1">message </span><span class="s3">= </span><span class="s1">str</span><span class="s3">(</span><span class="s1">debugString</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">Notifier</span><span class="s3">.</span><span class="s1">showTime</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">():</span>
+                <span class="s1">string </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getTime</span><span class="s3">() + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">'(debug): ' </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">string </span><span class="s3">= (</span><span class="s6">':' </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">'(debug): ' </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__log</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__print</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s4">1 </span><span class="s5"># to allow assert myNotify.debug(&quot;blah&quot;)</span>
+
+    <span class="s2">def </span><span class="s1">setDebug</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bool</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Enable/Disable the printing of debug messages 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__debug </span><span class="s3">= </span><span class="s1">bool</span>
+
+    <span class="s2">def </span><span class="s1">getDebug</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return whether the printing of debug messages is on or off 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__debug</span>
+
+    <span class="s5"># info funcs</span>
+    <span class="s2">def </span><span class="s1">info</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">infoString</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Print the given informational string, if info flag is on 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__info</span><span class="s3">:</span>
+            <span class="s1">message </span><span class="s3">= </span><span class="s1">str</span><span class="s3">(</span><span class="s1">infoString</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">Notifier</span><span class="s3">.</span><span class="s1">showTime</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">():</span>
+                <span class="s1">string </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getTime</span><span class="s3">() + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">': ' </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">string </span><span class="s3">= (</span><span class="s6">':' </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__name </span><span class="s3">+ </span><span class="s6">': ' </span><span class="s3">+ </span><span class="s1">message</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__log</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__print</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s4">1 </span><span class="s5"># to allow assert myNotify.info(&quot;blah&quot;)</span>
+
+    <span class="s2">def </span><span class="s1">getInfo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return whether the printing of info messages is on or off 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__info</span>
+
+    <span class="s2">def </span><span class="s1">setInfo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bool</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Enable/Disable informational message  printing 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__info </span><span class="s3">= </span><span class="s1">bool</span>
+
+    <span class="s5"># log funcs</span>
+    <span class="s2">def </span><span class="s1">__log</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">logEntry</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Determine whether to send informational message to the logger 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__logging</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__logger</span><span class="s3">.</span><span class="s1">log</span><span class="s3">(</span><span class="s1">logEntry</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getLogging</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return 1 if logging enabled, 0 otherwise 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__logging</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setLogging</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bool</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Set the logging flag to int (1=on, 0=off) 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__logging </span><span class="s3">= </span><span class="s1">bool</span>
+
+    <span class="s2">def </span><span class="s1">__print</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">string</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Prints the string to output followed by a newline. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">streamWriter</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">streamWriter</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">string </span><span class="s3">+ </span><span class="s6">'</span><span class="s2">\n</span><span class="s6">'</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">stderr</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">string </span><span class="s3">+ </span><span class="s6">'</span><span class="s2">\n</span><span class="s6">'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">fsmMemberName</span><span class="s3">=</span><span class="s6">'fsm'</span><span class="s3">,</span>
+            <span class="s1">secondaryFsm</span><span class="s3">=</span><span class="s6">'secondaryFSM'</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        If this notify is in debug mode, print the time of the 
+        call followed by the [fsm state] notifier category and 
+        the function call (with parameters). 
+        &quot;&quot;&quot;</span>
+        <span class="s5">#f.f_locals['self'].__init__.im_class.__name__</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__debug</span><span class="s3">:</span>
+            <span class="s1">state </span><span class="s3">= </span><span class="s6">''</span>
+            <span class="s1">doId </span><span class="s3">= </span><span class="s6">''</span>
+            <span class="s2">if </span><span class="s1">obj </span><span class="s2">is not None</span><span class="s3">:</span>
+
+                <span class="s1">fsm</span><span class="s3">=</span><span class="s1">obj</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s1">fsmMemberName</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">fsm </span><span class="s2">is not None</span><span class="s3">:</span>
+                    <span class="s1">stateObj </span><span class="s3">= </span><span class="s1">fsm</span><span class="s3">.</span><span class="s1">getCurrentState</span><span class="s3">()</span>
+                    <span class="s2">if </span><span class="s1">stateObj </span><span class="s2">is not None</span><span class="s3">:</span>
+                        <span class="s5">#state = &quot;%s=%s&quot;%(fsmMemberName, stateObj.getName())</span>
+                        <span class="s1">state </span><span class="s3">= </span><span class="s1">stateObj</span><span class="s3">.</span><span class="s1">getName</span><span class="s3">()</span>
+
+                <span class="s1">fsm</span><span class="s3">=</span><span class="s1">obj</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s1">secondaryFsm</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">fsm </span><span class="s2">is not None</span><span class="s3">:</span>
+                    <span class="s1">stateObj </span><span class="s3">= </span><span class="s1">fsm</span><span class="s3">.</span><span class="s1">getCurrentState</span><span class="s3">()</span>
+                    <span class="s2">if </span><span class="s1">stateObj </span><span class="s2">is not None</span><span class="s3">:</span>
+                        <span class="s5">#state = &quot;%s=%s&quot;%(fsmMemberName, stateObj.getName())</span>
+                        <span class="s1">state </span><span class="s3">= </span><span class="s6">&quot;%s, %s&quot;</span><span class="s3">%(</span><span class="s1">state</span><span class="s3">, </span><span class="s1">stateObj</span><span class="s3">.</span><span class="s1">getName</span><span class="s3">())</span>
+
+                <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">, </span><span class="s6">'doId'</span><span class="s3">):</span>
+                    <span class="s1">doId </span><span class="s3">= </span><span class="s6">&quot; doId:%s&quot;</span><span class="s3">%(</span><span class="s1">obj</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">,)</span>
+            <span class="s5">#if type(obj) == types.ClassType:</span>
+            <span class="s5">#    name = &quot;%s.&quot;%(obj.__class__.__name__,)</span>
+            <span class="s1">string </span><span class="s3">= </span><span class="s6">&quot;:%s:%s [%-7s] id(%s)%s %s&quot;</span><span class="s3">%(</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">getOnlyTime</span><span class="s3">(),</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">__name</span><span class="s3">,</span>
+                <span class="s1">state</span><span class="s3">,</span>
+                <span class="s1">id</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">),</span>
+                <span class="s1">doId</span><span class="s3">,</span>
+                <span class="s1">PythonUtil</span><span class="s3">.</span><span class="s1">traceParentCall</span><span class="s3">())</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__log</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__print</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s4">1 </span><span class="s5"># to allow assert self.notify.debugStateCall(self)</span>
+
+    <span class="s2">def </span><span class="s1">debugCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">debugString</span><span class="s3">=</span><span class="s6">''</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        If this notify is in debug mode, print the time of the 
+        call followed by the notifier category and 
+        the function call (with parameters). 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__debug</span><span class="s3">:</span>
+            <span class="s1">message </span><span class="s3">= </span><span class="s1">str</span><span class="s3">(</span><span class="s1">debugString</span><span class="s3">)</span>
+            <span class="s1">string </span><span class="s3">= </span><span class="s6">&quot;:%s:%s </span><span class="s2">\&quot;</span><span class="s6">%s</span><span class="s2">\&quot; </span><span class="s6">%s&quot;</span><span class="s3">%(</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">getOnlyTime</span><span class="s3">(),</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">__name</span><span class="s3">,</span>
+                <span class="s1">message</span><span class="s3">,</span>
+                <span class="s1">PythonUtil</span><span class="s3">.</span><span class="s1">traceParentCall</span><span class="s3">())</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__log</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__print</span><span class="s3">(</span><span class="s1">string</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s4">1 </span><span class="s5"># to allow assert self.notify.debugCall(&quot;blah&quot;)</span>
+
+</pre>
+</body>
+</html>

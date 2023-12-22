@@ -1,0 +1,122 @@
+<html>
+<head>
+<title>NetMessenger.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #7a7e85;}
+.s5 { color: #6aab73;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+NetMessenger.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directnotify </span><span class="s1">import </span><span class="s0">DirectNotifyGlobal</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">distributed</span><span class="s2">.</span><span class="s0">PyDatagram </span><span class="s1">import </span><span class="s0">PyDatagram</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">showbase</span><span class="s2">.</span><span class="s0">Messenger </span><span class="s1">import </span><span class="s0">Messenger</span>
+
+<span class="s1">import </span><span class="s0">sys</span>
+<span class="s1">if </span><span class="s0">sys</span><span class="s2">.</span><span class="s0">version_info </span><span class="s2">&gt;= (</span><span class="s3">3</span><span class="s2">, </span><span class="s3">0</span><span class="s2">):</span>
+    <span class="s1">from </span><span class="s0">pickle </span><span class="s1">import </span><span class="s0">dumps</span><span class="s2">, </span><span class="s0">loads</span>
+<span class="s1">else</span><span class="s2">:</span>
+    <span class="s1">from </span><span class="s0">cPickle </span><span class="s1">import </span><span class="s0">dumps</span><span class="s2">, </span><span class="s0">loads</span>
+
+
+<span class="s4"># Messages do not need to be in the MESSAGE_TYPES list.</span>
+<span class="s4"># This is just an optimization.  If the message is found</span>
+<span class="s4"># in this list, it is reduced to an integer index and</span>
+<span class="s4"># the message string is not sent.  Otherwise, the message</span>
+<span class="s4"># string is sent in the datagram.</span>
+<span class="s0">MESSAGE_TYPES</span><span class="s2">=(</span>
+    <span class="s5">&quot;avatarOnline&quot;</span><span class="s2">,</span>
+    <span class="s5">&quot;avatarOffline&quot;</span><span class="s2">,</span>
+    <span class="s5">&quot;create&quot;</span><span class="s2">,</span>
+    <span class="s5">&quot;needUberdogCreates&quot;</span><span class="s2">,</span>
+    <span class="s5">&quot;transferDo&quot;</span><span class="s2">,</span>
+<span class="s2">)</span>
+
+<span class="s4"># This is the reverse look up for the recipient of the</span>
+<span class="s4"># datagram:</span>
+<span class="s0">MESSAGE_STRINGS</span><span class="s2">={}</span>
+<span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">zip</span><span class="s2">(</span><span class="s0">MESSAGE_TYPES</span><span class="s2">, </span><span class="s0">range</span><span class="s2">(</span><span class="s3">1</span><span class="s2">, </span><span class="s0">len</span><span class="s2">(</span><span class="s0">MESSAGE_TYPES</span><span class="s2">)+</span><span class="s3">1</span><span class="s2">)):</span>
+    <span class="s0">MESSAGE_STRINGS</span><span class="s2">[</span><span class="s0">i</span><span class="s2">[</span><span class="s3">0</span><span class="s2">]]=</span><span class="s0">i</span><span class="s2">[</span><span class="s3">1</span><span class="s2">]</span>
+
+
+<span class="s1">class </span><span class="s0">NetMessenger</span><span class="s2">(</span><span class="s0">Messenger</span><span class="s2">):</span>
+    <span class="s6">&quot;&quot;&quot; 
+    This works very much like the Messenger class except that messages 
+    are sent over the network and (possibly) handled (accepted) on a 
+    remote machine (server). 
+    &quot;&quot;&quot;</span>
+    <span class="s0">notify </span><span class="s2">= </span><span class="s0">DirectNotifyGlobal</span><span class="s2">.</span><span class="s0">directNotify</span><span class="s2">.</span><span class="s0">newCategory</span><span class="s2">(</span><span class="s5">'NetMessenger'</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">, </span><span class="s0">channels</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        air is the AI Repository. 
+        channels is a list of channel IDs (uint32 values) 
+        &quot;&quot;&quot;</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debugCall</span><span class="s2">()</span>
+        <span class="s0">Messenger</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">=</span><span class="s0">air</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">channels</span><span class="s2">=</span><span class="s0">channels</span>
+        <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">channels</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">registerForChannel</span><span class="s2">(</span><span class="s0">i</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">clear</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debugCall</span><span class="s2">()</span>
+        <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">channels</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">unRegisterChannel</span><span class="s2">(</span><span class="s0">i</span><span class="s2">)</span>
+        <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">air</span>
+        <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">channels</span>
+        <span class="s0">Messenger</span><span class="s2">.</span><span class="s0">clear</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">send</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">message</span><span class="s2">, </span><span class="s0">sentArgs</span><span class="s2">=[]):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Send message to All AI and Uber Dog servers. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debugCall</span><span class="s2">()</span>
+        <span class="s0">datagram </span><span class="s2">= </span><span class="s0">PyDatagram</span><span class="s2">()</span>
+        <span class="s4"># To:</span>
+        <span class="s0">datagram</span><span class="s2">.</span><span class="s0">addUint8</span><span class="s2">(</span><span class="s3">1</span><span class="s2">)</span>
+        <span class="s0">datagram</span><span class="s2">.</span><span class="s0">addChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">channels</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+        <span class="s4"># From:</span>
+        <span class="s0">datagram</span><span class="s2">.</span><span class="s0">addChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">ourChannel</span><span class="s2">)</span>
+        <span class="s4">#if 1: # We send this just because the air expects it:</span>
+        <span class="s4">#    # Add an 'A' for AI</span>
+        <span class="s4">#    datagram.addUint8(ord('A'))</span>
+
+        <span class="s0">messageType</span><span class="s2">=</span><span class="s0">MESSAGE_STRINGS</span><span class="s2">.</span><span class="s0">get</span><span class="s2">(</span><span class="s0">message</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s0">datagram</span><span class="s2">.</span><span class="s0">addUint16</span><span class="s2">(</span><span class="s0">messageType</span><span class="s2">)</span>
+        <span class="s1">if </span><span class="s0">messageType</span><span class="s2">:</span>
+            <span class="s0">datagram</span><span class="s2">.</span><span class="s0">addString</span><span class="s2">(</span><span class="s0">str</span><span class="s2">(</span><span class="s0">dumps</span><span class="s2">(</span><span class="s0">sentArgs</span><span class="s2">)))</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s0">datagram</span><span class="s2">.</span><span class="s0">addString</span><span class="s2">(</span><span class="s0">str</span><span class="s2">(</span><span class="s0">dumps</span><span class="s2">((</span><span class="s0">message</span><span class="s2">, </span><span class="s0">sentArgs</span><span class="s2">))))</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s0">datagram</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">handle</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">pickleData</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Send pickleData from the net on the local netMessenger. 
+        The internal data in pickleData should have a tuple of 
+        (messageString, sendArgsList). 
+        &quot;&quot;&quot;</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debugCall</span><span class="s2">()</span>
+        <span class="s0">messageType</span><span class="s2">=</span><span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">getMsgType</span><span class="s2">()</span>
+        <span class="s1">if </span><span class="s0">messageType</span><span class="s2">:</span>
+            <span class="s0">message</span><span class="s2">=</span><span class="s0">MESSAGE_TYPES</span><span class="s2">[</span><span class="s0">messageType</span><span class="s2">-</span><span class="s3">1</span><span class="s2">]</span>
+            <span class="s0">sentArgs</span><span class="s2">=</span><span class="s0">loads</span><span class="s2">(</span><span class="s0">pickleData</span><span class="s2">)</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s2">(</span><span class="s0">message</span><span class="s2">, </span><span class="s0">sentArgs</span><span class="s2">) = </span><span class="s0">loads</span><span class="s2">(</span><span class="s0">pickleData</span><span class="s2">)</span>
+        <span class="s0">Messenger</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">message</span><span class="s2">, </span><span class="s0">sentArgs</span><span class="s2">=</span><span class="s0">sentArgs</span><span class="s2">)</span>
+
+
+</pre>
+</body>
+</html>

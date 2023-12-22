@@ -1,0 +1,169 @@
+<html>
+<head>
+<title>CurveEditor.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+CurveEditor.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+This is the module for curve edit 
+&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">pandac</span><span class="s3">.</span><span class="s1">PandaModules </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">wxwidgets</span><span class="s3">.</span><span class="s1">WxPandaShell </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">DirectObject </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directtools</span><span class="s3">.</span><span class="s1">DirectSelection </span><span class="s2">import </span><span class="s1">SelectionRay</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showutil</span><span class="s3">.</span><span class="s1">Rope </span><span class="s2">import </span><span class="s1">Rope</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">ActionMgr </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">task </span><span class="s2">import </span><span class="s1">Task</span>
+
+
+<span class="s2">class </span><span class="s1">CurveEditor</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; CurveEditor will create and edit the curve &quot;&quot;&quot;</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">editor</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor </span><span class="s3">= </span><span class="s1">editor</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">i </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ropeNum </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">curve </span><span class="s3">= []</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl </span><span class="s3">= []</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">degree </span><span class="s3">= </span><span class="s4">3</span>
+
+    <span class="s2">def </span><span class="s1">createCurve</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">mode </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">CREATE_CURVE_MODE</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">view </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">currentView</span>
+
+            <span class="s5">#Get the mouse position</span>
+            <span class="s1">x </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">dr</span><span class="s3">.</span><span class="s1">mouseX</span>
+            <span class="s1">y </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">dr</span><span class="s3">.</span><span class="s1">mouseY</span>
+
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">fMoveCamera </span><span class="s3">== </span><span class="s2">False and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">view </span><span class="s3">!= </span><span class="s2">None</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">createControler</span><span class="s3">(</span><span class="s1">x</span><span class="s3">,</span><span class="s1">y</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope </span><span class="s3">!= </span><span class="s2">None</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope</span><span class="s3">.</span><span class="s1">detachNode</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">ropeUpdate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">curve</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span><span class="s6">&quot;DIRECT-enter&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onBaseMode</span><span class="s3">)</span>
+
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span><span class="s6">&quot;DIRECT-enter&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onBaseMode</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">editCurve</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">mode </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">EDIT_CURVE_MODE</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">fMoveCamera </span><span class="s3">== </span><span class="s2">False</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">selected </span><span class="s3">= </span><span class="s2">None</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">selected </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">selected</span><span class="s3">.</span><span class="s1">last</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">selected </span><span class="s3">!= </span><span class="s2">None</span><span class="s3">:</span>
+                    <span class="s2">for </span><span class="s1">item </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">:</span>
+                        <span class="s2">if </span><span class="s1">item</span><span class="s3">[</span><span class="s4">1</span><span class="s3">] == </span><span class="s1">self</span><span class="s3">.</span><span class="s1">selected</span><span class="s3">:</span>
+                            <span class="s1">self</span><span class="s3">.</span><span class="s1">point </span><span class="s3">= </span><span class="s1">item  </span><span class="s5">#temporarily save the controler information for further use</span>
+                            <span class="s1">self</span><span class="s3">.</span><span class="s1">currentCurve </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope</span><span class="s3">.</span><span class="s1">ropeNode</span><span class="s3">.</span><span class="s1">getCurve</span><span class="s3">()</span>
+                            <span class="s1">self</span><span class="s3">.</span><span class="s1">currentCurve</span><span class="s3">.</span><span class="s1">setVertex</span><span class="s3">(</span><span class="s1">item</span><span class="s3">[</span><span class="s4">0</span><span class="s3">], </span><span class="s1">self</span><span class="s3">.</span><span class="s1">selected</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">())</span>
+                            <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span><span class="s6">&quot;DIRECT-delete&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onControlerDelete</span><span class="s3">)</span>
+                            <span class="s2">return </span><span class="s1">task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">onControlerDelete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">mode </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">EDIT_CURVE_MODE</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">curve</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">curve</span><span class="s3">[</span><span class="s1">self</span><span class="s3">.</span><span class="s1">point</span><span class="s3">[</span><span class="s4">0</span><span class="s3">]])</span>
+            <span class="s5">#reset the controller list</span>
+            <span class="s2">for </span><span class="s1">item </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">:</span>
+                <span class="s2">if </span><span class="s1">item</span><span class="s3">[</span><span class="s4">0</span><span class="s3">] &gt; </span><span class="s1">self</span><span class="s3">.</span><span class="s1">point</span><span class="s3">[</span><span class="s4">0</span><span class="s3">]:</span>
+                    <span class="s1">newname </span><span class="s3">= </span><span class="s6">'controler%d' </span><span class="s3">% (</span><span class="s1">item</span><span class="s3">[</span><span class="s4">0</span><span class="s3">]-</span><span class="s4">1</span><span class="s3">)</span>
+                    <span class="s1">item</span><span class="s3">[</span><span class="s4">1</span><span class="s3">].</span><span class="s1">setName</span><span class="s3">(</span><span class="s1">newname</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">[</span><span class="s1">item</span><span class="s3">[</span><span class="s4">0</span><span class="s3">]] = (</span><span class="s1">item</span><span class="s3">[</span><span class="s4">0</span><span class="s3">]-</span><span class="s4">1</span><span class="s3">, </span><span class="s1">item</span><span class="s3">[</span><span class="s4">1</span><span class="s3">])</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">point</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope</span><span class="s3">.</span><span class="s1">setup</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">degree</span><span class="s3">,</span><span class="s1">self</span><span class="s3">.</span><span class="s1">curve</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">ropeUpdate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">curve</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope </span><span class="s3">= </span><span class="s1">Rope</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope</span><span class="s3">.</span><span class="s1">setup</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">degree</span><span class="s3">, </span><span class="s1">curve</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">render</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onBaseMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">preMode </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">mode</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">mode </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">BASE_MODE</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">editCurveMenuItem</span><span class="s3">.</span><span class="s1">Check</span><span class="s3">(</span><span class="s2">False</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">createCurveMenuItem</span><span class="s3">.</span><span class="s1">Check</span><span class="s3">(</span><span class="s2">False</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">i </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s2">for </span><span class="s1">item </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">:</span>
+            <span class="s1">item</span><span class="s3">[</span><span class="s4">1</span><span class="s3">].</span><span class="s1">hide</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">preMode </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">BASE_MODE </span><span class="s3">:</span>
+            <span class="s2">pass</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">preMode </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">CREATE_CURVE_MODE </span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">updateScene</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">preMode </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">EDIT_CURVE_MODE </span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">doneEdit</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl </span><span class="s3">= []</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">curve </span><span class="s3">= []</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">manipulationControl</span><span class="s3">.</span><span class="s1">enableManipulation</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">createCurveMenuItem</span><span class="s3">.</span><span class="s1">Check</span><span class="s3">(</span><span class="s2">False</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">editCurveMenuItem</span><span class="s3">.</span><span class="s1">Check</span><span class="s3">(</span><span class="s2">False</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">updateScene</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">curveObjNP </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">addNewCurve</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">degree</span><span class="s3">, </span><span class="s1">nodePath</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">currentRope</span><span class="s3">)</span>
+        <span class="s1">curveObj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectByNodePath</span><span class="s3">(</span><span class="s1">curveObjNP</span><span class="s3">)</span>
+        <span class="s2">for </span><span class="s1">item </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">:</span>
+            <span class="s1">item</span><span class="s3">[</span><span class="s4">1</span><span class="s3">].</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">curveObjNP</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">updateObjectPropValue</span><span class="s3">(</span><span class="s1">curveObj</span><span class="s3">, </span><span class="s6">'Degree'</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">degree</span><span class="s3">, </span><span class="s1">fSelectObject</span><span class="s3">=</span><span class="s2">False</span><span class="s3">, </span><span class="s1">fUndo</span><span class="s3">=</span><span class="s2">False</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">doneEdit</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">selected</span><span class="s3">.</span><span class="s1">last </span><span class="s3">= </span><span class="s2">None</span>
+
+    <span class="s2">def </span><span class="s1">createControler</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">view </span><span class="s3">!= </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler </span><span class="s3">= </span><span class="s1">render</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s6">&quot;controler&quot;</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler </span><span class="s3">= </span><span class="s1">loader</span><span class="s3">.</span><span class="s1">loadModel</span><span class="s3">(</span><span class="s6">'models/misc/smiley'</span><span class="s3">)</span>
+            <span class="s1">controlerPathname </span><span class="s3">= </span><span class="s6">'controler%d' </span><span class="s3">% </span><span class="s1">self</span><span class="s3">.</span><span class="s1">i</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s1">controlerPathname</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">setColor</span><span class="s3">(</span><span class="s4">0</span><span class="s3">, </span><span class="s4">0</span><span class="s3">, </span><span class="s4">0</span><span class="s3">, </span><span class="s4">1</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">setScale</span><span class="s3">(</span><span class="s4">0.2</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">render</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">setTag</span><span class="s3">(</span><span class="s6">'OBJRoot'</span><span class="s3">,</span><span class="s6">'1'</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">setTag</span><span class="s3">(</span><span class="s6">'Controller'</span><span class="s3">,</span><span class="s6">'1'</span><span class="s3">) </span><span class="s5">#controller Tag</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">i </span><span class="s3">+= </span><span class="s4">1</span>
+
+            <span class="s1">iRay </span><span class="s3">= </span><span class="s1">SelectionRay</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">view</span><span class="s3">.</span><span class="s1">camera</span><span class="s3">)</span>
+            <span class="s1">iRay</span><span class="s3">.</span><span class="s1">collider</span><span class="s3">.</span><span class="s1">setFromLens</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">view</span><span class="s3">.</span><span class="s1">camNode</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">)</span>
+            <span class="s1">iRay</span><span class="s3">.</span><span class="s1">collideWithBitMask</span><span class="s3">(</span><span class="s1">BitMask32</span><span class="s3">.</span><span class="s1">bit</span><span class="s3">(</span><span class="s4">21</span><span class="s3">))</span>
+            <span class="s1">iRay</span><span class="s3">.</span><span class="s1">ct</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">view</span><span class="s3">.</span><span class="s1">collPlane</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">iRay</span><span class="s3">.</span><span class="s1">getNumEntries</span><span class="s3">() &gt; </span><span class="s4">0</span><span class="s3">:</span>
+                <span class="s1">entry </span><span class="s3">= </span><span class="s1">iRay</span><span class="s3">.</span><span class="s1">getEntry</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+                <span class="s1">hitPt </span><span class="s3">= </span><span class="s1">entry</span><span class="s3">.</span><span class="s1">getSurfacePoint</span><span class="s3">(</span><span class="s1">entry</span><span class="s3">.</span><span class="s1">getFromNodePath</span><span class="s3">())</span>
+
+            <span class="s2">if </span><span class="s1">hitPt</span><span class="s3">:</span>
+                <span class="s5"># create a temp nodePath to get the position</span>
+                <span class="s1">np </span><span class="s3">= </span><span class="s1">NodePath</span><span class="s3">(</span><span class="s6">'temp'</span><span class="s3">)</span>
+                <span class="s1">np</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">view</span><span class="s3">.</span><span class="s1">camera</span><span class="s3">, </span><span class="s1">hitPt</span><span class="s3">)</span>
+
+                <span class="s2">if </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">manipulationControl</span><span class="s3">.</span><span class="s1">fGridSnap</span><span class="s3">:</span>
+                    <span class="s1">snappedPos </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">view</span><span class="s3">.</span><span class="s1">grid</span><span class="s3">.</span><span class="s1">computeSnapPoint</span><span class="s3">(</span><span class="s1">np</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">())</span>
+                    <span class="s1">np</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">snappedPos</span><span class="s3">)</span>
+
+                <span class="s5"># update temp nodePath's HPR and scale with newobj's</span>
+                <span class="s1">np</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">getHpr</span><span class="s3">())</span>
+                <span class="s1">np</span><span class="s3">.</span><span class="s1">setScale</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">getScale</span><span class="s3">())</span>
+
+                <span class="s5"># transform newobj to cursor position</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">setMat</span><span class="s3">(</span><span class="s1">Mat4</span><span class="s3">(</span><span class="s1">np</span><span class="s3">.</span><span class="s1">getMat</span><span class="s3">()))</span>
+                <span class="s1">np</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+            <span class="s1">iRay</span><span class="s3">.</span><span class="s1">collisionNodePath</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+            <span class="s2">del </span><span class="s1">iRay</span>
+
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">curve</span><span class="s3">.</span><span class="s1">append</span><span class="s3">((</span><span class="s2">None</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">()))</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">curveControl</span><span class="s3">.</span><span class="s1">append</span><span class="s3">((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">i</span><span class="s3">-</span><span class="s4">1</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">controler</span><span class="s3">))</span>
+
+</pre>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<html>
+<head>
+<title>test_kwargs.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+test_kwargs.py</font>
+</center></td></tr></table>
+<pre><span class="s0"># pylint: disable=missing-docstring, invalid-name</span>
+
+<span class="s2">import </span><span class="s1">pytest</span>
+<span class="s2">from </span><span class="s1">kwargs</span><span class="s3">.</span><span class="s1">kwargs </span><span class="s2">import </span><span class="s1">App</span><span class="s3">, </span><span class="s1">run</span>
+
+<span class="s2">def </span><span class="s1">test_can_create_app</span><span class="s3">():</span>
+    <span class="s1">app </span><span class="s3">= </span><span class="s1">App</span><span class="s3">(</span><span class="s2">lambda</span><span class="s3">: </span><span class="s2">None</span><span class="s3">)</span>
+    <span class="s2">assert </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">app</span><span class="s3">, </span><span class="s1">App</span><span class="s3">)</span>
+
+<span class="s3">@</span><span class="s1">pytest</span><span class="s3">.</span><span class="s1">mark</span><span class="s3">.</span><span class="s1">parametrize</span><span class="s3">(</span><span class="s4">'x,y,result'</span><span class="s3">, [</span>
+    <span class="s3">(</span><span class="s5">6</span><span class="s3">, </span><span class="s5">2</span><span class="s3">, </span><span class="s5">3</span><span class="s3">),</span>
+    <span class="s3">(</span><span class="s5">294</span><span class="s3">, </span><span class="s5">7</span><span class="s3">, </span><span class="s5">42</span><span class="s3">),</span>
+    <span class="s3">(</span><span class="s5">1</span><span class="s3">, </span><span class="s5">1</span><span class="s3">, </span><span class="s5">1</span><span class="s3">)</span>
+<span class="s3">])</span>
+<span class="s2">def </span><span class="s1">test_with_positional_arguments</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">result</span><span class="s3">):</span>
+    <span class="s1">app </span><span class="s3">= </span><span class="s1">App</span><span class="s3">(</span><span class="s2">lambda </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">: </span><span class="s1">x </span><span class="s3">/ </span><span class="s1">y</span><span class="s3">)</span>
+    <span class="s2">assert </span><span class="s1">app</span><span class="s3">.</span><span class="s1">run</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">) == </span><span class="s1">result</span>
+
+
+<span class="s3">@</span><span class="s1">pytest</span><span class="s3">.</span><span class="s1">mark</span><span class="s3">.</span><span class="s1">parametrize</span><span class="s3">(</span><span class="s4">'x,y,result'</span><span class="s3">, [</span>
+    <span class="s3">(</span><span class="s5">6</span><span class="s3">, </span><span class="s5">2</span><span class="s3">, </span><span class="s5">3</span><span class="s3">),</span>
+    <span class="s3">(</span><span class="s5">294</span><span class="s3">, </span><span class="s5">7</span><span class="s3">, </span><span class="s5">42</span><span class="s3">),</span>
+    <span class="s3">(</span><span class="s5">1</span><span class="s3">, </span><span class="s5">1</span><span class="s3">, </span><span class="s5">1</span><span class="s3">)</span>
+<span class="s3">])</span>
+<span class="s2">def </span><span class="s1">test_shorthand_with_positional_arguments</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">result</span><span class="s3">):</span>
+    <span class="s2">assert </span><span class="s1">run</span><span class="s3">(</span><span class="s2">lambda </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">: </span><span class="s1">x </span><span class="s3">/ </span><span class="s1">y</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">) == </span><span class="s1">result</span>
+</pre>
+</body>
+</html>

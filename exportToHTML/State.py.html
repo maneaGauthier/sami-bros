@@ -1,0 +1,249 @@
+<html>
+<head>
+<title>State.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+State.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;State module: contains State class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'State'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+
+<span class="s4">class </span><span class="s1">State</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;State&quot;</span><span class="s2">)</span>
+
+    <span class="s5"># this 'constant' can be used to specify that the state</span>
+    <span class="s5"># can transition to any other state</span>
+    <span class="s1">Any </span><span class="s2">= </span><span class="s3">'ANY'</span>
+
+    <span class="s5"># Keep a list of State objects currently in memory for</span>
+    <span class="s5"># Control-C-Control-V redefining. These are just weakrefs so they</span>
+    <span class="s5"># should not cause any leaks.</span>
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s4">import </span><span class="s1">weakref</span>
+        <span class="s1">States </span><span class="s2">= </span><span class="s1">weakref</span><span class="s2">.</span><span class="s1">WeakKeyDictionary</span><span class="s2">()</span>
+
+        <span class="s2">@</span><span class="s1">classmethod</span>
+        <span class="s4">def </span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">oldFunction</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">):</span>
+            <span class="s4">import </span><span class="s1">types</span>
+            <span class="s1">count </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s4">for </span><span class="s1">state </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">States</span><span class="s2">:</span>
+                <span class="s5"># Note: you can only replace methods currently</span>
+                <span class="s1">enterFunc </span><span class="s2">= </span><span class="s1">state</span><span class="s2">.</span><span class="s1">getEnterFunc</span><span class="s2">()</span>
+                <span class="s1">exitFunc </span><span class="s2">= </span><span class="s1">state</span><span class="s2">.</span><span class="s1">getExitFunc</span><span class="s2">()</span>
+                <span class="s5"># print 'testing: ', state, enterFunc, exitFunc, oldFunction</span>
+                <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">enterFunc</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">enterFunc</span><span class="s2">.</span><span class="s1">__func__ </span><span class="s2">== </span><span class="s1">oldFunction</span><span class="s2">:</span>
+                        <span class="s5"># print 'found: ', enterFunc, oldFunction</span>
+                        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+                            <span class="s1">state</span><span class="s2">.</span><span class="s1">setEnterFunc</span><span class="s2">(</span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                                                <span class="s1">enterFunc</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">))</span>
+                        <span class="s4">else</span><span class="s2">:</span>
+                            <span class="s1">state</span><span class="s2">.</span><span class="s1">setEnterFunc</span><span class="s2">(</span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                                                <span class="s1">enterFunc</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">,</span>
+                                                                <span class="s1">enterFunc</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">))</span>
+                        <span class="s1">count </span><span class="s2">+= </span><span class="s6">1</span>
+                <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">exitFunc</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">exitFunc</span><span class="s2">.</span><span class="s1">__func__ </span><span class="s2">== </span><span class="s1">oldFunction</span><span class="s2">:</span>
+                        <span class="s5"># print 'found: ', exitFunc, oldFunction</span>
+                        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+                            <span class="s1">state</span><span class="s2">.</span><span class="s1">setExitFunc</span><span class="s2">(</span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                                               <span class="s1">exitFunc</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">))</span>
+                        <span class="s4">else</span><span class="s2">:</span>
+                            <span class="s1">state</span><span class="s2">.</span><span class="s1">setExitFunc</span><span class="s2">(</span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                                               <span class="s1">exitFunc</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">,</span>
+                                                               <span class="s1">exitFunc</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">))</span>
+                        <span class="s1">count </span><span class="s2">+= </span><span class="s6">1</span>
+            <span class="s4">return </span><span class="s1">count</span>
+
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">enterFunc</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">exitFunc</span><span class="s2">=</span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">transitions</span><span class="s2">=</span><span class="s1">Any</span><span class="s2">, </span><span class="s1">inspectorPos </span><span class="s2">= []):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(self, string, func, func, string[], inspectorPos = []) 
+        State constructor: takes name, enter func, exit func, and 
+        a list of states it can transition to (or State.Any).&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enterFunc </span><span class="s2">= </span><span class="s1">enterFunc</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__exitFunc </span><span class="s2">= </span><span class="s1">exitFunc</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions </span><span class="s2">= </span><span class="s1">transitions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList </span><span class="s2">= []</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setInspectorPos</span><span class="s2">(</span><span class="s1">inspectorPos</span><span class="s2">)</span>
+            <span class="s5"># For redefining</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">States</span><span class="s2">[</span><span class="s1">self</span><span class="s2">] = </span><span class="s6">1</span>
+
+    <span class="s5"># setters and getters</span>
+
+    <span class="s4">def </span><span class="s1">getName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateName</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__name </span><span class="s2">= </span><span class="s1">stateName</span>
+
+    <span class="s4">def </span><span class="s1">getEnterFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__enterFunc</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setEnterFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateEnterFunc</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enterFunc </span><span class="s2">= </span><span class="s1">stateEnterFunc</span>
+
+    <span class="s4">def </span><span class="s1">getExitFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__exitFunc</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setExitFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateExitFunc</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__exitFunc </span><span class="s2">= </span><span class="s1">stateExitFunc</span>
+
+    <span class="s4">def </span><span class="s1">transitionsToAny</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; returns true if State defines transitions to any other state &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions </span><span class="s4">is </span><span class="s1">State</span><span class="s2">.</span><span class="s1">Any</span>
+
+    <span class="s4">def </span><span class="s1">getTransitions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        warning -- if the state transitions to any other state, 
+        returns an empty list (falsely implying that the state 
+        has no transitions) 
+        see State.transitionsToAny() 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">transitionsToAny</span><span class="s2">():</span>
+            <span class="s4">return </span><span class="s2">[]</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions</span>
+
+    <span class="s4">def </span><span class="s1">isTransitionDefined</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">otherState</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">transitionsToAny</span><span class="s2">():</span>
+            <span class="s4">return </span><span class="s6">1</span>
+
+        <span class="s5"># if we're given a state object, get its name instead</span>
+        <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">otherState</span><span class="s2">) != </span><span class="s1">type</span><span class="s2">(</span><span class="s3">''</span><span class="s2">):</span>
+            <span class="s1">otherState </span><span class="s2">= </span><span class="s1">otherState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">otherState </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setTransitions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateTransitions</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;setTransitions(self, string[])&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions </span><span class="s2">= </span><span class="s1">stateTransitions</span>
+
+    <span class="s4">def </span><span class="s1">addTransition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">transition</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;addTransitions(self, string)&quot;&quot;&quot;</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">transitionsToAny</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">transition</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">State</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                <span class="s3">'attempted to add transition %s to state that '</span>
+                <span class="s3">'transitions to any state'</span><span class="s2">)</span>
+
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s4">def </span><span class="s1">getInspectorPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot;getInspectorPos(self)&quot;&quot;&quot;</span>
+            <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__inspectorPos</span><span class="s2">)</span>
+
+        <span class="s4">def </span><span class="s1">setInspectorPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">inspectorPos</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot;setInspectorPos(self, [x, y])&quot;&quot;&quot;</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__inspectorPos </span><span class="s2">= </span><span class="s1">inspectorPos</span>
+
+    <span class="s5"># support for HFSMs</span>
+
+    <span class="s4">def </span><span class="s1">getChildren</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return the list of child FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setChildren</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">FSMList</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;setChildren(self, ClassicFSM[]) 
+        Set the children to given list of FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList </span><span class="s2">= </span><span class="s1">FSMList</span>
+
+    <span class="s4">def </span><span class="s1">addChild</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ClassicFSM</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Add the given ClassicFSM to list of child FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">ClassicFSM</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">removeChild</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ClassicFSM</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Remove the given ClassicFSM from list of child FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">ClassicFSM </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">ClassicFSM</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">hasChildren</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return true if state has child FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">) &gt; </span><span class="s6">0</span>
+
+    <span class="s4">def </span><span class="s1">__enterChildren</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Enter all child FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s4">for </span><span class="s1">fsm </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">:</span>
+            <span class="s5"># Check to see if the child fsm is already in a state</span>
+            <span class="s5"># if it is, politely request the initial state</span>
+
+            <span class="s4">if </span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">getCurrentState</span><span class="s2">():</span>
+                <span class="s5"># made this 'conditional_request()' instead of 'request()' to avoid warning when</span>
+                <span class="s5"># loading minigames where rules-&gt;frameworkInit transition doesnt exist and you</span>
+                <span class="s5"># don't want to add it since it results in hanging the game</span>
+                <span class="s1">fsm</span><span class="s2">.</span><span class="s1">conditional_request</span><span class="s2">((</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">getInitialState</span><span class="s2">()).</span><span class="s1">getName</span><span class="s2">())</span>
+
+            <span class="s5"># If it has no current state, I assume this means it</span>
+            <span class="s5"># has never entered the initial state, so enter it</span>
+            <span class="s5"># explicitly</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">fsm</span><span class="s2">.</span><span class="s1">enterInitialState</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__exitChildren</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Exit all child FSMs 
+        &quot;&quot;&quot;</span>
+        <span class="s4">for </span><span class="s1">fsm </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">:</span>
+            <span class="s1">fsm</span><span class="s2">.</span><span class="s1">request</span><span class="s2">((</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">getFinalState</span><span class="s2">()).</span><span class="s1">getName</span><span class="s2">())</span>
+
+
+    <span class="s5"># basic State functionality</span>
+
+    <span class="s4">def </span><span class="s1">enter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Call the enter function for this state 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># enter child FSMs first. It is assumed these have a start</span>
+        <span class="s5"># state that is safe to enter</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enterChildren</span><span class="s2">(</span><span class="s1">argList</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__enterFunc </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__enterFunc</span><span class="s2">(*</span><span class="s1">argList</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Call the exit function for this state 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># first exit child FSMs</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__exitChildren</span><span class="s2">(</span><span class="s1">argList</span><span class="s2">)</span>
+
+        <span class="s5"># call exit function if it exists</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__exitFunc </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__exitFunc</span><span class="s2">(*</span><span class="s1">argList</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s3">&quot;State: name = %s, enter = %s, exit = %s, trans = %s, children = %s&quot; </span><span class="s2">%</span><span class="s1">\</span>
+               <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__enterFunc</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__exitFunc</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitions</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__FSMList</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

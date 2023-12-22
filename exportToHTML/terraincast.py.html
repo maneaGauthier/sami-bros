@@ -1,0 +1,106 @@
+<html>
+<head>
+<title>terraincast.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+terraincast.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+
+<span class="s1">helper </span><span class="s2">= </span><span class="s0">None</span>
+
+
+<span class="s0">def </span><span class="s1">terraincast</span><span class="s2">(</span><span class="s1">world_position</span><span class="s2">, </span><span class="s1">terrain_entity</span><span class="s2">, </span><span class="s1">height_values</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">return_normals</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):    </span><span class="s3"># uses x and z to return y on terrain.</span>
+    <span class="s0">global </span><span class="s1">helper</span>
+    <span class="s0">if not </span><span class="s1">helper</span><span class="s2">:</span>
+        <span class="s1">helper </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">()</span>
+
+    <span class="s1">helper</span><span class="s2">.</span><span class="s1">parent </span><span class="s2">= </span><span class="s1">terrain_entity</span><span class="s2">.</span><span class="s1">model</span>
+    <span class="s1">helper</span><span class="s2">.</span><span class="s1">world_position </span><span class="s2">= </span><span class="s1">world_position</span>
+
+    <span class="s1">pos </span><span class="s2">= </span><span class="s1">helper</span><span class="s2">.</span><span class="s1">get_position</span><span class="s2">(</span><span class="s1">relative_to</span><span class="s2">=</span><span class="s1">terrain_entity</span><span class="s2">.</span><span class="s1">model</span><span class="s2">) + </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s4">.5</span><span class="s2">,</span><span class="s4">0</span><span class="s2">,</span><span class="s4">.5</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">height_values </span><span class="s0">is None</span><span class="s2">:</span>
+        <span class="s1">height_values </span><span class="s2">= </span><span class="s1">terrain_entity</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">height_values</span>
+
+    <span class="s1">w</span><span class="s2">, </span><span class="s1">d </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">height_values</span><span class="s2">), </span><span class="s1">len</span><span class="s2">(</span><span class="s1">height_values</span><span class="s2">[</span><span class="s4">0</span><span class="s2">])</span>
+
+    <span class="s0">if </span><span class="s1">pos</span><span class="s2">.</span><span class="s1">x </span><span class="s2">&gt;= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">pos</span><span class="s2">.</span><span class="s1">x </span><span class="s2">&lt; </span><span class="s4">1 </span><span class="s0">and </span><span class="s1">pos</span><span class="s2">.</span><span class="s1">z </span><span class="s2">&gt;= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">pos</span><span class="s2">.</span><span class="s1">z </span><span class="s2">&lt; </span><span class="s4">1</span><span class="s2">:</span>
+        <span class="s1">pos </span><span class="s2">*= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">w</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">d</span><span class="s2">)</span>
+        <span class="s1">helper</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">int</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">.</span><span class="s1">x</span><span class="s2">)][</span><span class="s1">int</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">.</span><span class="s1">z</span><span class="s2">)]</span>
+        <span class="s1">x</span><span class="s2">, </span><span class="s1">_</span><span class="s2">, </span><span class="s1">z </span><span class="s2">= </span><span class="s1">pos</span>
+
+        <span class="s1">point </span><span class="s2">= </span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">int</span><span class="s2">(</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">x</span><span class="s2">))][</span><span class="s1">int</span><span class="s2">(</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">z</span><span class="s2">))]</span>
+        <span class="s1">normal </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s4">0</span><span class="s2">,</span><span class="s4">0</span><span class="s2">,</span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">x</span><span class="s2">) - </span><span class="s1">x </span><span class="s2">&gt; </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">z</span><span class="s2">) - </span><span class="s1">z </span><span class="s2">&gt; </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s1">point_e </span><span class="s2">=  </span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">int</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">w</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)))][</span><span class="s1">int</span><span class="s2">(</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">z</span><span class="s2">))]</span>
+            <span class="s1">point_n </span><span class="s2">=  </span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">int</span><span class="s2">(</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">x</span><span class="s2">))][</span><span class="s1">int</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">d</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">z</span><span class="s2">)))]</span>
+            <span class="s1">point_ne </span><span class="s2">= </span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">int</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">w</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)))][</span><span class="s1">int</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">d</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">z</span><span class="s2">)))]</span>
+
+            <span class="s1">u0v0 </span><span class="s2">= </span><span class="s1">point </span><span class="s2">* (</span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">x</span><span class="s2">) - </span><span class="s1">x</span><span class="s2">) * (</span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">z</span><span class="s2">) - </span><span class="s1">z</span><span class="s2">) </span><span class="s3"># interpolated (x0, z0)</span>
+            <span class="s1">u1v0 </span><span class="s2">= </span><span class="s1">point_e </span><span class="s2">* (</span><span class="s1">x </span><span class="s2">- </span><span class="s1">floor</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)) * (</span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">z</span><span class="s2">) - </span><span class="s1">z</span><span class="s2">) </span><span class="s3"># interpolated (x1, z0)</span>
+            <span class="s1">u0v1 </span><span class="s2">= </span><span class="s1">point_n </span><span class="s2">* (</span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">x</span><span class="s2">) - </span><span class="s1">x</span><span class="s2">) * (</span><span class="s1">z </span><span class="s2">- </span><span class="s1">floor</span><span class="s2">(</span><span class="s1">z</span><span class="s2">)) </span><span class="s3"># interpolated (x0, z1)</span>
+            <span class="s1">u1v1 </span><span class="s2">= </span><span class="s1">point_ne </span><span class="s2">* (</span><span class="s1">x </span><span class="s2">- </span><span class="s1">floor</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)) * (</span><span class="s1">z </span><span class="s2">- </span><span class="s1">floor</span><span class="s2">(</span><span class="s1">z</span><span class="s2">)) </span><span class="s3"># interpolated (x1, z1)</span>
+
+            <span class="s1">point </span><span class="s2">= </span><span class="s1">u0v0 </span><span class="s2">+ </span><span class="s1">u1v0 </span><span class="s2">+ </span><span class="s1">u0v1 </span><span class="s2">+ </span><span class="s1">u1v1  </span><span class="s3">#estimate</span>
+            <span class="s3"># normal = Vec3(2*(point_e-L), 2*(B-T), -4).Normalize();</span>
+            <span class="s3"># print(point_e)</span>
+            <span class="s0">if </span><span class="s1">return_normals</span><span class="s2">:</span>
+                <span class="s1">normal </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s4">0</span><span class="s2">,</span><span class="s4">1</span><span class="s2">,</span><span class="s4">0</span><span class="s2">)</span>
+                <span class="s1">p1 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">w</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)), </span><span class="s1">point_e</span><span class="s2">, </span><span class="s1">floor</span><span class="s2">(</span><span class="s1">z</span><span class="s2">))</span>
+                <span class="s1">p2 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">x</span><span class="s2">), </span><span class="s1">point</span><span class="s2">, </span><span class="s1">floor</span><span class="s2">(</span><span class="s1">z</span><span class="s2">))</span>
+                <span class="s1">p3 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">x</span><span class="s2">), </span><span class="s1">point_n</span><span class="s2">, </span><span class="s1">min</span><span class="s2">(</span><span class="s1">d</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">z</span><span class="s2">)))</span>
+                <span class="s1">normal </span><span class="s2">= (</span><span class="s1">p2 </span><span class="s2">- </span><span class="s1">p1</span><span class="s2">).</span><span class="s1">cross</span><span class="s2">(</span><span class="s1">p3</span><span class="s2">-</span><span class="s1">p1</span><span class="s2">).</span><span class="s1">normalized</span><span class="s2">()</span>
+                <span class="s3"># print(normal)</span>
+
+
+        <span class="s1">helper</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">point </span><span class="s2">* </span><span class="s1">terrain_entity</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">/ </span><span class="s4">255</span>
+        <span class="s0">if not </span><span class="s1">return_normals</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">helper</span><span class="s2">.</span><span class="s1">y</span>
+
+        <span class="s0">return </span><span class="s1">helper</span><span class="s2">.</span><span class="s1">y</span><span class="s2">, </span><span class="s1">normal</span>
+
+    <span class="s0">if not </span><span class="s1">return_normals</span><span class="s2">:</span>
+        <span class="s0">return None</span>
+
+    <span class="s0">return None</span><span class="s2">, </span><span class="s0">None</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s5">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+
+    <span class="s1">terrain_entity </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s1">Terrain</span><span class="s2">(</span><span class="s5">'heightmap_1'</span><span class="s2">, </span><span class="s1">skip</span><span class="s2">=</span><span class="s4">8</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=(</span><span class="s4">40</span><span class="s2">, </span><span class="s4">5</span><span class="s2">, </span><span class="s4">20</span><span class="s2">), </span><span class="s1">texture</span><span class="s2">=</span><span class="s5">'heightmap_1'</span><span class="s2">)</span>
+    <span class="s1">player </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s5">'sphere'</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">azure</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">.2</span><span class="s2">, </span><span class="s1">origin_y</span><span class="s2">=-</span><span class="s4">.5</span><span class="s2">)</span>
+
+
+    <span class="s1">hv </span><span class="s2">= </span><span class="s1">terrain_entity</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">height_values</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">():</span>
+        <span class="s1">direction </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'d'</span><span class="s2">] - </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'a'</span><span class="s2">], </span><span class="s4">0</span><span class="s2">, </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'w'</span><span class="s2">] - </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'s'</span><span class="s2">]).</span><span class="s1">normalized</span><span class="s2">()</span>
+        <span class="s1">player</span><span class="s2">.</span><span class="s1">position </span><span class="s2">+= </span><span class="s1">direction </span><span class="s2">* </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt </span><span class="s2">* </span><span class="s4">4</span>
+
+        <span class="s1">player</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">terraincast</span><span class="s2">(</span><span class="s1">player</span><span class="s2">.</span><span class="s1">world_position</span><span class="s2">, </span><span class="s1">terrain_entity</span><span class="s2">, </span><span class="s1">hv</span><span class="s2">)</span>
+        <span class="s3"># test.world_position = player.world_position</span>
+        <span class="s3"># test.look_at(test.world_position + normal)</span>
+
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s1">Sky</span><span class="s2">()</span>
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

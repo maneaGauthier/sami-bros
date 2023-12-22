@@ -1,0 +1,82 @@
+<html>
+<head>
+<title>_bat_to_exe.bat</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #c77dbb; font-style: italic;}
+.s6 { color: #cf8e6d; font-style: italic;}
+.s7 { color: #2aacb8; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+_bat_to_exe.bat</font>
+</center></td></tr></table>
+<pre><span class="s0">;</span><span class="s1">@</span><span class="s2">echo off</span>
+<span class="s0">; </span><span class="s2">rem </span><span class="s3">https://github.com/npocmaka/batch.scripts/edit/master/hybrids/iexpress/bat2exeIEXP.bat</span>
+<span class="s0">;if </span><span class="s1">&quot;%~2&quot; equ &quot;&quot; (</span>
+<span class="s1">; </span><span class="s2">echo </span><span class="s0">usage: </span><span class="s1">%~nx0 </span><span class="s0">batFile.bat target.Exe 
+</span><span class="s1">;)</span>
+<span class="s0">;set </span><span class="s1">&quot;</span><span class="s4">target.exe=</span><span class="s1">%__cd__%%~2&quot;</span>
+<span class="s0">;set </span><span class="s1">&quot;</span><span class="s4">batch_file=</span><span class="s1">%~f1&quot;</span>
+<span class="s0">;set </span><span class="s1">&quot;</span><span class="s4">bat_name=</span><span class="s1">%~nx1&quot;</span>
+<span class="s0">;set </span><span class="s1">&quot;</span><span class="s4">bat_dir=</span><span class="s1">%~dp1&quot;</span>
+
+<span class="s0">;copy /y </span><span class="s1">&quot;%~f0&quot; &quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot; &gt;</span><span class="s5">nul</span>
+
+<span class="s0">;</span><span class="s1">(</span><span class="s0">echo</span><span class="s1">()&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s0">AppLaunched=cmd.exe /c </span><span class="s1">&quot;%bat_name%&quot;)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s0">TargetName=</span><span class="s1">%target.exe%)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s0">FILE0=</span><span class="s1">&quot;%bat_name%&quot;)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s0">[SourceFiles]</span><span class="s1">)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s0">SourceFiles0=</span><span class="s1">%bat_dir%)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s0">[SourceFiles0]</span><span class="s1">)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;(</span><span class="s0">echo</span><span class="s1">(</span><span class="s6">%%</span><span class="s0">FILE0</span><span class="s6">%%</span><span class="s0">=</span><span class="s1">)&gt;&gt;&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+
+
+<span class="s1">;</span><span class="s0">iexpress /n /q /m </span><span class="s1">%temp%</span><span class="s0">\2exe.sed 
+</span>
+<span class="s1">;</span><span class="s0">del /q /f </span><span class="s1">&quot;%temp%</span><span class="s4">\2exe.sed</span><span class="s1">&quot;</span>
+<span class="s1">;</span><span class="s0">exit /b </span><span class="s7">0</span>
+
+<span class="s0">[Version] 
+Class=IEXPRESS 
+SEDVersion=</span><span class="s7">3</span>
+<span class="s0">[Options] 
+PackagePurpose=InstallApp 
+ShowInstallProgramWindow=</span><span class="s7">0</span>
+<span class="s0">HideExtractAnimation=</span><span class="s7">1</span>
+<span class="s0">UseLongFileName=</span><span class="s7">1</span>
+<span class="s0">InsideCompressed=</span><span class="s7">0</span>
+<span class="s0">CAB_FixedSize=</span><span class="s7">0</span>
+<span class="s0">CAB_ResvCodeSigning=</span><span class="s7">0</span>
+<span class="s0">RebootMode=N 
+InstallPrompt=</span><span class="s1">%InstallPrompt%</span>
+<span class="s0">DisplayLicense=</span><span class="s1">%DisplayLicense%</span>
+<span class="s0">FinishMessage=</span><span class="s1">%FinishMessage%</span>
+<span class="s0">TargetName=</span><span class="s1">%TargetName%</span>
+<span class="s0">FriendlyName=</span><span class="s1">%FriendlyName%</span>
+<span class="s0">AppLaunched=</span><span class="s1">%AppLaunched%</span>
+<span class="s0">PostInstallCmd=</span><span class="s1">%PostInstallCmd%</span>
+<span class="s0">AdminQuietInstCmd=</span><span class="s1">%AdminQuietInstCmd%</span>
+<span class="s0">UserQuietInstCmd=</span><span class="s1">%UserQuietInstCmd%</span>
+<span class="s0">SourceFiles=SourceFiles 
+</span>
+<span class="s0">[Strings] 
+InstallPrompt= 
+DisplayLicense= 
+FinishMessage= 
+FriendlyName=- 
+PostInstallCmd=</span><span class="s1">&lt;</span><span class="s0">None</span><span class="s1">&gt;</span>
+<span class="s0">AdminQuietInstCmd= 
+UserQuietInstCmd= 
+</span></pre>
+</body>
+</html>

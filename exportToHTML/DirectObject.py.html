@@ -1,0 +1,140 @@
+<html>
+<head>
+<title>DirectObject.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectObject.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Defines the DirectObject class, a convenient class to inherit from if the 
+object needs to be able to respond to events.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectObject'</span><span class="s2">]</span>
+
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">MessengerGlobal </span><span class="s4">import </span><span class="s1">messenger</span>
+
+<span class="s4">class </span><span class="s1">DirectObject</span><span class="s2">:</span>
+    <span class="s0">&quot;&quot;&quot; 
+    This is the class that all Direct/SAL classes should inherit from 
+    &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">pass</span>
+
+    <span class="s5">#def __del__(self):</span>
+        <span class="s5"># This next line is useful for debugging leaks</span>
+        <span class="s5">#print &quot;Destructing: &quot;, self.__class__.__name__</span>
+
+    <span class="s5"># Wrapper functions to have a cleaner, more object oriented approach to</span>
+    <span class="s5"># the messenger functionality.</span>
+
+    <span class="s4">def </span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">=[]):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">self</span><span class="s2">, </span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">acceptOnce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">=[]):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">self</span><span class="s2">, </span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">ignoreAll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">isAccepting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">isAccepting</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getAllAccepting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">getAllAccepting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">isIgnoring</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">isIgnoring</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s5">#This function must be used if you want a managed task</span>
+    <span class="s4">def </span><span class="s1">addTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s4">import </span><span class="s1">taskMgr</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;_taskList&quot;</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList </span><span class="s2">= {}</span>
+        <span class="s1">kwargs</span><span class="s2">[</span><span class="s3">'owner'</span><span class="s2">] = </span><span class="s1">self</span>
+        <span class="s1">task </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s4">import </span><span class="s1">taskMgr</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;_taskList&quot;</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList </span><span class="s2">= {}</span>
+        <span class="s1">kwargs</span><span class="s2">[</span><span class="s3">'owner'</span><span class="s2">] = </span><span class="s1">self</span>
+        <span class="s1">task </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">removeTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskOrName</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">taskOrName</span><span class="s2">) == </span><span class="s1">type</span><span class="s2">(</span><span class="s3">''</span><span class="s2">):</span>
+            <span class="s5"># we must use a copy, since task.remove will modify self._taskList</span>
+            <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_taskList'</span><span class="s2">):</span>
+                <span class="s1">taskListValues </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList</span><span class="s2">.</span><span class="s1">values</span><span class="s2">())</span>
+                <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">taskListValues</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name </span><span class="s2">== </span><span class="s1">taskOrName</span><span class="s2">:</span>
+                        <span class="s1">task</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">taskOrName</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">removeAllTasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_taskList'</span><span class="s2">):</span>
+            <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList</span><span class="s2">.</span><span class="s1">values</span><span class="s2">()):</span>
+                <span class="s1">task</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_addTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList</span><span class="s2">[</span><span class="s1">task</span><span class="s2">.</span><span class="s1">id</span><span class="s2">] = </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">_clearTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList</span><span class="s2">[</span><span class="s1">task</span><span class="s2">.</span><span class="s1">id</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">detectLeaks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">__dev__</span><span class="s2">:</span>
+            <span class="s4">return</span>
+
+        <span class="s5"># call this after the DirectObject instance has been destroyed</span>
+        <span class="s5"># if it's leaking, will notify user</span>
+
+        <span class="s5"># make sure we're not still listening for messenger events</span>
+        <span class="s1">events </span><span class="s2">= </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">getAllAccepting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s5"># make sure we're not leaking tasks</span>
+        <span class="s5"># TODO: include tasks that were added directly to the taskMgr</span>
+        <span class="s1">tasks </span><span class="s2">= []</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_taskList'</span><span class="s2">):</span>
+            <span class="s1">tasks </span><span class="s2">= [</span><span class="s1">task</span><span class="s2">.</span><span class="s1">name </span><span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskList</span><span class="s2">.</span><span class="s1">values</span><span class="s2">()]</span>
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">events</span><span class="s2">) </span><span class="s4">or </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">):</span>
+            <span class="s1">estr </span><span class="s2">= (</span><span class="s3">'listening to events: %s' </span><span class="s2">% </span><span class="s1">events </span><span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">events</span><span class="s2">) </span><span class="s4">else </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">andStr </span><span class="s2">= (</span><span class="s3">' and ' </span><span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">events</span><span class="s2">) </span><span class="s4">and </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">) </span><span class="s4">else </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">tstr </span><span class="s2">= (</span><span class="s3">'%srunning tasks: %s' </span><span class="s2">% (</span><span class="s1">andStr</span><span class="s2">, </span><span class="s1">tasks</span><span class="s2">) </span><span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">) </span><span class="s4">else </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'LeakDetect'</span><span class="s2">)</span>
+            <span class="s1">crash </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">getRepository</span><span class="s2">(), </span><span class="s3">'_crashOnProactiveLeakDetect'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">)</span>
+            <span class="s1">func </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error </span><span class="s4">if </span><span class="s1">crash </span><span class="s4">else </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">)</span>
+            <span class="s1">func</span><span class="s2">(</span><span class="s3">'destroyed %s instance is still %s%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">estr</span><span class="s2">, </span><span class="s1">tstr</span><span class="s2">))</span>
+
+    <span class="s5">#snake_case alias:</span>
+    <span class="s1">add_task </span><span class="s2">= </span><span class="s1">addTask</span>
+    <span class="s1">do_method_later </span><span class="s2">= </span><span class="s1">doMethodLater</span>
+    <span class="s1">detect_leaks </span><span class="s2">= </span><span class="s1">detectLeaks</span>
+    <span class="s1">accept_once </span><span class="s2">= </span><span class="s1">acceptOnce</span>
+    <span class="s1">ignore_all </span><span class="s2">= </span><span class="s1">ignoreAll</span>
+    <span class="s1">get_all_accepting </span><span class="s2">= </span><span class="s1">getAllAccepting</span>
+    <span class="s1">is_ignoring </span><span class="s2">= </span><span class="s1">isIgnoring</span>
+    <span class="s1">remove_all_tasks </span><span class="s2">= </span><span class="s1">removeAllTasks</span>
+    <span class="s1">remove_task </span><span class="s2">= </span><span class="s1">removeTask</span>
+    <span class="s1">is_accepting </span><span class="s2">= </span><span class="s1">isAccepting</span>
+</pre>
+</body>
+</html>

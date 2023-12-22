@@ -1,0 +1,779 @@
+<html>
+<head>
+<title>HostInfo.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+HostInfo.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+.. deprecated:: 1.10.0 
+   The p3d packaging system has been replaced with the new setuptools-based 
+   system.  See the :ref:`distribution` manual section. 
+&quot;&quot;&quot;</span>
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">&quot;HostInfo&quot;</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s1">HashVal</span><span class="s2">, </span><span class="s1">Filename</span><span class="s2">, </span><span class="s1">PandaSystem</span><span class="s2">, </span><span class="s1">DocumentSpec</span><span class="s2">, </span><span class="s1">Ramfile</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s1">ConfigVariableInt</span>
+<span class="s4">from </span><span class="s1">panda3d </span><span class="s4">import </span><span class="s1">core</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">PackageInfo </span><span class="s4">import </span><span class="s1">PackageInfo</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">FileSpec </span><span class="s4">import </span><span class="s1">FileSpec</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">import </span><span class="s1">time</span>
+
+<span class="s4">class </span><span class="s1">HostInfo</span><span class="s2">:</span>
+    <span class="s0">&quot;&quot;&quot; This class represents a particular download host serving up 
+    Panda3D packages.  It is the Python equivalent of the P3DHost 
+    class in the core API. &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;HostInfo&quot;</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hostUrl</span><span class="s2">, </span><span class="s1">appRunner </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">hostDir </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">rootDir </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">asMirror </span><span class="s2">= </span><span class="s4">False</span><span class="s2">, </span><span class="s1">perPlatform </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+
+        <span class="s0">&quot;&quot;&quot; You must specify either an appRunner or a hostDir to the 
+        HostInfo constructor. 
+ 
+        If you pass asMirror = True, it means that this HostInfo 
+        object is to be used to populate a &quot;mirror&quot; folder, a 
+        duplicate (or subset) of the contents hosted by a server. 
+        This means when you use this HostInfo to download packages, it 
+        will only download the compressed archive file and leave it 
+        there.  At the moment, mirror folders do not download old 
+        patch files from the server. 
+ 
+        If you pass perPlatform = True, then files are unpacked into a 
+        platform-specific directory, which is appropriate when you 
+        might be downloading multiple platforms.  The default is 
+        perPlatform = False, which means all files are unpacked into 
+        the host directory directly, without an intervening 
+        platform-specific directory name.  If asMirror is True, then 
+        the default is perPlatform = True. 
+ 
+        Note that perPlatform is also restricted by the individual 
+        package's specification.  &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__setHostUrl</span><span class="s2">(</span><span class="s1">hostUrl</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s2">= </span><span class="s1">appRunner</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rootDir </span><span class="s2">= </span><span class="s1">rootDir</span>
+        <span class="s4">if </span><span class="s1">rootDir </span><span class="s4">is None and </span><span class="s1">appRunner</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">rootDir </span><span class="s2">= </span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">rootDir</span>
+
+        <span class="s4">if </span><span class="s1">hostDir </span><span class="s4">and not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">hostDir</span><span class="s2">, </span><span class="s1">Filename</span><span class="s2">):</span>
+            <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">fromOsSpecific</span><span class="s2">(</span><span class="s1">hostDir</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir </span><span class="s2">= </span><span class="s1">hostDir</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">asMirror </span><span class="s2">= </span><span class="s1">asMirror</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">perPlatform</span>
+        <span class="s4">if </span><span class="s1">perPlatform </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">asMirror</span>
+
+        <span class="s5"># Initially false, this is set true when the contents file is</span>
+        <span class="s5"># successfully read.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile </span><span class="s2">= </span><span class="s4">False</span>
+
+        <span class="s5"># This is the time value at which the current contents file is</span>
+        <span class="s5"># no longer valid.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsExpiration </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s5"># Contains the md5 hash of the original contents.xml file.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+
+        <span class="s5"># descriptiveName will be filled in later, when the</span>
+        <span class="s5"># contents file is read.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">descriptiveName </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># A list of known mirrors for this host, all URL's guaranteed</span>
+        <span class="s5"># to end with a slash.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mirrors </span><span class="s2">= []</span>
+
+        <span class="s5"># A map of keyword -&gt; altHost URL's.  An altHost is different</span>
+        <span class="s5"># than a mirror; an altHost is an alternate URL to download a</span>
+        <span class="s5"># different (e.g. testing) version of this host's contents.</span>
+        <span class="s5"># It is rarely used.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">altHosts </span><span class="s2">= {}</span>
+
+        <span class="s5"># This is a dictionary of packages by (name, version).  It</span>
+        <span class="s5"># will be filled in when the contents file is read.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">packages </span><span class="s2">= {}</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCForce</span><span class="s2">:</span>
+            <span class="s5"># Attempt to pre-read the existing contents.xml; maybe it</span>
+            <span class="s5"># will be current enough for our purposes.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">readContentsFile</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__setHostUrl</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hostUrl</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Assigns self.hostUrl, and related values. &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl </span><span class="s2">= </span><span class="s1">hostUrl</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">:</span>
+            <span class="s5"># A special case: the URL will be set later.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadUrlPrefix </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># hostUrlPrefix is the host URL, but it is guaranteed to end</span>
+            <span class="s5"># with a slash.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix </span><span class="s2">= </span><span class="s1">hostUrl</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix</span><span class="s2">[-</span><span class="s6">1</span><span class="s2">] != </span><span class="s3">'/'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix </span><span class="s2">+= </span><span class="s3">'/'</span>
+
+            <span class="s5"># downloadUrlPrefix is the URL prefix that should be used for</span>
+            <span class="s5"># everything other than the contents.xml file.  It might be</span>
+            <span class="s5"># the same as hostUrlPrefix, but in the case of an</span>
+            <span class="s5"># https-protected hostUrl, it will be the cleartext channel.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadUrlPrefix </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix</span>
+
+    <span class="s4">def </span><span class="s1">freshenFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">, </span><span class="s1">localPathname</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Ensures that the localPathname is the most current version 
+        of the file defined by fileSpec, as offered by host.  If not, 
+        it downloads a new version on-the-spot.  Returns true on 
+        success, false on failure. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">pathname </span><span class="s2">= </span><span class="s1">localPathname</span><span class="s2">):</span>
+            <span class="s5"># It's good, keep it.</span>
+            <span class="s4">return True</span>
+
+        <span class="s5"># It's stale, get a new one.</span>
+        <span class="s1">doc </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">superMirrorUrl</span><span class="s2">:</span>
+            <span class="s5"># Use the &quot;super mirror&quot; first.</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">URLSpec</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">superMirrorUrl </span><span class="s2">+ </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Freshening %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+            <span class="s1">doc </span><span class="s2">= </span><span class="s1">http</span><span class="s2">.</span><span class="s1">getDocument</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+
+        <span class="s4">if not </span><span class="s1">doc </span><span class="s4">or not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">isValid</span><span class="s2">():</span>
+            <span class="s5"># Failing the super mirror, contact the actual host.</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">URLSpec</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix </span><span class="s2">+ </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Freshening %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+            <span class="s1">doc </span><span class="s2">= </span><span class="s1">http</span><span class="s2">.</span><span class="s1">getDocument</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+            <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">isValid</span><span class="s2">():</span>
+                <span class="s4">return False</span>
+
+        <span class="s1">file </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">temporary</span><span class="s2">(</span><span class="s3">''</span><span class="s2">, </span><span class="s3">'p3d_'</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">downloadToFile</span><span class="s2">(</span><span class="s1">file</span><span class="s2">):</span>
+            <span class="s5"># Failed to download.</span>
+            <span class="s1">file</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+            <span class="s4">return False</span>
+
+        <span class="s5"># Successfully downloaded!</span>
+        <span class="s1">localPathname</span><span class="s2">.</span><span class="s1">makeDir</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">file</span><span class="s2">.</span><span class="s1">renameTo</span><span class="s2">(</span><span class="s1">localPathname</span><span class="s2">):</span>
+            <span class="s5"># Couldn't move it into place.</span>
+            <span class="s1">file</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+            <span class="s4">return False</span>
+
+        <span class="s4">if not </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">fullVerify</span><span class="s2">(</span><span class="s1">pathname </span><span class="s2">= </span><span class="s1">localPathname</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+            <span class="s5"># No good after download.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;%s is still no good after downloading.&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+            <span class="s4">return False</span>
+
+        <span class="s4">return True</span>
+
+    <span class="s4">def </span><span class="s1">downloadContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">, </span><span class="s1">redownload </span><span class="s2">= </span><span class="s4">False</span><span class="s2">,</span>
+                             <span class="s1">hashVal </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Downloads the contents.xml file for this particular host, 
+        synchronously, and then reads it.  Returns true on success, 
+        false on failure.  If hashVal is not None, it should be a 
+        HashVal object, which will be filled with the hash from the 
+        new contents.xml file.&quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasCurrentContentsFile</span><span class="s2">():</span>
+            <span class="s5"># We've already got one.</span>
+            <span class="s4">return True</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># Not allowed to.</span>
+            <span class="s4">return False</span>
+
+        <span class="s1">rf </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">http</span><span class="s2">:</span>
+            <span class="s4">if not </span><span class="s1">redownload </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">superMirrorUrl</span><span class="s2">:</span>
+                <span class="s5"># We start with the &quot;super mirror&quot;, if it's defined.</span>
+                <span class="s1">url </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">superMirrorUrl </span><span class="s2">+ </span><span class="s3">'contents.xml'</span>
+                <span class="s1">request </span><span class="s2">= </span><span class="s1">DocumentSpec</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Downloading contents file %s&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">))</span>
+
+                <span class="s1">rf </span><span class="s2">= </span><span class="s1">Ramfile</span><span class="s2">()</span>
+                <span class="s1">channel </span><span class="s2">= </span><span class="s1">http</span><span class="s2">.</span><span class="s1">makeChannel</span><span class="s2">(</span><span class="s4">False</span><span class="s2">)</span>
+                <span class="s1">channel</span><span class="s2">.</span><span class="s1">getDocument</span><span class="s2">(</span><span class="s1">request</span><span class="s2">)</span>
+                <span class="s4">if not </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">downloadToRam</span><span class="s2">(</span><span class="s1">rf</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Unable to download %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+                    <span class="s1">rf </span><span class="s2">= </span><span class="s4">None</span>
+
+            <span class="s4">if not </span><span class="s1">rf</span><span class="s2">:</span>
+                <span class="s5"># Then go to the main host, if our super mirror let us</span>
+                <span class="s5"># down.</span>
+
+                <span class="s1">url </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix </span><span class="s2">+ </span><span class="s3">'contents.xml'</span>
+                <span class="s5"># Append a uniquifying query string to the URL to force the</span>
+                <span class="s5"># download to go all the way through any caches.  We use the</span>
+                <span class="s5"># time in seconds; that's unique enough.</span>
+                <span class="s1">url </span><span class="s2">+= </span><span class="s3">'?' </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">()))</span>
+
+                <span class="s5"># We might as well explicitly request the cache to be disabled</span>
+                <span class="s5"># too, since we have an interface for that via HTTPChannel.</span>
+                <span class="s1">request </span><span class="s2">= </span><span class="s1">DocumentSpec</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+                <span class="s1">request</span><span class="s2">.</span><span class="s1">setCacheControl</span><span class="s2">(</span><span class="s1">DocumentSpec</span><span class="s2">.</span><span class="s1">CCNoCache</span><span class="s2">)</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Downloading contents file %s&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">))</span>
+                <span class="s1">statusCode </span><span class="s2">= </span><span class="s4">None</span>
+                <span class="s1">statusString </span><span class="s2">= </span><span class="s3">''</span>
+                <span class="s4">for </span><span class="s1">attempt </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">ConfigVariableInt</span><span class="s2">(</span><span class="s3">'contents-xml-dl-attempts'</span><span class="s2">, </span><span class="s6">3</span><span class="s2">))):</span>
+                    <span class="s4">if </span><span class="s1">attempt </span><span class="s2">&gt; </span><span class="s6">0</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Retrying (%s)...&quot;</span><span class="s2">%(</span><span class="s1">attempt</span><span class="s2">,))</span>
+                    <span class="s1">rf </span><span class="s2">= </span><span class="s1">Ramfile</span><span class="s2">()</span>
+                    <span class="s1">channel </span><span class="s2">= </span><span class="s1">http</span><span class="s2">.</span><span class="s1">makeChannel</span><span class="s2">(</span><span class="s4">False</span><span class="s2">)</span>
+                    <span class="s1">channel</span><span class="s2">.</span><span class="s1">getDocument</span><span class="s2">(</span><span class="s1">request</span><span class="s2">)</span>
+                    <span class="s4">if </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">downloadToRam</span><span class="s2">(</span><span class="s1">rf</span><span class="s2">):</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Successfully downloaded %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">,))</span>
+                        <span class="s4">break</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">rf </span><span class="s2">= </span><span class="s4">None</span>
+                        <span class="s1">statusCode </span><span class="s2">= </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">getStatusCode</span><span class="s2">()</span>
+                        <span class="s1">statusString </span><span class="s2">= </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">getStatusString</span><span class="s2">()</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Could not contact download server at %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">,))</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Status code = %s %s&quot; </span><span class="s2">% (</span><span class="s1">statusCode</span><span class="s2">, </span><span class="s1">statusString</span><span class="s2">))</span>
+
+                <span class="s4">if not </span><span class="s1">rf</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Unable to download %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">,))</span>
+                    <span class="s4">try</span><span class="s2">:</span>
+                        <span class="s5"># Something screwed up.</span>
+                        <span class="s4">if </span><span class="s1">statusCode </span><span class="s2">== </span><span class="s1">core</span><span class="s2">.</span><span class="s1">HTTPChannel</span><span class="s2">.</span><span class="s1">SCDownloadOpenError </span><span class="s4">or </span><span class="s1">\</span>
+                           <span class="s1">statusCode </span><span class="s2">== </span><span class="s1">core</span><span class="s2">.</span><span class="s1">HTTPChannel</span><span class="s2">.</span><span class="s1">SCDownloadWriteError</span><span class="s2">:</span>
+                            <span class="s1">launcher</span><span class="s2">.</span><span class="s1">setPandaErrorCode</span><span class="s2">(</span><span class="s6">2</span><span class="s2">)</span>
+                        <span class="s4">elif </span><span class="s1">statusCode </span><span class="s2">== </span><span class="s6">404</span><span class="s2">:</span>
+                            <span class="s5"># 404 not found</span>
+                            <span class="s1">launcher</span><span class="s2">.</span><span class="s1">setPandaErrorCode</span><span class="s2">(</span><span class="s6">5</span><span class="s2">)</span>
+                        <span class="s4">elif </span><span class="s1">statusCode </span><span class="s2">&lt; </span><span class="s6">100</span><span class="s2">:</span>
+                            <span class="s5"># statusCode &lt; 100 implies the connection attempt itself</span>
+                            <span class="s5"># failed.  This is usually due to firewall software</span>
+                            <span class="s5"># interfering.  Apparently some firewall software might</span>
+                            <span class="s5"># allow the first connection and disallow subsequent</span>
+                            <span class="s5"># connections; how strange.</span>
+                            <span class="s1">launcher</span><span class="s2">.</span><span class="s1">setPandaErrorCode</span><span class="s2">(</span><span class="s6">4</span><span class="s2">)</span>
+                        <span class="s4">else</span><span class="s2">:</span>
+                            <span class="s5"># There are other kinds of failures, but these will</span>
+                            <span class="s5"># generally have been caught already by the first test; so</span>
+                            <span class="s5"># if we get here there may be some bigger problem.  Just</span>
+                            <span class="s5"># give the generic &quot;big problem&quot; message.</span>
+                            <span class="s1">launcher</span><span class="s2">.</span><span class="s1">setPandaErrorCode</span><span class="s2">(</span><span class="s6">6</span><span class="s2">)</span>
+                    <span class="s4">except </span><span class="s1">NameError </span><span class="s4">as </span><span class="s1">e</span><span class="s2">:</span>
+                        <span class="s5"># no launcher</span>
+                        <span class="s4">pass</span>
+                    <span class="s4">except </span><span class="s1">AttributeError </span><span class="s4">as </span><span class="s1">e</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;%s&quot; </span><span class="s2">% (</span><span class="s1">str</span><span class="s2">(</span><span class="s1">e</span><span class="s2">),))</span>
+                        <span class="s4">pass</span>
+                    <span class="s4">return False</span>
+
+        <span class="s1">tempFilename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">temporary</span><span class="s2">(</span><span class="s3">''</span><span class="s2">, </span><span class="s3">'p3d_'</span><span class="s2">, </span><span class="s3">'.xml'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">rf</span><span class="s2">:</span>
+            <span class="s1">f </span><span class="s2">= </span><span class="s1">open</span><span class="s2">(</span><span class="s1">tempFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">(), </span><span class="s3">'wb'</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">rf</span><span class="s2">.</span><span class="s1">getData</span><span class="s2">())</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">hashVal</span><span class="s2">:</span>
+                <span class="s1">hashVal</span><span class="s2">.</span><span class="s1">hashString</span><span class="s2">(</span><span class="s1">rf</span><span class="s2">.</span><span class="s1">getData</span><span class="s2">())</span>
+
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">readContentsFile</span><span class="s2">(</span><span class="s1">tempFilename</span><span class="s2">, </span><span class="s1">freshDownload </span><span class="s2">= </span><span class="s4">True</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Failure reading %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+                <span class="s1">tempFilename</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+                <span class="s4">return False</span>
+
+            <span class="s1">tempFilename</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+            <span class="s4">return True</span>
+
+        <span class="s5"># Couldn't download the file.  Maybe we should look for a</span>
+        <span class="s5"># previously-downloaded copy already on disk?</span>
+        <span class="s4">return False</span>
+
+    <span class="s4">def </span><span class="s1">redownloadContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Downloads a new contents.xml file in case it has changed. 
+        Returns true if the file has indeed changed, false if it has 
+        not. &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># Not allowed to.</span>
+            <span class="s4">return False</span>
+
+        <span class="s1">url </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix </span><span class="s2">+ </span><span class="s3">'contents.xml'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Redownloading %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+
+        <span class="s5"># Get the hash of the original file.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span>
+        <span class="s1">hv1 </span><span class="s2">= </span><span class="s1">HashVal</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">hash</span><span class="s2">:</span>
+            <span class="s1">hv1</span><span class="s2">.</span><span class="s1">setFromHex</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">hash</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">, </span><span class="s3">'contents.xml'</span><span class="s2">)</span>
+            <span class="s1">hv1</span><span class="s2">.</span><span class="s1">hashFile</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+        <span class="s5"># Now download it again.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">hv2 </span><span class="s2">= </span><span class="s1">HashVal</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadContentsFile</span><span class="s2">(</span><span class="s1">http</span><span class="s2">, </span><span class="s1">redownload </span><span class="s2">= </span><span class="s4">True</span><span class="s2">,</span>
+                                         <span class="s1">hashVal </span><span class="s2">= </span><span class="s1">hv2</span><span class="s2">):</span>
+            <span class="s4">return False</span>
+
+        <span class="s4">if </span><span class="s1">hv2 </span><span class="s2">== </span><span class="s1">HashVal</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;%s didn't actually redownload.&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+            <span class="s4">return False</span>
+        <span class="s4">elif </span><span class="s1">hv1 </span><span class="s2">!= </span><span class="s1">hv2</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;%s has changed.&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+            <span class="s4">return True</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;%s has not changed.&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+            <span class="s4">return False</span>
+
+    <span class="s4">def </span><span class="s1">hasCurrentContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns true if a contents.xml file has been successfully 
+        read for this host and is still current, false otherwise. &quot;&quot;&quot;</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner \</span>
+            <span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNone \</span>
+            <span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># If we're not asking to verify contents, then</span>
+            <span class="s5"># contents.xml files never expires.</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile</span>
+
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">())</span>
+        <span class="s4">return </span><span class="s1">now </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsExpiration </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile</span>
+
+    <span class="s4">def </span><span class="s1">readContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tempFilename </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">freshDownload </span><span class="s2">= </span><span class="s4">False</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Reads the contents.xml file for this particular host, once 
+        it has been downloaded into the indicated temporary file. 
+        Returns true on success, false if the contents file is not 
+        already on disk or is unreadable. 
+ 
+        If tempFilename is specified, it is the filename read, and it 
+        is copied the file into the standard location if it's not 
+        there already.  If tempFilename is not specified, the standard 
+        filename is read if it is known. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">core</span><span class="s2">, </span><span class="s3">'TiXmlDocument'</span><span class="s2">):</span>
+            <span class="s4">return False</span>
+
+        <span class="s4">if not </span><span class="s1">tempFilename</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">:</span>
+                <span class="s5"># If the filename is not specified, we can infer it</span>
+                <span class="s5"># if we already know our hostDir</span>
+                <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Otherwise, we have to guess the hostDir.</span>
+                <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__determineHostDir</span><span class="s2">(</span><span class="s4">None</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">)</span>
+
+            <span class="s1">tempFilename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">hostDir</span><span class="s2">, </span><span class="s3">'contents.xml'</span><span class="s2">)</span>
+
+        <span class="s1">doc </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">tempFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+        <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">LoadFile</span><span class="s2">():</span>
+            <span class="s4">return False</span>
+
+        <span class="s1">xcontents </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'contents'</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">xcontents</span><span class="s2">:</span>
+            <span class="s4">return False</span>
+
+        <span class="s1">maxAge </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'max_age'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">maxAge</span><span class="s2">:</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">maxAge </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">maxAge</span><span class="s2">)</span>
+            <span class="s4">except</span><span class="s2">:</span>
+                <span class="s1">maxAge </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">maxAge </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s5"># Default max_age if unspecified (see p3d_plugin.h).</span>
+            <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">AppRunner </span><span class="s4">import </span><span class="s1">AppRunner</span>
+            <span class="s1">maxAge </span><span class="s2">= </span><span class="s1">AppRunner</span><span class="s2">.</span><span class="s1">P3D_CONTENTS_DEFAULT_MAX_AGE</span>
+
+        <span class="s5"># Get the latest possible expiration time, based on the max_age</span>
+        <span class="s5"># indication.  Any expiration time later than this is in error.</span>
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsExpiration </span><span class="s2">= </span><span class="s1">now </span><span class="s2">+ </span><span class="s1">maxAge</span>
+
+        <span class="s4">if </span><span class="s1">freshDownload</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">readHash</span><span class="s2">(</span><span class="s1">tempFilename</span><span class="s2">)</span>
+
+            <span class="s5"># Update the XML with the new download information.</span>
+            <span class="s1">xorig </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'orig'</span><span class="s2">)</span>
+            <span class="s4">while </span><span class="s1">xorig</span><span class="s2">:</span>
+                <span class="s1">xcontents</span><span class="s2">.</span><span class="s1">RemoveChild</span><span class="s2">(</span><span class="s1">xorig</span><span class="s2">)</span>
+                <span class="s1">xorig </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'orig'</span><span class="s2">)</span>
+
+            <span class="s1">xorig </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">TiXmlElement</span><span class="s2">(</span><span class="s3">'orig'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xorig</span><span class="s2">)</span>
+            <span class="s1">xorig</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'expiration'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsExpiration</span><span class="s2">))</span>
+
+            <span class="s1">xcontents</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">xorig</span><span class="s2">)</span>
+
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Read the download hash and expiration time from the XML.</span>
+            <span class="s1">expiration </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">xorig </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'orig'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">xorig</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xorig</span><span class="s2">)</span>
+                <span class="s1">expiration </span><span class="s2">= </span><span class="s1">xorig</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'expiration'</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">expiration</span><span class="s2">:</span>
+                    <span class="s4">try</span><span class="s2">:</span>
+                        <span class="s1">expiration </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">expiration</span><span class="s2">)</span>
+                    <span class="s4">except</span><span class="s2">:</span>
+                        <span class="s1">expiration </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">hash</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSpec</span><span class="s2">.</span><span class="s1">readHash</span><span class="s2">(</span><span class="s1">tempFilename</span><span class="s2">)</span>
+
+            <span class="s4">if </span><span class="s1">expiration </span><span class="s4">is not None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsExpiration </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsExpiration</span><span class="s2">, </span><span class="s1">expiration</span><span class="s2">)</span>
+
+        <span class="s5"># Look for our own entry in the hosts table.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__findHostXml</span><span class="s2">(</span><span class="s1">xcontents</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__findHostXmlForHostDir</span><span class="s2">(</span><span class="s1">xcontents</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rootDir </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__determineHostDir</span><span class="s2">(</span><span class="s4">None</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">)</span>
+
+        <span class="s5"># Get the list of packages available for download and/or import.</span>
+        <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xpackage</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'name'</span><span class="s2">)</span>
+            <span class="s1">platform </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'platform'</span><span class="s2">)</span>
+            <span class="s1">version </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'version'</span><span class="s2">)</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">solo </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'solo'</span><span class="s2">) </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+                <span class="s1">solo </span><span class="s2">= </span><span class="s4">False</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'per_platform'</span><span class="s2">) </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+                <span class="s1">perPlatform </span><span class="s2">= </span><span class="s4">False</span>
+
+            <span class="s1">package </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__makePackage</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">platform</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">solo</span><span class="s2">, </span><span class="s1">perPlatform</span><span class="s2">)</span>
+            <span class="s1">package</span><span class="s2">.</span><span class="s1">descFile </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+            <span class="s1">package</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">)</span>
+            <span class="s1">package</span><span class="s2">.</span><span class="s1">setupFilenames</span><span class="s2">()</span>
+
+            <span class="s1">package</span><span class="s2">.</span><span class="s1">importDescFile </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">ximport </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'import'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">ximport</span><span class="s2">:</span>
+                <span class="s1">package</span><span class="s2">.</span><span class="s1">importDescFile </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+                <span class="s1">package</span><span class="s2">.</span><span class="s1">importDescFile</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">ximport</span><span class="s2">)</span>
+
+            <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s5"># Now save the contents.xml file into the standard location.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span>
+            <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">, </span><span class="s3">'contents.xml'</span><span class="s2">)</span>
+            <span class="s1">filename</span><span class="s2">.</span><span class="s1">makeDir</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">freshDownload</span><span class="s2">:</span>
+                <span class="s1">doc</span><span class="s2">.</span><span class="s1">SaveFile</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">filename </span><span class="s2">!= </span><span class="s1">tempFilename</span><span class="s2">:</span>
+                    <span class="s1">tempFilename</span><span class="s2">.</span><span class="s1">copyTo</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+        <span class="s4">return True</span>
+
+    <span class="s4">def </span><span class="s1">__findHostXml</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">xcontents</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Looks for the &lt;host&gt; or &lt;alt_host&gt; entry in the 
+        contents.xml that corresponds to the URL that we actually 
+        downloaded from. &quot;&quot;&quot;</span>
+
+        <span class="s1">xhost </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'host'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xhost</span><span class="s2">:</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'url'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">url </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">readHostXml</span><span class="s2">(</span><span class="s1">xhost</span><span class="s2">)</span>
+                <span class="s4">return</span>
+
+            <span class="s1">xalthost </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'alt_host'</span><span class="s2">)</span>
+            <span class="s4">while </span><span class="s1">xalthost</span><span class="s2">:</span>
+                <span class="s1">url </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'url'</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">url </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">readHostXml</span><span class="s2">(</span><span class="s1">xalthost</span><span class="s2">)</span>
+                    <span class="s4">return</span>
+                <span class="s1">xalthost </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'alt_host'</span><span class="s2">)</span>
+
+            <span class="s1">xhost </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'host'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__findHostXmlForHostDir</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">xcontents</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Looks for the &lt;host&gt; or &lt;alt_host&gt; entry in the 
+        contents.xml that corresponds to the host dir that we read the 
+        contents.xml from.  This is used when reading a contents.xml 
+        file found on disk, as opposed to downloading it from a 
+        site. &quot;&quot;&quot;</span>
+
+        <span class="s1">xhost </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'host'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xhost</span><span class="s2">:</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'url'</span><span class="s2">)</span>
+            <span class="s1">hostDirBasename </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'host_dir'</span><span class="s2">)</span>
+            <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__determineHostDir</span><span class="s2">(</span><span class="s1">hostDirBasename</span><span class="s2">, </span><span class="s1">url</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">hostDir </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__setHostUrl</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">readHostXml</span><span class="s2">(</span><span class="s1">xhost</span><span class="s2">)</span>
+                <span class="s4">return</span>
+
+            <span class="s1">xalthost </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'alt_host'</span><span class="s2">)</span>
+            <span class="s4">while </span><span class="s1">xalthost</span><span class="s2">:</span>
+                <span class="s1">url </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'url'</span><span class="s2">)</span>
+                <span class="s1">hostDirBasename </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'host_dir'</span><span class="s2">)</span>
+                <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__determineHostDir</span><span class="s2">(</span><span class="s1">hostDirBasename</span><span class="s2">, </span><span class="s1">url</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">hostDir </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__setHostUrl</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">readHostXml</span><span class="s2">(</span><span class="s1">xalthost</span><span class="s2">)</span>
+                    <span class="s4">return</span>
+                <span class="s1">xalthost </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'alt_host'</span><span class="s2">)</span>
+
+            <span class="s1">xhost </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'host'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">readHostXml</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">xhost</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Reads a &lt;host&gt; or &lt;alt_host&gt; entry and applies the data to 
+        this object. &quot;&quot;&quot;</span>
+
+        <span class="s1">descriptiveName </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'descriptive_name'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">descriptiveName </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descriptiveName</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">descriptiveName </span><span class="s2">= </span><span class="s1">descriptiveName</span>
+
+        <span class="s1">hostDirBasename </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'host_dir'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rootDir </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hostDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__determineHostDir</span><span class="s2">(</span><span class="s1">hostDirBasename</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">)</span>
+
+        <span class="s5"># Get the &quot;download&quot; URL, which is the source from which we</span>
+        <span class="s5"># download everything other than the contents.xml file.</span>
+        <span class="s1">downloadUrl </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'download_url'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">downloadUrl</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadUrlPrefix </span><span class="s2">= </span><span class="s1">downloadUrl</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadUrlPrefix</span><span class="s2">[-</span><span class="s6">1</span><span class="s2">] != </span><span class="s3">'/'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadUrlPrefix </span><span class="s2">+= </span><span class="s3">'/'</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadUrlPrefix </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrlPrefix</span>
+
+        <span class="s1">xmirror </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'mirror'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xmirror</span><span class="s2">:</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">xmirror</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'url'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">url</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">url</span><span class="s2">[-</span><span class="s6">1</span><span class="s2">] != </span><span class="s3">'/'</span><span class="s2">:</span>
+                    <span class="s1">url </span><span class="s2">+= </span><span class="s3">'/'</span>
+                <span class="s4">if </span><span class="s1">url </span><span class="s4">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mirrors</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">mirrors</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+            <span class="s1">xmirror </span><span class="s2">= </span><span class="s1">xmirror</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'mirror'</span><span class="s2">)</span>
+
+        <span class="s1">xalthost </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'alt_host'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xalthost</span><span class="s2">:</span>
+            <span class="s1">keyword </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'keyword'</span><span class="s2">)</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'url'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">url </span><span class="s4">and </span><span class="s1">keyword</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">altHosts</span><span class="s2">[</span><span class="s1">keyword</span><span class="s2">] = </span><span class="s1">url</span>
+            <span class="s1">xalthost </span><span class="s2">= </span><span class="s1">xalthost</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'alt_host'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__makePackage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">platform</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">solo</span><span class="s2">, </span><span class="s1">perPlatform</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Creates a new PackageInfo entry for the given name, 
+        version, and platform.  If there is already a matching 
+        PackageInfo, returns it. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">platform</span><span class="s2">:</span>
+            <span class="s1">platform </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s1">platforms </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packages</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">((</span><span class="s1">name</span><span class="s2">, </span><span class="s1">version </span><span class="s4">or </span><span class="s3">&quot;&quot;</span><span class="s2">), {})</span>
+        <span class="s1">package </span><span class="s2">= </span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">&quot;&quot;</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">package</span><span class="s2">:</span>
+            <span class="s1">package </span><span class="s2">= </span><span class="s1">PackageInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">platform </span><span class="s2">= </span><span class="s1">platform</span><span class="s2">,</span>
+                                  <span class="s1">solo </span><span class="s2">= </span><span class="s1">solo</span><span class="s2">, </span><span class="s1">asMirror </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">asMirror</span><span class="s2">,</span>
+                                  <span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">perPlatform</span><span class="s2">)</span>
+            <span class="s1">platforms</span><span class="s2">[</span><span class="s1">platform </span><span class="s4">or </span><span class="s3">&quot;&quot;</span><span class="s2">] = </span><span class="s1">package</span>
+
+        <span class="s4">return </span><span class="s1">package</span>
+
+    <span class="s4">def </span><span class="s1">getPackage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">platform </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns a PackageInfo that matches the indicated name and 
+        version and the indicated platform or the current runtime 
+        platform, if one is provided by this host, or None if not. &quot;&quot;&quot;</span>
+
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile</span>
+        <span class="s1">platforms </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packages</span><span class="s2">.</span><span class="s1">get</span><span class="s2">((</span><span class="s1">name</span><span class="s2">, </span><span class="s1">version </span><span class="s4">or </span><span class="s3">&quot;&quot;</span><span class="s2">), {})</span>
+
+        <span class="s4">if </span><span class="s1">platform</span><span class="s2">:</span>
+            <span class="s5"># In this case, we are looking for a specific platform</span>
+            <span class="s5"># only.</span>
+            <span class="s4">return </span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">platform</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+
+        <span class="s5"># We are looking for one matching the current runtime</span>
+        <span class="s5"># platform.  First, look for a package matching the current</span>
+        <span class="s5"># platform exactly.</span>
+        <span class="s1">package </span><span class="s2">= </span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">PandaSystem</span><span class="s2">.</span><span class="s1">getPlatform</span><span class="s2">(), </span><span class="s4">None</span><span class="s2">)</span>
+
+        <span class="s5"># If not found, look for one matching no particular platform.</span>
+        <span class="s4">if not </span><span class="s1">package</span><span class="s2">:</span>
+            <span class="s1">package </span><span class="s2">= </span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">&quot;&quot;</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">package</span>
+
+    <span class="s4">def </span><span class="s1">getPackages</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">platform </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns a list of PackageInfo objects that match the 
+        indicated name and/or platform, with no particular regards to 
+        version.  If name is None, all packages are returned. &quot;&quot;&quot;</span>
+
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasContentsFile</span>
+
+        <span class="s1">packages </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s2">(</span><span class="s1">pn</span><span class="s2">, </span><span class="s1">version</span><span class="s2">), </span><span class="s1">platforms </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packages</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s4">if </span><span class="s1">name </span><span class="s4">and </span><span class="s1">pn </span><span class="s2">!= </span><span class="s1">name</span><span class="s2">:</span>
+                <span class="s4">continue</span>
+
+            <span class="s4">if not </span><span class="s1">platform</span><span class="s2">:</span>
+                <span class="s4">for </span><span class="s1">p2 </span><span class="s4">in </span><span class="s1">platforms</span><span class="s2">:</span>
+                    <span class="s1">package </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackage</span><span class="s2">(</span><span class="s1">pn</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">platform </span><span class="s2">= </span><span class="s1">p2</span><span class="s2">)</span>
+                    <span class="s4">if </span><span class="s1">package</span><span class="s2">:</span>
+                        <span class="s1">packages</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">package </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackage</span><span class="s2">(</span><span class="s1">pn</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">platform </span><span class="s2">= </span><span class="s1">platform</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">package</span><span class="s2">:</span>
+                    <span class="s1">packages</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">packages</span>
+
+    <span class="s4">def </span><span class="s1">getAllPackages</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">includeAllPlatforms </span><span class="s2">= </span><span class="s4">False</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns a list of all available packages provided by this 
+        host. &quot;&quot;&quot;</span>
+
+        <span class="s1">result </span><span class="s2">= []</span>
+
+        <span class="s1">items </span><span class="s2">= </span><span class="s1">sorted</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packages</span><span class="s2">.</span><span class="s1">items</span><span class="s2">())</span>
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">platforms </span><span class="s4">in </span><span class="s1">items</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform </span><span class="s4">or </span><span class="s1">includeAllPlatforms</span><span class="s2">:</span>
+                <span class="s5"># If we maintain a different answer per platform,</span>
+                <span class="s5"># return all of them.</span>
+                <span class="s1">pitems </span><span class="s2">= </span><span class="s1">sorted</span><span class="s2">(</span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">items</span><span class="s2">())</span>
+                <span class="s4">for </span><span class="s1">pkey</span><span class="s2">, </span><span class="s1">package </span><span class="s4">in </span><span class="s1">pitems</span><span class="s2">:</span>
+                    <span class="s1">result</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># If we maintain a host for the current platform</span>
+                <span class="s5"># only (e.g. a client copy), then return only the</span>
+                <span class="s5"># current platform, or no particular platform.</span>
+                <span class="s1">package </span><span class="s2">= </span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">PandaSystem</span><span class="s2">.</span><span class="s1">getPlatform</span><span class="s2">(), </span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">if not </span><span class="s1">package</span><span class="s2">:</span>
+                    <span class="s1">package </span><span class="s2">= </span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">&quot;&quot;</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+
+                <span class="s4">if </span><span class="s1">package</span><span class="s2">:</span>
+                    <span class="s1">result</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">result</span>
+
+    <span class="s4">def </span><span class="s1">deletePackages</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">packages</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Removes all of the indicated packages from the disk, 
+        uninstalling them and deleting all of their files.  The 
+        packages parameter must be a list of one or more PackageInfo 
+        objects, for instance as returned by getPackage().  Returns 
+        the list of packages that were NOT found. &quot;&quot;&quot;</span>
+
+        <span class="s1">packages </span><span class="s2">= </span><span class="s1">packages</span><span class="s2">[:]</span>
+
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">platforms </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packages</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+            <span class="s4">for </span><span class="s1">platform</span><span class="s2">, </span><span class="s1">package </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">platforms</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+                <span class="s4">if </span><span class="s1">package </span><span class="s4">in </span><span class="s1">packages</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__deletePackageFiles</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+                    <span class="s4">del </span><span class="s1">platforms</span><span class="s2">[</span><span class="s1">platform</span><span class="s2">]</span>
+                    <span class="s1">packages</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+
+            <span class="s4">if not </span><span class="s1">platforms</span><span class="s2">:</span>
+                <span class="s5"># If we've removed all the platforms for a given</span>
+                <span class="s5"># package, remove the key from the toplevel map.</span>
+                <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packages</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+
+        <span class="s4">return </span><span class="s1">packages</span>
+
+    <span class="s4">def </span><span class="s1">__deletePackageFiles</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">package</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Called by deletePackage(), this actually removes the files 
+        for the indicated package. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Deleting package %s: %s&quot; </span><span class="s2">% (</span><span class="s1">package</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">, </span><span class="s1">package</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">()))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">rmtree</span><span class="s2">(</span><span class="s1">package</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">())</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">sendRequest</span><span class="s2">(</span><span class="s3">'forget_package'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hostUrl</span><span class="s2">, </span><span class="s1">package</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">, </span><span class="s1">package</span><span class="s2">.</span><span class="s1">packageVersion </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__determineHostDir</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hostDirBasename</span><span class="s2">, </span><span class="s1">hostUrl</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Hashes the host URL into a (mostly) unique directory 
+        string, which will be the root of the host's install tree. 
+        Returns the resulting path, as a Filename. 
+ 
+        This code is duplicated in C++, in 
+        P3DHost::determine_host_dir(). &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">hostDirBasename</span><span class="s2">:</span>
+            <span class="s5"># If the contents.xml specified a host_dir parameter, use</span>
+            <span class="s5"># it.</span>
+            <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rootDir</span><span class="s2">) + </span><span class="s3">'/hosts'</span>
+            <span class="s4">for </span><span class="s1">component </span><span class="s4">in </span><span class="s1">hostDirBasename</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">component</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">component</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] == </span><span class="s3">'.'</span><span class="s2">:</span>
+                        <span class="s5"># Forbid &quot;.foo&quot; or &quot;..&quot;.</span>
+                        <span class="s1">component </span><span class="s2">= </span><span class="s3">'x' </span><span class="s2">+ </span><span class="s1">component</span>
+                    <span class="s1">hostDir </span><span class="s2">+= </span><span class="s3">'/'</span>
+                    <span class="s1">hostDir </span><span class="s2">+= </span><span class="s1">component</span>
+            <span class="s4">return </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">hostDir</span><span class="s2">)</span>
+
+        <span class="s1">hostDir </span><span class="s2">= </span><span class="s3">'hosts/'</span>
+
+        <span class="s5"># Look for a server name in the URL.  Including this string in the</span>
+        <span class="s5"># directory name makes it friendlier for people browsing the</span>
+        <span class="s5"># directory.</span>
+
+        <span class="s5"># We could use URLSpec, but we do it by hand instead, to make</span>
+        <span class="s5"># it more likely that our hash code will exactly match the</span>
+        <span class="s5"># similar logic in P3DHost.</span>
+        <span class="s1">p </span><span class="s2">= </span><span class="s1">hostUrl</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'://'</span><span class="s2">)</span>
+        <span class="s1">hostname </span><span class="s2">= </span><span class="s3">''</span>
+        <span class="s4">if </span><span class="s1">p </span><span class="s2">!= -</span><span class="s6">1</span><span class="s2">:</span>
+            <span class="s1">start </span><span class="s2">= </span><span class="s1">p </span><span class="s2">+ </span><span class="s6">3</span>
+            <span class="s1">end </span><span class="s2">= </span><span class="s1">hostUrl</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">, </span><span class="s1">start</span><span class="s2">)</span>
+            <span class="s5"># Now start .. end is something like &quot;username@host:port&quot;.</span>
+
+            <span class="s1">at </span><span class="s2">= </span><span class="s1">hostUrl</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'@'</span><span class="s2">, </span><span class="s1">start</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">at </span><span class="s2">!= -</span><span class="s6">1 </span><span class="s4">and </span><span class="s1">at </span><span class="s2">&lt; </span><span class="s1">end</span><span class="s2">:</span>
+                <span class="s1">start </span><span class="s2">= </span><span class="s1">at </span><span class="s2">+ </span><span class="s6">1</span>
+
+            <span class="s1">colon </span><span class="s2">= </span><span class="s1">hostUrl</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">':'</span><span class="s2">, </span><span class="s1">start</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">colon </span><span class="s2">!= -</span><span class="s6">1 </span><span class="s4">and </span><span class="s1">colon </span><span class="s2">&lt; </span><span class="s1">end</span><span class="s2">:</span>
+                <span class="s1">end </span><span class="s2">= </span><span class="s1">colon</span>
+
+            <span class="s5"># Now start .. end is just the hostname.</span>
+            <span class="s1">hostname </span><span class="s2">= </span><span class="s1">hostUrl</span><span class="s2">[</span><span class="s1">start </span><span class="s2">: </span><span class="s1">end</span><span class="s2">]</span>
+
+        <span class="s5"># Now build a hash string of the whole URL.  We'll use MD5 to</span>
+        <span class="s5"># get a pretty good hash, with a minimum chance of collision.</span>
+        <span class="s5"># Even if there is a hash collision, though, it's not the end</span>
+        <span class="s5"># of the world; it just means that both hosts will dump their</span>
+        <span class="s5"># packages into the same directory, and they'll fight over the</span>
+        <span class="s5"># toplevel contents.xml file.  Assuming they use different</span>
+        <span class="s5"># version numbers (which should be safe since they have the</span>
+        <span class="s5"># same hostname), there will be minimal redownloading.</span>
+
+        <span class="s1">hashSize </span><span class="s2">= </span><span class="s6">16</span>
+        <span class="s1">keepHash </span><span class="s2">= </span><span class="s1">hashSize</span>
+        <span class="s4">if </span><span class="s1">hostname</span><span class="s2">:</span>
+            <span class="s1">hostDir </span><span class="s2">+= </span><span class="s1">hostname </span><span class="s2">+ </span><span class="s3">'_'</span>
+
+            <span class="s5"># If we successfully got a hostname, we don't really need the</span>
+            <span class="s5"># full hash.  We'll keep half of it.</span>
+            <span class="s1">keepHash </span><span class="s2">= </span><span class="s1">keepHash </span><span class="s2">// </span><span class="s6">2</span>
+
+        <span class="s1">md </span><span class="s2">= </span><span class="s1">HashVal</span><span class="s2">()</span>
+        <span class="s1">md</span><span class="s2">.</span><span class="s1">hashString</span><span class="s2">(</span><span class="s1">hostUrl</span><span class="s2">)</span>
+        <span class="s1">hostDir </span><span class="s2">+= </span><span class="s1">md</span><span class="s2">.</span><span class="s1">asHex</span><span class="s2">()[:</span><span class="s1">keepHash </span><span class="s2">* </span><span class="s6">2</span><span class="s2">]</span>
+
+        <span class="s1">hostDir </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rootDir</span><span class="s2">, </span><span class="s1">hostDir</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">hostDir</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<html>
+<head>
+<title>DistributedObjectBase.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedObjectBase.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+
+
+<span class="s0">class </span><span class="s1">DistributedObjectBase</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    The Distributed Object class is the base class for all network based 
+    (i.e. distributed) objects.  These will usually (always?) have a 
+    dclass entry in a \\*.dc file. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;DistributedObjectBase&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cr</span><span class="s2">):</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugStateCall</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cr </span><span class="s2">= </span><span class="s1">cr</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parentId </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">zoneId </span><span class="s2">= </span><span class="s0">None</span>
+
+    <span class="s0">if __debug__</span><span class="s2">:</span>
+        <span class="s0">def </span><span class="s1">status</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">indent</span><span class="s2">=</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s3">&quot;&quot;&quot; 
+            print out &quot;doId(parentId, zoneId) className&quot; 
+            &quot;&quot;&quot;</span>
+            <span class="s1">spaces </span><span class="s2">= </span><span class="s4">' ' </span><span class="s2">* (</span><span class="s1">indent </span><span class="s2">+ </span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;%s%s:&quot; </span><span class="s2">% (</span><span class="s4">' ' </span><span class="s2">* </span><span class="s1">indent</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">))</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;%sfrom DistributedObject doId:%s, parent:%s, zone:%s&quot; </span><span class="s2">% (</span>
+                    <span class="s1">spaces</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zoneId</span><span class="s2">))</span>
+            <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;%serror printing status %s&quot; </span><span class="s2">% (</span><span class="s1">spaces</span><span class="s2">, </span><span class="s1">e</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">getLocation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parentId </span><span class="s2">== </span><span class="s5">0 </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zoneId </span><span class="s2">== </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s0">return None</span>
+            <span class="s6"># This is a -1 stuffed into a uint32</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parentId </span><span class="s2">== </span><span class="s5">0xffffffff </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zoneId </span><span class="s2">== </span><span class="s5">0xffffffff</span><span class="s2">:</span>
+                <span class="s0">return None</span>
+            <span class="s0">return </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zoneId</span><span class="s2">)</span>
+        <span class="s0">except </span><span class="s1">AttributeError</span><span class="s2">:</span>
+            <span class="s0">return None</span>
+
+    <span class="s0">def </span><span class="s1">handleChildArrive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">childObj</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        A new child has just setLocation beneath us.  Give us a 
+        chance to run code when a new child sets location to us. For 
+        example, we may want to scene graph reparent the child to 
+        some subnode we own. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s6"># Inheritors should override</span>
+        <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">handleChildArriveZone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">childObj</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        A child has just changed zones beneath us with setLocation. 
+        Give us a chance to run code when an existing child sets 
+        location to us. For example, we may want to scene graph 
+        reparent the child to some subnode we own. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s6"># Inheritors should override</span>
+        <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">handleChildLeave</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">childObj</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        A child is about to setLocation away from us.  Give us a 
+        chance to run code just before a child sets location away from us. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s6"># Inheritors should override</span>
+        <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">handleChildLeaveZone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">childObj</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        A child is about to setLocation to another zone beneath us. 
+        Give us a chance to run code just before a child sets 
+        location to that zone. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s6"># Inheritors should override</span>
+        <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">handleQueryObjectChildrenLocalDone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">context</span><span class="s2">):</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s6"># Inheritors should override</span>
+        <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">getParentObj</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parentId </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s0">return None</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">parentId</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">hasParentingRules</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getFieldByName</span><span class="s2">(</span><span class="s4">'setParentingRules'</span><span class="s2">) != </span><span class="s0">None</span>
+
+    <span class="s0">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Override this to handle cleanup right before this object 
+        gets deleted. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s0">pass</span>
+</pre>
+</body>
+</html>

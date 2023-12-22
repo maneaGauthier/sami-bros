@@ -1,0 +1,573 @@
+<html>
+<head>
+<title>window.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+window.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">sys</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">platform</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">WindowProperties</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">loadPrcFileData</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">vec2 </span><span class="s0">import </span><span class="s1">Vec2</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">color</span><span class="s2">, </span><span class="s1">application</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">scene </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">scene    </span><span class="s3"># for toggling collider visibility</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">string_utilities </span><span class="s0">import </span><span class="s1">print_info</span><span class="s2">, </span><span class="s1">print_warning</span>
+<span class="s0">from </span><span class="s1">screeninfo </span><span class="s0">import </span><span class="s1">get_monitors</span>
+
+
+<span class="s0">class </span><span class="s1">Window</span><span class="s2">(</span><span class="s1">WindowProperties</span><span class="s2">):</span>
+
+    <span class="s0">def </span><span class="s1">ready</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">title</span><span class="s2">, </span><span class="s1">icon</span><span class="s2">, </span><span class="s1">borderless</span><span class="s2">, </span><span class="s1">fullscreen</span><span class="s2">, </span><span class="s1">size</span><span class="s2">, </span><span class="s1">forced_aspect_ratio</span><span class="s2">, </span><span class="s1">position</span><span class="s2">, </span><span class="s1">vsync</span><span class="s2">, </span><span class="s1">editor_ui_enabled</span><span class="s2">, </span><span class="s1">window_type</span><span class="s2">, </span><span class="s1">render_mode</span><span class="s2">):</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'window-title ursina'</span><span class="s2">)</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'notify-level-util error'</span><span class="s2">)</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'textures-auto-power-2 #t'</span><span class="s2">)</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'load-file-type p3assimp'</span><span class="s2">)</span>
+        <span class="s3"># loadPrcFileData('', 'allow-portal-cull #t')</span>
+        <span class="s3"># loadPrcFileData(&quot;&quot;, &quot;framebuffer-multisample 1&quot;)</span>
+        <span class="s3"># loadPrcFileData('', 'multisamples 2')</span>
+        <span class="s3"># loadPrcFileData('', 'textures-power-2 none')</span>
+        <span class="s3"># loadPrcFileData('', 'threading-model Cull/Draw')</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'coordinate-system y-up-left'</span><span class="s2">)</span>
+        <span class="s3"># fallback to one of these if opengl is not supported</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'aux-display pandadx9'</span><span class="s2">)</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'aux-display pandadx8'</span><span class="s2">)</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'aux-display tinydisplay'</span><span class="s2">)</span>
+
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">f'undecorated </span><span class="s0">{</span><span class="s1">borderless</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">title </span><span class="s2">= </span><span class="s1">title</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">icon </span><span class="s2">= </span><span class="s1">icon</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">monitors </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">monitor_index </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">monitors </span><span class="s2">= </span><span class="s1">get_monitors</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor </span><span class="s2">= [</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">monitors </span><span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">is_primary</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">monitor_index </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">monitors</span><span class="s2">.</span><span class="s1">index</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">)</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s1">print_warning</span><span class="s2">(</span><span class="s4">'no monitors found'</span><span class="s2">)</span>
+
+        <span class="s0">if not </span><span class="s1">size</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">width</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">height</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size </span><span class="s2">/ </span><span class="s5">1.25</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">1280</span><span class="s2">,</span><span class="s5">720</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size </span><span class="s2">/ </span><span class="s5">1.25</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size </span><span class="s2">= </span><span class="s1">size</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size </span><span class="s2">= </span><span class="s1">size</span>
+
+        <span class="s0">if not </span><span class="s1">fullscreen</span><span class="s2">:</span>
+            <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">f'win-size </span><span class="s0">{</span><span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span><span class="s0">} {</span><span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">f'win-size </span><span class="s0">{</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size</span><span class="s2">.</span><span class="s1">x</span><span class="s0">} {</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen_size</span><span class="s2">.</span><span class="s1">y</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_position </span><span class="s2">= </span><span class="s0">None   </span><span class="s3"># gets set when entering fullscreen so position will be correct when going back to windowed mode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">show_ursina_splash </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">top </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bottom </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, -</span><span class="s5">.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">center </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">apply_settings</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">forced_aspect_ratio </span><span class="s2">= </span><span class="s0">None </span><span class="s3"># example: window.forced_aspect_ratio = 16/9</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">always_on_top </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vsync </span><span class="s2">= </span><span class="s0">True   </span><span class="s3"># can't be set during play</span>
+        <span class="s3"># self.borderless = borderless</span>
+
+        <span class="s3"># if size:</span>
+        <span class="s3">#     self.windowed_size = size</span>
+        <span class="s3"># self.size = self.windowed_size</span>
+
+        <span class="s3"># if fullscreen:</span>
+        <span class="s3">#     self.fullscreen = fullscreen</span>
+        <span class="s3"># self._fullscreen = not application.development_mode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">center_on_screen</span><span class="s2">()</span>
+
+
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">dark_gray</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes </span><span class="s2">= (</span><span class="s4">'default'</span><span class="s2">, </span><span class="s4">'wireframe'</span><span class="s2">, </span><span class="s4">'colliders'</span><span class="s2">, </span><span class="s4">'normals'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render_mode </span><span class="s2">= </span><span class="s4">'default'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">!= </span><span class="s4">'none'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'aspectRatioChanged'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">update_aspect_ratio</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">always_on_top</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">setZOrder</span><span class="s2">(</span><span class="s1">WindowProperties</span><span class="s2">.</span><span class="s1">Z_top</span><span class="s2">)</span>
+
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">left</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">/</span><span class="s5">2</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">right</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">/</span><span class="s5">2</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">top_left</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">/</span><span class="s5">2</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">)</span>
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">top_right</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">/</span><span class="s5">2</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">)</span>
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">bottom_left</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">/</span><span class="s5">2</span><span class="s2">, -</span><span class="s5">.5</span><span class="s2">)</span>
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">bottom_right</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">/</span><span class="s5">2</span><span class="s2">, -</span><span class="s5">.5</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">center_on_screen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none'</span><span class="s2">:</span>
+            <span class="s0">return</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">x </span><span class="s2">+ ((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">width </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">size</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]) / </span><span class="s5">2</span><span class="s2">)</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">y </span><span class="s2">+ ((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">height </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">size</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]) / </span><span class="s5">2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">x</span><span class="s2">,</span><span class="s1">y</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">make_editor_gui</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):     </span><span class="s3"># called by main after setting up camera and application.development_mode</span>
+        <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">camera</span><span class="s2">, </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">Text</span><span class="s2">, </span><span class="s1">Button</span><span class="s2">, </span><span class="s1">ButtonList</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">, </span><span class="s1">Tooltip</span><span class="s2">, </span><span class="s1">held_keys</span><span class="s2">, </span><span class="s1">mouse</span>
+        <span class="s0">import </span><span class="s1">time</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">enabled</span><span class="s2">=</span><span class="s1">bool</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">development_mode</span><span class="s2">))</span>
+
+        <span class="s0">def </span><span class="s1">window_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'f12'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">.</span><span class="s1">enabled</span>
+
+            <span class="s0">elif </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'f11'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fullscreen</span>
+
+            <span class="s0">elif </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'f10'</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s4">'shift'</span><span class="s2">]:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">render_mode </span><span class="s2">= </span><span class="s4">'default'</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">i </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes</span><span class="s2">.</span><span class="s1">index</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_mode</span><span class="s2">) + </span><span class="s5">1</span>
+                    <span class="s0">if </span><span class="s1">i </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes</span><span class="s2">):</span>
+                        <span class="s1">i </span><span class="s2">= </span><span class="s5">0</span>
+
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">render_mode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">input_entity </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">name </span><span class="s2">= </span><span class="s4">'window.input_entity'</span><span class="s2">, </span><span class="s1">input</span><span class="s2">=</span><span class="s1">window_input</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'x'</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">ignore_paused</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(</span><span class="s5">.5</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">), </span><span class="s1">enabled</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">borderless</span><span class="s2">,</span>
+            <span class="s1">position</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">top_right</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=-</span><span class="s5">999</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s5">.05</span><span class="s2">, </span><span class="s5">.025</span><span class="s2">), </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">red</span><span class="s2">.</span><span class="s1">tint</span><span class="s2">(-</span><span class="s5">.2</span><span class="s2">), </span><span class="s1">on_click</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">quit</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'exit_button'</span><span class="s2">)</span>
+
+        <span class="s0">def </span><span class="s1">_exit_button_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s4">'shift'</span><span class="s2">] </span><span class="s0">and </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'q' </span><span class="s0">and not </span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">right</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">on_click</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">input </span><span class="s2">= </span><span class="s1">_exit_button_input</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fps_counter </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'60'</span><span class="s2">, </span><span class="s1">ignore</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">i</span><span class="s2">=</span><span class="s5">0</span><span class="s2">,</span>
+            <span class="s1">position</span><span class="s2">=((</span><span class="s5">.5</span><span class="s2">*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">)-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">scale_x</span><span class="s2">, </span><span class="s5">.47</span><span class="s2">+(</span><span class="s5">.02</span><span class="s2">*(</span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">)), -</span><span class="s5">999</span><span class="s2">))</span>
+
+        <span class="s0">def </span><span class="s1">_fps_counter_update</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fps_counter</span><span class="s2">.</span><span class="s1">i </span><span class="s2">&gt; </span><span class="s5">60</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fps_counter</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s5">1</span><span class="s2">//</span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fps_counter</span><span class="s2">.</span><span class="s1">i </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fps_counter</span><span class="s2">.</span><span class="s1">i </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fps_counter</span><span class="s2">.</span><span class="s1">update </span><span class="s2">= </span><span class="s1">_fps_counter_update</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s5">.5</span><span class="s2">,</span><span class="s5">.5</span><span class="s2">), </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'00'</span><span class="s2">, </span><span class="s1">ignore</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s5">0</span><span class="s2">,</span>
+            <span class="s1">position</span><span class="s2">=((</span><span class="s5">.5</span><span class="s2">*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">)-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">scale_x</span><span class="s2">, </span><span class="s5">.425</span><span class="s2">+(</span><span class="s5">.02</span><span class="s2">*(</span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">)), -</span><span class="s5">999</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">.</span><span class="s1">text_entity </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'entities:'</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s5">.5</span><span class="s2">,-</span><span class="s5">.75</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=</span><span class="s5">.4</span><span class="s2">, </span><span class="s1">add_to_scene_entities</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s0">def </span><span class="s1">_entity_counter_update</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">.</span><span class="s1">t </span><span class="s2">&gt; </span><span class="s5">1</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">max</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">len</span><span class="s2">([</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">model </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">])-</span><span class="s5">6</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">.</span><span class="s1">i </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">.</span><span class="s1">t </span><span class="s2">+= </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">entity_counter</span><span class="s2">.</span><span class="s1">update </span><span class="s2">= </span><span class="s1">_entity_counter_update</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s5">.5</span><span class="s2">,</span><span class="s5">.5</span><span class="s2">), </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'00'</span><span class="s2">, </span><span class="s1">ignore</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s5">.1</span><span class="s2">,</span>
+            <span class="s1">position</span><span class="s2">=((</span><span class="s5">.5</span><span class="s2">*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">)-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">scale_x</span><span class="s2">, </span><span class="s5">.38</span><span class="s2">+(</span><span class="s5">.02</span><span class="s2">*(</span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">)), -</span><span class="s5">999</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">.</span><span class="s1">text_entity </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'colliders:'</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s5">.5</span><span class="s2">,-</span><span class="s5">.75</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=</span><span class="s5">.4</span><span class="s2">, </span><span class="s1">add_to_scene_entities</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s0">def </span><span class="s1">_collider_counter_update</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">.</span><span class="s1">t </span><span class="s2">&gt; </span><span class="s5">1</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">max</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">len</span><span class="s2">([</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">collider </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">])-</span><span class="s5">4</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">.</span><span class="s1">i </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">.</span><span class="s1">t </span><span class="s2">+= </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">collider_counter</span><span class="s2">.</span><span class="s1">update </span><span class="s2">= </span><span class="s1">_collider_counter_update</span>
+
+
+        <span class="s0">import </span><span class="s1">webbrowser</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu </span><span class="s2">= </span><span class="s1">ButtonList</span><span class="s2">({</span>
+            <span class="s3"># 'Build' : Func(print, ' '),</span>
+            <span class="s4">'API Reference' </span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">webbrowser</span><span class="s2">.</span><span class="s1">open</span><span class="s2">, </span><span class="s4">'https://www.ursinaengine.org/api_reference.html'</span><span class="s2">),</span>
+            <span class="s3"># 'Asset Store' : Func(webbrowser.open, 'https://itch.io/tools/tag-ursina'),</span>
+            <span class="s4">'ursfx (Sound Effect Maker)' </span><span class="s2">: </span><span class="s0">lambda</span><span class="s2">: </span><span class="s1">exec</span><span class="s2">(</span><span class="s4">'from ursina.prefabs import ursfx; ursfx.open_gui()'</span><span class="s2">),</span>
+            <span class="s3"># 'Open Scene Editor' : Func(print, ' '),</span>
+            <span class="s4">'Change Render Mode &lt;gray&gt;[F10]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">next_render_mode</span><span class="s2">,</span>
+            <span class="s4">'Reset Render Mode &lt;gray&gt;[Shift+F10]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">, </span><span class="s4">'render_mode'</span><span class="s2">, </span><span class="s4">'default'</span><span class="s2">),</span>
+            <span class="s4">'Toggle Hotreloading &lt;gray&gt;[F9]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">application</span><span class="s2">.</span><span class="s1">hot_reloader</span><span class="s2">.</span><span class="s1">toggle_hotreloading</span><span class="s2">,</span>
+            <span class="s4">'Reload Shaders &lt;gray&gt;[F7]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">application</span><span class="s2">.</span><span class="s1">hot_reloader</span><span class="s2">.</span><span class="s1">reload_shaders</span><span class="s2">,</span>
+            <span class="s4">'Reload Models &lt;gray&gt;[F7]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">application</span><span class="s2">.</span><span class="s1">hot_reloader</span><span class="s2">.</span><span class="s1">reload_models</span><span class="s2">,</span>
+            <span class="s4">'Reload Textures &lt;gray&gt;[F6]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">application</span><span class="s2">.</span><span class="s1">hot_reloader</span><span class="s2">.</span><span class="s1">reload_textures</span><span class="s2">,</span>
+            <span class="s4">'Reload Code &lt;gray&gt;[F5]&lt;default&gt;' </span><span class="s2">: </span><span class="s1">application</span><span class="s2">.</span><span class="s1">hot_reloader</span><span class="s2">.</span><span class="s1">reload_code</span><span class="s2">,</span>
+        <span class="s2">},</span>
+            <span class="s1">width</span><span class="s2">=</span><span class="s5">.4</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s5">.75</span><span class="s2">, </span><span class="s1">x</span><span class="s2">=(</span><span class="s5">.5</span><span class="s2">*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">)-(</span><span class="s5">.4</span><span class="s2">*</span><span class="s5">.75</span><span class="s2">), </span><span class="s1">enabled</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'cog_menu'</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=-</span><span class="s5">10</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">black90</span><span class="s2">, </span><span class="s1">ignore_paused</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+        <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">on_click </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">disable</span>
+        <span class="s3"># print(self.cog_menu.scale_y)</span>
+        <span class="s3"># self.cog_menu.scale *= .75</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">highlight</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">azure</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_button </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'quad'</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s4">'cog'</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s5">.015</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(</span><span class="s5">1</span><span class="s2">,-</span><span class="s5">1</span><span class="s2">), </span><span class="s1">position</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bottom_right</span><span class="s2">, </span><span class="s1">ignore_paused</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'cog_button'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cog_button</span><span class="s2">.</span><span class="s1">y </span><span class="s2">+ (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">scale_y</span><span class="s2">) + </span><span class="s1">Text</span><span class="s2">.</span><span class="s1">size</span>
+        <span class="s1">info_text </span><span class="s2">=</span><span class="s4">'''This menu is not enabled in builds. To see how the app will look like in builds, do Ursina(development_mode=False), which will disable all editor ui and start the app in fullscreen. To disable only this menu, do window.cog_menu.enabled = False'''</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">info </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'circle'</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'&lt;gray&gt;?'</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s5">.025</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(</span><span class="s5">.5</span><span class="s2">,-</span><span class="s5">.5</span><span class="s2">), </span><span class="s1">tooltip</span><span class="s2">=</span><span class="s1">Tooltip</span><span class="s2">(</span><span class="s1">info_text</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s5">.75</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s5">.5</span><span class="s2">,-</span><span class="s5">.5</span><span class="s2">), </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">), </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'cog_menu_info'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">info</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">scale </span><span class="s2">*= </span><span class="s5">.75</span>
+        <span class="s0">def </span><span class="s1">_toggle_cog_menu</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cog_menu</span><span class="s2">.</span><span class="s1">enabled</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cog_button</span><span class="s2">.</span><span class="s1">on_click </span><span class="s2">= </span><span class="s1">_toggle_cog_menu</span>
+        <span class="s3"># print('-----------', time.time() - t) # 0.04</span>
+
+
+    <span class="s0">def </span><span class="s1">update_aspect_ratio</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'prev_size'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">prev_aspect_ratio </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">prev_size</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] / </span><span class="s1">self</span><span class="s2">.</span><span class="s1">prev_size</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">prev_aspect_ratio </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">prev_size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">size</span>
+
+        <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">camera</span><span class="s2">, </span><span class="s1">window</span>
+        <span class="s1">value </span><span class="s2">= [</span><span class="s1">int</span><span class="s2">(</span><span class="s1">e</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getSize</span><span class="s2">()]</span>
+        <span class="s1">camera</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s4">'window_size'</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s4">'changed aspect ratio:'</span><span class="s2">, </span><span class="s1">round</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">prev_aspect_ratio</span><span class="s2">, </span><span class="s5">3</span><span class="s2">), </span><span class="s4">'-&gt;'</span><span class="s2">, </span><span class="s1">round</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">, </span><span class="s5">3</span><span class="s2">))</span>
+
+        <span class="s1">camera</span><span class="s2">.</span><span class="s1">ui_lens</span><span class="s2">.</span><span class="s1">set_film_size</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui_size </span><span class="s2">* </span><span class="s5">.5 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">, </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui_size </span><span class="s2">* </span><span class="s5">.5</span><span class="s2">)</span>
+        <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s2">[</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">parent </span><span class="s2">== </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">.</span><span class="s1">children</span><span class="s2">:</span>
+            <span class="s1">e</span><span class="s2">.</span><span class="s1">x </span><span class="s2">/= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">prev_aspect_ratio </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span>
+
+        <span class="s0">if </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">orthographic</span><span class="s2">:</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">.</span><span class="s1">set_film_size</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">fov </span><span class="s2">* </span><span class="s1">window</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s2">, </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">fov</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">set_lens</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">orthographic_lens</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">position</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none'</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getOrigin</span><span class="s2">())</span>
+
+    <span class="s2">@</span><span class="s1">position</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">position</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none'</span><span class="s2">:</span>
+            <span class="s0">return</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'set window position:'</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setOrigin</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]), </span><span class="s1">int</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]))</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">base </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">, </span><span class="s4">'request_properties'</span><span class="s2">):</span>
+            <span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">request_properties</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">size</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(*</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getSize</span><span class="s2">())</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">1280</span><span class="s2">,</span><span class="s5">720</span><span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s1">size</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">size</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none' </span><span class="s0">or not </span><span class="s1">value</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'---------------set size to:'</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'_forced_aspect_ratio'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">forced_aspect_ratio</span><span class="s2">:</span>
+            <span class="s1">value </span><span class="s2">= (</span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">forced_aspect_ratio</span><span class="s2">, </span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setSize</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]), </span><span class="s1">int</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]))</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">base </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">, </span><span class="s4">'request_properties'</span><span class="s2">):</span>
+            <span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">request_properties</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">camera</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s4">'window_size'</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass </span><span class="s3"># not initialized yet</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">aspect_ratio</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">w</span><span class="s2">, </span><span class="s1">h </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getSize</span><span class="s2">()</span>
+            <span class="s0">return </span><span class="s1">w </span><span class="s2">/ </span><span class="s1">h</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s5">16</span><span class="s2">/</span><span class="s5">9</span>
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">forced_aspect_ratio</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'_forced_aspect_ratio'</span><span class="s2">): </span><span class="s0">return None</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_forced_aspect_ratio</span>
+
+    <span class="s2">@</span><span class="s1">forced_aspect_ratio</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">forced_aspect_ratio</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_forced_aspect_ratio </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if not </span><span class="s1">value</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">size</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">render_mode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'_render_mode'</span><span class="s2">): </span><span class="s0">return None</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_render_mode</span>
+
+    <span class="s2">@</span><span class="s1">render_mode</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">render_mode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_render_mode </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s3"># print('render mode:', value)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">wireframeOff</span><span class="s2">()</span>
+
+        <span class="s3"># disable collision display mode</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'original_colors'</span><span class="s2">):</span>
+            <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">e </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">([</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'color'</span><span class="s2">)]):</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">original_colors</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+                <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">:</span>
+                    <span class="s1">e</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">.</span><span class="s1">visible </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s2">[</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">model </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">alpha</span><span class="s2">]:</span>
+            <span class="s1">e</span><span class="s2">.</span><span class="s1">setShaderAuto</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">value </span><span class="s2">== </span><span class="s4">'wireframe'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">wireframeOn</span><span class="s2">()</span>
+
+        <span class="s0">elif </span><span class="s1">value </span><span class="s2">== </span><span class="s4">'colliders'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">original_colors </span><span class="s2">= [</span><span class="s1">e</span><span class="s2">.</span><span class="s1">color </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'color'</span><span class="s2">)]</span>
+            <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities</span><span class="s2">:</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span>
+                <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">:</span>
+                    <span class="s3"># e.visible = False</span>
+                    <span class="s1">e</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">.</span><span class="s1">visible </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s0">elif </span><span class="s1">value </span><span class="s2">== </span><span class="s4">'normals'</span><span class="s2">:</span>
+            <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">shaders </span><span class="s0">import </span><span class="s1">normals_shader</span>
+            <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s2">[</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities </span><span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">model </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">alpha</span><span class="s2">]:</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">shader </span><span class="s2">= </span><span class="s1">normals_shader</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s4">'transform_matrix'</span><span class="s2">, </span><span class="s1">e</span><span class="s2">.</span><span class="s1">getNetTransform</span><span class="s2">().</span><span class="s1">getMat</span><span class="s2">())</span>
+
+
+    <span class="s0">def </span><span class="s1">next_render_mode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">i </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes</span><span class="s2">.</span><span class="s1">index</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_mode</span><span class="s2">) + </span><span class="s5">1</span>
+        <span class="s0">if </span><span class="s1">i </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes</span><span class="s2">):</span>
+            <span class="s1">i </span><span class="s2">= </span><span class="s5">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render_mode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render_modes</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">title</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_title</span>
+
+    <span class="s2">@</span><span class="s1">title</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">title</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_title </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">f'window-title </span><span class="s0">{</span><span class="s1">value</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">icon</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_icon</span>
+
+    <span class="s2">@</span><span class="s1">icon</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">icon</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_icon </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setIconFilename</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">borderless</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'_borderless'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s1">borderless</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">borderless</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_borderless </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none'</span><span class="s2">: </span><span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setUndecorated</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'exit_button'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">exit_button</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">not </span><span class="s1">value</span>
+
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">base </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">, </span><span class="s4">'request_properties'</span><span class="s2">):</span>
+            <span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">request_properties</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">fullscreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'_fullscreen'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">fullscreen</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">fullscreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s3"># print('----------------------', value, self._fullscreen)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fullscreen </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none'</span><span class="s2">: </span><span class="s0">return</span>
+
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'set fullscreen to'</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">value</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_position </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">position</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">size</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">x</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">y</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">size </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">width</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">height</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_size</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_position </span><span class="s0">is not None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">windowed_position</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">center_on_screen</span><span class="s2">()</span>
+
+        <span class="s3"># self.setFullscreen(value)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">request_properties</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s3"># except:</span>
+        <span class="s3">#     print_warning('failed to set fullscreen', value)</span>
+        <span class="s3">#     pass</span>
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">color</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_color</span>
+
+    <span class="s2">@</span><span class="s1">color</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">color</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_color </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'none'</span><span class="s2">: </span><span class="s0">return</span>
+
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">camNode</span><span class="s2">.</span><span class="s1">get_display_region</span><span class="s2">(</span><span class="s5">0</span><span class="s2">).</span><span class="s1">get_window</span><span class="s2">().</span><span class="s1">set_clear_color</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">vsync</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_vsync</span>
+
+    <span class="s2">@</span><span class="s1">vsync</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">vsync</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_vsync </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if not </span><span class="s4">'base' </span><span class="s0">in </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">modules</span><span class="s2">:     </span><span class="s3"># set vsync/framerate before window opened</span>
+            <span class="s0">if </span><span class="s1">value </span><span class="s2">== </span><span class="s0">True or </span><span class="s1">value </span><span class="s2">== </span><span class="s0">False</span><span class="s2">:</span>
+                <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">f'sync-video </span><span class="s0">{</span><span class="s1">value</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">int</span><span class="s2">):</span>
+                <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">'clock-mode limited'</span><span class="s2">)</span>
+                <span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">''</span><span class="s2">, </span><span class="s4">f'clock-frame-rate </span><span class="s0">{</span><span class="s1">value</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">ClockObject                      </span><span class="s3"># set vsync/framerate in runtime</span>
+            <span class="s0">if </span><span class="s1">value </span><span class="s2">== </span><span class="s0">True</span><span class="s2">:</span>
+                <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setMode</span><span class="s2">(</span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">MNormal</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">value </span><span class="s2">== </span><span class="s0">False</span><span class="s2">:</span>
+                <span class="s1">print_warning</span><span class="s2">(</span><span class="s4">'error: disabling vsync during runtime is not yet implemented'</span><span class="s2">)</span>
+
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, (</span><span class="s1">int</span><span class="s2">, </span><span class="s1">float</span><span class="s2">, </span><span class="s1">complex</span><span class="s2">)):</span>
+                <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setMode</span><span class="s2">(</span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">MLimited</span><span class="s2">)</span>
+                <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setFrameRate</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">value</span><span class="s2">))</span>
+
+
+<span class="s1">instance </span><span class="s2">= </span><span class="s1">Window</span><span class="s2">()</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s3"># application.development_mode = False</span>
+    <span class="s3"># app = Ursina(borderless=True, forced_aspect_ratio=16/9)</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">(</span>
+        <span class="s1">title</span><span class="s2">=</span><span class="s4">'Ursina'</span><span class="s2">,</span>
+        <span class="s3"># borderless=False,</span>
+        <span class="s3"># borderless=True,</span>
+        <span class="s3"># fullscreen=True,</span>
+        <span class="s3"># show_ursina_splash=True,</span>
+        <span class="s3"># development_mode=False,</span>
+        <span class="s3"># vsync = True</span>
+        <span class="s2">)</span>
+    <span class="s1">button_list </span><span class="s2">= </span><span class="s1">ButtonList</span><span class="s2">(</span>
+        <span class="s2">{</span>
+        <span class="s4">'widow.position = Vec2(0,0)'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'position'</span><span class="s2">, </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">)),</span>
+        <span class="s4">'widow.size = Vec2(512,512)'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'size'</span><span class="s2">, </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s5">512</span><span class="s2">,</span><span class="s5">512</span><span class="s2">)),</span>
+        <span class="s4">'widow.center_on_screen()'</span><span class="s2">: </span><span class="s1">window</span><span class="s2">.</span><span class="s1">center_on_screen</span><span class="s2">,</span>
+
+        <span class="s4">'widow.borderless = True'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'borderless'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">),</span>
+        <span class="s4">'widow.borderless = False'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'borderless'</span><span class="s2">, </span><span class="s0">False</span><span class="s2">),</span>
+
+        <span class="s4">'widow.fullscreen = True'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'fullscreen'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">),</span>
+        <span class="s4">'widow.fullscreen = False'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'fullscreen'</span><span class="s2">, </span><span class="s0">False</span><span class="s2">),</span>
+
+        <span class="s4">'widow.vsync = True'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'vsync'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">),</span>
+        <span class="s4">'widow.vsync = False'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">window</span><span class="s2">, </span><span class="s4">'vsync'</span><span class="s2">, </span><span class="s0">False</span><span class="s2">),</span>
+
+
+        <span class="s4">'application.base.win.request_properties(self)'</span><span class="s2">: </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">request_properties</span><span class="s2">, </span><span class="s1">window</span><span class="s2">),</span>
+
+        <span class="s2">}, </span><span class="s1">y</span><span class="s2">=</span><span class="s5">0</span>
+    <span class="s2">)</span>
+    <span class="s1">startup_value </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">y</span><span class="s2">=</span><span class="s5">.5</span><span class="s2">,</span><span class="s1">x</span><span class="s2">=-</span><span class="s5">.5</span><span class="s2">)</span>
+    <span class="s1">startup_value</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s4">f'''</span>
+        <span class="s4">position: </span><span class="s0">{</span><span class="s1">window</span><span class="s2">.</span><span class="s1">position</span><span class="s0">}</span>
+        <span class="s4">size: </span><span class="s0">{</span><span class="s1">window</span><span class="s2">.</span><span class="s1">size</span><span class="s0">}</span>
+        <span class="s4">aspect_ratio: </span><span class="s0">{</span><span class="s1">window</span><span class="s2">.</span><span class="s1">aspect_ratio</span><span class="s0">}</span>
+        <span class="s4">window.main_monitor.width: </span><span class="s0">{</span><span class="s1">window</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">width</span><span class="s0">}</span>
+        <span class="s4">window.main_monitor.height: </span><span class="s0">{</span><span class="s1">window</span><span class="s2">.</span><span class="s1">main_monitor</span><span class="s2">.</span><span class="s1">height</span><span class="s0">}</span>
+
+    <span class="s4">'''</span>
+
+    <span class="s1">position_text </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">y</span><span class="s2">=</span><span class="s5">.5</span><span class="s2">,)</span>
+
+    <span class="s3"># def update():</span>
+    <span class="s3">#     position_text.text = f'''</span>
+    <span class="s3">#         position: {window.position}</span>
+    <span class="s3">#         size: {window.size}</span>
+    <span class="s3">#         aspect_ratio: {window.aspect_ratio}</span>
+    <span class="s3">#         window.main_monitor.width: {window.main_monitor.width}</span>
+    <span class="s3">#         window.main_monitor.height: {window.main_monitor.height}</span>
+    <span class="s3">#</span>
+    <span class="s3">#     '''</span>
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'space'</span><span class="s2">:</span>
+            <span class="s3"># x = window.main_monitor.x + ((window.main_monitor.width - window.size[0]) / 2)</span>
+            <span class="s3"># y = window.main_monitor.y + ((window.main_monitor.height - window.size[1]) / 2)</span>
+            <span class="s3"># window.position = Vec2(x,y)</span>
+            <span class="s1">window</span><span class="s2">.</span><span class="s1">center_on_screen</span><span class="s2">()</span>
+
+    <span class="s3"># window.borderless = False</span>
+    <span class="s3"># window.fullscreen = True</span>
+
+    <span class="s3"># window.size = window.size - Vec2(1,1)</span>
+    <span class="s3"># window.monitor_index = 0</span>
+    <span class="s3"># window.center_on_screen()</span>
+    <span class="s3"># print('------------', window.monitors)</span>
+    <span class="s3"># time.sleep(2)</span>
+    <span class="s3"># window.forced_aspect_ratio = 1</span>
+    <span class="s3"># window.vsync = 10</span>
+    <span class="s3"># window.title = 'ursina'</span>
+    <span class="s3"># window.borderless = False</span>
+    <span class="s3"># window.fullscreen = False</span>
+    <span class="s3"># window.fps_counter.enabled = False</span>
+    <span class="s3"># window.cog_button.enabled = False</span>
+    <span class="s3"># window.position =(0,837)</span>
+
+    <span class="s3"># camera.orthographic = True</span>
+    <span class="s3"># camera.fov = 2</span>
+    <span class="s3"># Text(text='adoij', x=.1)</span>
+    <span class="s3"># def input(key):</span>
+    <span class="s3">#     if key == 'space':</span>
+    <span class="s3">#         window.center_on_screen()</span>
+
+    <span class="s3"># Entity(model='cube', color=color.green, collider='box', texture='shore')</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

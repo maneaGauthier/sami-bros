@@ -1,0 +1,97 @@
+<html>
+<head>
+<title>basic_lighting_shader.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+basic_lighting_shader.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+
+<span class="s1">basic_lighting_shader </span><span class="s2">= </span><span class="s1">Shader</span><span class="s2">(</span><span class="s1">name</span><span class="s2">=</span><span class="s3">'basic_lighting_shader'</span><span class="s2">, </span><span class="s1">language</span><span class="s2">=</span><span class="s1">Shader</span><span class="s2">.</span><span class="s1">GLSL</span><span class="s2">,</span>
+<span class="s1">vertex </span><span class="s2">= </span><span class="s3">''' 
+#version 140 
+uniform mat4 p3d_ModelViewProjectionMatrix; 
+uniform mat4 p3d_ModelMatrix; 
+ 
+in vec4 p3d_Vertex; 
+in vec2 p3d_MultiTexCoord0; 
+out vec2 texcoord; 
+ 
+in vec3 p3d_Normal; 
+out vec3 world_normal; 
+ 
+void main() { 
+    gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex; 
+    texcoord = p3d_MultiTexCoord0; 
+    world_normal = normalize(mat3(p3d_ModelMatrix) * p3d_Normal); 
+} 
+'''</span><span class="s2">,</span>
+
+<span class="s1">fragment</span><span class="s2">=</span><span class="s3">''' 
+#version 140 
+ 
+uniform sampler2D p3d_Texture0; 
+uniform vec4 p3d_ColorScale; 
+in vec2 texcoord; 
+in vec3 world_normal; 
+out vec4 fragColor; 
+ 
+ 
+void main() { 
+    vec4 norm = vec4(world_normal*0.5+0.5, 1); 
+    float grey = 0.21 * norm.r + 0.71 * norm.g + 0.07 * norm.b; 
+    norm = vec4(grey, grey, grey, 1); 
+    vec4 color = texture(p3d_Texture0, texcoord) * p3d_ColorScale * norm; 
+    fragColor = color.rgba; 
+} 
+ 
+ 
+'''</span><span class="s2">, </span><span class="s1">geometry</span><span class="s2">=</span><span class="s3">''</span><span class="s2">,</span>
+<span class="s2">)</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">prefabs</span><span class="s2">.</span><span class="s1">primitives </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s1">window</span><span class="s2">.</span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">black</span>
+
+    <span class="s4"># e = Entity(model='sphere', shader=basic_lighting_shader)</span>
+    <span class="s4"># e.setShaderInput('transform_matrix', e.getNetTransform().getMat())</span>
+    <span class="s1">shader </span><span class="s2">= </span><span class="s1">basic_lighting_shader</span>
+
+    <span class="s1">a </span><span class="s2">= </span><span class="s1">WhiteCube</span><span class="s2">(</span><span class="s1">shader</span><span class="s2">=</span><span class="s1">basic_lighting_shader</span><span class="s2">)</span>
+    <span class="s4"># a.setShaderInput('transform_matrix', a.getNetTransform().getMat())</span>
+
+    <span class="s1">b </span><span class="s2">= </span><span class="s1">WhiteSphere</span><span class="s2">(</span><span class="s1">shader</span><span class="s2">=</span><span class="s1">basic_lighting_shader</span><span class="s2">, </span><span class="s1">x</span><span class="s2">=</span><span class="s5">3</span><span class="s2">)</span>
+    <span class="s4"># b.set_shader_input('transform_matrix', b.getNetTransform().getMat())</span>
+    <span class="s4"># AzureSphere(shader=a.shader, y=2)</span>
+    <span class="s1">GrayPlane</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">=</span><span class="s5">10</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=-</span><span class="s5">2</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'shore'</span><span class="s2">, </span><span class="s1">shader</span><span class="s2">=</span><span class="s1">basic_lighting_shader</span><span class="s2">)</span>
+
+    <span class="s1">Sky</span><span class="s2">(</span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">light_gray</span><span class="s2">)</span>
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">():</span>
+        <span class="s1">b</span><span class="s2">.</span><span class="s1">rotation_y </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s4">#b.rotation_z += 1</span>
+        <span class="s1">b</span><span class="s2">.</span><span class="s1">rotation_x </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s1">b</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s3">'transform_matrix'</span><span class="s2">, </span><span class="s1">b</span><span class="s2">.</span><span class="s1">getNetTransform</span><span class="s2">().</span><span class="s1">getMat</span><span class="s2">())</span>
+    <span class="s4"># EditorCamera()</span>
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

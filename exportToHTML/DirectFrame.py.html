@@ -1,0 +1,238 @@
+<html>
+<head>
+<title>DirectFrame.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectFrame.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;A DirectFrame is a basic DirectGUI component that acts as the base 
+class for various other components, and can also serve as a basic 
+container to hold other DirectGUI components. 
+ 
+A DirectFrame can have: 
+ 
+* A background texture (pass in path to image, or Texture Card) 
+* A midground geometry item (pass in geometry) 
+* A foreground text Node (pass in text string or OnscreenText) 
+ 
+Each of these has 1 or more states.  The same object can be used for 
+all states or each state can have a different text/geom/image (for 
+radio button and check button indicators, for example). 
+ 
+See the :ref:`directframe` page in the programming manual for a more in-depth 
+explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectFrame'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectGuiBase </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenImage </span><span class="s4">import </span><span class="s1">OnscreenImage</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenGeom </span><span class="s4">import </span><span class="s1">OnscreenGeom</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+    <span class="s1">stringType </span><span class="s2">= </span><span class="s1">str</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s1">stringType </span><span class="s2">= </span><span class="s1">basestring</span>
+
+
+<span class="s4">class </span><span class="s1">DirectFrame</span><span class="s2">(</span><span class="s1">DirectGuiWidget</span><span class="s2">):</span>
+    <span class="s1">DefDynGroups </span><span class="s2">= (</span><span class="s3">'text'</span><span class="s2">, </span><span class="s3">'geom'</span><span class="s2">, </span><span class="s3">'image'</span><span class="s2">)</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s6"># Inherits from DirectGuiWidget</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s6"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'pgFunc'</span><span class="s2">,          </span><span class="s1">PGItem</span><span class="s2">,     </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numStates'</span><span class="s2">,       </span><span class="s5">1</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'state'</span><span class="s2">,           </span><span class="s1">self</span><span class="s2">.</span><span class="s1">inactiveInitState</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Frame can have:</span>
+            <span class="s6"># A background texture</span>
+            <span class="s2">(</span><span class="s3">'image'</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">,       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setImage</span><span class="s2">),</span>
+            <span class="s6"># A midground geometry item</span>
+            <span class="s2">(</span><span class="s3">'geom'</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">,       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setGeom</span><span class="s2">),</span>
+            <span class="s6"># A foreground text node</span>
+            <span class="s2">(</span><span class="s3">'text'</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">,       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">),</span>
+            <span class="s6"># Change default value of text mayChange flag from 0</span>
+            <span class="s6"># (OnscreenText.py) to 1</span>
+            <span class="s2">(</span><span class="s3">'textMayChange'</span><span class="s2">,  </span><span class="s5">1</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s6"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">,</span>
+                           <span class="s1">dynamicGroups </span><span class="s2">= </span><span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">DefDynGroups</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize superclasses</span>
+        <span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectFrame</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">clearText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">text </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">text</span>
+
+        <span class="s6"># Determine if user passed in single string or a sequence</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] == </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">textList </span><span class="s2">= (</span><span class="s4">None</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">], </span><span class="s1">stringType</span><span class="s2">):</span>
+            <span class="s6"># If just passing in a single string, make a tuple out of it</span>
+            <span class="s1">textList </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">],) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s6"># Otherwise, hope that the user has passed in a tuple/list</span>
+            <span class="s1">textList </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">]</span>
+        <span class="s6"># Create/destroy components</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">component </span><span class="s2">= </span><span class="s3">'text' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s6"># If fewer items specified than numStates,</span>
+            <span class="s6"># just repeat last item</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">textList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">textList</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">]</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hascomponent</span><span class="s2">(</span><span class="s1">component</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">text </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s6"># Destroy component</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">destroycomponent</span><span class="s2">(</span><span class="s1">component</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">[</span><span class="s1">component </span><span class="s2">+ </span><span class="s3">'_text'</span><span class="s2">] = </span><span class="s1">text</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">text </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s4">return</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenText </span><span class="s4">import </span><span class="s1">OnscreenText</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                        <span class="s1">component</span><span class="s2">, (), </span><span class="s3">'text'</span><span class="s2">,</span>
+                        <span class="s1">OnscreenText</span><span class="s2">,</span>
+                        <span class="s2">(), </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s1">i</span><span class="s2">],</span>
+                        <span class="s1">text </span><span class="s2">= </span><span class="s1">text</span><span class="s2">, </span><span class="s1">scale </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">mayChange </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'textMayChange'</span><span class="s2">],</span>
+                        <span class="s1">sort </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">TEXT_SORT_INDEX</span><span class="s2">,</span>
+                        <span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">clearGeom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'geom'</span><span class="s2">] = </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setGeom</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setGeom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">geom</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">geom </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'geom'</span><span class="s2">] = </span><span class="s1">geom</span>
+
+        <span class="s6"># Determine argument type</span>
+        <span class="s1">geom </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'geom'</span><span class="s2">]</span>
+
+        <span class="s4">if </span><span class="s1">geom </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s6"># Passed in None</span>
+            <span class="s1">geomList </span><span class="s2">= (</span><span class="s4">None</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">geom</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+             <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">geom</span><span class="s2">, </span><span class="s1">stringType</span><span class="s2">):</span>
+            <span class="s6"># Passed in a single node path, make a tuple out of it</span>
+            <span class="s1">geomList </span><span class="s2">= (</span><span class="s1">geom</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s6"># Otherwise, hope that the user has passed in a tuple/list</span>
+            <span class="s1">geomList </span><span class="s2">= </span><span class="s1">geom</span>
+
+        <span class="s6"># Create/destroy components</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">component </span><span class="s2">= </span><span class="s3">'geom' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s6"># If fewer items specified than numStates,</span>
+            <span class="s6"># just repeat last item</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">geom </span><span class="s2">= </span><span class="s1">geomList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">geom </span><span class="s2">= </span><span class="s1">geomList</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">]</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hascomponent</span><span class="s2">(</span><span class="s1">component</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">geom </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s6"># Destroy component</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">destroycomponent</span><span class="s2">(</span><span class="s1">component</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">[</span><span class="s1">component </span><span class="s2">+ </span><span class="s3">'_geom'</span><span class="s2">] = </span><span class="s1">geom</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">geom </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s4">return</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                        <span class="s1">component</span><span class="s2">, (), </span><span class="s3">'geom'</span><span class="s2">,</span>
+                        <span class="s1">OnscreenGeom</span><span class="s2">,</span>
+                        <span class="s2">(), </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s1">i</span><span class="s2">],</span>
+                        <span class="s1">geom </span><span class="s2">= </span><span class="s1">geom</span><span class="s2">, </span><span class="s1">scale </span><span class="s2">= </span><span class="s5">1</span><span class="s2">,</span>
+                        <span class="s1">sort </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">GEOM_SORT_INDEX</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">clearImage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'image'</span><span class="s2">] = </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setImage</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setImage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">image</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">image </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'image'</span><span class="s2">] = </span><span class="s1">image</span>
+
+        <span class="s6"># Determine argument type</span>
+        <span class="s1">arg </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'image'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">arg </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s6"># Passed in None</span>
+            <span class="s1">imageList </span><span class="s2">= (</span><span class="s4">None</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+             <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">, </span><span class="s1">Texture</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+             <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">, </span><span class="s1">stringType</span><span class="s2">):</span>
+            <span class="s6"># Passed in a single node path, make a tuple out of it</span>
+            <span class="s1">imageList </span><span class="s2">= (</span><span class="s1">arg</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s6"># Otherwise, hope that the user has passed in a tuple/list</span>
+            <span class="s4">if </span><span class="s2">((</span><span class="s1">len</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">) == </span><span class="s5">2</span><span class="s2">) </span><span class="s4">and</span>
+                <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">stringType</span><span class="s2">) </span><span class="s4">and</span>
+                <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">stringType</span><span class="s2">)):</span>
+                <span class="s6"># Its a model/node pair of strings</span>
+                <span class="s1">imageList </span><span class="s2">= (</span><span class="s1">arg</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s6"># Assume its a list of node paths</span>
+                <span class="s1">imageList </span><span class="s2">= </span><span class="s1">arg</span>
+        <span class="s6"># Create/destroy components</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">component </span><span class="s2">= </span><span class="s3">'image' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s6"># If fewer items specified than numStates,</span>
+            <span class="s6"># just repeat last item</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">imageList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">imageList</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">]</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hascomponent</span><span class="s2">(</span><span class="s1">component</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">image </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s6"># Destroy component</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">destroycomponent</span><span class="s2">(</span><span class="s1">component</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">[</span><span class="s1">component </span><span class="s2">+ </span><span class="s3">'_image'</span><span class="s2">] = </span><span class="s1">image</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">image </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s4">return</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                        <span class="s1">component</span><span class="s2">, (), </span><span class="s3">'image'</span><span class="s2">,</span>
+                        <span class="s1">OnscreenImage</span><span class="s2">,</span>
+                        <span class="s2">(), </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s1">i</span><span class="s2">],</span>
+                        <span class="s1">image </span><span class="s2">= </span><span class="s1">image</span><span class="s2">, </span><span class="s1">scale </span><span class="s2">= </span><span class="s5">1</span><span class="s2">,</span>
+                        <span class="s1">sort </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">IMAGE_SORT_INDEX</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

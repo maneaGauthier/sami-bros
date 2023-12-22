@@ -1,0 +1,49 @@
+<html>
+<head>
+<title>osx.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+osx.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">typing </span><span class="s0">as </span><span class="s1">T</span>
+
+<span class="s0">from </span><span class="s1">screeninfo</span><span class="s2">.</span><span class="s1">common </span><span class="s0">import </span><span class="s1">Monitor</span>
+
+
+<span class="s3"># https://developer.apple.com/documentation/appkit/nsscreen/1388371-main</span>
+<span class="s3"># first entry in array is always the primary screen</span>
+<span class="s0">def </span><span class="s1">check_primary</span><span class="s2">(</span><span class="s1">screens</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">, </span><span class="s1">screen</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">) </span><span class="s1">-&gt; bool</span><span class="s2">:</span>
+    <span class="s0">return </span><span class="s1">screen </span><span class="s2">== </span><span class="s1">screens</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+
+
+<span class="s0">def </span><span class="s1">enumerate_monitors</span><span class="s2">() </span><span class="s1">-&gt; T</span><span class="s2">.</span><span class="s1">Iterable</span><span class="s2">[</span><span class="s1">Monitor</span><span class="s2">]:</span>
+    <span class="s0">from </span><span class="s1">AppKit </span><span class="s0">import </span><span class="s1">NSScreen</span>
+
+    <span class="s1">screens </span><span class="s2">= </span><span class="s1">NSScreen</span><span class="s2">.</span><span class="s1">screens</span><span class="s2">()</span>
+
+    <span class="s0">for </span><span class="s1">screen </span><span class="s0">in </span><span class="s1">screens</span><span class="s2">:</span>
+        <span class="s1">f </span><span class="s2">= </span><span class="s1">screen</span><span class="s2">.</span><span class="s1">frame</span>
+        <span class="s0">if </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">f</span><span class="s2">):</span>
+            <span class="s1">f </span><span class="s2">= </span><span class="s1">f</span><span class="s2">()</span>
+
+        <span class="s0">yield </span><span class="s1">Monitor</span><span class="s2">(</span>
+            <span class="s1">x</span><span class="s2">=</span><span class="s1">int</span><span class="s2">(</span><span class="s1">f</span><span class="s2">.</span><span class="s1">origin</span><span class="s2">.</span><span class="s1">x</span><span class="s2">),</span>
+            <span class="s1">y</span><span class="s2">=</span><span class="s1">int</span><span class="s2">(</span><span class="s1">f</span><span class="s2">.</span><span class="s1">origin</span><span class="s2">.</span><span class="s1">y</span><span class="s2">),</span>
+            <span class="s1">width</span><span class="s2">=</span><span class="s1">int</span><span class="s2">(</span><span class="s1">f</span><span class="s2">.</span><span class="s1">size</span><span class="s2">.</span><span class="s1">width</span><span class="s2">),</span>
+            <span class="s1">height</span><span class="s2">=</span><span class="s1">int</span><span class="s2">(</span><span class="s1">f</span><span class="s2">.</span><span class="s1">size</span><span class="s2">.</span><span class="s1">height</span><span class="s2">),</span>
+            <span class="s1">is_primary</span><span class="s2">=</span><span class="s1">check_primary</span><span class="s2">(</span><span class="s1">screens</span><span class="s2">, </span><span class="s1">screen</span><span class="s2">),</span>
+        <span class="s2">)</span>
+</pre>
+</body>
+</html>

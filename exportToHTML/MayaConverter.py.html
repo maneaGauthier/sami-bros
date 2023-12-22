@@ -1,0 +1,208 @@
+<html>
+<head>
+<title>MayaConverter.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MayaConverter.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">wxwidgets</span><span class="s2">.</span><span class="s1">WxAppShell </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">from </span><span class="s2">. </span><span class="s0">import </span><span class="s1">ObjectGlobals </span><span class="s0">as </span><span class="s1">OG</span>
+
+<span class="s1">CLOSE_STDIN </span><span class="s2">= </span><span class="s3">&quot;&lt;CLOSE STDIN&gt;&quot;</span>
+
+<span class="s0">class </span><span class="s1">StartupError</span><span class="s2">(</span><span class="s1">Exception</span><span class="s2">):</span>
+    <span class="s0">pass</span>
+
+<span class="s0">class </span><span class="s1">Process</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">, </span><span class="s1">cmd</span><span class="s2">, </span><span class="s1">end_callback</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Process</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Redirect</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">pid </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Execute</span><span class="s2">(</span><span class="s1">cmd</span><span class="s2">, </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EXEC_ASYNC</span><span class="s2">|</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EXEC_MAKE_GROUP_LEADER</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">b </span><span class="s2">= []</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">pid</span><span class="s2">:</span>
+            <span class="s4">#what was up with wx.Process.Get*Stream names?</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_ </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">GetOutputStream</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdout_ </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">GetInputStream</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stderr_ </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">GetErrorStream</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_END_PROCESS</span><span class="s2">, </span><span class="s1">end_callback</span><span class="s2">)</span>
+            <span class="s0">return</span>
+        <span class="s0">raise </span><span class="s1">StartupError</span>
+
+    <span class="s0">def </span><span class="s1">Poll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">input</span><span class="s2">=</span><span class="s3">''</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">input </span><span class="s0">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">b</span><span class="s2">) </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">b </span><span class="s0">or </span><span class="s1">len</span><span class="s2">(</span><span class="s1">input</span><span class="s2">) &gt; </span><span class="s5">512</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">input</span><span class="s2">:</span>
+                    <span class="s4">#if we don't chop up our input into resonably sized chunks,</span>
+                    <span class="s4">#some platforms (like Windows) will send some small number</span>
+                    <span class="s4">#of bytes per .write() call (sometimes 2 in the case of</span>
+                    <span class="s4">#Windows).</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">b</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">input</span><span class="s2">[</span><span class="s1">i</span><span class="s2">:</span><span class="s1">i</span><span class="s2">+</span><span class="s5">512</span><span class="s2">] </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">input</span><span class="s2">), </span><span class="s5">512</span><span class="s2">)])</span>
+                <span class="s1">input </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">b</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">input</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_</span><span class="s2">, </span><span class="s3">&quot;LastWrite&quot;</span><span class="s2">):</span>
+                <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_</span><span class="s2">.</span><span class="s1">LastWrite</span><span class="s2">()</span>
+                <span class="s0">if </span><span class="s1">y </span><span class="s2">!= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">input</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">b</span><span class="s2">.</span><span class="s1">insert</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">input</span><span class="s2">[</span><span class="s1">y</span><span class="s2">:])</span>
+        <span class="s1">x </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">s </span><span class="s0">in </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stderr_</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdout_</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">s </span><span class="s0">and </span><span class="s1">s</span><span class="s2">.</span><span class="s1">CanRead</span><span class="s2">():</span>
+                <span class="s1">x</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">s</span><span class="s2">.</span><span class="s1">read</span><span class="s2">())</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">x</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s3">''</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">x</span>
+
+    <span class="s0">def </span><span class="s1">CloseInp</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">CloseOutput</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">_stdin_ </span><span class="s2">= </span><span class="s0">None</span>
+
+    <span class="s0">def </span><span class="s1">Kill</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ks</span><span class="s2">=</span><span class="s3">'SIGKILL'</span><span class="s2">):</span>
+        <span class="s1">errors </span><span class="s2">= {</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">KILL_BAD_SIGNAL</span><span class="s2">: </span><span class="s3">&quot;KILL_BAD_SIGNAL&quot;</span><span class="s2">,</span>
+                  <span class="s1">wx</span><span class="s2">.</span><span class="s1">KILL_ACCESS_DENIED</span><span class="s2">: </span><span class="s3">&quot;KILL_ACCESS_DENIED&quot;</span><span class="s2">,</span>
+                  <span class="s1">wx</span><span class="s2">.</span><span class="s1">KILL_ERROR</span><span class="s2">: </span><span class="s3">&quot;KILL_ERROR&quot;</span><span class="s2">}</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">ks </span><span class="s2">== </span><span class="s1">CLOSE_STDIN</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">CloseInp</span><span class="s2">()</span>
+                <span class="s0">return </span><span class="s5">1</span><span class="s2">, </span><span class="s0">None</span>
+            <span class="s0">elif </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Process</span><span class="s2">.</span><span class="s1">Exists</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">pid</span><span class="s2">):</span>
+                <span class="s1">signal </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">, </span><span class="s1">ks</span><span class="s2">)</span>
+                <span class="s1">r </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Process</span><span class="s2">.</span><span class="s1">Kill</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">pid</span><span class="s2">, </span><span class="s1">signal</span><span class="s2">, </span><span class="s1">flags</span><span class="s2">=</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">KILL_CHILDREN</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">r </span><span class="s2">= </span><span class="s5">65535</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">CloseInp</span><span class="s2">()</span>
+                <span class="s0">return </span><span class="s5">1</span><span class="s2">, </span><span class="s0">None</span>
+
+            <span class="s0">if </span><span class="s1">r </span><span class="s0">not in </span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">KILL_OK</span><span class="s2">, </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">KILL_NO_PROCESS</span><span class="s2">, </span><span class="s5">65535</span><span class="s2">):</span>
+                <span class="s0">return </span><span class="s5">0</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">pid</span><span class="s2">, </span><span class="s1">signal</span><span class="s2">, </span><span class="s1">errors</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s3">&quot;UNKNOWN_KILL_ERROR %s&quot;</span><span class="s2">%</span><span class="s1">r</span><span class="s2">))</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s5">1</span><span class="s2">, </span><span class="s0">None</span>
+
+<span class="s1">FROM_MAYA_TO_EGG </span><span class="s2">= </span><span class="s5">0</span>
+<span class="s1">FROM_BAM_TO_MAYA </span><span class="s2">= </span><span class="s5">1</span>
+
+<span class="s0">class </span><span class="s1">MayaConverter</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Dialog</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">, </span><span class="s1">editor</span><span class="s2">, </span><span class="s1">mayaFile</span><span class="s2">, </span><span class="s1">callBack</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">obj</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">isAnim</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">convertMode</span><span class="s2">=</span><span class="s1">FROM_MAYA_TO_EGG</span><span class="s2">):</span>
+        <span class="s1">wx</span><span class="s2">.</span><span class="s1">Dialog</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">, </span><span class="s1">id</span><span class="s2">=</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">ID_ANY</span><span class="s2">, </span><span class="s1">title</span><span class="s2">=</span><span class="s3">&quot;Maya Converter&quot;</span><span class="s2">,</span>
+                           <span class="s1">pos</span><span class="s2">=</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">DefaultPosition</span><span class="s2">, </span><span class="s1">size</span><span class="s2">=(</span><span class="s5">300</span><span class="s2">, </span><span class="s5">200</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">editor </span><span class="s2">= </span><span class="s1">editor</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">obj </span><span class="s2">= </span><span class="s1">obj</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isAnim </span><span class="s2">= </span><span class="s1">isAnim</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">callBack </span><span class="s2">= </span><span class="s1">callBack</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile </span><span class="s2">= </span><span class="s1">mayaFile</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mainPanel </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Panel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, -</span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">sizer </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">BoxSizer</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">VERTICAL</span><span class="s2">)</span>
+        <span class="s1">sizer</span><span class="s2">.</span><span class="s1">Add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mainPanel</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EXPAND</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">SetSizer</span><span class="s2">(</span><span class="s1">sizer</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">output </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">TextCtrl</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mainPanel</span><span class="s2">, -</span><span class="s5">1</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">TE_MULTILINE</span><span class="s2">, </span><span class="s1">pos </span><span class="s2">= (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">), </span><span class="s1">size </span><span class="s2">= (</span><span class="s5">100</span><span class="s2">, </span><span class="s5">400</span><span class="s2">))</span>
+        <span class="s1">sizer2 </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">BoxSizer</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">VERTICAL</span><span class="s2">)</span>
+        <span class="s1">sizer2</span><span class="s2">.</span><span class="s1">Add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EXPAND</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mainPanel</span><span class="s2">.</span><span class="s1">SetSizer</span><span class="s2">(</span><span class="s1">sizer2</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">convertMode </span><span class="s2">== </span><span class="s1">FROM_MAYA_TO_EGG</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">convertFromMaya</span><span class="s2">()</span>
+        <span class="s0">elif </span><span class="s1">convertMode </span><span class="s2">== </span><span class="s1">FROM_BAM_TO_MAYA</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">convertToMaya</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">timer </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Timer</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, -</span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_TIMER</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onPoll</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">timer</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">timer</span><span class="s2">.</span><span class="s1">Start</span><span class="s2">(</span><span class="s5">100</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">convertFromMaya</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isAnim</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">:</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s3">'maya2egg -uo ft -a chan %s -o %s.anim.egg'</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">Process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onProcessEnded</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">))</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s3">'maya2egg -uo ft -a model %s -o %s.model.egg'</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">Process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onModelProcessEnded</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">))</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s3">'maya2egg -uo ft %s -o %s.egg'</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">Process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onProcessEnded</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">convertToMaya</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">bamFileName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile </span><span class="s2">+ </span><span class="s3">&quot;.bam&quot;</span>
+        <span class="s1">eggFileName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile </span><span class="s2">+ </span><span class="s3">&quot;.egg&quot;</span>
+        <span class="s1">command </span><span class="s2">= </span><span class="s3">'bam2egg %s -o %s'</span><span class="s2">%(</span><span class="s1">bamFileName</span><span class="s2">, </span><span class="s1">eggFileName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">Process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onBam2EggEnded</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">onEgg2MayaEnded</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">evt</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">CloseInp</span><span class="s2">()</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Poll</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">.</span><span class="s1">AppendText</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s0">None</span>
+
+    <span class="s0">def </span><span class="s1">onBam2EggEnded</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">evt</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">CloseInp</span><span class="s2">()</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Poll</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">.</span><span class="s1">AppendText</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+        <span class="s1">eggFileName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile </span><span class="s2">+ </span><span class="s3">&quot;.egg&quot;</span>
+        <span class="s1">command </span><span class="s2">= </span><span class="s3">'egg2maya -ui ft -uo ft %s -o %s'</span><span class="s2">%(</span><span class="s1">eggFileName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">Process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onEgg2MayaEnded</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">onPoll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">evt</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Poll</span><span class="s2">():</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">.</span><span class="s1">AppendText</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">onModelProcessEnded</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">evt</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">CloseInp</span><span class="s2">()</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Poll</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">.</span><span class="s1">AppendText</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">command </span><span class="s2">= </span><span class="s3">'maya2egg -uo ft -a chan %s -o %s.anim.egg'</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s1">Process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0 </span><span class="s2">= </span><span class="s0">None</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onProcessEnded</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">onProcessEnded</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">evt</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">CloseInp</span><span class="s2">()</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">process</span><span class="s2">.</span><span class="s1">Poll</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">.</span><span class="s1">AppendText</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">output</span><span class="s2">.</span><span class="s1">AppendText</span><span class="s2">(</span><span class="s3">'Converting %s is finished</span><span class="s0">\n</span><span class="s3">'</span><span class="s2">%</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">basename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isAnim</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">:</span>
+                <span class="s1">objDef </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">[</span><span class="s1">OG</span><span class="s2">.</span><span class="s1">OBJ_DEF</span><span class="s2">]</span>
+                <span class="s1">objNP </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">[</span><span class="s1">OG</span><span class="s2">.</span><span class="s1">OBJ_NP</span><span class="s2">]</span>
+                <span class="s1">animName </span><span class="s2">= </span><span class="s3">&quot;%s.anim.egg&quot;</span><span class="s2">%</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span>
+                <span class="s0">if </span><span class="s1">animName </span><span class="s0">not in </span><span class="s1">objDef</span><span class="s2">.</span><span class="s1">anims</span><span class="s2">:</span>
+                    <span class="s1">objDef</span><span class="s2">.</span><span class="s1">anims</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">animName</span><span class="s2">)</span>
+                <span class="s1">name </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">basename</span><span class="s2">(</span><span class="s1">animName</span><span class="s2">)</span>
+                <span class="s1">objNP</span><span class="s2">.</span><span class="s1">loadAnims</span><span class="s2">({</span><span class="s1">name</span><span class="s2">:</span><span class="s1">animName</span><span class="s2">})</span>
+                <span class="s1">objNP</span><span class="s2">.</span><span class="s1">loop</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">[</span><span class="s1">OG</span><span class="s2">.</span><span class="s1">OBJ_ANIM</span><span class="s2">] = </span><span class="s1">animName</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">objectPropertyUI</span><span class="s2">.</span><span class="s1">updateProps</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">)</span>
+                <span class="s0">return</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">modelName </span><span class="s2">= </span><span class="s3">&quot;%s.model.egg&quot;</span><span class="s2">%</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span>
+                <span class="s1">animName </span><span class="s2">= </span><span class="s3">&quot;%s.anim.egg&quot;</span><span class="s2">%</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span>
+                <span class="s1">result </span><span class="s2">= [</span><span class="s1">name</span><span class="s2">, </span><span class="s1">modelName</span><span class="s2">, </span><span class="s1">animName</span><span class="s2">]</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">modelName </span><span class="s2">= </span><span class="s3">&quot;%s.egg&quot;</span><span class="s2">%</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mayaFile</span>
+            <span class="s1">result </span><span class="s2">= [</span><span class="s1">name</span><span class="s2">, </span><span class="s1">modelName</span><span class="s2">]</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">callBack</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">callBack</span><span class="s2">(</span><span class="s1">result</span><span class="s2">)</span>
+
+</pre>
+</body>
+</html>

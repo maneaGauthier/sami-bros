@@ -1,0 +1,160 @@
+<html>
+<head>
+<title>Job.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Job.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+
+<span class="s0">if __debug__</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">PStatCollector</span>
+
+
+<span class="s0">class </span><span class="s1">Job</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot;Base class for cpu-intensive or non-time-critical operations that 
+    are run through the :class:`.JobManager`. 
+ 
+    To use, subclass and override the `run()` method. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s4">#: Yielded from the `run()` generator method when the job is done.</span>
+    <span class="s1">Done </span><span class="s2">= </span><span class="s1">object</span><span class="s2">()</span>
+
+    <span class="s4">#: ``yield None`` is acceptable in place of ``yield Job.Continue``</span>
+    <span class="s1">Continue </span><span class="s2">= </span><span class="s0">None</span>
+
+    <span class="s4">#: Yield any remaining time for this job until next frame.</span>
+    <span class="s1">Sleep </span><span class="s2">= </span><span class="s1">object</span><span class="s2">()</span>
+
+    <span class="s4"># These priorities determine how many timeslices a job gets relative to other</span>
+    <span class="s4"># jobs. A job with priority of 1000 will run 10 times more often than a job</span>
+    <span class="s4"># with priority of 100.</span>
+    <span class="s1">Priorities </span><span class="s2">= </span><span class="s1">ScratchPad</span><span class="s2">(</span><span class="s1">Min</span><span class="s2">=</span><span class="s5">1</span><span class="s2">, </span><span class="s1">Low</span><span class="s2">=</span><span class="s5">100</span><span class="s2">, </span><span class="s1">Normal</span><span class="s2">=</span><span class="s5">1000</span><span class="s2">, </span><span class="s1">High</span><span class="s2">=</span><span class="s5">10000</span><span class="s2">)</span>
+    <span class="s1">_SerialGen </span><span class="s2">= </span><span class="s1">SerialNumGen</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_generator </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_id </span><span class="s2">= </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">_SerialGen</span><span class="s2">.</span><span class="s1">next</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_printing </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_priority </span><span class="s2">= </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Priorities</span><span class="s2">.</span><span class="s1">Normal</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_finished </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s0">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_pstats </span><span class="s2">= </span><span class="s1">PStatCollector</span><span class="s2">(</span><span class="s6">&quot;App:Show code:jobManager:%s&quot; </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_generator</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_printing</span>
+
+    <span class="s0">def </span><span class="s1">getFinishedEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s6">'job-finished-%s' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id</span>
+
+    <span class="s0">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;This should be overridden with a generator that does the 
+        needful processing. 
+ 
+        yield `Job.Continue` when possible/reasonable, and try not to run 
+        longer than the JobManager's timeslice between yields. 
+ 
+        When done, yield `Job.Done`. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">raise </span><span class="s1">NotImplementedError</span><span class="s2">(</span><span class="s6">&quot;don't call down&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">getPriority</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_priority</span>
+    <span class="s0">def </span><span class="s1">setPriority</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">priority</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_priority </span><span class="s2">= </span><span class="s1">priority</span>
+
+    <span class="s0">def </span><span class="s1">printingBegin</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_printing </span><span class="s2">= </span><span class="s0">True</span>
+    <span class="s0">def </span><span class="s1">printingEnd</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_printing </span><span class="s2">= </span><span class="s0">False</span>
+
+    <span class="s0">def </span><span class="s1">resume</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;Called every time JobManager is going to start running this job.&quot;&quot;&quot;</span>
+        <span class="s4">#if self._printing:</span>
+        <span class="s4">#    # we may be suspended/resumed multiple times per frame, that gets spammy</span>
+        <span class="s4">#    # if we need to pick out the output of a job, put a prefix onto each line</span>
+        <span class="s4">#    # of the output</span>
+        <span class="s4">#    print('JOB:%s:RESUME' % self._name)</span>
+
+    <span class="s0">def </span><span class="s1">suspend</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;Called when JobManager is going to stop running this job for a 
+        while. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s4">#if self._printing:</span>
+        <span class="s4">#    #print('JOB:%s:SUSPEND' % self._name)</span>
+        <span class="s4">#    pass</span>
+        <span class="s4">#    &quot;&quot;&quot;</span>
+
+    <span class="s0">def </span><span class="s1">_setFinished</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_finished </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">finished</span><span class="s2">()</span>
+    <span class="s0">def </span><span class="s1">isFinished</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_finished</span>
+
+    <span class="s0">def </span><span class="s1">finished</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># called when the job finishes and has been removed from the JobManager</span>
+        <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">getJobName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span>
+    <span class="s0">def </span><span class="s1">_getJobId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id</span>
+
+    <span class="s0">def </span><span class="s1">_getGenerator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_generator </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_generator </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_generator</span>
+    <span class="s0">def </span><span class="s1">_cleanupGenerator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_generator </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_generator </span><span class="s2">= </span><span class="s0">None</span>
+
+<span class="s0">if __debug__</span><span class="s2">: </span><span class="s4"># __dev__ not yet available at this point</span>
+    <span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">Job </span><span class="s0">import </span><span class="s1">Job</span>
+    <span class="s0">class </span><span class="s1">TestJob</span><span class="s2">(</span><span class="s1">Job</span><span class="s2">):</span>
+        <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s1">Job</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s6">'TestJob'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_counter </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_accum </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_finished </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s0">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">printingBegin</span><span class="s2">()</span>
+            <span class="s0">while True</span><span class="s2">:</span>
+                <span class="s0">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_accum </span><span class="s2">&lt; </span><span class="s5">100</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_accum </span><span class="s2">+= </span><span class="s5">1</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s6">'counter = %s, accum = %s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_counter</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_accum</span><span class="s2">))</span>
+                    <span class="s0">yield None</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_accum </span><span class="s2">= </span><span class="s5">0</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_counter </span><span class="s2">+= </span><span class="s5">1</span>
+
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_counter </span><span class="s2">&gt;= </span><span class="s5">100</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s6">'Job.Done'</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">printingEnd</span><span class="s2">()</span>
+                    <span class="s0">yield </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Done</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s0">yield None</span>
+
+    <span class="s0">def </span><span class="s1">addTestJob</span><span class="s2">():</span>
+        <span class="s1">jobMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">TestJob</span><span class="s2">())</span>
+</pre>
+</body>
+</html>

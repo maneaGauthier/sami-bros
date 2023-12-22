@@ -1,0 +1,200 @@
+<html>
+<head>
+<title>DirectGuiGlobals.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectGuiGlobals.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Global definitions used by Direct Gui Classes and handy constants 
+that can be used during widget construction 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= []</span>
+
+<span class="s3">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s3">import </span><span class="s2">*</span>
+
+<span class="s1">defaultFont </span><span class="s2">= </span><span class="s3">None</span>
+<span class="s1">defaultFontFunc </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">getDefaultFont</span>
+<span class="s1">defaultClickSound </span><span class="s2">= </span><span class="s3">None</span>
+<span class="s1">defaultRolloverSound </span><span class="s2">= </span><span class="s3">None</span>
+<span class="s1">defaultDialogGeom </span><span class="s2">= </span><span class="s3">None</span>
+<span class="s1">defaultDialogRelief </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TBevelOut</span>
+<span class="s1">drawOrder </span><span class="s2">= </span><span class="s4">100</span>
+<span class="s1">panel </span><span class="s2">= </span><span class="s3">None</span>
+
+<span class="s5"># USEFUL GUI CONSTANTS</span>
+
+<span class="s5">#: Constant used to indicate that an option can only be set by a call</span>
+<span class="s5">#: to the constructor.</span>
+<span class="s1">INITOPT </span><span class="s2">= [</span><span class="s6">'initopt'</span><span class="s2">]</span>
+
+<span class="s5"># Mouse buttons</span>
+<span class="s1">LMB </span><span class="s2">= </span><span class="s4">0</span>
+<span class="s1">MMB </span><span class="s2">= </span><span class="s4">1</span>
+<span class="s1">RMB </span><span class="s2">= </span><span class="s4">2</span>
+
+<span class="s5"># Widget state</span>
+<span class="s1">NORMAL </span><span class="s2">= </span><span class="s6">'normal'</span>
+<span class="s1">DISABLED </span><span class="s2">= </span><span class="s6">'disabled'</span>
+
+<span class="s5"># Frame style</span>
+<span class="s1">FLAT </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TFlat</span>
+<span class="s1">RAISED </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TBevelOut</span>
+<span class="s1">SUNKEN </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TBevelIn</span>
+<span class="s1">GROOVE </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TGroove</span>
+<span class="s1">RIDGE </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TRidge</span>
+<span class="s1">TEXTUREBORDER </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TTextureBorder</span>
+
+<span class="s1">FrameStyleDict </span><span class="s2">= {</span><span class="s6">'flat'</span><span class="s2">: </span><span class="s1">FLAT</span><span class="s2">, </span><span class="s6">'raised'</span><span class="s2">: </span><span class="s1">RAISED</span><span class="s2">, </span><span class="s6">'sunken'</span><span class="s2">: </span><span class="s1">SUNKEN</span><span class="s2">,</span>
+                  <span class="s6">'groove'</span><span class="s2">: </span><span class="s1">GROOVE</span><span class="s2">, </span><span class="s6">'ridge'</span><span class="s2">: </span><span class="s1">RIDGE</span><span class="s2">,</span>
+                  <span class="s6">'texture_border'</span><span class="s2">: </span><span class="s1">TEXTUREBORDER</span><span class="s2">,</span>
+                  <span class="s2">}</span>
+
+<span class="s5"># Orientation of DirectSlider and DirectScrollBar</span>
+<span class="s1">HORIZONTAL </span><span class="s2">= </span><span class="s6">'horizontal'</span>
+<span class="s1">VERTICAL </span><span class="s2">= </span><span class="s6">'vertical'</span>
+<span class="s1">VERTICAL_INVERTED </span><span class="s2">= </span><span class="s6">'vertical_inverted'</span>
+
+<span class="s5"># Dialog button values</span>
+<span class="s1">DIALOG_NO </span><span class="s2">= </span><span class="s4">0</span>
+<span class="s1">DIALOG_OK </span><span class="s2">= </span><span class="s1">DIALOG_YES </span><span class="s2">= </span><span class="s1">DIALOG_RETRY </span><span class="s2">= </span><span class="s4">1</span>
+<span class="s1">DIALOG_CANCEL </span><span class="s2">= -</span><span class="s4">1</span>
+
+<span class="s5"># User can bind commands to these gui events</span>
+<span class="s1">DESTROY </span><span class="s2">= </span><span class="s6">'destroy-'</span>
+<span class="s1">PRINT </span><span class="s2">= </span><span class="s6">'print-'</span>
+<span class="s1">ENTER </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getEnterPrefix</span><span class="s2">()</span>
+<span class="s1">EXIT </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getExitPrefix</span><span class="s2">()</span>
+<span class="s1">WITHIN </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getWithinPrefix</span><span class="s2">()</span>
+<span class="s1">WITHOUT </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getWithoutPrefix</span><span class="s2">()</span>
+<span class="s1">B1CLICK </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getClickPrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">one</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B2CLICK </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getClickPrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">two</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B3CLICK </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getClickPrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">three</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B1PRESS </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getPressPrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">one</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B2PRESS </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getPressPrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">two</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B3PRESS </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getPressPrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">three</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B1RELEASE </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getReleasePrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">one</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B2RELEASE </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getReleasePrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">two</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">B3RELEASE </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">getReleasePrefix</span><span class="s2">() + </span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">three</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s5"># For DirectEntry widgets</span>
+<span class="s1">OVERFLOW </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">getOverflowPrefix</span><span class="s2">()</span>
+<span class="s1">ACCEPT </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">getAcceptPrefix</span><span class="s2">() + </span><span class="s1">KeyboardButton</span><span class="s2">.</span><span class="s1">enter</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">ACCEPTFAILED </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">getAcceptFailedPrefix</span><span class="s2">() + </span><span class="s1">KeyboardButton</span><span class="s2">.</span><span class="s1">enter</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">() + </span><span class="s6">'-'</span>
+<span class="s1">TYPE </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">getTypePrefix</span><span class="s2">()</span>
+<span class="s1">ERASE </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">getErasePrefix</span><span class="s2">()</span>
+<span class="s1">CURSORMOVE </span><span class="s2">= </span><span class="s1">PGEntry</span><span class="s2">.</span><span class="s1">getCursormovePrefix</span><span class="s2">()</span>
+<span class="s5"># For DirectSlider and DirectScrollBar widgets</span>
+<span class="s1">ADJUST </span><span class="s2">= </span><span class="s1">PGSliderBar</span><span class="s2">.</span><span class="s1">getAdjustPrefix</span><span class="s2">()</span>
+
+
+<span class="s5"># For setting the sorting order of a widget's visible components</span>
+<span class="s1">IMAGE_SORT_INDEX </span><span class="s2">= </span><span class="s4">10</span>
+<span class="s1">GEOM_SORT_INDEX </span><span class="s2">= </span><span class="s4">20</span>
+<span class="s1">TEXT_SORT_INDEX </span><span class="s2">= </span><span class="s4">30</span>
+
+<span class="s1">FADE_SORT_INDEX </span><span class="s2">= </span><span class="s4">1000</span>
+<span class="s1">NO_FADE_SORT_INDEX </span><span class="s2">= </span><span class="s4">2000</span>
+
+<span class="s5"># Handy conventions for organizing top-level gui objects in loose buckets.</span>
+<span class="s1">BACKGROUND_SORT_INDEX </span><span class="s2">= -</span><span class="s4">100</span>
+<span class="s1">MIDGROUND_SORT_INDEX </span><span class="s2">= </span><span class="s4">0</span>
+<span class="s1">FOREGROUND_SORT_INDEX </span><span class="s2">= </span><span class="s4">100</span>
+
+<span class="s5"># Symbolic constants for the indexes into an optionInfo list.</span>
+<span class="s1">_OPT_DEFAULT         </span><span class="s2">= </span><span class="s4">0</span>
+<span class="s1">_OPT_VALUE           </span><span class="s2">= </span><span class="s4">1</span>
+<span class="s1">_OPT_FUNCTION        </span><span class="s2">= </span><span class="s4">2</span>
+
+<span class="s5"># DirectButton States:</span>
+<span class="s1">BUTTON_READY_STATE     </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">SReady       </span><span class="s5"># 0</span>
+<span class="s1">BUTTON_DEPRESSED_STATE </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">SDepressed   </span><span class="s5"># 1</span>
+<span class="s1">BUTTON_ROLLOVER_STATE  </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">SRollover    </span><span class="s5"># 2</span>
+<span class="s1">BUTTON_INACTIVE_STATE  </span><span class="s2">= </span><span class="s1">PGButton</span><span class="s2">.</span><span class="s1">SInactive    </span><span class="s5"># 3</span>
+
+<span class="s3">def </span><span class="s1">getDefaultRolloverSound</span><span class="s2">():</span>
+    <span class="s3">return </span><span class="s1">defaultRolloverSound</span>
+
+<span class="s3">def </span><span class="s1">setDefaultRolloverSound</span><span class="s2">(</span><span class="s1">newSound</span><span class="s2">):</span>
+    <span class="s3">global </span><span class="s1">defaultRolloverSound</span>
+    <span class="s1">defaultRolloverSound </span><span class="s2">= </span><span class="s1">newSound</span>
+
+<span class="s3">def </span><span class="s1">getDefaultClickSound</span><span class="s2">():</span>
+    <span class="s3">return </span><span class="s1">defaultClickSound</span>
+
+<span class="s3">def </span><span class="s1">setDefaultClickSound</span><span class="s2">(</span><span class="s1">newSound</span><span class="s2">):</span>
+    <span class="s3">global </span><span class="s1">defaultClickSound</span>
+    <span class="s1">defaultClickSound </span><span class="s2">= </span><span class="s1">newSound</span>
+
+<span class="s3">def </span><span class="s1">getDefaultFont</span><span class="s2">():</span>
+    <span class="s3">global </span><span class="s1">defaultFont</span>
+    <span class="s3">if </span><span class="s1">defaultFont </span><span class="s2">== </span><span class="s3">None</span><span class="s2">:</span>
+        <span class="s1">defaultFont </span><span class="s2">= </span><span class="s1">defaultFontFunc</span><span class="s2">()</span>
+    <span class="s3">return </span><span class="s1">defaultFont</span>
+
+<span class="s3">def </span><span class="s1">setDefaultFont</span><span class="s2">(</span><span class="s1">newFont</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;Changes the default font for DirectGUI items.  To change the default 
+    font across the board, see :meth:`.TextNode.setDefaultFont`. &quot;&quot;&quot;</span>
+    <span class="s3">global </span><span class="s1">defaultFont</span>
+    <span class="s1">defaultFont </span><span class="s2">= </span><span class="s1">newFont</span>
+
+<span class="s3">def </span><span class="s1">setDefaultFontFunc</span><span class="s2">(</span><span class="s1">newFontFunc</span><span class="s2">):</span>
+    <span class="s3">global </span><span class="s1">defaultFontFunc</span>
+    <span class="s1">defaultFontFunc </span><span class="s2">= </span><span class="s1">newFontFunc</span>
+
+<span class="s3">def </span><span class="s1">getDefaultDialogGeom</span><span class="s2">():</span>
+    <span class="s3">global </span><span class="s1">defaultDialogGeom</span>
+    <span class="s3">return </span><span class="s1">defaultDialogGeom</span>
+
+<span class="s3">def </span><span class="s1">getDefaultDialogRelief</span><span class="s2">():</span>
+    <span class="s3">global </span><span class="s1">defaultDialogRelief</span>
+    <span class="s3">return </span><span class="s1">defaultDialogRelief</span>
+
+<span class="s3">def </span><span class="s1">setDefaultDialogGeom</span><span class="s2">(</span><span class="s1">newDialogGeom</span><span class="s2">, </span><span class="s1">relief</span><span class="s2">=</span><span class="s3">None</span><span class="s2">):</span>
+    <span class="s3">global </span><span class="s1">defaultDialogGeom</span><span class="s2">, </span><span class="s1">defaultDialogRelief</span>
+    <span class="s1">defaultDialogGeom </span><span class="s2">= </span><span class="s1">newDialogGeom</span>
+    <span class="s1">defaultDialogRelief </span><span class="s2">= </span><span class="s1">relief</span>
+
+<span class="s3">def </span><span class="s1">getDefaultDrawOrder</span><span class="s2">():</span>
+    <span class="s3">return </span><span class="s1">drawOrder</span>
+
+<span class="s3">def </span><span class="s1">setDefaultDrawOrder</span><span class="s2">(</span><span class="s1">newDrawOrder</span><span class="s2">):</span>
+    <span class="s3">global </span><span class="s1">drawOrder</span>
+    <span class="s1">drawOrder </span><span class="s2">= </span><span class="s1">newDrawOrder</span>
+
+<span class="s3">def </span><span class="s1">getDefaultPanel</span><span class="s2">():</span>
+    <span class="s3">return </span><span class="s1">panel</span>
+
+<span class="s3">def </span><span class="s1">setDefaultPanel</span><span class="s2">(</span><span class="s1">newPanel</span><span class="s2">):</span>
+    <span class="s3">global </span><span class="s1">panel</span>
+    <span class="s1">panel </span><span class="s2">= </span><span class="s1">newPanel</span>
+
+<span class="s1">get_default_rollover_sound </span><span class="s2">= </span><span class="s1">getDefaultRolloverSound</span>
+<span class="s1">set_default_rollover_sound </span><span class="s2">= </span><span class="s1">setDefaultRolloverSound</span>
+<span class="s1">get_default_click_sound </span><span class="s2">= </span><span class="s1">getDefaultClickSound</span>
+<span class="s1">set_default_click_sound </span><span class="s2">= </span><span class="s1">setDefaultClickSound</span>
+<span class="s1">get_default_font </span><span class="s2">= </span><span class="s1">getDefaultFont</span>
+<span class="s1">set_default_font </span><span class="s2">= </span><span class="s1">setDefaultFont</span>
+<span class="s1">get_default_dialog_geom </span><span class="s2">= </span><span class="s1">getDefaultDialogGeom</span>
+<span class="s1">get_default_dialog_relief </span><span class="s2">= </span><span class="s1">getDefaultDialogRelief</span>
+<span class="s1">set_default_dialog_geom </span><span class="s2">= </span><span class="s1">setDefaultDialogGeom</span>
+<span class="s1">get_default_draw_order </span><span class="s2">= </span><span class="s1">getDefaultDrawOrder</span>
+<span class="s1">set_default_draw_order </span><span class="s2">= </span><span class="s1">setDefaultDrawOrder</span>
+<span class="s1">get_default_panel </span><span class="s2">= </span><span class="s1">getDefaultPanel</span>
+<span class="s1">set_default_panel </span><span class="s2">= </span><span class="s1">setDefaultPanel</span>
+</pre>
+</body>
+</html>

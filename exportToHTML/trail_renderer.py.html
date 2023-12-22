@@ -1,0 +1,100 @@
+<html>
+<head>
+<title>trail_renderer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+trail_renderer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">TrailRenderer</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">=[</span><span class="s3">1</span><span class="s2">,</span><span class="s3">.01</span><span class="s2">], </span><span class="s1">segments</span><span class="s2">=</span><span class="s3">8</span><span class="s2">, </span><span class="s1">min_spacing</span><span class="s2">=</span><span class="s3">.05</span><span class="s2">, </span><span class="s1">fade_speed</span><span class="s2">=</span><span class="s3">0</span><span class="s2">, </span><span class="s1">color_gradient</span><span class="s2">=[</span><span class="s1">color</span><span class="s2">.</span><span class="s1">white</span><span class="s2">, </span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">], **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(**</span><span class="s1">kwargs</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">color_gradient</span><span class="s2">:</span>
+            <span class="s1">color_gradient </span><span class="s2">= </span><span class="s1">color_gradient</span><span class="s2">[::-</span><span class="s3">1</span><span class="s2">]</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">renderer </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span>
+            <span class="s1">model </span><span class="s2">= </span><span class="s1">Pipe</span><span class="s2">(</span>
+                <span class="s1">base_shape </span><span class="s2">= </span><span class="s1">Quad</span><span class="s2">(</span><span class="s1">segments</span><span class="s2">=</span><span class="s3">0</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s1">size</span><span class="s2">),</span>
+                <span class="s1">path</span><span class="s2">=[</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">,</span><span class="s3">0</span><span class="s2">,</span><span class="s1">i</span><span class="s2">) </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s3">2</span><span class="s2">)],</span>
+                <span class="s1">color_gradient</span><span class="s2">=</span><span class="s1">color_gradient</span><span class="s2">,</span>
+                <span class="s1">static</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+                <span class="s1">cap_ends</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+            <span class="s2">),</span>
+        <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_t </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">segments </span><span class="s2">= </span><span class="s1">segments</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">update_step </span><span class="s2">= </span><span class="s3">.05</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">min_spacing </span><span class="s2">= </span><span class="s1">min_spacing</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_speed </span><span class="s2">= </span><span class="s1">fade_speed</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_enable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">enable</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_disable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">disable</span>
+
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_t </span><span class="s2">+= </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_t </span><span class="s2">&gt;= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">update_step</span><span class="s2">:</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_t </span><span class="s2">= </span><span class="s3">0</span>
+            <span class="s0">if </span><span class="s1">distance</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">world_position</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">[-</span><span class="s3">1</span><span class="s2">]) &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">min_spacing</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">world_position</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">) &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">segments</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade_speed</span><span class="s2">:</span>
+                <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">v </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">):</span>
+                    <span class="s0">if </span><span class="s1">i </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">)-</span><span class="s3">1</span><span class="s2">:</span>
+                        <span class="s0">continue</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">[</span><span class="s1">i</span><span class="s2">] = </span><span class="s1">lerp</span><span class="s2">(</span><span class="s1">v</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">path</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s3">1</span><span class="s2">], </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt</span><span class="s2">*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade_speed</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">on_destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderer</span><span class="s2">)</span>
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">(</span><span class="s1">vsync</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+    <span class="s1">window</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">black</span>
+    <span class="s1">mouse</span><span class="s2">.</span><span class="s1">visible </span><span class="s2">= </span><span class="s0">False</span>
+    <span class="s1">player </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">z</span><span class="s2">=</span><span class="s3">1</span><span class="s2">)</span>
+    <span class="s1">player</span><span class="s2">.</span><span class="s1">graphics </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">player</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s3">.1</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'circle'</span><span class="s2">)</span>
+
+    <span class="s1">pivot </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">()</span>
+
+    <span class="s1">trail_renderers </span><span class="s2">= []</span>
+    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s3">1</span><span class="s2">):</span>
+        <span class="s1">tr </span><span class="s2">= </span><span class="s1">TrailRenderer</span><span class="s2">(</span><span class="s1">size</span><span class="s2">=[</span><span class="s3">1</span><span class="s2">,</span><span class="s3">1</span><span class="s2">], </span><span class="s1">segments</span><span class="s2">=</span><span class="s3">8</span><span class="s2">, </span><span class="s1">min_spacing</span><span class="s2">=</span><span class="s3">.05</span><span class="s2">, </span><span class="s1">fade_speed</span><span class="s2">=</span><span class="s3">0</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">=</span><span class="s1">player</span><span class="s2">, </span><span class="s1">color_gradient</span><span class="s2">=[</span><span class="s1">color</span><span class="s2">.</span><span class="s1">magenta</span><span class="s2">, </span><span class="s1">color</span><span class="s2">.</span><span class="s1">cyan</span><span class="s2">.</span><span class="s1">tint</span><span class="s2">(-</span><span class="s3">.5</span><span class="s2">), </span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">])</span>
+        <span class="s1">trail_renderers</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">():</span>
+        <span class="s1">player</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= </span><span class="s1">lerp</span><span class="s2">(</span><span class="s1">player</span><span class="s2">.</span><span class="s1">position</span><span class="s2">, </span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">position</span><span class="s2">*</span><span class="s3">10</span><span class="s2">, </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt</span><span class="s2">*</span><span class="s3">4</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'escape'</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">trail_renderers</span><span class="s2">:</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">not </span><span class="s1">e</span><span class="s2">.</span><span class="s1">enabled</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'space'</span><span class="s2">:</span>
+            <span class="s1">destroy</span><span class="s2">(</span><span class="s1">pivot</span><span class="s2">)</span>
+
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s1">Grid</span><span class="s2">(</span><span class="s3">8</span><span class="s2">,</span><span class="s3">8</span><span class="s2">), </span><span class="s1">rotation_x</span><span class="s2">=</span><span class="s3">90</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">gray</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=-</span><span class="s3">3</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s3">8</span><span class="s2">)</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

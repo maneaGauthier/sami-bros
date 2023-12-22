@@ -1,0 +1,74 @@
+<html>
+<head>
+<title>AnimGlobals.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+AnimGlobals.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+This contains data structure and constants related with animation handling. 
+&quot;&quot;&quot;</span>
+
+<span class="s2"># index for keyFramesInfo list structure</span>
+<span class="s2"># data strucrure: {[nodeUID, propertyName] : [frameNum,</span>
+<span class="s2">#                                             value,</span>
+<span class="s2">#                                            [inSlopeX, inSlopeY],</span>
+<span class="s2">#                                            [outSlopeX, outSlopeY]]}</span>
+<span class="s1">UID </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">PROP_NAME </span><span class="s3">= </span><span class="s4">1</span>
+
+<span class="s1">FRAME </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">VALUE  </span><span class="s3">= </span><span class="s4">1</span>
+<span class="s1">INSLOPE </span><span class="s3">= </span><span class="s4">2</span>
+<span class="s1">OUTSLOPE </span><span class="s3">= </span><span class="s4">3</span>
+
+<span class="s2"># index for curveAnimation list structure</span>
+<span class="s2"># data strucrure: {[nodeUID, curveUID] : [nodeUID,</span>
+<span class="s2">#                                         curveUID,</span>
+<span class="s2">#                                         time]}</span>
+<span class="s1">NODE </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">CURVE </span><span class="s3">= </span><span class="s4">1</span>
+
+<span class="s1">NODE </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">CURVE  </span><span class="s3">= </span><span class="s4">1</span>
+<span class="s1">TIME </span><span class="s3">= </span><span class="s4">2</span>
+
+<span class="s2"># index for animation curve generation information list structure(self.X, self.Y, self.Z in GraphEditorUI)</span>
+<span class="s2"># data structur: [key,</span>
+<span class="s2">#                 i ,</span>
+<span class="s2">#                [[keyFrameX, keyFrameY], keyFrame_select],</span>
+<span class="s2">#                [[inTangentX, inTangentY], inTangent_select],</span>
+<span class="s2">#                [[outTangentX, outTangentY], outTangent_select],</span>
+<span class="s2">#                [inSlopeX, inSlopeY],</span>
+<span class="s2">#                [outSlopeX, outSlopeY]]</span>
+
+<span class="s1">KEY </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">I </span><span class="s3">= </span><span class="s4">1</span>
+<span class="s1">KEYFRAME </span><span class="s3">= </span><span class="s4">2</span>
+<span class="s1">IN_TANGENT </span><span class="s3">= </span><span class="s4">3</span>
+<span class="s1">OUT_TANGENT </span><span class="s3">= </span><span class="s4">4</span>
+<span class="s1">IN_SLOPE </span><span class="s3">= </span><span class="s4">5</span>
+<span class="s1">OUT_SLOPE </span><span class="s3">= </span><span class="s4">6</span>
+
+<span class="s1">LOCAL_VALUE </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">SELECT </span><span class="s3">= </span><span class="s4">1</span>
+
+<span class="s2">#index for coordinate</span>
+<span class="s1">X </span><span class="s3">= </span><span class="s4">0</span>
+<span class="s1">Y </span><span class="s3">= </span><span class="s4">1</span>
+<span class="s1">Z </span><span class="s3">= </span><span class="s4">2</span>
+
+</pre>
+</body>
+</html>

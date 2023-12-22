@@ -1,0 +1,42 @@
+<html>
+<head>
+<title>ursina_splash.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ursina_splash.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+
+<span class="s1">camera</span><span class="s2">.</span><span class="s1">overlay</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">black</span>
+<span class="s1">logo </span><span class="s2">= </span><span class="s1">Sprite</span><span class="s2">(</span><span class="s1">name</span><span class="s2">=</span><span class="s3">'ursina_splash'</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">=</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'ursina_logo'</span><span class="s2">, </span><span class="s1">world_z</span><span class="s2">=</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">overlay</span><span class="s2">.</span><span class="s1">z</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">.1</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">)</span>
+<span class="s1">logo</span><span class="s2">.</span><span class="s1">animate_color</span><span class="s2">(</span><span class="s1">color</span><span class="s2">.</span><span class="s1">white</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">=</span><span class="s4">2</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s4">1</span><span class="s2">, </span><span class="s1">curve</span><span class="s2">=</span><span class="s1">curve</span><span class="s2">.</span><span class="s1">out_quint_boomerang</span><span class="s2">)</span>
+<span class="s1">camera</span><span class="s2">.</span><span class="s1">overlay</span><span class="s2">.</span><span class="s1">animate_color</span><span class="s2">(</span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">=</span><span class="s4">1</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s4">4</span><span class="s2">)</span>
+<span class="s1">destroy</span><span class="s2">(</span><span class="s1">logo</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s4">5</span><span class="s2">)</span>
+
+<span class="s0">def </span><span class="s1">splash_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+    <span class="s1">destroy</span><span class="s2">(</span><span class="s1">logo</span><span class="s2">)</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">overlay</span><span class="s2">.</span><span class="s1">animate_color</span><span class="s2">(</span><span class="s1">color</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">=</span><span class="s4">.25</span><span class="s2">)</span>
+
+<span class="s1">logo</span><span class="s2">.</span><span class="s1">input </span><span class="s2">= </span><span class="s1">splash_input</span>
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

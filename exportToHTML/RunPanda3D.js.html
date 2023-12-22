@@ -1,0 +1,154 @@
+<html>
+<head>
+<title>RunPanda3D.js</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+RunPanda3D.js</font>
+</center></td></tr></table>
+<pre><span class="s0">// This script injects the appropriate syntax into the document to</span>
+<span class="s0">// embed Panda3D, either for the ActiveX or Mozilla-based plugin.</span>
+
+<span class="s0">// It is also possible to write browser-independent code by nesting</span>
+<span class="s0">// &lt;object&gt; tags, but this causes problems when you need to reference</span>
+<span class="s0">// the particular object that is actually running (which object is</span>
+<span class="s0">// it?) for scripting purposes.</span>
+
+<span class="s0">// This script writes only a single &lt;object&gt; tag, and it can be</span>
+<span class="s0">// assigned the id you specify, avoiding this ambiguity.</span>
+
+<span class="s2">var </span><span class="s1">isIE  </span><span class="s3">= (</span><span class="s1">navigator</span><span class="s3">.</span><span class="s1">appVersion</span><span class="s3">.</span><span class="s1">indexOf</span><span class="s3">(</span><span class="s4">&quot;MSIE&quot;</span><span class="s3">) != -</span><span class="s5">1</span><span class="s3">) ? </span><span class="s2">true </span><span class="s3">: </span><span class="s2">false</span><span class="s3">;</span>
+<span class="s2">var </span><span class="s1">isWin </span><span class="s3">= (</span><span class="s1">navigator</span><span class="s3">.</span><span class="s1">appVersion</span><span class="s3">.</span><span class="s1">toLowerCase</span><span class="s3">().</span><span class="s1">indexOf</span><span class="s3">(</span><span class="s4">&quot;win&quot;</span><span class="s3">) != -</span><span class="s5">1</span><span class="s3">) ? </span><span class="s2">true </span><span class="s3">: </span><span class="s2">false</span><span class="s3">;</span>
+<span class="s2">var </span><span class="s1">isOpera </span><span class="s3">= (</span><span class="s1">navigator</span><span class="s3">.</span><span class="s1">userAgent</span><span class="s3">.</span><span class="s1">indexOf</span><span class="s3">(</span><span class="s4">&quot;Opera&quot;</span><span class="s3">) != -</span><span class="s5">1</span><span class="s3">) ? </span><span class="s2">true </span><span class="s3">: </span><span class="s2">false</span><span class="s3">;</span>
+
+
+<span class="s2">function </span><span class="s1">P3D_Generateobj</span><span class="s3">(</span><span class="s1">objAttrs</span><span class="s3">, </span><span class="s1">params</span><span class="s3">, </span><span class="s1">embedAttrs</span><span class="s3">, </span><span class="s1">imageAttrs</span><span class="s3">) </span>
+<span class="s3">{ </span>
+  <span class="s2">var </span><span class="s1">str </span><span class="s3">= </span><span class="s4">''</span><span class="s3">;</span>
+
+  <span class="s2">if </span><span class="s3">(</span><span class="s1">isIE </span><span class="s3">&amp;&amp; </span><span class="s1">isWin </span><span class="s3">&amp;&amp; !</span><span class="s1">isOpera</span><span class="s3">)</span>
+  <span class="s3">{</span>
+    <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;object '</span><span class="s3">;</span>
+    <span class="s2">for </span><span class="s3">(</span><span class="s2">var </span><span class="s1">i </span><span class="s2">in </span><span class="s1">objAttrs</span><span class="s3">)</span>
+    <span class="s3">{</span>
+      <span class="s1">str </span><span class="s3">+= </span><span class="s1">i </span><span class="s3">+ </span><span class="s4">'=&quot;' </span><span class="s3">+ </span><span class="s1">objAttrs</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] + </span><span class="s4">'&quot; '</span><span class="s3">;</span>
+    <span class="s3">}</span>
+    <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&gt;'</span><span class="s3">;</span>
+    <span class="s2">for </span><span class="s3">(</span><span class="s2">var </span><span class="s1">i </span><span class="s2">in </span><span class="s1">params</span><span class="s3">)</span>
+    <span class="s3">{</span>
+      <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;param name=&quot;' </span><span class="s3">+ </span><span class="s1">i </span><span class="s3">+ </span><span class="s4">'&quot; value=&quot;' </span><span class="s3">+ </span><span class="s1">params</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] + </span><span class="s4">'&quot; /&gt; '</span><span class="s3">;</span>
+    <span class="s3">}</span>
+  <span class="s3">}</span>
+  <span class="s2">else</span>
+  <span class="s3">{</span>
+    <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;object '</span><span class="s3">;</span>
+    <span class="s2">for </span><span class="s3">(</span><span class="s2">var </span><span class="s1">i </span><span class="s2">in </span><span class="s1">embedAttrs</span><span class="s3">)</span>
+    <span class="s3">{</span>
+      <span class="s1">str </span><span class="s3">+= </span><span class="s1">i </span><span class="s3">+ </span><span class="s4">'=&quot;' </span><span class="s3">+ </span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] + </span><span class="s4">'&quot; '</span><span class="s3">;</span>
+    <span class="s3">}</span>
+    <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&gt; '</span><span class="s3">;</span>
+  <span class="s3">}</span>
+  <span class="s2">if </span><span class="s3">(</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;src&quot;</span><span class="s3">]) {</span>
+    <span class="s2">if </span><span class="s3">(</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;href&quot;</span><span class="s3">]) {</span>
+      <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;a href=&quot;' </span><span class="s3">+ </span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;href&quot;</span><span class="s3">] + </span><span class="s4">'&quot;&gt;'</span><span class="s3">;</span>
+    <span class="s3">}</span>
+    <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;img '</span><span class="s3">;</span>
+    <span class="s2">for </span><span class="s3">(</span><span class="s2">var </span><span class="s1">i </span><span class="s2">in </span><span class="s1">imageAttrs</span><span class="s3">) {</span>
+      <span class="s2">if </span><span class="s3">(</span><span class="s1">i </span><span class="s3">!= </span><span class="s4">&quot;href&quot;</span><span class="s3">) {</span>
+        <span class="s1">str </span><span class="s3">+= </span><span class="s1">i </span><span class="s3">+ </span><span class="s4">'=&quot;' </span><span class="s3">+ </span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] + </span><span class="s4">'&quot; '</span><span class="s3">;</span>
+      <span class="s3">}</span>
+    <span class="s3">}</span>
+    <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&gt;'</span><span class="s3">;</span>
+    <span class="s2">if </span><span class="s3">(</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;href&quot;</span><span class="s3">]) {</span>
+      <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;/a&gt;'</span><span class="s3">;</span>
+    <span class="s3">}</span>
+  <span class="s3">}</span>
+  <span class="s1">str </span><span class="s3">+= </span><span class="s4">'&lt;/object&gt;'</span><span class="s3">;</span>
+
+  <span class="s1">document</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">str</span><span class="s3">);</span>
+<span class="s3">}</span>
+
+<span class="s2">function </span><span class="s1">P3D_RunContent</span><span class="s3">() {</span>
+  <span class="s2">var </span><span class="s1">ret </span><span class="s3">= </span>
+    <span class="s1">P3D_GetArgs</span>
+      <span class="s3">(</span><span class="s1">arguments</span><span class="s3">, </span><span class="s4">&quot;clsid:924b4927-d3ba-41ea-9f7e-8a89194ab3ac&quot;</span><span class="s3">,</span>
+       <span class="s4">&quot;application/x-panda3d&quot;</span><span class="s3">);</span>
+  <span class="s1">P3D_Generateobj</span><span class="s3">(</span><span class="s1">ret</span><span class="s3">.</span><span class="s1">objAttrs</span><span class="s3">, </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">params</span><span class="s3">, </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">, </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">);</span>
+<span class="s3">}</span>
+
+<span class="s2">function </span><span class="s1">P3D_GetArgs</span><span class="s3">(</span><span class="s1">args</span><span class="s3">, </span><span class="s1">classid</span><span class="s3">, </span><span class="s1">mimeType</span><span class="s3">){</span>
+  <span class="s2">var </span><span class="s1">ret </span><span class="s3">= </span><span class="s2">new </span><span class="s1">Object</span><span class="s3">();</span>
+  <span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs </span><span class="s3">= </span><span class="s2">new </span><span class="s1">Object</span><span class="s3">();</span>
+  <span class="s1">ret</span><span class="s3">.</span><span class="s1">params </span><span class="s3">= </span><span class="s2">new </span><span class="s1">Object</span><span class="s3">();</span>
+  <span class="s1">ret</span><span class="s3">.</span><span class="s1">objAttrs </span><span class="s3">= </span><span class="s2">new </span><span class="s1">Object</span><span class="s3">();</span>
+  <span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs </span><span class="s3">= </span><span class="s2">new </span><span class="s1">Object</span><span class="s3">();</span>
+
+  <span class="s2">for </span><span class="s3">(</span><span class="s2">var </span><span class="s1">i </span><span class="s3">= </span><span class="s5">0</span><span class="s3">; </span><span class="s1">i </span><span class="s3">&lt; </span><span class="s1">args</span><span class="s3">.</span><span class="s1">length</span><span class="s3">; </span><span class="s1">i </span><span class="s3">= </span><span class="s1">i </span><span class="s3">+ </span><span class="s5">2</span><span class="s3">){</span>
+    <span class="s2">var </span><span class="s1">currArg </span><span class="s3">= </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">].</span><span class="s1">toLowerCase</span><span class="s3">();    </span>
+
+    <span class="s2">switch </span><span class="s3">(</span><span class="s1">currArg</span><span class="s3">){	</span>
+    <span class="s2">case </span><span class="s4">&quot;src&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;data&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s4">'data'</span><span class="s3">] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">params</span><span class="s3">[</span><span class="s4">'data'</span><span class="s3">] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">case </span><span class="s4">&quot;codebase&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">objAttrs</span><span class="s3">[</span><span class="s4">'codebase'</span><span class="s3">] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">case </span><span class="s4">&quot;noplugin_img&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;src&quot;</span><span class="s3">] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;border&quot;</span><span class="s3">] = </span><span class="s4">'0'</span><span class="s3">;</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">case </span><span class="s4">&quot;noplugin_href&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;href&quot;</span><span class="s3">] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">case </span><span class="s4">&quot;splash_img&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">params</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s2">if </span><span class="s3">(!</span><span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;src&quot;</span><span class="s3">]) {</span>
+          <span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s4">&quot;src&quot;</span><span class="s3">] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s3">}</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">case </span><span class="s4">&quot;width&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;height&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">imageAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">objAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">case </span><span class="s4">&quot;id&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;align&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;vspace&quot;</span><span class="s3">: </span>
+    <span class="s2">case </span><span class="s4">&quot;hspace&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;class&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;title&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;accesskey&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;name&quot;</span><span class="s3">:</span>
+    <span class="s2">case </span><span class="s4">&quot;tabindex&quot;</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">objAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+        <span class="s2">break</span><span class="s3">;</span>
+
+    <span class="s2">default</span><span class="s3">:</span>
+        <span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">params</span><span class="s3">[</span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]] = </span><span class="s1">args</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s5">1</span><span class="s3">];</span>
+    <span class="s3">}</span>
+  <span class="s3">}</span>
+  <span class="s1">ret</span><span class="s3">.</span><span class="s1">objAttrs</span><span class="s3">[</span><span class="s4">&quot;classid&quot;</span><span class="s3">] = </span><span class="s1">classid</span><span class="s3">;</span>
+  <span class="s2">if </span><span class="s3">(</span><span class="s1">mimeType</span><span class="s3">) </span><span class="s1">ret</span><span class="s3">.</span><span class="s1">embedAttrs</span><span class="s3">[</span><span class="s4">&quot;type&quot;</span><span class="s3">] = </span><span class="s1">mimeType</span><span class="s3">;</span>
+  <span class="s2">return </span><span class="s1">ret</span><span class="s3">;</span>
+<span class="s3">}</span>
+</pre>
+</body>
+</html>

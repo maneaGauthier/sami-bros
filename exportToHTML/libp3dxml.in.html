@@ -1,0 +1,2131 @@
+<html>
+<head>
+<title>libp3dxml.in</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+libp3dxml.in</font>
+</center></td></tr></table>
+<pre><span class="s0">1673266749</span>
+<span class="s0">3 3</span>
+<span class="s0">9 libp3dxml 4 uZHm 12 panda3d.core </span>
+<span class="s0">151</span>
+<span class="s0">233 10 ~TiXmlBase 0 518 384 21 TiXmlBase::~TiXmlBase 0 0 0</span>
+<span class="s0">36</span>
+<span class="s0">virtual TiXmlBase::~TiXmlBase(void);</span>
+
+<span class="s0">234 5 Print 0 6 384 16 TiXmlBase::Print 0 1 1 339</span>
+<span class="s0">/** All TinyXml classes can print themselves to a filestream</span>
+        <span class="s0">or the string class (TiXmlString in non-STL mode, std::string</span>
+        <span class="s0">in STL mode.) Either or both cfile and str can be null.</span>
+
+        <span class="s0">This is a formatted print, and will insert</span>
+        <span class="s0">tabs and newlines.</span>
+
+        <span class="s0">(For an unformatted stream, use the &lt;&lt; operator.)</span>
+    <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">virtual void TiXmlBase::Print(FILE *cfile, int depth) const = 0;</span>
+
+<span class="s0">235 21 SetCondenseWhiteSpace 0 4 384 32 TiXmlBase::SetCondenseWhiteSpace 0 1 2 351</span>
+<span class="s0">/** The world does not agree on whether white space should be kept or</span>
+        <span class="s0">not. In order to make everyone happy, these global, static functions</span>
+        <span class="s0">are provided to set whether or not TinyXml will condense all white space</span>
+        <span class="s0">into a single space or not. The default is to condense. Note changing this</span>
+        <span class="s0">value is not thread safe.</span>
+    <span class="s0">*/</span>
+<span class="s0">60</span>
+<span class="s0">static void TiXmlBase::SetCondenseWhiteSpace(bool condense);</span>
+
+<span class="s0">236 21 IsWhiteSpaceCondensed 0 4 384 32 TiXmlBase::IsWhiteSpaceCondensed 0 1 3 43</span>
+<span class="s0">/// Return the current white space setting.</span>
+<span class="s0">51</span>
+<span class="s0">static bool TiXmlBase::IsWhiteSpaceCondensed(void);</span>
+
+<span class="s0">237 3 Row 0 4 384 14 TiXmlBase::Row 0 1 4 944</span>
+<span class="s0">/** Return the position, in the original source file, of this node or attribute.</span>
+        <span class="s0">The row and column are 1-based. (That is the first row and first column is</span>
+        <span class="s0">1,1). If the returns values are 0 or less, then the parser does not have</span>
+        <span class="s0">a row and column value.</span>
+
+        <span class="s0">Generally, the row and column value will be set when the TiXmlDocument::Load(),</span>
+        <span class="s0">TiXmlDocument::LoadFile(), or any TiXmlNode::Parse() is called. It will NOT be set</span>
+        <span class="s0">when the DOM was created from operator&gt;&gt;.</span>
+
+        <span class="s0">The values reflect the initial load. Once the DOM is modified programmatically</span>
+        <span class="s0">(by adding or changing nodes and attributes) the new values will NOT update to</span>
+        <span class="s0">reflect changes in the document.</span>
+
+        <span class="s0">There is a minor performance cost to computing the row and column. Computation</span>
+        <span class="s0">can be disabled if TiXmlDocument::SetTabSize() is called with 0 as the value.</span>
+
+        <span class="s0">@sa TiXmlDocument::SetTabSize()</span>
+    <span class="s0">*/</span>
+<span class="s0">31</span>
+<span class="s0">int TiXmlBase::Row(void) const;</span>
+
+<span class="s0">238 6 Column 0 4 384 17 TiXmlBase::Column 0 1 5 14</span>
+<span class="s0">///&lt; See Row()</span>
+<span class="s0">34</span>
+<span class="s0">int TiXmlBase::Column(void) const;</span>
+
+<span class="s0">239 11 SetUserData 0 4 384 22 TiXmlBase::SetUserData 0 0 42</span>
+<span class="s0">///&lt; Set a pointer to arbitrary user data.</span>
+<span class="s0">40</span>
+<span class="s0">void TiXmlBase::SetUserData(void *user);</span>
+
+<span class="s0">240 11 GetUserData 0 4 384 22 TiXmlBase::GetUserData 0 2 6 7 86</span>
+<span class="s0">///&lt; Get a pointer to arbitrary user data.</span>
+
+<span class="s0">///&lt; Get a pointer to arbitrary user data.</span>
+<span class="s0">83</span>
+<span class="s0">void *TiXmlBase::GetUserData(void);</span>
+<span class="s0">void const *TiXmlBase::GetUserData(void) const;</span>
+
+<span class="s0">241 5 Parse 0 6 384 16 TiXmlBase::Parse 0 1 8 0</span>
+<span class="s0">104</span>
+<span class="s0">virtual char const *TiXmlBase::Parse(char const *p, TiXmlParsingData *data, TiXmlEncoding encoding) = 0;</span>
+
+<span class="s0">242 12 EncodeString 0 4 384 23 TiXmlBase::EncodeString 0 0 145</span>
+<span class="s0">/** Expands entities in a string. Note this should not contian the tag's '&lt;', '&gt;', etc,</span>
+        <span class="s0">or they will be transformed into entities!</span>
+    <span class="s0">*/</span>
+<span class="s0">78</span>
+<span class="s0">static void TiXmlBase::EncodeString(std::string const &amp;str, std::string *out);</span>
+
+<span class="s0">243 5 Value 0 4 387 16 TiXmlNode::Value 0 1 17 368</span>
+<span class="s0">/** The meaning of 'value' changes for the specific type of</span>
+        <span class="s0">TiXmlNode.</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">Document:   filename of the xml file</span>
+        <span class="s0">Element:    name of the element</span>
+        <span class="s0">Comment:    the comment text</span>
+        <span class="s0">Unknown:    the tag contents</span>
+        <span class="s0">Text:       the text string</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">The subclasses will wrap this function.</span>
+    <span class="s0">*/</span>
+<span class="s0">41</span>
+<span class="s0">char const *TiXmlNode::Value(void) const;</span>
+
+<span class="s0">244 8 ValueStr 0 4 387 19 TiXmlNode::ValueStr 0 1 18 153</span>
+<span class="s0">/** Return Value() as a std::string. If you only use STL,</span>
+        <span class="s0">this is more efficient than calling Value().</span>
+        <span class="s0">Only available in STL mode.</span>
+    <span class="s0">*/</span>
+<span class="s0">51</span>
+<span class="s0">std::string const &amp;TiXmlNode::ValueStr(void) const;</span>
+
+<span class="s0">245 9 ValueTStr 0 4 387 20 TiXmlNode::ValueTStr 0 1 19 0</span>
+<span class="s0">52</span>
+<span class="s0">std::string const &amp;TiXmlNode::ValueTStr(void) const;</span>
+
+<span class="s0">246 8 SetValue 0 4 387 19 TiXmlNode::SetValue 0 2 20 21 314</span>
+<span class="s0">/** Changes the value of the node. Defined as:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">Document:   filename of the xml file</span>
+        <span class="s0">Element:    name of the element</span>
+        <span class="s0">Comment:    the comment text</span>
+        <span class="s0">Unknown:    the tag contents</span>
+        <span class="s0">Text:       the text string</span>
+        <span class="s0">@endverbatim</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/// STL std::string form.</span>
+<span class="s0">98</span>
+<span class="s0">void TiXmlNode::SetValue(char const *_value);</span>
+<span class="s0">void TiXmlNode::SetValue(std::string const &amp;_value);</span>
+
+<span class="s0">247 5 Clear 0 4 387 16 TiXmlNode::Clear 0 1 22 65</span>
+<span class="s0">/// Delete all the children of this node. Does not affect 'this'.</span>
+<span class="s0">28</span>
+<span class="s0">void TiXmlNode::Clear(void);</span>
+
+<span class="s0">248 6 Parent 0 4 387 17 TiXmlNode::Parent 0 2 23 24 24</span>
+<span class="s0">/// One step up the DOM.</span>
+<span class="s0">83</span>
+<span class="s0">TiXmlNode *TiXmlNode::Parent(void);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::Parent(void) const;</span>
+
+<span class="s0">249 10 FirstChild 0 4 387 21 TiXmlNode::FirstChild 0 6 25 26 27 28 29 30 382</span>
+<span class="s0">///&lt; The first child of this node. Will be null if there are no children.</span>
+
+<span class="s0">///&lt; The first child of this node. Will be null if there are no children.</span>
+
+<span class="s0">///&lt; The first child of this node with the matching 'value'. Will be null if none found.</span>
+<span class="s0">/// The first child of this node with the matching 'value'. Will be null if none found.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">344</span>
+<span class="s0">TiXmlNode const *TiXmlNode::FirstChild(void) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::FirstChild(void);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::FirstChild(char const *value) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::FirstChild(char const *_value);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::FirstChild(std::string const &amp;_value) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::FirstChild(std::string const &amp;_value);</span>
+
+<span class="s0">250 9 LastChild 0 4 387 20 TiXmlNode::LastChild 0 6 31 32 33 34 35 36 380</span>
+<span class="s0">/// The last child of this node. Will be null if there are no children.</span>
+
+<span class="s0">/// The last child of this node. Will be null if there are no children.</span>
+
+<span class="s0">/// The last child of this node matching 'value'. Will be null if there are no children.</span>
+
+<span class="s0">/// The last child of this node matching 'value'. Will be null if there are no children.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">338</span>
+<span class="s0">TiXmlNode const *TiXmlNode::LastChild(void) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::LastChild(void);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::LastChild(char const *value) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::LastChild(char const *_value);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::LastChild(std::string const &amp;_value) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::LastChild(std::string const &amp;_value);</span>
+
+<span class="s0">251 15 IterateChildren 0 4 387 26 TiXmlNode::IterateChildren 0 6 37 38 39 40 41 42 747</span>
+<span class="s0">/** An alternate way to walk the children of a node.</span>
+        <span class="s0">One way to iterate over nodes is:</span>
+        <span class="s0">@verbatim</span>
+            <span class="s0">for( child = parent-&gt;FirstChild(); child; child = child-&gt;NextSibling() )</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">IterateChildren does the same thing with the syntax:</span>
+        <span class="s0">@verbatim</span>
+            <span class="s0">child = 0;</span>
+            <span class="s0">while( child = parent-&gt;IterateChildren( child ) )</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">IterateChildren takes the previous child as input and finds</span>
+        <span class="s0">the next one. If the previous child is null, it returns the</span>
+        <span class="s0">first. IterateChildren will return null when done.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/// This flavor of IterateChildren searches for children with a particular 'value'</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">524</span>
+<span class="s0">TiXmlNode const *TiXmlNode::IterateChildren(TiXmlNode const *previous) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::IterateChildren(TiXmlNode const *previous);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::IterateChildren(char const *value, TiXmlNode const *previous) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::IterateChildren(char const *_value, TiXmlNode const *previous);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::IterateChildren(std::string const &amp;_value, TiXmlNode const *previous) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::IterateChildren(std::string const &amp;_value, TiXmlNode const *previous);</span>
+
+<span class="s0">252 14 InsertEndChild 0 4 387 25 TiXmlNode::InsertEndChild 0 1 43 148</span>
+<span class="s0">/** Add a new node related to this. Adds a child past the LastChild.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/</span>
+<span class="s0">63</span>
+<span class="s0">TiXmlNode *TiXmlNode::InsertEndChild(TiXmlNode const &amp;addThis);</span>
+
+<span class="s0">253 17 InsertBeforeChild 0 4 387 28 TiXmlNode::InsertBeforeChild 0 1 44 156</span>
+<span class="s0">/** Add a new node related to this. Adds a child before the specified child.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/</span>
+<span class="s0">89</span>
+<span class="s0">TiXmlNode *TiXmlNode::InsertBeforeChild(TiXmlNode *beforeThis, TiXmlNode const &amp;addThis);</span>
+
+<span class="s0">254 16 InsertAfterChild 0 4 387 27 TiXmlNode::InsertAfterChild 0 1 45 155</span>
+<span class="s0">/** Add a new node related to this. Adds a child after the specified child.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/</span>
+<span class="s0">87</span>
+<span class="s0">TiXmlNode *TiXmlNode::InsertAfterChild(TiXmlNode *afterThis, TiXmlNode const &amp;addThis);</span>
+
+<span class="s0">255 12 ReplaceChild 0 4 387 23 TiXmlNode::ReplaceChild 0 1 46 113</span>
+<span class="s0">/** Replace a child of this node.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/</span>
+<span class="s0">86</span>
+<span class="s0">TiXmlNode *TiXmlNode::ReplaceChild(TiXmlNode *replaceThis, TiXmlNode const &amp;withThis);</span>
+
+<span class="s0">256 11 RemoveChild 0 4 387 22 TiXmlNode::RemoveChild 0 1 47 32</span>
+<span class="s0">/// Delete a child of this node.</span>
+<span class="s0">51</span>
+<span class="s0">bool TiXmlNode::RemoveChild(TiXmlNode *removeThis);</span>
+
+<span class="s0">257 15 PreviousSibling 0 4 387 26 TiXmlNode::PreviousSibling 0 6 48 49 50 51 52 53 120</span>
+<span class="s0">/// Navigate to a sibling node.</span>
+
+<span class="s0">/// Navigate to a sibling node.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">368</span>
+<span class="s0">TiXmlNode const *TiXmlNode::PreviousSibling(void) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::PreviousSibling(void);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::PreviousSibling(char const *) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::PreviousSibling(char const *_prev);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::PreviousSibling(std::string const &amp;_value) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::PreviousSibling(std::string const &amp;_value);</span>
+
+<span class="s0">258 11 NextSibling 0 4 387 22 TiXmlNode::NextSibling 0 6 54 55 56 57 58 59 143</span>
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">/// Navigate to a sibling node.</span>
+
+<span class="s0">/// Navigate to a sibling node with the given 'value'.</span>
+<span class="s0">344</span>
+<span class="s0">TiXmlNode const *TiXmlNode::NextSibling(std::string const &amp;_value) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::NextSibling(std::string const &amp;_value);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::NextSibling(void) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::NextSibling(void);</span>
+<span class="s0">TiXmlNode const *TiXmlNode::NextSibling(char const *) const;</span>
+<span class="s0">TiXmlNode *TiXmlNode::NextSibling(char const *_next);</span>
+
+<span class="s0">259 18 NextSiblingElement 0 4 387 29 TiXmlNode::NextSiblingElement 0 6 60 61 62 63 64 65 420</span>
+<span class="s0">/** Convenience function to get through elements.</span>
+        <span class="s0">Calls NextSibling and ToElement. Will skip all non-Element</span>
+        <span class="s0">nodes. Returns 0 if there is not another element.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/** Convenience function to get through elements.</span>
+        <span class="s0">Calls NextSibling and ToElement. Will skip all non-Element</span>
+        <span class="s0">nodes. Returns 0 if there is not another element.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">404</span>
+<span class="s0">TiXmlElement const *TiXmlNode::NextSiblingElement(void) const;</span>
+<span class="s0">TiXmlElement *TiXmlNode::NextSiblingElement(void);</span>
+<span class="s0">TiXmlElement const *TiXmlNode::NextSiblingElement(char const *) const;</span>
+<span class="s0">TiXmlElement *TiXmlNode::NextSiblingElement(char const *_next);</span>
+<span class="s0">TiXmlElement const *TiXmlNode::NextSiblingElement(std::string const &amp;_value) const;</span>
+<span class="s0">TiXmlElement *TiXmlNode::NextSiblingElement(std::string const &amp;_value);</span>
+
+<span class="s0">260 17 FirstChildElement 0 4 387 28 TiXmlNode::FirstChildElement 0 6 66 67 68 69 70 71 156</span>
+<span class="s0">/// Convenience function to get through elements.</span>
+
+<span class="s0">/// Convenience function to get through elements.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">405</span>
+<span class="s0">TiXmlElement const *TiXmlNode::FirstChildElement(void) const;</span>
+<span class="s0">TiXmlElement *TiXmlNode::FirstChildElement(void);</span>
+<span class="s0">TiXmlElement const *TiXmlNode::FirstChildElement(char const *_value) const;</span>
+<span class="s0">TiXmlElement *TiXmlNode::FirstChildElement(char const *_value);</span>
+<span class="s0">TiXmlElement const *TiXmlNode::FirstChildElement(std::string const &amp;_value) const;</span>
+<span class="s0">TiXmlElement *TiXmlNode::FirstChildElement(std::string const &amp;_value);</span>
+
+<span class="s0">261 4 Type 0 4 387 15 TiXmlNode::Type 0 1 72 195</span>
+<span class="s0">/** Query the type (as an enumerated value, above) of this node.</span>
+        <span class="s0">The possible types are: DOCUMENT, ELEMENT, COMMENT,</span>
+                                <span class="s0">UNKNOWN, TEXT, and DECLARATION.</span>
+    <span class="s0">*/</span>
+<span class="s0">32</span>
+<span class="s0">int TiXmlNode::Type(void) const;</span>
+
+<span class="s0">262 11 GetDocument 0 4 387 22 TiXmlNode::GetDocument 0 2 73 74 106</span>
+<span class="s0">/** Return a pointer to the Document this node lives in.</span>
+        <span class="s0">Returns null if not in a document.</span>
+    <span class="s0">*/</span>
+<span class="s0">101</span>
+<span class="s0">TiXmlDocument const *TiXmlNode::GetDocument(void) const;</span>
+<span class="s0">TiXmlDocument *TiXmlNode::GetDocument(void);</span>
+
+<span class="s0">263 10 NoChildren 0 4 387 21 TiXmlNode::NoChildren 0 1 75 46</span>
+<span class="s0">/// Returns true if this node has no children.</span>
+<span class="s0">39</span>
+<span class="s0">bool TiXmlNode::NoChildren(void) const;</span>
+
+<span class="s0">264 10 ToDocument 0 6 387 21 TiXmlNode::ToDocument 0 2 76 77 162</span>
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+<span class="s0">115</span>
+<span class="s0">virtual TiXmlDocument const *TiXmlNode::ToDocument(void) const;</span>
+<span class="s0">virtual TiXmlDocument *TiXmlNode::ToDocument(void);</span>
+
+<span class="s0">265 9 ToElement 0 6 387 20 TiXmlNode::ToElement 0 2 78 79 162</span>
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+<span class="s0">111</span>
+<span class="s0">virtual TiXmlElement const *TiXmlNode::ToElement(void) const;</span>
+<span class="s0">virtual TiXmlElement *TiXmlNode::ToElement(void);</span>
+
+<span class="s0">266 9 ToComment 0 6 387 20 TiXmlNode::ToComment 0 2 80 81 162</span>
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+<span class="s0">111</span>
+<span class="s0">virtual TiXmlComment const *TiXmlNode::ToComment(void) const;</span>
+<span class="s0">virtual TiXmlComment *TiXmlNode::ToComment(void);</span>
+
+<span class="s0">267 9 ToUnknown 0 6 387 20 TiXmlNode::ToUnknown 0 2 82 83 162</span>
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+<span class="s0">111</span>
+<span class="s0">virtual TiXmlUnknown const *TiXmlNode::ToUnknown(void) const;</span>
+<span class="s0">virtual TiXmlUnknown *TiXmlNode::ToUnknown(void);</span>
+
+<span class="s0">268 6 ToText 0 6 387 17 TiXmlNode::ToText 0 2 84 85 162</span>
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+<span class="s0">99</span>
+<span class="s0">virtual TiXmlText const *TiXmlNode::ToText(void) const;</span>
+<span class="s0">virtual TiXmlText *TiXmlNode::ToText(void);</span>
+
+<span class="s0">269 13 ToDeclaration 0 6 387 24 TiXmlNode::ToDeclaration 0 2 86 87 162</span>
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+
+<span class="s0">///&lt; Cast to a more defined type. Will return null if not of the requested type.</span>
+<span class="s0">127</span>
+<span class="s0">virtual TiXmlDeclaration const *TiXmlNode::ToDeclaration(void) const;</span>
+<span class="s0">virtual TiXmlDeclaration *TiXmlNode::ToDeclaration(void);</span>
+
+<span class="s0">270 5 Clone 0 6 387 16 TiXmlNode::Clone 0 1 88 114</span>
+<span class="s0">/** Create an exact duplicate of this node and return it. The memory must be deleted</span>
+        <span class="s0">by the caller.</span>
+    <span class="s0">*/</span>
+<span class="s0">52</span>
+<span class="s0">virtual TiXmlNode *TiXmlNode::Clone(void) const = 0;</span>
+
+<span class="s0">271 6 Accept 0 6 387 17 TiXmlNode::Accept 0 1 89 825</span>
+<span class="s0">/** Accept a hierchical visit the nodes in the TinyXML DOM. Every node in the</span>
+        <span class="s0">XML tree will be conditionally visited and the host will be called back</span>
+        <span class="s0">via the TiXmlVisitor interface.</span>
+
+        <span class="s0">This is essentially a SAX interface for TinyXML. (Note however it doesn't re-parse</span>
+        <span class="s0">the XML for the callbacks, so the performance of TinyXML is unchanged by using this</span>
+        <span class="s0">interface versus any other.)</span>
+
+        <span class="s0">The interface has been based on ideas from:</span>
+
+        <span class="s0">- http://www.saxproject.org/</span>
+        <span class="s0">- http://c2.com/cgi/wiki?HierarchicalVisitorPattern</span>
+
+        <span class="s0">Which are both good references for &quot;visiting&quot;.</span>
+
+        <span class="s0">An example of using Accept():</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">TiXmlPrinter printer;</span>
+        <span class="s0">tinyxmlDoc.Accept( &amp;printer );</span>
+        <span class="s0">const char* xmlcstr = printer.CStr();</span>
+        <span class="s0">@endverbatim</span>
+    <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">virtual bool TiXmlNode::Accept(TiXmlVisitor *visitor) const = 0;</span>
+
+<span class="s0">272 16 TiXmlDeclaration 0 260 386 34 TiXmlDeclaration::TiXmlDeclaration 0 4 9 10 11 12 69</span>
+<span class="s0">/// Construct an empty declaration.</span>
+
+<span class="s0">/// Constructor.</span>
+
+<span class="s0">/// Construct.</span>
+<span class="s0">340</span>
+<span class="s0">TiXmlDeclaration::TiXmlDeclaration(void);</span>
+<span class="s0">TiXmlDeclaration::TiXmlDeclaration(std::string const &amp;_version, std::string const &amp;_encoding, std::string const &amp;_standalone);</span>
+<span class="s0">TiXmlDeclaration::TiXmlDeclaration(char const *_version, char const *_encoding, char const *_standalone);</span>
+<span class="s0">TiXmlDeclaration::TiXmlDeclaration(TiXmlDeclaration const &amp;copy);</span>
+
+<span class="s0">273 10 operator = 0 4 386 28 TiXmlDeclaration::operator = 0 1 13 0</span>
+<span class="s0">64</span>
+<span class="s0">void TiXmlDeclaration::operator =(TiXmlDeclaration const &amp;copy);</span>
+
+<span class="s0">274 7 Version 0 4 386 25 TiXmlDeclaration::Version 0 1 14 59</span>
+<span class="s0">/// Version. Will return an empty string if none was found.</span>
+<span class="s0">50</span>
+<span class="s0">char const *TiXmlDeclaration::Version(void) const;</span>
+
+<span class="s0">275 8 Encoding 0 4 386 26 TiXmlDeclaration::Encoding 0 1 15 60</span>
+<span class="s0">/// Encoding. Will return an empty string if none was found.</span>
+<span class="s0">51</span>
+<span class="s0">char const *TiXmlDeclaration::Encoding(void) const;</span>
+
+<span class="s0">276 10 Standalone 0 4 386 28 TiXmlDeclaration::Standalone 0 1 16 34</span>
+<span class="s0">/// Is this a standalone document?</span>
+<span class="s0">53</span>
+<span class="s0">char const *TiXmlDeclaration::Standalone(void) const;</span>
+
+<span class="s0">277 5 Print 0 6 386 23 TiXmlDeclaration::Print 0 0 54</span>
+<span class="s0">// Print this declaration to a FILE stream.</span>
+
+<span class="s0">/*depth*/</span>
+<span class="s0">85</span>
+<span class="s0">virtual void TiXmlDeclaration::Print(FILE *cfile, int depth, std::string *str) const;</span>
+
+<span class="s0">278 13 TiXmlDocument 0 260 389 28 TiXmlDocument::TiXmlDocument 0 4 90 91 92 93 159</span>
+<span class="s0">/// Create an empty document, that has no name.</span>
+
+<span class="s0">/// Create a document with a name. The name of the document is also the filename of the xml.</span>
+
+<span class="s0">/// Constructor.</span>
+<span class="s0">211</span>
+<span class="s0">TiXmlDocument::TiXmlDocument(void);</span>
+<span class="s0">TiXmlDocument::TiXmlDocument(char const *documentName);</span>
+<span class="s0">TiXmlDocument::TiXmlDocument(std::string const &amp;documentName);</span>
+<span class="s0">TiXmlDocument::TiXmlDocument(TiXmlDocument const &amp;copy);</span>
+
+<span class="s0">279 10 operator = 0 4 389 25 TiXmlDocument::operator = 0 1 94 0</span>
+<span class="s0">58</span>
+<span class="s0">void TiXmlDocument::operator =(TiXmlDocument const &amp;copy);</span>
+
+<span class="s0">280 8 LoadFile 0 4 389 23 TiXmlDocument::LoadFile 0 4 95 96 97 98 573</span>
+<span class="s0">/** Load a file using the current document value.</span>
+        <span class="s0">Returns true if successful. Will delete any existing</span>
+        <span class="s0">document data before loading.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/// Load a file using the given filename. Returns true if successful.</span>
+
+<span class="s0">/** Load a file using the given FILE*. Returns true if successful. Note that this method</span>
+        <span class="s0">doesn't stream - the entire object pointed at by the FILE*</span>
+        <span class="s0">will be interpreted as an XML file. TinyXML doesn't stream in XML from the current</span>
+        <span class="s0">file location. Streaming may be added in the future.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">///&lt; STL std::string version.</span>
+<span class="s0">382</span>
+<span class="s0">bool TiXmlDocument::LoadFile(TiXmlEncoding encoding = ::TIXML_DEFAULT_ENCODING);</span>
+<span class="s0">bool TiXmlDocument::LoadFile(char const *filename, TiXmlEncoding encoding = ::TIXML_DEFAULT_ENCODING);</span>
+<span class="s0">bool TiXmlDocument::LoadFile(FILE *, TiXmlEncoding encoding = ::TIXML_DEFAULT_ENCODING);</span>
+<span class="s0">bool TiXmlDocument::LoadFile(std::string const &amp;filename, TiXmlEncoding encoding = ::TIXML_DEFAULT_ENCODING);</span>
+
+<span class="s0">281 8 SaveFile 0 4 389 23 TiXmlDocument::SaveFile 0 4 99 100 101 102 247</span>
+<span class="s0">/// Save a file using the current document value. Returns true if successful.</span>
+
+<span class="s0">/// Save a file using the given filename. Returns true if successful.</span>
+
+<span class="s0">/// Save a file using the given FILE*. Returns true if successful.</span>
+
+<span class="s0">///&lt; STL std::string version.</span>
+<span class="s0">208</span>
+<span class="s0">bool TiXmlDocument::SaveFile(void) const;</span>
+<span class="s0">bool TiXmlDocument::SaveFile(char const *filename) const;</span>
+<span class="s0">bool TiXmlDocument::SaveFile(FILE *) const;</span>
+<span class="s0">bool TiXmlDocument::SaveFile(std::string const &amp;filename) const;</span>
+
+<span class="s0">282 11 RootElement 0 4 389 26 TiXmlDocument::RootElement 0 2 103 104 207</span>
+<span class="s0">/** Get the root element -- the only top level element -- of the document.</span>
+        <span class="s0">In well formed XML, there should only be one. TinyXml is tolerant of</span>
+        <span class="s0">multiple elements at the document level.</span>
+    <span class="s0">*/</span>
+<span class="s0">107</span>
+<span class="s0">TiXmlElement const *TiXmlDocument::RootElement(void) const;</span>
+<span class="s0">TiXmlElement *TiXmlDocument::RootElement(void);</span>
+
+<span class="s0">283 5 Error 0 4 389 20 TiXmlDocument::Error 0 1 105 330</span>
+<span class="s0">/** If an error occurs, Error will be set to true. Also,</span>
+        <span class="s0">- The ErrorId() will contain the integer identifier of the error (not generally useful)</span>
+        <span class="s0">- The ErrorDesc() method will return the name of the error. (very useful)</span>
+        <span class="s0">- The ErrorRow() and ErrorCol() will return the location of the error (if known)</span>
+    <span class="s0">*/</span>
+<span class="s0">38</span>
+<span class="s0">bool TiXmlDocument::Error(void) const;</span>
+
+<span class="s0">284 9 ErrorDesc 0 4 389 24 TiXmlDocument::ErrorDesc 0 1 106 72</span>
+<span class="s0">/// Contains a textual (english) description of the error if one occurs.</span>
+<span class="s0">49</span>
+<span class="s0">char const *TiXmlDocument::ErrorDesc(void) const;</span>
+
+<span class="s0">285 7 ErrorId 0 4 389 22 TiXmlDocument::ErrorId 0 1 107 141</span>
+<span class="s0">/** Generally, you probably want the error string ( ErrorDesc() ). But if you</span>
+        <span class="s0">prefer the ErrorId, this function will fetch it.</span>
+    <span class="s0">*/</span>
+<span class="s0">39</span>
+<span class="s0">int TiXmlDocument::ErrorId(void) const;</span>
+
+<span class="s0">286 8 ErrorRow 0 4 389 23 TiXmlDocument::ErrorRow 0 1 108 359</span>
+<span class="s0">/** Returns the location (if known) of the error. The first column is column 1,</span>
+        <span class="s0">and the first row is row 1. A value of 0 means the row and column wasn't applicable</span>
+        <span class="s0">(memory errors, for example, have no row/column) or the parser lost the error. (An</span>
+        <span class="s0">error in the error reporting, in that case.)</span>
+
+        <span class="s0">@sa SetTabSize, Row, Column</span>
+    <span class="s0">*/</span>
+<span class="s0">40</span>
+<span class="s0">int TiXmlDocument::ErrorRow(void) const;</span>
+
+<span class="s0">287 8 ErrorCol 0 4 389 23 TiXmlDocument::ErrorCol 0 1 109 55</span>
+<span class="s0">///&lt; The column where the error occured. See ErrorRow()</span>
+<span class="s0">40</span>
+<span class="s0">int TiXmlDocument::ErrorCol(void) const;</span>
+
+<span class="s0">288 10 SetTabSize 0 4 389 25 TiXmlDocument::SetTabSize 0 1 110 970</span>
+<span class="s0">/** SetTabSize() allows the error reporting functions (ErrorRow() and ErrorCol())</span>
+        <span class="s0">to report the correct values for row and column. It does not change the output</span>
+        <span class="s0">or input in any way.</span>
+
+        <span class="s0">By calling this method, with a tab size</span>
+        <span class="s0">greater than 0, the row and column of each node and attribute is stored</span>
+        <span class="s0">when the file is loaded. Very useful for tracking the DOM back in to</span>
+        <span class="s0">the source file.</span>
+
+        <span class="s0">The tab size is required for calculating the location of nodes. If not</span>
+        <span class="s0">set, the default of 4 is used. The tabsize is set per document. Setting</span>
+        <span class="s0">the tabsize to 0 disables row/column tracking.</span>
+
+        <span class="s0">Note that row and column tracking is not supported when using operator&gt;&gt;.</span>
+
+        <span class="s0">The tab size needs to be enabled before the parse or load. Correct usage:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">TiXmlDocument doc;</span>
+        <span class="s0">doc.SetTabSize( 8 );</span>
+        <span class="s0">doc.Load( &quot;myfile.xml&quot; );</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">@sa Row, Column</span>
+    <span class="s0">*/</span>
+<span class="s0">45</span>
+<span class="s0">void TiXmlDocument::SetTabSize(int _tabsize);</span>
+
+<span class="s0">289 7 TabSize 0 4 389 22 TiXmlDocument::TabSize 0 1 111 0</span>
+<span class="s0">39</span>
+<span class="s0">int TiXmlDocument::TabSize(void) const;</span>
+
+<span class="s0">290 10 ClearError 0 4 389 25 TiXmlDocument::ClearError 0 1 112 152</span>
+<span class="s0">/** If you have handled the error, it can be reset with this call. The error</span>
+        <span class="s0">state is automatically cleared if you Parse a new XML block.</span>
+    <span class="s0">*/</span>
+<span class="s0">37</span>
+<span class="s0">void TiXmlDocument::ClearError(void);</span>
+
+<span class="s0">291 5 Print 0 4 389 20 TiXmlDocument::Print 0 1 113 84</span>
+<span class="s0">/** Write the document to standard out using formatted printing (&quot;pretty print&quot;). */</span>
+<span class="s0">38</span>
+<span class="s0">void TiXmlDocument::Print(void) const;</span>
+
+<span class="s0">292 8 SetError 0 4 389 23 TiXmlDocument::SetError 0 1 114 17</span>
+<span class="s0">// [internal use]</span>
+<span class="s0">117</span>
+<span class="s0">void TiXmlDocument::SetError(int err, char const *errorLocation, TiXmlParsingData *prevData, TiXmlEncoding encoding);</span>
+
+<span class="s0">293 12 TiXmlElement 0 260 390 26 TiXmlElement::TiXmlElement 0 3 115 116 117 55</span>
+<span class="s0">/// Construct an element.</span>
+
+<span class="s0">/// std::string constructor.</span>
+<span class="s0">154</span>
+<span class="s0">TiXmlElement::TiXmlElement(char const *in_value);</span>
+<span class="s0">TiXmlElement::TiXmlElement(std::string const &amp;_value);</span>
+<span class="s0">TiXmlElement::TiXmlElement(TiXmlElement const &amp;);</span>
+
+<span class="s0">294 10 operator = 0 4 390 24 TiXmlElement::operator = 0 1 118 0</span>
+<span class="s0">56</span>
+<span class="s0">void TiXmlElement::operator =(TiXmlElement const &amp;base);</span>
+
+<span class="s0">295 9 Attribute 0 4 390 23 TiXmlElement::Attribute 0 2 119 120 695</span>
+<span class="s0">/** Given an attribute name, Attribute() returns the value</span>
+        <span class="s0">for the attribute of that name, or null if none exists.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/** Given an attribute name, Attribute() returns the value</span>
+        <span class="s0">for the attribute of that name, or null if none exists.</span>
+        <span class="s0">If the attribute exists and can be converted to an integer,</span>
+        <span class="s0">the integer value will be put in the return 'i', if 'i'</span>
+        <span class="s0">is non-null.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/** Given an attribute name, Attribute() returns the value</span>
+        <span class="s0">for the attribute of that name, or null if none exists.</span>
+        <span class="s0">If the attribute exists and can be converted to an double,</span>
+        <span class="s0">the double value will be put in the return 'd', if 'd'</span>
+        <span class="s0">is non-null.</span>
+    <span class="s0">*/</span>
+<span class="s0">445</span>
+<span class="s0">char const *TiXmlElement::Attribute(char const *name) const;</span>
+<span class="s0">char const *TiXmlElement::Attribute(char const *name, int *i) const;</span>
+<span class="s0">char const *TiXmlElement::Attribute(char const *name, double *d) const;</span>
+<span class="s0">std::string const *TiXmlElement::Attribute(std::string const &amp;name) const;</span>
+<span class="s0">std::string const *TiXmlElement::Attribute(std::string const &amp;name, int *i) const;</span>
+<span class="s0">std::string const *TiXmlElement::Attribute(std::string const &amp;name, double *d) const;</span>
+
+<span class="s0">296 17 QueryIntAttribute 0 4 390 31 TiXmlElement::QueryIntAttribute 0 0 384</span>
+<span class="s0">/** QueryIntAttribute examines the attribute - it is an alternative to the</span>
+        <span class="s0">Attribute() method with richer error checking.</span>
+        <span class="s0">If the attribute is an integer, it is stored in 'value' and</span>
+        <span class="s0">the call returns TIXML_SUCCESS. If it is not</span>
+        <span class="s0">an integer, it returns TIXML_WRONG_TYPE. If the attribute</span>
+        <span class="s0">does not exist, then TIXML_NO_ATTRIBUTE is returned.</span>
+    <span class="s0">*/</span>
+<span class="s0">154</span>
+<span class="s0">int TiXmlElement::QueryIntAttribute(char const *name, int *_value) const;</span>
+<span class="s0">int TiXmlElement::QueryIntAttribute(std::string const &amp;name, int *_value) const;</span>
+
+<span class="s0">297 20 QueryDoubleAttribute 0 4 390 34 TiXmlElement::QueryDoubleAttribute 0 0 74</span>
+<span class="s0">/// QueryDoubleAttribute examines the attribute - see QueryIntAttribute().</span>
+<span class="s0">166</span>
+<span class="s0">int TiXmlElement::QueryDoubleAttribute(char const *name, double *_value) const;</span>
+<span class="s0">int TiXmlElement::QueryDoubleAttribute(std::string const &amp;name, double *_value) const;</span>
+
+<span class="s0">298 19 QueryFloatAttribute 0 4 390 33 TiXmlElement::QueryFloatAttribute 0 0 73</span>
+<span class="s0">/// QueryFloatAttribute examines the attribute - see QueryIntAttribute().</span>
+<span class="s0">77</span>
+<span class="s0">int TiXmlElement::QueryFloatAttribute(char const *name, float *_value) const;</span>
+
+<span class="s0">299 20 QueryStringAttribute 0 4 390 34 TiXmlElement::QueryStringAttribute 0 0 74</span>
+<span class="s0">/// QueryStringAttribute examines the attribute - see QueryIntAttribute().</span>
+<span class="s0">84</span>
+<span class="s0">int TiXmlElement::QueryStringAttribute(char const *name, std::string *_value) const;</span>
+
+<span class="s0">300 19 QueryValueAttribute 0 4 390 33 TiXmlElement::QueryValueAttribute 0 0 0</span>
+<span class="s0">92</span>
+<span class="s0">int TiXmlElement::QueryValueAttribute(std::string const &amp;name, std::string *outValue) const;</span>
+
+<span class="s0">301 12 SetAttribute 0 4 390 26 TiXmlElement::SetAttribute 0 4 121 122 123 124 331</span>
+<span class="s0">/** Sets an attribute of name to a given value. The attribute</span>
+        <span class="s0">will be created if it does not exist, or changed if it does.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/// STL std::string form.</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">/** Sets an attribute of name to a given value. The attribute</span>
+        <span class="s0">will be created if it does not exist, or changed if it does.</span>
+    <span class="s0">*/</span>
+<span class="s0">287</span>
+<span class="s0">void TiXmlElement::SetAttribute(char const *name, char const *_value);</span>
+<span class="s0">void TiXmlElement::SetAttribute(std::string const &amp;name, std::string const &amp;_value);</span>
+<span class="s0">void TiXmlElement::SetAttribute(std::string const &amp;name, int _value);</span>
+<span class="s0">void TiXmlElement::SetAttribute(char const *name, int value);</span>
+
+<span class="s0">302 18 SetDoubleAttribute 0 4 390 32 TiXmlElement::SetDoubleAttribute 0 2 125 126 165</span>
+<span class="s0">///&lt; STL std::string form.</span>
+
+<span class="s0">/** Sets an attribute of name to a given value. The attribute</span>
+        <span class="s0">will be created if it does not exist, or changed if it does.</span>
+    <span class="s0">*/</span>
+<span class="s0">148</span>
+<span class="s0">void TiXmlElement::SetDoubleAttribute(std::string const &amp;name, double value);</span>
+<span class="s0">void TiXmlElement::SetDoubleAttribute(char const *name, double value);</span>
+
+<span class="s0">303 15 RemoveAttribute 0 4 390 29 TiXmlElement::RemoveAttribute 0 2 127 128 80</span>
+<span class="s0">/** Deletes an attribute with the given name.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">///&lt; STL std::string form.</span>
+<span class="s0">114</span>
+<span class="s0">void TiXmlElement::RemoveAttribute(char const *name);</span>
+<span class="s0">void TiXmlElement::RemoveAttribute(std::string const &amp;name);</span>
+
+<span class="s0">304 14 FirstAttribute 0 4 390 28 TiXmlElement::FirstAttribute 0 2 129 130 98</span>
+<span class="s0">///&lt; Access the first attribute in this element.</span>
+
+<span class="s0">///&lt; Access the first attribute in this element.</span>
+<span class="s0">115</span>
+<span class="s0">TiXmlAttribute const *TiXmlElement::FirstAttribute(void) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlElement::FirstAttribute(void);</span>
+
+<span class="s0">305 13 LastAttribute 0 4 390 27 TiXmlElement::LastAttribute 0 2 131 132 96</span>
+<span class="s0">///&lt; Access the last attribute in this element.</span>
+
+<span class="s0">///&lt; Access the last attribute in this element.</span>
+<span class="s0">113</span>
+<span class="s0">TiXmlAttribute const *TiXmlElement::LastAttribute(void) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlElement::LastAttribute(void);</span>
+
+<span class="s0">306 7 GetText 0 4 390 21 TiXmlElement::GetText 0 1 133 1274</span>
+<span class="s0">/** Convenience function for easy access to the text inside an element. Although easy</span>
+        <span class="s0">and concise, GetText() is limited compared to getting the TiXmlText child</span>
+        <span class="s0">and accessing it directly.</span>
+
+        <span class="s0">If the first child of 'this' is a TiXmlText, the GetText()</span>
+        <span class="s0">returns the character string of the Text node, else null is returned.</span>
+
+        <span class="s0">This is a convenient method for getting the text of simple contained text:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">&lt;foo&gt;This is text&lt;/foo&gt;</span>
+        <span class="s0">const char* str = fooElement-&gt;GetText();</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">'str' will be a pointer to &quot;This is text&quot;.</span>
+
+        <span class="s0">Note that this function can be misleading. If the element foo was created from</span>
+        <span class="s0">this XML:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">&lt;foo&gt;&lt;b&gt;This is text&lt;/b&gt;&lt;/foo&gt;</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">then the value of str would be null. The first child node isn't a text node, it is</span>
+        <span class="s0">another element. From this XML:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">&lt;foo&gt;This is &lt;b&gt;text&lt;/b&gt;&lt;/foo&gt;</span>
+        <span class="s0">@endverbatim</span>
+        <span class="s0">GetText() will return &quot;This is &quot;.</span>
+
+        <span class="s0">WARNING: GetText() accesses a child node - don't become confused with the</span>
+                 <span class="s0">similarly named TiXmlHandle::Text() and TiXmlNode::ToText() which are</span>
+                 <span class="s0">safe type casts on the referenced node.</span>
+    <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">char const *TiXmlElement::GetText(void) const;</span>
+
+<span class="s0">307 15 read_xml_stream 0 1 0 15 read_xml_stream 0 1 225 103</span>
+<span class="s0">/**</span>
+ <span class="s0">* Reads an XML document from the indicated stream.</span>
+ <span class="s0">* @returns the document, or NULL on error.</span>
+ <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">TiXmlDocument *read_xml_stream(std::istream &amp;in);</span>
+
+<span class="s0">308 16 write_xml_stream 0 1 0 16 write_xml_stream 0 1 226 0</span>
+<span class="s0">61</span>
+<span class="s0">void write_xml_stream(std::ostream &amp;out, TiXmlDocument *doc);</span>
+
+<span class="s0">309 9 print_xml 0 1 0 9 print_xml 0 1 227 0</span>
+<span class="s0">33</span>
+<span class="s0">void print_xml(TiXmlNode *xnode);</span>
+
+<span class="s0">310 17 print_xml_to_file 0 1 0 17 print_xml_to_file 0 1 228 0</span>
+<span class="s0">67</span>
+<span class="s0">void print_xml_to_file(Filename const &amp;filename, TiXmlNode *xnode);</span>
+
+<span class="s0">311 23 get_TIXML_MAJOR_VERSION 0 16 0 23 get_TIXML_MAJOR_VERSION 0 1 229 41</span>
+<span class="s0">getter for int const TIXML_MAJOR_VERSION;</span>
+<span class="s0">34</span>
+<span class="s0">int get_TIXML_MAJOR_VERSION(void);</span>
+
+<span class="s0">312 23 get_TIXML_MINOR_VERSION 0 16 0 23 get_TIXML_MINOR_VERSION 0 1 230 41</span>
+<span class="s0">getter for int const TIXML_MINOR_VERSION;</span>
+<span class="s0">34</span>
+<span class="s0">int get_TIXML_MINOR_VERSION(void);</span>
+
+<span class="s0">313 23 get_TIXML_PATCH_VERSION 0 16 0 23 get_TIXML_PATCH_VERSION 0 1 231 41</span>
+<span class="s0">getter for int const TIXML_PATCH_VERSION;</span>
+<span class="s0">34</span>
+<span class="s0">int get_TIXML_PATCH_VERSION(void);</span>
+
+<span class="s0">314 11 TiXmlCursor 0 260 392 24 TiXmlCursor::TiXmlCursor 0 1 134 0</span>
+<span class="s0">63</span>
+<span class="s0">inline TiXmlCursor::TiXmlCursor(TiXmlCursor const &amp;) = default;</span>
+
+<span class="s0">315 12 ~TiXmlCursor 0 516 392 25 TiXmlCursor::~TiXmlCursor 0 0 0</span>
+<span class="s0">32</span>
+<span class="s0">TiXmlCursor::~TiXmlCursor(void);</span>
+
+<span class="s0">316 13 ~TiXmlVisitor 0 518 393 27 TiXmlVisitor::~TiXmlVisitor 0 0 0</span>
+<span class="s0">42</span>
+<span class="s0">virtual TiXmlVisitor::~TiXmlVisitor(void);</span>
+
+<span class="s0">317 10 VisitEnter 0 6 393 24 TiXmlVisitor::VisitEnter 0 2 137 138 27</span>
+<span class="s0">/*doc*/</span>
+
+<span class="s0">/*firstAttribute*/</span>
+<span class="s0">146</span>
+<span class="s0">virtual bool TiXmlVisitor::VisitEnter(TiXmlDocument const &amp;);</span>
+<span class="s0">virtual bool TiXmlVisitor::VisitEnter(TiXmlElement const &amp;, TiXmlAttribute const *);</span>
+
+<span class="s0">318 9 VisitExit 0 6 393 23 TiXmlVisitor::VisitExit 0 2 139 140 20</span>
+<span class="s0">/*doc*/</span>
+
+<span class="s0">/*element*/</span>
+<span class="s0">120</span>
+<span class="s0">virtual bool TiXmlVisitor::VisitExit(TiXmlDocument const &amp;);</span>
+<span class="s0">virtual bool TiXmlVisitor::VisitExit(TiXmlElement const &amp;);</span>
+
+<span class="s0">319 5 Visit 0 6 393 19 TiXmlVisitor::Visit 0 4 141 142 143 144 51</span>
+<span class="s0">/*declaration*/</span>
+
+<span class="s0">/*text*/</span>
+
+<span class="s0">/*comment*/</span>
+
+<span class="s0">/*unknown*/</span>
+<span class="s0">224</span>
+<span class="s0">virtual bool TiXmlVisitor::Visit(TiXmlDeclaration const &amp;);</span>
+<span class="s0">virtual bool TiXmlVisitor::Visit(TiXmlText const &amp;);</span>
+<span class="s0">virtual bool TiXmlVisitor::Visit(TiXmlComment const &amp;);</span>
+<span class="s0">virtual bool TiXmlVisitor::Visit(TiXmlUnknown const &amp;);</span>
+
+<span class="s0">320 12 TiXmlVisitor 0 260 393 26 TiXmlVisitor::TiXmlVisitor 0 2 135 136 0</span>
+<span class="s0">117</span>
+<span class="s0">inline TiXmlVisitor::TiXmlVisitor(void) = default;</span>
+<span class="s0">inline TiXmlVisitor::TiXmlVisitor(TiXmlVisitor const &amp;) = default;</span>
+
+<span class="s0">321 26 get_TIXML_DEFAULT_ENCODING 0 16 0 26 get_TIXML_DEFAULT_ENCODING 0 1 232 54</span>
+<span class="s0">getter for TiXmlEncoding const TIXML_DEFAULT_ENCODING;</span>
+<span class="s0">47</span>
+<span class="s0">TiXmlEncoding get_TIXML_DEFAULT_ENCODING(void);</span>
+
+<span class="s0">322 14 TiXmlAttribute 0 260 396 30 TiXmlAttribute::TiXmlAttribute 0 3 145 146 147 114</span>
+<span class="s0">/// Construct an empty attribute.</span>
+
+<span class="s0">/// std::string constructor.</span>
+
+<span class="s0">/// Construct an attribute with a name and value.</span>
+<span class="s0">193</span>
+<span class="s0">TiXmlAttribute::TiXmlAttribute(void);</span>
+<span class="s0">TiXmlAttribute::TiXmlAttribute(std::string const &amp;_name, std::string const &amp;_value);</span>
+<span class="s0">TiXmlAttribute::TiXmlAttribute(char const *_name, char const *_value);</span>
+
+<span class="s0">323 4 Name 0 4 396 20 TiXmlAttribute::Name 0 1 148 39</span>
+<span class="s0">///&lt; Return the name of this attribute.</span>
+<span class="s0">45</span>
+<span class="s0">char const *TiXmlAttribute::Name(void) const;</span>
+
+<span class="s0">324 5 Value 0 4 396 21 TiXmlAttribute::Value 0 1 149 40</span>
+<span class="s0">///&lt; Return the value of this attribute.</span>
+<span class="s0">46</span>
+<span class="s0">char const *TiXmlAttribute::Value(void) const;</span>
+
+<span class="s0">325 8 ValueStr 0 4 396 24 TiXmlAttribute::ValueStr 0 1 150 40</span>
+<span class="s0">///&lt; Return the value of this attribute.</span>
+<span class="s0">56</span>
+<span class="s0">std::string const &amp;TiXmlAttribute::ValueStr(void) const;</span>
+
+<span class="s0">326 8 IntValue 0 4 396 24 TiXmlAttribute::IntValue 0 1 151 65</span>
+<span class="s0">///&lt; Return the value of this attribute, converted to an integer.</span>
+<span class="s0">41</span>
+<span class="s0">int TiXmlAttribute::IntValue(void) const;</span>
+
+<span class="s0">327 11 DoubleValue 0 4 396 27 TiXmlAttribute::DoubleValue 0 1 152 63</span>
+<span class="s0">///&lt; Return the value of this attribute, converted to a double.</span>
+<span class="s0">47</span>
+<span class="s0">double TiXmlAttribute::DoubleValue(void) const;</span>
+
+<span class="s0">328 8 NameTStr 0 4 396 24 TiXmlAttribute::NameTStr 0 1 153 40</span>
+<span class="s0">// Get the tinyxml string representation</span>
+<span class="s0">56</span>
+<span class="s0">std::string const &amp;TiXmlAttribute::NameTStr(void) const;</span>
+
+<span class="s0">329 13 QueryIntValue 0 4 396 29 TiXmlAttribute::QueryIntValue 0 0 440</span>
+<span class="s0">/** QueryIntValue examines the value string. It is an alternative to the</span>
+        <span class="s0">IntValue() method with richer error checking.</span>
+        <span class="s0">If the value is an integer, it is stored in 'value' and</span>
+        <span class="s0">the call returns TIXML_SUCCESS. If it is not</span>
+        <span class="s0">an integer, it returns TIXML_WRONG_TYPE.</span>
+
+        <span class="s0">A specialized but useful call. Note that for success it returns 0,</span>
+        <span class="s0">which is the opposite of almost all other TinyXml calls.</span>
+    <span class="s0">*/</span>
+<span class="s0">53</span>
+<span class="s0">int TiXmlAttribute::QueryIntValue(int *_value) const;</span>
+
+<span class="s0">330 16 QueryDoubleValue 0 4 396 32 TiXmlAttribute::QueryDoubleValue 0 0 68</span>
+<span class="s0">/// QueryDoubleValue examines the value string. See QueryIntValue().</span>
+<span class="s0">59</span>
+<span class="s0">int TiXmlAttribute::QueryDoubleValue(double *_value) const;</span>
+
+<span class="s0">331 7 SetName 0 4 396 23 TiXmlAttribute::SetName 0 2 154 155 63</span>
+<span class="s0">///&lt; Set the name of this attribute.</span>
+
+<span class="s0">/// STL std::string form.</span>
+<span class="s0">104</span>
+<span class="s0">void TiXmlAttribute::SetName(char const *_name);</span>
+<span class="s0">void TiXmlAttribute::SetName(std::string const &amp;_name);</span>
+
+<span class="s0">332 8 SetValue 0 4 396 24 TiXmlAttribute::SetValue 0 2 156 157 46</span>
+<span class="s0">///&lt; Set the value.</span>
+
+<span class="s0">/// STL std::string form.</span>
+<span class="s0">108</span>
+<span class="s0">void TiXmlAttribute::SetValue(char const *_value);</span>
+<span class="s0">void TiXmlAttribute::SetValue(std::string const &amp;_value);</span>
+
+<span class="s0">333 11 SetIntValue 0 4 396 27 TiXmlAttribute::SetIntValue 0 1 158 35</span>
+<span class="s0">///&lt; Set the value from an integer.</span>
+<span class="s0">45</span>
+<span class="s0">void TiXmlAttribute::SetIntValue(int _value);</span>
+
+<span class="s0">334 14 SetDoubleValue 0 4 396 30 TiXmlAttribute::SetDoubleValue 0 1 159 33</span>
+<span class="s0">///&lt; Set the value from a double.</span>
+<span class="s0">51</span>
+<span class="s0">void TiXmlAttribute::SetDoubleValue(double _value);</span>
+
+<span class="s0">335 4 Next 0 4 396 20 TiXmlAttribute::Next 0 2 160 161 67</span>
+<span class="s0">/// Get the next sibling attribute in the DOM. Returns null at end.</span>
+<span class="s0">99</span>
+<span class="s0">TiXmlAttribute const *TiXmlAttribute::Next(void) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlAttribute::Next(void);</span>
+
+<span class="s0">336 8 Previous 0 4 396 24 TiXmlAttribute::Previous 0 2 162 163 77</span>
+<span class="s0">/// Get the previous sibling attribute in the DOM. Returns null at beginning.</span>
+<span class="s0">107</span>
+<span class="s0">TiXmlAttribute const *TiXmlAttribute::Previous(void) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlAttribute::Previous(void);</span>
+
+<span class="s0">337 11 operator == 0 4 396 27 TiXmlAttribute::operator == 0 1 164 0</span>
+<span class="s0">66</span>
+<span class="s0">bool TiXmlAttribute::operator ==(TiXmlAttribute const &amp;rhs) const;</span>
+
+<span class="s0">338 10 operator &lt; 0 4 396 26 TiXmlAttribute::operator &lt; 0 1 165 0</span>
+<span class="s0">65</span>
+<span class="s0">bool TiXmlAttribute::operator &lt;(TiXmlAttribute const &amp;rhs) const;</span>
+
+<span class="s0">339 10 operator &gt; 0 4 396 26 TiXmlAttribute::operator &gt; 0 1 166 0</span>
+<span class="s0">65</span>
+<span class="s0">bool TiXmlAttribute::operator &gt;(TiXmlAttribute const &amp;rhs) const;</span>
+
+<span class="s0">340 5 Print 0 4 396 21 TiXmlAttribute::Print 0 0 9</span>
+<span class="s0">/*depth*/</span>
+<span class="s0">75</span>
+<span class="s0">void TiXmlAttribute::Print(FILE *cfile, int depth, std::string *str) const;</span>
+
+<span class="s0">341 11 SetDocument 0 4 396 27 TiXmlAttribute::SetDocument 0 1 167 81</span>
+<span class="s0">// [internal use]</span>
+<span class="s0">// Set the document pointer so the attribute can report errors.</span>
+<span class="s0">53</span>
+<span class="s0">void TiXmlAttribute::SetDocument(TiXmlDocument *doc);</span>
+
+<span class="s0">342 15 ~TiXmlAttribute 0 516 396 31 TiXmlAttribute::~TiXmlAttribute 0 0 0</span>
+<span class="s0">38</span>
+<span class="s0">TiXmlAttribute::~TiXmlAttribute(void);</span>
+
+<span class="s0">343 17 TiXmlAttributeSet 0 260 397 36 TiXmlAttributeSet::TiXmlAttributeSet 0 1 168 0</span>
+<span class="s0">43</span>
+<span class="s0">TiXmlAttributeSet::TiXmlAttributeSet(void);</span>
+
+<span class="s0">344 18 ~TiXmlAttributeSet 0 516 397 37 TiXmlAttributeSet::~TiXmlAttributeSet 0 0 0</span>
+<span class="s0">44</span>
+<span class="s0">TiXmlAttributeSet::~TiXmlAttributeSet(void);</span>
+
+<span class="s0">345 3 Add 0 4 397 22 TiXmlAttributeSet::Add 0 1 169 0</span>
+<span class="s0">55</span>
+<span class="s0">void TiXmlAttributeSet::Add(TiXmlAttribute *attribute);</span>
+
+<span class="s0">346 6 Remove 0 4 397 25 TiXmlAttributeSet::Remove 0 1 170 0</span>
+<span class="s0">58</span>
+<span class="s0">void TiXmlAttributeSet::Remove(TiXmlAttribute *attribute);</span>
+
+<span class="s0">347 5 First 0 4 397 24 TiXmlAttributeSet::First 0 2 171 172 0</span>
+<span class="s0">107</span>
+<span class="s0">TiXmlAttribute const *TiXmlAttributeSet::First(void) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlAttributeSet::First(void);</span>
+
+<span class="s0">348 4 Last 0 4 397 23 TiXmlAttributeSet::Last 0 2 173 174 0</span>
+<span class="s0">105</span>
+<span class="s0">TiXmlAttribute const *TiXmlAttributeSet::Last(void) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlAttributeSet::Last(void);</span>
+
+<span class="s0">349 4 Find 0 4 397 23 TiXmlAttributeSet::Find 0 2 175 176 0</span>
+<span class="s0">138</span>
+<span class="s0">TiXmlAttribute *TiXmlAttributeSet::Find(char const *_name) const;</span>
+<span class="s0">TiXmlAttribute *TiXmlAttributeSet::Find(std::string const &amp;_name) const;</span>
+
+<span class="s0">350 12 FindOrCreate 0 4 397 31 TiXmlAttributeSet::FindOrCreate 0 2 177 178 0</span>
+<span class="s0">142</span>
+<span class="s0">TiXmlAttribute *TiXmlAttributeSet::FindOrCreate(char const *_name);</span>
+<span class="s0">TiXmlAttribute *TiXmlAttributeSet::FindOrCreate(std::string const &amp;_name);</span>
+
+<span class="s0">351 12 TiXmlComment 0 260 398 26 TiXmlComment::TiXmlComment 0 3 179 180 181 68</span>
+<span class="s0">/// Constructs an empty comment.</span>
+
+<span class="s0">/// Construct a comment from text.</span>
+<span class="s0">131</span>
+<span class="s0">TiXmlComment::TiXmlComment(void);</span>
+<span class="s0">TiXmlComment::TiXmlComment(char const *_value);</span>
+<span class="s0">TiXmlComment::TiXmlComment(TiXmlComment const &amp;);</span>
+
+<span class="s0">352 10 operator = 0 4 398 24 TiXmlComment::operator = 0 1 182 0</span>
+<span class="s0">56</span>
+<span class="s0">void TiXmlComment::operator =(TiXmlComment const &amp;base);</span>
+
+<span class="s0">353 9 TiXmlText 0 260 399 20 TiXmlText::TiXmlText 0 3 183 184 185 210</span>
+<span class="s0">/** Constructor for text element. By default, it is treated as</span>
+        <span class="s0">normal, encoded text. If you want it be output as a CDATA text</span>
+        <span class="s0">element, set the parameter _cdata to 'true'</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/// Constructor.</span>
+<span class="s0">141</span>
+<span class="s0">TiXmlText::TiXmlText(char const *initValue);</span>
+<span class="s0">TiXmlText::TiXmlText(std::string const &amp;initValue);</span>
+<span class="s0">TiXmlText::TiXmlText(TiXmlText const &amp;copy);</span>
+
+<span class="s0">354 10 operator = 0 4 399 21 TiXmlText::operator = 0 1 186 0</span>
+<span class="s0">50</span>
+<span class="s0">void TiXmlText::operator =(TiXmlText const &amp;base);</span>
+
+<span class="s0">355 5 CDATA 0 4 399 16 TiXmlText::CDATA 0 1 187 63</span>
+<span class="s0">/// Queries whether this represents text using a CDATA section.</span>
+<span class="s0">34</span>
+<span class="s0">bool TiXmlText::CDATA(void) const;</span>
+
+<span class="s0">356 8 SetCDATA 0 4 399 19 TiXmlText::SetCDATA 0 1 188 51</span>
+<span class="s0">/// Turns on or off a CDATA representation of text.</span>
+<span class="s0">38</span>
+<span class="s0">void TiXmlText::SetCDATA(bool _cdata);</span>
+
+<span class="s0">357 12 TiXmlUnknown 0 260 400 26 TiXmlUnknown::TiXmlUnknown 0 2 189 190 0</span>
+<span class="s0">87</span>
+<span class="s0">TiXmlUnknown::TiXmlUnknown(void);</span>
+<span class="s0">TiXmlUnknown::TiXmlUnknown(TiXmlUnknown const &amp;copy);</span>
+
+<span class="s0">358 10 operator = 0 4 400 24 TiXmlUnknown::operator = 0 1 191 0</span>
+<span class="s0">56</span>
+<span class="s0">void TiXmlUnknown::operator =(TiXmlUnknown const &amp;copy);</span>
+
+<span class="s0">359 11 TiXmlHandle 0 260 401 24 TiXmlHandle::TiXmlHandle 0 2 192 193 111</span>
+<span class="s0">/// Create a handle from any node (at any depth of the tree.) This can be a null pointer.</span>
+
+<span class="s0">/// Copy constructor</span>
+<span class="s0">93</span>
+<span class="s0">TiXmlHandle::TiXmlHandle(TiXmlNode *_node);</span>
+<span class="s0">TiXmlHandle::TiXmlHandle(TiXmlHandle const &amp;ref);</span>
+
+<span class="s0">360 10 operator = 0 4 401 23 TiXmlHandle::operator = 0 1 194 0</span>
+<span class="s0">53</span>
+<span class="s0">void TiXmlHandle::operator =(TiXmlHandle const &amp;ref);</span>
+
+<span class="s0">361 10 FirstChild 0 4 401 23 TiXmlHandle::FirstChild 0 3 195 196 197 110</span>
+<span class="s0">/// Return a handle to the first child node.</span>
+
+<span class="s0">/// Return a handle to the first child node with the given name.</span>
+<span class="s0">180</span>
+<span class="s0">TiXmlHandle TiXmlHandle::FirstChild(void) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::FirstChild(char const *value) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::FirstChild(std::string const &amp;_value) const;</span>
+
+<span class="s0">362 17 FirstChildElement 0 4 401 30 TiXmlHandle::FirstChildElement 0 3 198 199 200 116</span>
+<span class="s0">/// Return a handle to the first child element.</span>
+
+<span class="s0">/// Return a handle to the first child element with the given name.</span>
+<span class="s0">201</span>
+<span class="s0">TiXmlHandle TiXmlHandle::FirstChildElement(void) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::FirstChildElement(char const *value) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::FirstChildElement(std::string const &amp;_value) const;</span>
+
+<span class="s0">363 5 Child 0 4 401 18 TiXmlHandle::Child 0 3 201 202 203 216</span>
+<span class="s0">/** Return a handle to the &quot;index&quot; child with the given name.</span>
+        <span class="s0">The first child is 0, the second 1, etc.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/** Return a handle to the &quot;index&quot; child.</span>
+        <span class="s0">The first child is 0, the second 1, etc.</span>
+    <span class="s0">*/</span>
+<span class="s0">192</span>
+<span class="s0">TiXmlHandle TiXmlHandle::Child(char const *value, int index) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::Child(int index) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::Child(std::string const &amp;_value, int index) const;</span>
+
+<span class="s0">364 12 ChildElement 0 4 401 25 TiXmlHandle::ChildElement 0 3 204 205 206 406</span>
+<span class="s0">/** Return a handle to the &quot;index&quot; child element with the given name.</span>
+        <span class="s0">The first child element is 0, the second 1, etc. Note that only TiXmlElements</span>
+        <span class="s0">are indexed: other types are not counted.</span>
+    <span class="s0">*/</span>
+
+<span class="s0">/** Return a handle to the &quot;index&quot; child element.</span>
+        <span class="s0">The first child element is 0, the second 1, etc. Note that only TiXmlElements</span>
+        <span class="s0">are indexed: other types are not counted.</span>
+    <span class="s0">*/</span>
+<span class="s0">213</span>
+<span class="s0">TiXmlHandle TiXmlHandle::ChildElement(char const *value, int index) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::ChildElement(int index) const;</span>
+<span class="s0">TiXmlHandle TiXmlHandle::ChildElement(std::string const &amp;_value, int index) const;</span>
+
+<span class="s0">365 6 ToNode 0 4 401 19 TiXmlHandle::ToNode 0 1 207 66</span>
+<span class="s0">/** Return the handle as a TiXmlNode. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">43</span>
+<span class="s0">TiXmlNode *TiXmlHandle::ToNode(void) const;</span>
+
+<span class="s0">366 9 ToElement 0 4 401 22 TiXmlHandle::ToElement 0 1 208 69</span>
+<span class="s0">/** Return the handle as a TiXmlElement. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">TiXmlElement *TiXmlHandle::ToElement(void) const;</span>
+
+<span class="s0">367 6 ToText 0 4 401 19 TiXmlHandle::ToText 0 1 209 66</span>
+<span class="s0">/** Return the handle as a TiXmlText. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">43</span>
+<span class="s0">TiXmlText *TiXmlHandle::ToText(void) const;</span>
+
+<span class="s0">368 9 ToUnknown 0 4 401 22 TiXmlHandle::ToUnknown 0 1 210 69</span>
+<span class="s0">/** Return the handle as a TiXmlUnknown. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">TiXmlUnknown *TiXmlHandle::ToUnknown(void) const;</span>
+
+<span class="s0">369 4 Node 0 4 401 17 TiXmlHandle::Node 0 1 211 98</span>
+<span class="s0">/** @deprecated use ToNode.</span>
+        <span class="s0">Return the handle as a TiXmlNode. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">41</span>
+<span class="s0">TiXmlNode *TiXmlHandle::Node(void) const;</span>
+
+<span class="s0">370 7 Element 0 4 401 20 TiXmlHandle::Element 0 1 212 104</span>
+<span class="s0">/** @deprecated use ToElement.</span>
+        <span class="s0">Return the handle as a TiXmlElement. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">47</span>
+<span class="s0">TiXmlElement *TiXmlHandle::Element(void) const;</span>
+
+<span class="s0">371 4 Text 0 4 401 17 TiXmlHandle::Text 0 1 213 99</span>
+<span class="s0">/** @deprecated use ToText()</span>
+        <span class="s0">Return the handle as a TiXmlText. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">41</span>
+<span class="s0">TiXmlText *TiXmlHandle::Text(void) const;</span>
+
+<span class="s0">372 7 Unknown 0 4 401 20 TiXmlHandle::Unknown 0 1 214 105</span>
+<span class="s0">/** @deprecated use ToUnknown()</span>
+        <span class="s0">Return the handle as a TiXmlUnknown. This may return null.</span>
+    <span class="s0">*/</span>
+<span class="s0">47</span>
+<span class="s0">TiXmlUnknown *TiXmlHandle::Unknown(void) const;</span>
+
+<span class="s0">373 12 ~TiXmlHandle 0 516 401 25 TiXmlHandle::~TiXmlHandle 0 0 0</span>
+<span class="s0">32</span>
+<span class="s0">TiXmlHandle::~TiXmlHandle(void);</span>
+
+<span class="s0">374 12 TiXmlPrinter 0 260 402 26 TiXmlPrinter::TiXmlPrinter 0 2 215 216 0</span>
+<span class="s0">100</span>
+<span class="s0">TiXmlPrinter::TiXmlPrinter(void);</span>
+<span class="s0">inline TiXmlPrinter::TiXmlPrinter(TiXmlPrinter const &amp;) = default;</span>
+
+<span class="s0">375 9 SetIndent 0 4 402 23 TiXmlPrinter::SetIndent 0 1 217 148</span>
+<span class="s0">/** Set the indent characters for printing. By default 4 spaces</span>
+        <span class="s0">but tab (\t) is also useful, or null/empty string for no indentation.</span>
+    <span class="s0">*/</span>
+<span class="s0">50</span>
+<span class="s0">void TiXmlPrinter::SetIndent(char const *_indent);</span>
+
+<span class="s0">376 6 Indent 0 4 402 20 TiXmlPrinter::Indent 0 1 218 31</span>
+<span class="s0">/// Query the indention string.</span>
+<span class="s0">39</span>
+<span class="s0">char const *TiXmlPrinter::Indent(void);</span>
+
+<span class="s0">377 12 SetLineBreak 0 4 402 26 TiXmlPrinter::SetLineBreak 0 1 219 194</span>
+<span class="s0">/** Set the line breaking string. By default set to newline (\n).</span>
+        <span class="s0">Some operating systems prefer other characters, or can be</span>
+        <span class="s0">set to the null/empty string for no indenation.</span>
+    <span class="s0">*/</span>
+<span class="s0">56</span>
+<span class="s0">void TiXmlPrinter::SetLineBreak(char const *_lineBreak);</span>
+
+<span class="s0">378 9 LineBreak 0 4 402 23 TiXmlPrinter::LineBreak 0 1 220 43</span>
+<span class="s0">/// Query the current line breaking string.</span>
+<span class="s0">42</span>
+<span class="s0">char const *TiXmlPrinter::LineBreak(void);</span>
+
+<span class="s0">379 17 SetStreamPrinting 0 4 402 31 TiXmlPrinter::SetStreamPrinting 0 1 221 162</span>
+<span class="s0">/** Switch over to &quot;stream printing&quot; which is the most dense formatting without</span>
+        <span class="s0">linebreaks. Common when the XML is needed for network transmission.</span>
+    <span class="s0">*/</span>
+<span class="s0">43</span>
+<span class="s0">void TiXmlPrinter::SetStreamPrinting(void);</span>
+
+<span class="s0">380 4 CStr 0 4 402 18 TiXmlPrinter::CStr 0 1 222 22</span>
+<span class="s0">/// Return the result.</span>
+<span class="s0">37</span>
+<span class="s0">char const *TiXmlPrinter::CStr(void);</span>
+
+<span class="s0">381 4 Size 0 4 402 18 TiXmlPrinter::Size 0 1 223 43</span>
+<span class="s0">/// Return the length of the result string.</span>
+<span class="s0">37</span>
+<span class="s0">std::size_t TiXmlPrinter::Size(void);</span>
+
+<span class="s0">382 3 Str 0 4 402 17 TiXmlPrinter::Str 0 1 224 22</span>
+<span class="s0">/// Return the result.</span>
+<span class="s0">43</span>
+<span class="s0">std::string const &amp;TiXmlPrinter::Str(void);</span>
+
+<span class="s0">383 13 ~TiXmlPrinter 0 516 402 27 TiXmlPrinter::~TiXmlPrinter 0 0 0</span>
+<span class="s0">34</span>
+<span class="s0">TiXmlPrinter::~TiXmlPrinter(void);</span>
+
+<span class="s0">232</span>
+<span class="s0">1 0 0 4 3 407 0 0 339 /** All TinyXml classes can print themselves to a filestream</span>
+        <span class="s0">or the string class (TiXmlString in non-STL mode, std::string</span>
+        <span class="s0">in STL mode.) Either or both cfile and str can be null.</span>
+
+        <span class="s0">This is a formatted print, and will insert</span>
+        <span class="s0">tabs and newlines.</span>
+
+        <span class="s0">(For an unformatted stream, use the &lt;&lt; operator.)</span>
+    <span class="s0">*/ 3 4 this 3 403  5 cfile 1 405  5 depth 1 391  </span>
+<span class="s0">2 0 0 4 4 407 0 0 351 /** The world does not agree on whether white space should be kept or</span>
+        <span class="s0">not. In order to make everyone happy, these global, static functions</span>
+        <span class="s0">are provided to set whether or not TinyXml will condense all white space</span>
+        <span class="s0">into a single space or not. The default is to condense. Note changing this</span>
+        <span class="s0">value is not thread safe.</span>
+    <span class="s0">*/ 1 8 condense 1 408  </span>
+<span class="s0">3 0 0 6 5 408 0 0 43 /// Return the current white space setting. 0 </span>
+<span class="s0">4 0 0 6 6 391 0 0 944 /** Return the position, in the original source file, of this node or attribute.</span>
+        <span class="s0">The row and column are 1-based. (That is the first row and first column is</span>
+        <span class="s0">1,1). If the returns values are 0 or less, then the parser does not have</span>
+        <span class="s0">a row and column value.</span>
+
+        <span class="s0">Generally, the row and column value will be set when the TiXmlDocument::Load(),</span>
+        <span class="s0">TiXmlDocument::LoadFile(), or any TiXmlNode::Parse() is called. It will NOT be set</span>
+        <span class="s0">when the DOM was created from operator&gt;&gt;.</span>
+
+        <span class="s0">The values reflect the initial load. Once the DOM is modified programmatically</span>
+        <span class="s0">(by adding or changing nodes and attributes) the new values will NOT update to</span>
+        <span class="s0">reflect changes in the document.</span>
+
+        <span class="s0">There is a minor performance cost to computing the row and column. Computation</span>
+        <span class="s0">can be disabled if TiXmlDocument::SetTabSize() is called with 0 as the value.</span>
+
+        <span class="s0">@sa TiXmlDocument::SetTabSize()</span>
+    <span class="s0">*/ 1 4 this 3 403  </span>
+<span class="s0">5 0 0 6 7 391 0 0 14 ///&lt; See Row() 1 4 this 3 403  </span>
+<span class="s0">6 0 0 4 9 407 0 0 42 ///&lt; Get a pointer to arbitrary user data. 1 4 this 3 409  </span>
+<span class="s0">7 0 0 4 9 407 0 0 42 ///&lt; Get a pointer to arbitrary user data. 1 4 this 3 403  </span>
+<span class="s0">8 0 0 6 10 410 0 0 0 4 4 this 3 409  1 p 1 410  4 data 1 411  8 encoding 1 395  </span>
+<span class="s0">9 0 0 7 45 413 233 0 35 /// Construct an empty declaration. 0 </span>
+<span class="s0">10 0 0 15 45 413 233 0 0 1 4 copy 1 414  </span>
+<span class="s0">11 0 0 23 45 413 233 0 14 /// Construct. 3 8 _version 1 410  9 _encoding 1 410  11 _standalone 1 410  </span>
+<span class="s0">12 0 0 23 45 413 233 0 16 /// Constructor. 3 8 _version 1 410  9 _encoding 1 410  11 _standalone 1 410  </span>
+<span class="s0">13 0 0 6 46 413 0 0 0 2 4 this 3 413  4 copy 1 414  </span>
+<span class="s0">14 0 0 6 47 410 0 0 59 /// Version. Will return an empty string if none was found. 1 4 this 3 414  </span>
+<span class="s0">15 0 0 6 48 410 0 0 60 /// Encoding. Will return an empty string if none was found. 1 4 this 3 414  </span>
+<span class="s0">16 0 0 6 49 410 0 0 34 /// Is this a standalone document? 1 4 this 3 414  </span>
+<span class="s0">17 0 0 6 16 410 0 0 368 /** The meaning of 'value' changes for the specific type of</span>
+        <span class="s0">TiXmlNode.</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">Document:   filename of the xml file</span>
+        <span class="s0">Element:    name of the element</span>
+        <span class="s0">Comment:    the comment text</span>
+        <span class="s0">Unknown:    the tag contents</span>
+        <span class="s0">Text:       the text string</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">The subclasses will wrap this function.</span>
+    <span class="s0">*/ 1 4 this 3 416  </span>
+<span class="s0">18 0 0 6 17 410 0 0 153 /** Return Value() as a std::string. If you only use STL,</span>
+        <span class="s0">this is more efficient than calling Value().</span>
+        <span class="s0">Only available in STL mode.</span>
+    <span class="s0">*/ 1 4 this 3 416  </span>
+<span class="s0">19 0 0 6 18 410 0 0 0 1 4 this 3 416  </span>
+<span class="s0">20 0 0 4 19 407 0 0 287 /** Changes the value of the node. Defined as:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">Document:   filename of the xml file</span>
+        <span class="s0">Element:    name of the element</span>
+        <span class="s0">Comment:    the comment text</span>
+        <span class="s0">Unknown:    the tag contents</span>
+        <span class="s0">Text:       the text string</span>
+        <span class="s0">@endverbatim</span>
+    <span class="s0">*/ 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">21 0 0 4 19 407 0 0 25 /// STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">22 0 0 4 20 407 0 0 65 /// Delete all the children of this node. Does not affect 'this'. 1 4 this 3 418  </span>
+<span class="s0">23 0 0 6 21 418 0 0 24 /// One step up the DOM. 1 4 this 3 418  </span>
+<span class="s0">24 0 0 6 21 416 0 0 0 1 4 this 3 416  </span>
+<span class="s0">25 0 0 6 22 418 0 0 73 ///&lt; The first child of this node. Will be null if there are no children. 1 4 this 3 418  </span>
+<span class="s0">26 0 0 6 22 416 0 0 73 ///&lt; The first child of this node. Will be null if there are no children. 1 4 this 3 416  </span>
+<span class="s0">27 0 0 6 22 418 0 0 176 ///&lt; The first child of this node with the matching 'value'. Will be null if none found.</span>
+<span class="s0">/// The first child of this node with the matching 'value'. Will be null if none found. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">28 0 0 6 22 416 0 0 0 2 4 this 3 416  5 value 1 410  </span>
+<span class="s0">29 0 0 6 22 418 0 0 26 ///&lt; STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">30 0 0 6 22 416 0 0 26 ///&lt; STL std::string form. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">31 0 0 6 23 418 0 0 71 /// The last child of this node. Will be null if there are no children. 1 4 this 3 418  </span>
+<span class="s0">32 0 0 6 23 416 0 0 71 /// The last child of this node. Will be null if there are no children. 1 4 this 3 416  </span>
+<span class="s0">33 0 0 6 23 418 0 0 88 /// The last child of this node matching 'value'. Will be null if there are no children. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">34 0 0 6 23 416 0 0 88 /// The last child of this node matching 'value'. Will be null if there are no children. 2 4 this 3 416  5 value 1 410  </span>
+<span class="s0">35 0 0 6 23 418 0 0 26 ///&lt; STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">36 0 0 6 23 416 0 0 26 ///&lt; STL std::string form. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">37 0 0 6 24 418 0 0 0 2 4 this 3 418  8 previous 1 416  </span>
+<span class="s0">38 0 0 6 24 416 0 0 607 /** An alternate way to walk the children of a node.</span>
+        <span class="s0">One way to iterate over nodes is:</span>
+        <span class="s0">@verbatim</span>
+            <span class="s0">for( child = parent-&gt;FirstChild(); child; child = child-&gt;NextSibling() )</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">IterateChildren does the same thing with the syntax:</span>
+        <span class="s0">@verbatim</span>
+            <span class="s0">child = 0;</span>
+            <span class="s0">while( child = parent-&gt;IterateChildren( child ) )</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">IterateChildren takes the previous child as input and finds</span>
+        <span class="s0">the next one. If the previous child is null, it returns the</span>
+        <span class="s0">first. IterateChildren will return null when done.</span>
+    <span class="s0">*/ 2 4 this 3 416  8 previous 1 416  </span>
+<span class="s0">39 0 0 6 24 418 0 0 0 3 4 this 3 418  6 _value 1 410  8 previous 1 416  </span>
+<span class="s0">40 0 0 6 24 416 0 0 82 /// This flavor of IterateChildren searches for children with a particular 'value' 3 4 this 3 416  5 value 1 410  8 previous 1 416  </span>
+<span class="s0">41 0 0 6 24 418 0 0 26 ///&lt; STL std::string form. 3 4 this 3 418  6 _value 1 410  8 previous 1 416  </span>
+<span class="s0">42 0 0 6 24 416 0 0 26 ///&lt; STL std::string form. 3 4 this 3 416  6 _value 1 410  8 previous 1 416  </span>
+<span class="s0">43 0 0 6 25 418 0 0 148 /** Add a new node related to this. Adds a child past the LastChild.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/ 2 4 this 3 418  7 addThis 1 416  </span>
+<span class="s0">44 0 0 6 26 418 0 0 156 /** Add a new node related to this. Adds a child before the specified child.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/ 3 4 this 3 418  10 beforeThis 1 418  7 addThis 1 416  </span>
+<span class="s0">45 0 0 6 27 418 0 0 155 /** Add a new node related to this. Adds a child after the specified child.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/ 3 4 this 3 418  9 afterThis 1 418  7 addThis 1 416  </span>
+<span class="s0">46 0 0 6 28 418 0 0 113 /** Replace a child of this node.</span>
+        <span class="s0">Returns a pointer to the new object or NULL if an error occured.</span>
+    <span class="s0">*/ 3 4 this 3 418  11 replaceThis 1 418  8 withThis 1 416  </span>
+<span class="s0">47 0 0 6 29 408 0 0 32 /// Delete a child of this node. 2 4 this 3 418  10 removeThis 1 418  </span>
+<span class="s0">48 0 0 6 30 418 0 0 0 1 4 this 3 418  </span>
+<span class="s0">49 0 0 6 30 416 0 0 31 /// Navigate to a sibling node. 1 4 this 3 416  </span>
+<span class="s0">50 0 0 6 30 418 0 0 0 2 4 this 3 418  5 _prev 1 410  </span>
+<span class="s0">51 0 0 6 30 416 0 0 31 /// Navigate to a sibling node. 2 4 this 3 416  6 param0 0 410  </span>
+<span class="s0">52 0 0 6 30 418 0 0 26 ///&lt; STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">53 0 0 6 30 416 0 0 26 ///&lt; STL std::string form. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">54 0 0 6 31 418 0 0 0 1 4 this 3 418  </span>
+<span class="s0">55 0 0 6 31 416 0 0 31 /// Navigate to a sibling node. 1 4 this 3 416  </span>
+<span class="s0">56 0 0 6 31 418 0 0 0 2 4 this 3 418  5 _next 1 410  </span>
+<span class="s0">57 0 0 6 31 416 0 0 54 /// Navigate to a sibling node with the given 'value'. 2 4 this 3 416  6 param0 0 410  </span>
+<span class="s0">58 0 0 6 31 418 0 0 26 ///&lt; STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">59 0 0 6 31 416 0 0 26 ///&lt; STL std::string form. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">60 0 0 6 32 419 0 0 0 1 4 this 3 418  </span>
+<span class="s0">61 0 0 6 32 420 0 0 181 /** Convenience function to get through elements.</span>
+        <span class="s0">Calls NextSibling and ToElement. Will skip all non-Element</span>
+        <span class="s0">nodes. Returns 0 if there is not another element.</span>
+    <span class="s0">*/ 1 4 this 3 416  </span>
+<span class="s0">62 0 0 6 32 419 0 0 0 2 4 this 3 418  5 _next 1 410  </span>
+<span class="s0">63 0 0 6 32 420 0 0 181 /** Convenience function to get through elements.</span>
+        <span class="s0">Calls NextSibling and ToElement. Will skip all non-Element</span>
+        <span class="s0">nodes. Returns 0 if there is not another element.</span>
+    <span class="s0">*/ 2 4 this 3 416  6 param0 0 410  </span>
+<span class="s0">64 0 0 6 32 419 0 0 26 ///&lt; STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">65 0 0 6 32 420 0 0 26 ///&lt; STL std::string form. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">66 0 0 6 33 419 0 0 0 1 4 this 3 418  </span>
+<span class="s0">67 0 0 6 33 420 0 0 49 /// Convenience function to get through elements. 1 4 this 3 416  </span>
+<span class="s0">68 0 0 6 33 419 0 0 0 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">69 0 0 6 33 420 0 0 49 /// Convenience function to get through elements. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">70 0 0 6 33 419 0 0 26 ///&lt; STL std::string form. 2 4 this 3 418  6 _value 1 410  </span>
+<span class="s0">71 0 0 6 33 420 0 0 26 ///&lt; STL std::string form. 2 4 this 3 416  6 _value 1 410  </span>
+<span class="s0">72 0 0 6 34 391 0 0 195 /** Query the type (as an enumerated value, above) of this node.</span>
+        <span class="s0">The possible types are: DOCUMENT, ELEMENT, COMMENT,</span>
+                                <span class="s0">UNKNOWN, TEXT, and DECLARATION.</span>
+    <span class="s0">*/ 1 4 this 3 416  </span>
+<span class="s0">73 0 0 6 35 422 0 0 0 1 4 this 3 418  </span>
+<span class="s0">74 0 0 6 35 423 0 0 106 /** Return a pointer to the Document this node lives in.</span>
+        <span class="s0">Returns null if not in a document.</span>
+    <span class="s0">*/ 1 4 this 3 416  </span>
+<span class="s0">75 0 0 6 36 408 0 0 46 /// Returns true if this node has no children. 1 4 this 3 416  </span>
+<span class="s0">76 0 0 6 37 422 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 418  </span>
+<span class="s0">77 0 0 6 37 423 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 416  </span>
+<span class="s0">78 0 0 6 38 419 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 418  </span>
+<span class="s0">79 0 0 6 38 420 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 416  </span>
+<span class="s0">80 0 0 6 39 425 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 418  </span>
+<span class="s0">81 0 0 6 39 426 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 416  </span>
+<span class="s0">82 0 0 6 40 428 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 418  </span>
+<span class="s0">83 0 0 6 40 429 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 416  </span>
+<span class="s0">84 0 0 6 41 431 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 418  </span>
+<span class="s0">85 0 0 6 41 432 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 416  </span>
+<span class="s0">86 0 0 6 42 413 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 418  </span>
+<span class="s0">87 0 0 6 42 414 0 0 80 ///&lt; Cast to a more defined type. Will return null if not of the requested type. 1 4 this 3 416  </span>
+<span class="s0">88 0 0 6 43 418 0 0 114 /** Create an exact duplicate of this node and return it. The memory must be deleted</span>
+        <span class="s0">by the caller.</span>
+    <span class="s0">*/ 1 4 this 3 416  </span>
+<span class="s0">89 0 0 6 44 408 0 0 825 /** Accept a hierchical visit the nodes in the TinyXML DOM. Every node in the</span>
+        <span class="s0">XML tree will be conditionally visited and the host will be called back</span>
+        <span class="s0">via the TiXmlVisitor interface.</span>
+
+        <span class="s0">This is essentially a SAX interface for TinyXML. (Note however it doesn't re-parse</span>
+        <span class="s0">the XML for the callbacks, so the performance of TinyXML is unchanged by using this</span>
+        <span class="s0">interface versus any other.)</span>
+
+        <span class="s0">The interface has been based on ideas from:</span>
+
+        <span class="s0">- http://www.saxproject.org/</span>
+        <span class="s0">- http://c2.com/cgi/wiki?HierarchicalVisitorPattern</span>
+
+        <span class="s0">Which are both good references for &quot;visiting&quot;.</span>
+
+        <span class="s0">An example of using Accept():</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">TiXmlPrinter printer;</span>
+        <span class="s0">tinyxmlDoc.Accept( &amp;printer );</span>
+        <span class="s0">const char* xmlcstr = printer.CStr();</span>
+        <span class="s0">@endverbatim</span>
+    <span class="s0">*/ 2 4 this 3 416  7 visitor 1 434  </span>
+<span class="s0">90 0 0 7 52 422 233 0 47 /// Create an empty document, that has no name. 0 </span>
+<span class="s0">91 0 0 15 52 422 233 0 0 1 4 copy 1 423  </span>
+<span class="s0">92 0 0 23 52 422 233 0 92 /// Create a document with a name. The name of the document is also the filename of the xml. 1 12 documentName 1 410  </span>
+<span class="s0">93 0 0 23 52 422 233 0 16 /// Constructor. 1 12 documentName 1 410  </span>
+<span class="s0">94 0 0 6 53 422 0 0 0 2 4 this 3 422  4 copy 1 423  </span>
+<span class="s0">95 0 0 6 54 408 0 0 314 /** Load a file using the given FILE*. Returns true if successful. Note that this method</span>
+        <span class="s0">doesn't stream - the entire object pointed at by the FILE*</span>
+        <span class="s0">will be interpreted as an XML file. TinyXML doesn't stream in XML from the current</span>
+        <span class="s0">file location. Streaming may be added in the future.</span>
+    <span class="s0">*/ 3 4 this 3 422  6 param0 0 405  8 encoding 5 395  </span>
+<span class="s0">96 0 0 6 54 408 0 0 155 /** Load a file using the current document value.</span>
+        <span class="s0">Returns true if successful. Will delete any existing</span>
+        <span class="s0">document data before loading.</span>
+    <span class="s0">*/ 2 4 this 3 422  8 encoding 5 395  </span>
+<span class="s0">97 0 0 6 54 408 0 0 69 /// Load a file using the given filename. Returns true if successful. 3 4 this 3 422  8 filename 1 410  8 encoding 5 395  </span>
+<span class="s0">98 0 0 6 54 408 0 0 29 ///&lt; STL std::string version. 3 4 this 3 422  8 filename 1 410  8 encoding 5 395  </span>
+<span class="s0">99 0 0 6 55 408 0 0 77 /// Save a file using the current document value. Returns true if successful. 1 4 this 3 423  </span>
+<span class="s0">100 0 0 6 55 408 0 0 66 /// Save a file using the given FILE*. Returns true if successful. 2 4 this 3 423  6 param0 0 405  </span>
+<span class="s0">101 0 0 6 55 408 0 0 69 /// Save a file using the given filename. Returns true if successful. 2 4 this 3 423  8 filename 1 410  </span>
+<span class="s0">102 0 0 6 55 408 0 0 29 ///&lt; STL std::string version. 2 4 this 3 423  8 filename 1 410  </span>
+<span class="s0">103 0 0 6 56 419 0 0 0 1 4 this 3 422  </span>
+<span class="s0">104 0 0 6 56 420 0 0 207 /** Get the root element -- the only top level element -- of the document.</span>
+        <span class="s0">In well formed XML, there should only be one. TinyXml is tolerant of</span>
+        <span class="s0">multiple elements at the document level.</span>
+    <span class="s0">*/ 1 4 this 3 423  </span>
+<span class="s0">105 0 0 6 57 408 0 0 330 /** If an error occurs, Error will be set to true. Also,</span>
+        <span class="s0">- The ErrorId() will contain the integer identifier of the error (not generally useful)</span>
+        <span class="s0">- The ErrorDesc() method will return the name of the error. (very useful)</span>
+        <span class="s0">- The ErrorRow() and ErrorCol() will return the location of the error (if known)</span>
+    <span class="s0">*/ 1 4 this 3 423  </span>
+<span class="s0">106 0 0 6 58 410 0 0 72 /// Contains a textual (english) description of the error if one occurs. 1 4 this 3 423  </span>
+<span class="s0">107 0 0 6 59 391 0 0 141 /** Generally, you probably want the error string ( ErrorDesc() ). But if you</span>
+        <span class="s0">prefer the ErrorId, this function will fetch it.</span>
+    <span class="s0">*/ 1 4 this 3 423  </span>
+<span class="s0">108 0 0 6 60 391 0 0 359 /** Returns the location (if known) of the error. The first column is column 1,</span>
+        <span class="s0">and the first row is row 1. A value of 0 means the row and column wasn't applicable</span>
+        <span class="s0">(memory errors, for example, have no row/column) or the parser lost the error. (An</span>
+        <span class="s0">error in the error reporting, in that case.)</span>
+
+        <span class="s0">@sa SetTabSize, Row, Column</span>
+    <span class="s0">*/ 1 4 this 3 423  </span>
+<span class="s0">109 0 0 6 61 391 0 0 55 ///&lt; The column where the error occured. See ErrorRow() 1 4 this 3 423  </span>
+<span class="s0">110 0 0 4 62 407 0 0 970 /** SetTabSize() allows the error reporting functions (ErrorRow() and ErrorCol())</span>
+        <span class="s0">to report the correct values for row and column. It does not change the output</span>
+        <span class="s0">or input in any way.</span>
+
+        <span class="s0">By calling this method, with a tab size</span>
+        <span class="s0">greater than 0, the row and column of each node and attribute is stored</span>
+        <span class="s0">when the file is loaded. Very useful for tracking the DOM back in to</span>
+        <span class="s0">the source file.</span>
+
+        <span class="s0">The tab size is required for calculating the location of nodes. If not</span>
+        <span class="s0">set, the default of 4 is used. The tabsize is set per document. Setting</span>
+        <span class="s0">the tabsize to 0 disables row/column tracking.</span>
+
+        <span class="s0">Note that row and column tracking is not supported when using operator&gt;&gt;.</span>
+
+        <span class="s0">The tab size needs to be enabled before the parse or load. Correct usage:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">TiXmlDocument doc;</span>
+        <span class="s0">doc.SetTabSize( 8 );</span>
+        <span class="s0">doc.Load( &quot;myfile.xml&quot; );</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">@sa Row, Column</span>
+    <span class="s0">*/ 2 4 this 3 422  8 _tabsize 1 391  </span>
+<span class="s0">111 0 0 6 63 391 0 0 0 1 4 this 3 423  </span>
+<span class="s0">112 0 0 4 64 407 0 0 152 /** If you have handled the error, it can be reset with this call. The error</span>
+        <span class="s0">state is automatically cleared if you Parse a new XML block.</span>
+    <span class="s0">*/ 1 4 this 3 422  </span>
+<span class="s0">113 0 0 4 65 407 0 0 84 /** Write the document to standard out using formatted printing (&quot;pretty print&quot;). */ 1 4 this 3 423  </span>
+<span class="s0">114 0 0 4 66 407 0 0 17 // [internal use] 5 4 this 3 422  3 err 1 391  13 errorLocation 1 410  8 prevData 1 411  8 encoding 1 395  </span>
+<span class="s0">115 0 0 15 68 419 233 0 0 1 6 param0 0 420  </span>
+<span class="s0">116 0 0 23 68 419 233 0 25 /// Construct an element. 1 8 in_value 1 410  </span>
+<span class="s0">117 0 0 23 68 419 233 0 28 /// std::string constructor. 1 6 _value 1 410  </span>
+<span class="s0">118 0 0 6 69 419 0 0 0 2 4 this 3 419  4 base 1 420  </span>
+<span class="s0">119 0 0 6 70 410 0 0 129 /** Given an attribute name, Attribute() returns the value</span>
+        <span class="s0">for the attribute of that name, or null if none exists.</span>
+    <span class="s0">*/ 2 4 this 3 420  4 name 1 410  </span>
+<span class="s0">120 0 0 6 70 410 0 0 0 2 4 this 3 420  4 name 1 410  </span>
+<span class="s0">121 0 0 4 76 407 0 0 137 /** Sets an attribute of name to a given value. The attribute</span>
+        <span class="s0">will be created if it does not exist, or changed if it does.</span>
+    <span class="s0">*/ 3 4 this 3 419  4 name 1 410  6 _value 1 410  </span>
+<span class="s0">122 0 0 4 76 407 0 0 137 /** Sets an attribute of name to a given value. The attribute</span>
+        <span class="s0">will be created if it does not exist, or changed if it does.</span>
+    <span class="s0">*/ 3 4 this 3 419  4 name 1 410  5 value 1 391  </span>
+<span class="s0">123 0 0 4 76 407 0 0 26 ///&lt; STL std::string form. 3 4 this 3 419  4 name 1 410  6 _value 1 391  </span>
+<span class="s0">124 0 0 4 76 407 0 0 25 /// STL std::string form. 3 4 this 3 419  4 name 1 410  6 _value 1 410  </span>
+<span class="s0">125 0 0 4 77 407 0 0 137 /** Sets an attribute of name to a given value. The attribute</span>
+        <span class="s0">will be created if it does not exist, or changed if it does.</span>
+    <span class="s0">*/ 3 4 this 3 419  4 name 1 410  5 value 1 435  </span>
+<span class="s0">126 0 0 4 77 407 0 0 26 ///&lt; STL std::string form. 3 4 this 3 419  4 name 1 410  5 value 1 435  </span>
+<span class="s0">127 0 0 4 78 407 0 0 52 /** Deletes an attribute with the given name.</span>
+    <span class="s0">*/ 2 4 this 3 419  4 name 1 410  </span>
+<span class="s0">128 0 0 4 78 407 0 0 26 ///&lt; STL std::string form. 2 4 this 3 419  4 name 1 410  </span>
+<span class="s0">129 0 0 6 79 436 0 0 48 ///&lt; Access the first attribute in this element. 1 4 this 3 419  </span>
+<span class="s0">130 0 0 6 79 437 0 0 48 ///&lt; Access the first attribute in this element. 1 4 this 3 420  </span>
+<span class="s0">131 0 0 6 80 436 0 0 47 ///&lt; Access the last attribute in this element. 1 4 this 3 419  </span>
+<span class="s0">132 0 0 6 80 437 0 0 47 ///&lt; Access the last attribute in this element. 1 4 this 3 420  </span>
+<span class="s0">133 0 0 6 81 410 0 0 1274 /** Convenience function for easy access to the text inside an element. Although easy</span>
+        <span class="s0">and concise, GetText() is limited compared to getting the TiXmlText child</span>
+        <span class="s0">and accessing it directly.</span>
+
+        <span class="s0">If the first child of 'this' is a TiXmlText, the GetText()</span>
+        <span class="s0">returns the character string of the Text node, else null is returned.</span>
+
+        <span class="s0">This is a convenient method for getting the text of simple contained text:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">&lt;foo&gt;This is text&lt;/foo&gt;</span>
+        <span class="s0">const char* str = fooElement-&gt;GetText();</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">'str' will be a pointer to &quot;This is text&quot;.</span>
+
+        <span class="s0">Note that this function can be misleading. If the element foo was created from</span>
+        <span class="s0">this XML:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">&lt;foo&gt;&lt;b&gt;This is text&lt;/b&gt;&lt;/foo&gt;</span>
+        <span class="s0">@endverbatim</span>
+
+        <span class="s0">then the value of str would be null. The first child node isn't a text node, it is</span>
+        <span class="s0">another element. From this XML:</span>
+        <span class="s0">@verbatim</span>
+        <span class="s0">&lt;foo&gt;This is &lt;b&gt;text&lt;/b&gt;&lt;/foo&gt;</span>
+        <span class="s0">@endverbatim</span>
+        <span class="s0">GetText() will return &quot;This is &quot;.</span>
+
+        <span class="s0">WARNING: GetText() accesses a child node - don't become confused with the</span>
+                 <span class="s0">similarly named TiXmlHandle::Text() and TiXmlNode::ToText() which are</span>
+                 <span class="s0">safe type casts on the referenced node.</span>
+    <span class="s0">*/ 1 4 this 3 420  </span>
+<span class="s0">134 0 0 15 94 441 315 0 0 1 6 param0 0 439  </span>
+<span class="s0">135 0 0 7 101 434 316 0 0 0 </span>
+<span class="s0">136 0 0 15 101 434 316 0 0 1 6 param0 0 442  </span>
+<span class="s0">137 0 0 6 98 408 0 0 7 /*doc*/ 2 4 this 3 434  6 param0 0 423  </span>
+<span class="s0">138 0 0 6 98 408 0 0 18 /*firstAttribute*/ 3 4 this 3 434  6 param0 0 420  6 param1 0 437  </span>
+<span class="s0">139 0 0 6 99 408 0 0 7 /*doc*/ 2 4 this 3 434  6 param0 0 423  </span>
+<span class="s0">140 0 0 6 99 408 0 0 11 /*element*/ 2 4 this 3 434  6 param0 0 420  </span>
+<span class="s0">141 0 0 6 100 408 0 0 11 /*comment*/ 2 4 this 3 434  6 param0 0 426  </span>
+<span class="s0">142 0 0 6 100 408 0 0 15 /*declaration*/ 2 4 this 3 434  6 param0 0 414  </span>
+<span class="s0">143 0 0 6 100 408 0 0 8 /*text*/ 2 4 this 3 434  6 param0 0 432  </span>
+<span class="s0">144 0 0 6 100 408 0 0 11 /*unknown*/ 2 4 this 3 434  6 param0 0 429  </span>
+<span class="s0">145 0 0 7 107 436 342 0 33 /// Construct an empty attribute. 0 </span>
+<span class="s0">146 0 0 23 107 436 342 0 49 /// Construct an attribute with a name and value. 2 5 _name 1 410  6 _value 1 410  </span>
+<span class="s0">147 0 0 23 107 436 342 0 28 /// std::string constructor. 2 5 _name 1 410  6 _value 1 410  </span>
+<span class="s0">148 0 0 6 108 410 0 0 39 ///&lt; Return the name of this attribute. 1 4 this 3 437  </span>
+<span class="s0">149 0 0 6 109 410 0 0 40 ///&lt; Return the value of this attribute. 1 4 this 3 437  </span>
+<span class="s0">150 0 0 6 110 410 0 0 40 ///&lt; Return the value of this attribute. 1 4 this 3 437  </span>
+<span class="s0">151 0 0 6 111 391 0 0 65 ///&lt; Return the value of this attribute, converted to an integer. 1 4 this 3 437  </span>
+<span class="s0">152 0 0 6 112 435 0 0 63 ///&lt; Return the value of this attribute, converted to a double. 1 4 this 3 437  </span>
+<span class="s0">153 0 0 6 113 410 0 0 40 // Get the tinyxml string representation 1 4 this 3 437  </span>
+<span class="s0">154 0 0 4 116 407 0 0 36 ///&lt; Set the name of this attribute. 2 4 this 3 436  5 _name 1 410  </span>
+<span class="s0">155 0 0 4 116 407 0 0 25 /// STL std::string form. 2 4 this 3 436  5 _name 1 410  </span>
+<span class="s0">156 0 0 4 117 407 0 0 19 ///&lt; Set the value. 2 4 this 3 436  6 _value 1 410  </span>
+<span class="s0">157 0 0 4 117 407 0 0 25 /// STL std::string form. 2 4 this 3 436  6 _value 1 410  </span>
+<span class="s0">158 0 0 4 118 407 0 0 35 ///&lt; Set the value from an integer. 2 4 this 3 436  6 _value 1 391  </span>
+<span class="s0">159 0 0 4 119 407 0 0 33 ///&lt; Set the value from a double. 2 4 this 3 436  6 _value 1 435  </span>
+<span class="s0">160 0 0 6 120 436 0 0 0 1 4 this 3 436  </span>
+<span class="s0">161 0 0 6 120 437 0 0 67 /// Get the next sibling attribute in the DOM. Returns null at end. 1 4 this 3 437  </span>
+<span class="s0">162 0 0 6 121 436 0 0 0 1 4 this 3 436  </span>
+<span class="s0">163 0 0 6 121 437 0 0 77 /// Get the previous sibling attribute in the DOM. Returns null at beginning. 1 4 this 3 437  </span>
+<span class="s0">164 0 0 6 122 408 0 0 0 2 4 this 3 437  3 rhs 1 437  </span>
+<span class="s0">165 0 0 6 123 408 0 0 0 2 4 this 3 437  3 rhs 1 437  </span>
+<span class="s0">166 0 0 6 124 408 0 0 0 2 4 this 3 437  3 rhs 1 437  </span>
+<span class="s0">167 0 0 4 126 407 0 0 81 // [internal use]</span>
+<span class="s0">// Set the document pointer so the attribute can report errors. 2 4 this 3 436  3 doc 1 422  </span>
+<span class="s0">168 0 0 7 129 444 344 0 0 0 </span>
+<span class="s0">169 0 0 4 131 407 0 0 0 2 4 this 3 444  9 attribute 1 436  </span>
+<span class="s0">170 0 0 4 132 407 0 0 0 2 4 this 3 444  9 attribute 1 436  </span>
+<span class="s0">171 0 0 6 133 436 0 0 0 1 4 this 3 444  </span>
+<span class="s0">172 0 0 6 133 437 0 0 0 1 4 this 3 445  </span>
+<span class="s0">173 0 0 6 134 436 0 0 0 1 4 this 3 444  </span>
+<span class="s0">174 0 0 6 134 437 0 0 0 1 4 this 3 445  </span>
+<span class="s0">175 0 0 6 135 436 0 0 0 2 4 this 3 445  5 _name 1 410  </span>
+<span class="s0">176 0 0 6 135 436 0 0 0 2 4 this 3 445  5 _name 1 410  </span>
+<span class="s0">177 0 0 6 136 436 0 0 0 2 4 this 3 444  5 _name 1 410  </span>
+<span class="s0">178 0 0 6 136 436 0 0 0 2 4 this 3 444  5 _name 1 410  </span>
+<span class="s0">179 0 0 7 138 425 233 0 32 /// Constructs an empty comment. 0 </span>
+<span class="s0">180 0 0 15 138 425 233 0 0 1 6 param0 0 426  </span>
+<span class="s0">181 0 0 23 138 425 233 0 34 /// Construct a comment from text. 1 6 _value 1 410  </span>
+<span class="s0">182 0 0 6 139 425 0 0 0 2 4 this 3 425  4 base 1 426  </span>
+<span class="s0">183 0 0 15 141 431 233 0 0 1 4 copy 1 432  </span>
+<span class="s0">184 0 0 23 141 431 233 0 192 /** Constructor for text element. By default, it is treated as</span>
+        <span class="s0">normal, encoded text. If you want it be output as a CDATA text</span>
+        <span class="s0">element, set the parameter _cdata to 'true'</span>
+    <span class="s0">*/ 1 9 initValue 1 410  </span>
+<span class="s0">185 0 0 23 141 431 233 0 16 /// Constructor. 1 9 initValue 1 410  </span>
+<span class="s0">186 0 0 6 142 431 0 0 0 2 4 this 3 431  4 base 1 432  </span>
+<span class="s0">187 0 0 6 143 408 0 0 63 /// Queries whether this represents text using a CDATA section. 1 4 this 3 432  </span>
+<span class="s0">188 0 0 4 144 407 0 0 51 /// Turns on or off a CDATA representation of text. 2 4 this 3 431  6 _cdata 1 408  </span>
+<span class="s0">189 0 0 7 146 428 233 0 0 0 </span>
+<span class="s0">190 0 0 15 146 428 233 0 0 1 4 copy 1 429  </span>
+<span class="s0">191 0 0 6 147 428 0 0 0 2 4 this 3 428  4 copy 1 429  </span>
+<span class="s0">192 0 0 15 149 449 373 0 20 /// Copy constructor 1 3 ref 1 447  </span>
+<span class="s0">193 0 0 23 149 449 373 0 89 /// Create a handle from any node (at any depth of the tree.) This can be a null pointer. 1 5 _node 1 418  </span>
+<span class="s0">194 0 0 6 150 449 0 0 0 2 4 this 3 449  3 ref 1 447  </span>
+<span class="s0">195 0 0 7 151 449 373 0 44 /// Return a handle to the first child node. 1 4 this 3 447  </span>
+<span class="s0">196 0 0 7 151 449 373 0 64 /// Return a handle to the first child node with the given name. 2 4 this 3 447  5 value 1 410  </span>
+<span class="s0">197 0 0 7 151 449 373 0 0 2 4 this 3 447  6 _value 1 410  </span>
+<span class="s0">198 0 0 7 152 449 373 0 47 /// Return a handle to the first child element. 1 4 this 3 447  </span>
+<span class="s0">199 0 0 7 152 449 373 0 67 /// Return a handle to the first child element with the given name. 2 4 this 3 447  5 value 1 410  </span>
+<span class="s0">200 0 0 7 152 449 373 0 0 2 4 this 3 447  6 _value 1 410  </span>
+<span class="s0">201 0 0 7 153 449 373 0 117 /** Return a handle to the &quot;index&quot; child with the given name.</span>
+        <span class="s0">The first child is 0, the second 1, etc.</span>
+    <span class="s0">*/ 3 4 this 3 447  5 value 1 410  5 index 1 391  </span>
+<span class="s0">202 0 0 7 153 449 373 0 97 /** Return a handle to the &quot;index&quot; child.</span>
+        <span class="s0">The first child is 0, the second 1, etc.</span>
+    <span class="s0">*/ 2 4 this 3 447  5 index 1 391  </span>
+<span class="s0">203 0 0 7 153 449 373 0 0 3 4 this 3 447  6 _value 1 410  5 index 1 391  </span>
+<span class="s0">204 0 0 7 154 449 373 0 212 /** Return a handle to the &quot;index&quot; child element with the given name.</span>
+        <span class="s0">The first child element is 0, the second 1, etc. Note that only TiXmlElements</span>
+        <span class="s0">are indexed: other types are not counted.</span>
+    <span class="s0">*/ 3 4 this 3 447  5 value 1 410  5 index 1 391  </span>
+<span class="s0">205 0 0 7 154 449 373 0 192 /** Return a handle to the &quot;index&quot; child element.</span>
+        <span class="s0">The first child element is 0, the second 1, etc. Note that only TiXmlElements</span>
+        <span class="s0">are indexed: other types are not counted.</span>
+    <span class="s0">*/ 2 4 this 3 447  5 index 1 391  </span>
+<span class="s0">206 0 0 7 154 449 373 0 0 3 4 this 3 447  6 _value 1 410  5 index 1 391  </span>
+<span class="s0">207 0 0 6 155 418 0 0 66 /** Return the handle as a TiXmlNode. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">208 0 0 6 156 419 0 0 69 /** Return the handle as a TiXmlElement. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">209 0 0 6 157 431 0 0 66 /** Return the handle as a TiXmlText. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">210 0 0 6 158 428 0 0 69 /** Return the handle as a TiXmlUnknown. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">211 0 0 6 159 418 0 0 98 /** @deprecated use ToNode.</span>
+        <span class="s0">Return the handle as a TiXmlNode. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">212 0 0 6 160 419 0 0 104 /** @deprecated use ToElement.</span>
+        <span class="s0">Return the handle as a TiXmlElement. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">213 0 0 6 161 431 0 0 99 /** @deprecated use ToText()</span>
+        <span class="s0">Return the handle as a TiXmlText. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">214 0 0 6 162 428 0 0 105 /** @deprecated use ToUnknown()</span>
+        <span class="s0">Return the handle as a TiXmlUnknown. This may return null.</span>
+    <span class="s0">*/ 1 4 this 3 447  </span>
+<span class="s0">215 0 0 7 165 450 383 0 0 0 </span>
+<span class="s0">216 0 0 15 165 450 383 0 0 1 6 param0 0 451  </span>
+<span class="s0">217 0 0 4 166 407 0 0 148 /** Set the indent characters for printing. By default 4 spaces</span>
+        <span class="s0">but tab (\t) is also useful, or null/empty string for no indentation.</span>
+    <span class="s0">*/ 2 4 this 3 450  7 _indent 1 410  </span>
+<span class="s0">218 0 0 6 167 410 0 0 31 /// Query the indention string. 1 4 this 3 450  </span>
+<span class="s0">219 0 0 4 168 407 0 0 194 /** Set the line breaking string. By default set to newline (\n).</span>
+        <span class="s0">Some operating systems prefer other characters, or can be</span>
+        <span class="s0">set to the null/empty string for no indenation.</span>
+    <span class="s0">*/ 2 4 this 3 450  10 _lineBreak 1 410  </span>
+<span class="s0">220 0 0 6 169 410 0 0 43 /// Query the current line breaking string. 1 4 this 3 450  </span>
+<span class="s0">221 0 0 4 170 407 0 0 162 /** Switch over to &quot;stream printing&quot; which is the most dense formatting without</span>
+        <span class="s0">linebreaks. Common when the XML is needed for network transmission.</span>
+    <span class="s0">*/ 1 4 this 3 450  </span>
+<span class="s0">222 0 0 6 171 410 0 0 22 /// Return the result. 1 4 this 3 450  </span>
+<span class="s0">223 0 0 6 172 453 0 0 43 /// Return the length of the result string. 1 4 this 3 450  </span>
+<span class="s0">224 0 0 6 173 410 0 0 22 /// Return the result. 1 4 this 3 450  </span>
+<span class="s0">225 0 0 6 82 422 0 0 103 /**</span>
+ <span class="s0">* Reads an XML document from the indicated stream.</span>
+ <span class="s0">* @returns the document, or NULL on error.</span>
+ <span class="s0">*/ 1 2 in 1 455  </span>
+<span class="s0">226 0 0 4 83 407 0 0 0 2 3 out 1 457  3 doc 1 422  </span>
+<span class="s0">227 0 0 4 84 407 0 0 0 1 5 xnode 1 418  </span>
+<span class="s0">228 0 0 4 85 407 0 0 0 2 8 filename 1 459  5 xnode 1 418  </span>
+<span class="s0">229 0 0 6 87 391 0 0 0 0 </span>
+<span class="s0">230 0 0 6 89 391 0 0 0 0 </span>
+<span class="s0">231 0 0 6 91 391 0 0 0 0 </span>
+<span class="s0">232 0 0 6 104 395 0 0 0 0 </span>
+<span class="s0">78</span>
+<span class="s0">384 9 TiXmlBase 0 26625 9 TiXmlBase 9 TiXmlBase 0 0 0 0 233 0 9 234 235 236 237 238 239 240 241 242 0 0 0 0 1 385 786</span>
+<span class="s0">/** TiXmlBase is a base class for every class in TinyXml.</span>
+    <span class="s0">It does little except to establish that TinyXml classes</span>
+    <span class="s0">can be printed and provide some utility functions.</span>
+
+    <span class="s0">In XML, the document and elements can contain</span>
+    <span class="s0">other elements and other types of nodes.</span>
+
+    <span class="s0">@verbatim</span>
+    <span class="s0">A Document can contain: Element (container or leaf)</span>
+                            <span class="s0">Comment (leaf)</span>
+                            <span class="s0">Unknown (leaf)</span>
+                            <span class="s0">Declaration( leaf )</span>
+
+    <span class="s0">An Element can contain: Element (container or leaf)</span>
+                            <span class="s0">Text    (leaf)</span>
+                            <span class="s0">Attributes (not on tree)</span>
+                            <span class="s0">Comment (leaf)</span>
+                            <span class="s0">Unknown (leaf)</span>
+
+    <span class="s0">A Decleration contains: Attributes (not on tree)</span>
+    <span class="s0">@endverbatim</span>
+<span class="s0">*/</span>
+
+<span class="s0">385 0 0 794624 11 TiXmlBase:: 0 384 0 0 0 0 0 0 0 0 0 17 14 TIXML_NO_ERROR 25 TiXmlBase::TIXML_NO_ERROR 0</span>
+<span class="s0">0 11 TIXML_ERROR 22 TiXmlBase::TIXML_ERROR 0</span>
+<span class="s0">1 24 TIXML_ERROR_OPENING_FILE 35 TiXmlBase::TIXML_ERROR_OPENING_FILE 0</span>
+<span class="s0">2 27 TIXML_ERROR_PARSING_ELEMENT 38 TiXmlBase::TIXML_ERROR_PARSING_ELEMENT 0</span>
+<span class="s0">3 39 TIXML_ERROR_FAILED_TO_READ_ELEMENT_NAME 50 TiXmlBase::TIXML_ERROR_FAILED_TO_READ_ELEMENT_NAME 0</span>
+<span class="s0">4 33 TIXML_ERROR_READING_ELEMENT_VALUE 44 TiXmlBase::TIXML_ERROR_READING_ELEMENT_VALUE 0</span>
+<span class="s0">5 30 TIXML_ERROR_READING_ATTRIBUTES 41 TiXmlBase::TIXML_ERROR_READING_ATTRIBUTES 0</span>
+<span class="s0">6 25 TIXML_ERROR_PARSING_EMPTY 36 TiXmlBase::TIXML_ERROR_PARSING_EMPTY 0</span>
+<span class="s0">7 27 TIXML_ERROR_READING_END_TAG 38 TiXmlBase::TIXML_ERROR_READING_END_TAG 0</span>
+<span class="s0">8 27 TIXML_ERROR_PARSING_UNKNOWN 38 TiXmlBase::TIXML_ERROR_PARSING_UNKNOWN 0</span>
+<span class="s0">9 27 TIXML_ERROR_PARSING_COMMENT 38 TiXmlBase::TIXML_ERROR_PARSING_COMMENT 0</span>
+<span class="s0">10 31 TIXML_ERROR_PARSING_DECLARATION 42 TiXmlBase::TIXML_ERROR_PARSING_DECLARATION 0</span>
+<span class="s0">11 26 TIXML_ERROR_DOCUMENT_EMPTY 37 TiXmlBase::TIXML_ERROR_DOCUMENT_EMPTY 0</span>
+<span class="s0">12 25 TIXML_ERROR_EMBEDDED_NULL 36 TiXmlBase::TIXML_ERROR_EMBEDDED_NULL 0</span>
+<span class="s0">13 25 TIXML_ERROR_PARSING_CDATA 36 TiXmlBase::TIXML_ERROR_PARSING_CDATA 0</span>
+<span class="s0">14 29 TIXML_ERROR_DOCUMENT_TOP_ONLY 40 TiXmlBase::TIXML_ERROR_DOCUMENT_TOP_ONLY 0</span>
+<span class="s0">15 24 TIXML_ERROR_STRING_COUNT 35 TiXmlBase::TIXML_ERROR_STRING_COUNT 0</span>
+<span class="s0">16 0 0</span>
+
+<span class="s0">386 16 TiXmlDeclaration 0 75777 16 TiXmlDeclaration 16 TiXmlDeclaration 0 0 0 1 272 233 0 5 273 274 275 276 277 0 0 1 0 387 0 0 0 0 510</span>
+<span class="s0">/** In correct XML the declaration is the first entry in the file.</span>
+    <span class="s0">@verbatim</span>
+        <span class="s0">&lt;?xml version=&quot;1.0&quot; standalone=&quot;yes&quot;?&gt;</span>
+    <span class="s0">@endverbatim</span>
+
+    <span class="s0">TinyXml will happily read or write files without a declaration,</span>
+    <span class="s0">however. There are 3 possible attributes to the declaration:</span>
+    <span class="s0">version, encoding, and standalone.</span>
+
+    <span class="s0">Note: In this version of the code, the attributes are</span>
+    <span class="s0">handled as special cases, not generic attributes, simply</span>
+    <span class="s0">because there can only be at most 3 and they are always the same.</span>
+<span class="s0">*/</span>
+
+<span class="s0">387 9 TiXmlNode 0 75777 9 TiXmlNode 9 TiXmlNode 0 0 0 0 233 0 29 243 244 245 246 247 248 249 250 251 252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269 270 271 0 0 1 0 384 0 0 0 1 388 289</span>
+<span class="s0">/** The parent class for everything in the Document Object Model.</span>
+    <span class="s0">(Except for attributes).</span>
+    <span class="s0">Nodes have siblings, a parent, and children. A node can be</span>
+    <span class="s0">in a document, or stand on its own. The type of a TiXmlNode</span>
+    <span class="s0">can be queried, and it can be cast to its more defined type.</span>
+<span class="s0">*/</span>
+
+<span class="s0">388 8 NodeType 0 794624 19 TiXmlNode::NodeType 19 TiXmlNode::NodeType 387 0 0 0 0 0 0 0 0 0 7 16 TINYXML_DOCUMENT 27 TiXmlNode::TINYXML_DOCUMENT 0</span>
+<span class="s0">0 15 TINYXML_ELEMENT 26 TiXmlNode::TINYXML_ELEMENT 0</span>
+<span class="s0">1 15 TINYXML_COMMENT 26 TiXmlNode::TINYXML_COMMENT 0</span>
+<span class="s0">2 15 TINYXML_UNKNOWN 26 TiXmlNode::TINYXML_UNKNOWN 0</span>
+<span class="s0">3 12 TINYXML_TEXT 23 TiXmlNode::TINYXML_TEXT 0</span>
+<span class="s0">4 19 TINYXML_DECLARATION 30 TiXmlNode::TINYXML_DECLARATION 0</span>
+<span class="s0">5 17 TINYXML_TYPECOUNT 28 TiXmlNode::TINYXML_TYPECOUNT 0</span>
+<span class="s0">6 0 121</span>
+<span class="s0">/** The types of XML nodes supported by TinyXml. (All the</span>
+            <span class="s0">unsupported types are picked up by UNKNOWN.)</span>
+    <span class="s0">*/</span>
+
+<span class="s0">389 13 TiXmlDocument 0 75777 13 TiXmlDocument 13 TiXmlDocument 0 0 0 1 278 233 0 14 279 280 281 282 283 284 285 286 287 288 289 290 291 292 0 0 1 0 387 0 0 0 0 192</span>
+<span class="s0">/** Always the top level node. A document binds together all the</span>
+    <span class="s0">XML pieces. It can be saved, loaded, and printed to the screen.</span>
+    <span class="s0">The 'value' of a document node is the xml file name.</span>
+<span class="s0">*/</span>
+
+<span class="s0">390 12 TiXmlElement 0 75777 12 TiXmlElement 12 TiXmlElement 0 0 0 1 293 233 0 13 294 295 296 297 298 299 300 301 302 303 304 305 306 0 0 1 0 387 0 0 0 0 201</span>
+<span class="s0">/** The element is a container class. It has a value, the element name,</span>
+    <span class="s0">and can contain other elements, text, comments, and unknowns.</span>
+    <span class="s0">Elements also contain an arbitrary number of attributes.</span>
+<span class="s0">*/</span>
+
+<span class="s0">391 3 int 0 8194 3 int 3 int 0 1 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">392 11 TiXmlCursor 0 140289 11 TiXmlCursor 11 TiXmlCursor 0 0 0 1 314 315 0 0 0 0 0 0 0 77</span>
+<span class="s0">/*  Internal structure for tracking location of items</span>
+    <span class="s0">in the XML file.</span>
+<span class="s0">*/</span>
+
+<span class="s0">393 12 TiXmlVisitor 0 26625 12 TiXmlVisitor 12 TiXmlVisitor 0 0 0 1 320 316 0 3 317 318 319 0 0 0 0 0 897</span>
+<span class="s0">/**</span>
+    <span class="s0">Implements the interface to the &quot;Visitor pattern&quot; (see the Accept() method.)</span>
+    <span class="s0">If you call the Accept() method, it requires being passed a TiXmlVisitor</span>
+    <span class="s0">class to handle callbacks. For nodes that contain other nodes (Document, Element)</span>
+    <span class="s0">you will get called with a VisitEnter/VisitExit pair. Nodes that are always leaves</span>
+    <span class="s0">are simply called with Visit().</span>
+
+    <span class="s0">If you return 'true' from a Visit method, recursive parsing will continue. If you return</span>
+    <span class="s0">false, &lt;b&gt;no children of this node or its sibilings&lt;/b&gt; will be Visited.</span>
+
+    <span class="s0">All flavors of Visit methods have a default implementation that returns 'true' (continue</span>
+    <span class="s0">visiting). You need to only override methods that are interesting to you.</span>
+
+    <span class="s0">Generally Accept() is called on the TiXmlDocument, although all nodes suppert Visiting.</span>
+
+    <span class="s0">You should never change the document from a callback.</span>
+
+    <span class="s0">@sa TiXmlNode::Accept()</span>
+<span class="s0">*/</span>
+
+<span class="s0">394 0 0 532481 0 0 0 0 0 0 0 0 0 0 0 0 3 13 TIXML_SUCCESS 13 TIXML_SUCCESS 0</span>
+<span class="s0">0 18 TIXML_NO_ATTRIBUTE 18 TIXML_NO_ATTRIBUTE 0</span>
+<span class="s0">1 16 TIXML_WRONG_TYPE 16 TIXML_WRONG_TYPE 0</span>
+<span class="s0">2 0 42</span>
+<span class="s0">// Only used by Attribute::Query functions</span>
+
+<span class="s0">395 13 TiXmlEncoding 0 532481 13 TiXmlEncoding 13 TiXmlEncoding 0 0 0 0 0 0 0 0 0 0 3 22 TIXML_ENCODING_UNKNOWN 22 TIXML_ENCODING_UNKNOWN 0</span>
+<span class="s0">0 19 TIXML_ENCODING_UTF8 19 TIXML_ENCODING_UTF8 0</span>
+<span class="s0">1 21 TIXML_ENCODING_LEGACY 21 TIXML_ENCODING_LEGACY 0</span>
+<span class="s0">2 0 32</span>
+<span class="s0">// Used by the parsing routines.</span>
+
+<span class="s0">396 14 TiXmlAttribute 0 141313 14 TiXmlAttribute 14 TiXmlAttribute 0 0 0 1 322 342 0 19 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 0 0 1 0 384 0 0 0 0 303</span>
+<span class="s0">/** An attribute is a name-value pair. Elements have an arbitrary</span>
+    <span class="s0">number of attributes, each with a unique name.</span>
+
+    <span class="s0">@note The attributes are not TiXmlNodes, since they are not</span>
+          <span class="s0">part of the tinyXML document object model. There are other</span>
+          <span class="s0">suggested ways to look at this problem.</span>
+<span class="s0">*/</span>
+
+<span class="s0">397 17 TiXmlAttributeSet 0 26625 17 TiXmlAttributeSet 17 TiXmlAttributeSet 0 0 0 1 343 344 0 6 345 346 347 348 349 350 0 0 0 0 0 560</span>
+<span class="s0">/*  A class used to manage a group of attributes.</span>
+    <span class="s0">It is only used internally, both by the ELEMENT and the DECLARATION.</span>
+
+    <span class="s0">The set can be changed transparent to the Element and Declaration</span>
+    <span class="s0">classes that use it, but NOT transparent to the Attribute</span>
+    <span class="s0">which has to implement a next() and previous() method. Which makes</span>
+    <span class="s0">it a bit problematic and prevents the use of STL.</span>
+
+    <span class="s0">This version is implemented with circular lists because:</span>
+        <span class="s0">- I like circular lists</span>
+        <span class="s0">- it demonstrates some independence from the (typical) doubly linked list.</span>
+<span class="s0">*/</span>
+
+<span class="s0">398 12 TiXmlComment 0 75777 12 TiXmlComment 12 TiXmlComment 0 0 0 1 351 233 0 1 352 0 0 1 0 387 0 0 0 0 22</span>
+<span class="s0">/** An XML comment.</span>
+<span class="s0">*/</span>
+
+<span class="s0">399 9 TiXmlText 0 75777 9 TiXmlText 9 TiXmlText 0 0 0 1 353 233 0 3 354 355 356 0 0 1 0 387 0 0 0 0 283</span>
+<span class="s0">/** XML text. A text node can have 2 ways to output the next. &quot;normal&quot; output</span>
+    <span class="s0">and CDATA. It will default to the mode it was parsed from the XML file and</span>
+    <span class="s0">you generally want to leave it alone, but you can change the output mode with</span>
+    <span class="s0">SetCDATA() and query it with CDATA().</span>
+<span class="s0">*/</span>
+
+<span class="s0">400 12 TiXmlUnknown 0 75777 12 TiXmlUnknown 12 TiXmlUnknown 0 0 0 1 357 233 0 1 358 0 0 1 0 387 0 0 0 0 246</span>
+<span class="s0">/** Any tag that tinyXml doesn't recognize is saved as an</span>
+    <span class="s0">unknown. It is a tag of text, but should not be modified.</span>
+    <span class="s0">It will be written back to the XML, unchanged, when the file</span>
+    <span class="s0">is saved.</span>
+
+    <span class="s0">DTD tags get thrown into TiXmlUnknowns.</span>
+<span class="s0">*/</span>
+
+<span class="s0">401 11 TiXmlHandle 0 141313 11 TiXmlHandle 11 TiXmlHandle 0 0 0 1 359 373 0 13 360 361 362 363 364 365 366 367 368 369 370 371 372 0 0 0 0 0 2519</span>
+<span class="s0">/**</span>
+    <span class="s0">A TiXmlHandle is a class that wraps a node pointer with null checks; this is</span>
+    <span class="s0">an incredibly useful thing. Note that TiXmlHandle is not part of the TinyXml</span>
+    <span class="s0">DOM structure. It is a separate utility class.</span>
+
+    <span class="s0">Take an example:</span>
+    <span class="s0">@verbatim</span>
+    <span class="s0">&lt;Document&gt;</span>
+        <span class="s0">&lt;Element attributeA = &quot;valueA&quot;&gt;</span>
+            <span class="s0">&lt;Child attributeB = &quot;value1&quot; /&gt;</span>
+            <span class="s0">&lt;Child attributeB = &quot;value2&quot; /&gt;</span>
+        <span class="s0">&lt;/Element&gt;</span>
+    <span class="s0">&lt;Document&gt;</span>
+    <span class="s0">@endverbatim</span>
+
+    <span class="s0">Assuming you want the value of &quot;attributeB&quot; in the 2nd &quot;Child&quot; element, it's very</span>
+    <span class="s0">easy to write a *lot* of code that looks like:</span>
+
+    <span class="s0">@verbatim</span>
+    <span class="s0">TiXmlElement* root = document.FirstChildElement( &quot;Document&quot; );</span>
+    <span class="s0">if ( root )</span>
+    <span class="s0">{</span>
+        <span class="s0">TiXmlElement* element = root-&gt;FirstChildElement( &quot;Element&quot; );</span>
+        <span class="s0">if ( element )</span>
+        <span class="s0">{</span>
+            <span class="s0">TiXmlElement* child = element-&gt;FirstChildElement( &quot;Child&quot; );</span>
+            <span class="s0">if ( child )</span>
+            <span class="s0">{</span>
+                <span class="s0">TiXmlElement* child2 = child-&gt;NextSiblingElement( &quot;Child&quot; );</span>
+                <span class="s0">if ( child2 )</span>
+                <span class="s0">{</span>
+                    <span class="s0">// Finally do something useful.</span>
+    <span class="s0">@endverbatim</span>
+
+    <span class="s0">And that doesn't even cover &quot;else&quot; cases. TiXmlHandle addresses the verbosity</span>
+    <span class="s0">of such code. A TiXmlHandle checks for null pointers so it is perfectly safe</span>
+    <span class="s0">and correct to use:</span>
+
+    <span class="s0">@verbatim</span>
+    <span class="s0">TiXmlHandle docHandle( &amp;document );</span>
+    <span class="s0">TiXmlElement* child2 = docHandle.FirstChild( &quot;Document&quot; ).FirstChild( &quot;Element&quot; ).Child( &quot;Child&quot;, 1 ).ToElement();</span>
+    <span class="s0">if ( child2 )</span>
+    <span class="s0">{</span>
+        <span class="s0">// do something useful</span>
+    <span class="s0">@endverbatim</span>
+
+    <span class="s0">Which is MUCH more concise and useful.</span>
+
+    <span class="s0">It is also safe to copy handles - internally they are nothing more than node pointers.</span>
+    <span class="s0">@verbatim</span>
+    <span class="s0">TiXmlHandle handleCopy = handle;</span>
+    <span class="s0">@endverbatim</span>
+
+    <span class="s0">What they should not be used for is iteration:</span>
+
+    <span class="s0">@verbatim</span>
+    <span class="s0">int i=0;</span>
+    <span class="s0">while ( true )</span>
+    <span class="s0">{</span>
+        <span class="s0">TiXmlElement* child = docHandle.FirstChild( &quot;Document&quot; ).FirstChild( &quot;Element&quot; ).Child( &quot;Child&quot;, i ).ToElement();</span>
+        <span class="s0">if ( !child )</span>
+            <span class="s0">break;</span>
+        <span class="s0">// do something</span>
+        <span class="s0">++i;</span>
+    <span class="s0">}</span>
+    <span class="s0">@endverbatim</span>
+
+    <span class="s0">It seems reasonable, but it is in fact two embedded while loops. The Child method is</span>
+    <span class="s0">a linear walk to find the element, so this code would iterate much more than it needs</span>
+    <span class="s0">to. Instead, prefer:</span>
+
+    <span class="s0">@verbatim</span>
+    <span class="s0">TiXmlElement* child = docHandle.FirstChild( &quot;Document&quot; ).FirstChild( &quot;Element&quot; ).FirstChild( &quot;Child&quot; ).ToElement();</span>
+
+    <span class="s0">for( child; child; child=child-&gt;NextSiblingElement() )</span>
+    <span class="s0">{</span>
+        <span class="s0">// do something</span>
+    <span class="s0">}</span>
+    <span class="s0">@endverbatim</span>
+<span class="s0">*/</span>
+
+<span class="s0">402 12 TiXmlPrinter 0 141313 12 TiXmlPrinter 12 TiXmlPrinter 0 0 0 1 374 383 0 8 375 376 377 378 379 380 381 382 0 0 1 0 393 0 0 0 0 685</span>
+<span class="s0">/** Print to memory functionality. The TiXmlPrinter is useful when you need to:</span>
+
+    <span class="s0">-# Print to memory (especially in non-STL mode)</span>
+    <span class="s0">-# Control formatting (line endings, etc.)</span>
+
+    <span class="s0">When constructed, the TiXmlPrinter is in its default &quot;pretty printing&quot; mode.</span>
+    <span class="s0">Before calling Accept() you can call methods to control the printing</span>
+    <span class="s0">of the XML document. After TiXmlNode::Accept() is called, the printed document can</span>
+    <span class="s0">be accessed via the CStr(), Str(), and Size() methods.</span>
+
+    <span class="s0">TiXmlPrinter uses the Visitor API.</span>
+    <span class="s0">@verbatim</span>
+    <span class="s0">TiXmlPrinter printer;</span>
+    <span class="s0">printer.SetIndent( &quot;\t&quot; );</span>
+
+    <span class="s0">doc.Accept( &amp;printer );</span>
+    <span class="s0">fprintf( stdout, &quot;%s&quot;, printer.CStr() );</span>
+    <span class="s0">@endverbatim</span>
+<span class="s0">*/</span>
+
+<span class="s0">403 17 TiXmlBase const * 0 8576 17 TiXmlBase const * 17 TiXmlBase const * 0 0 404 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">404 15 TiXmlBase const 0 8832 15 TiXmlBase const 15 TiXmlBase const 0 0 384 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">405 6 FILE * 0 8576 6 FILE * 6 FILE * 0 0 406 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">406 4 FILE 0 1024 4 FILE 4 FILE 0 0 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">407 4 void 0 8194 4 void 4 void 0 6 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">408 4 bool 0 8194 4 bool 4 bool 0 4 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">409 11 TiXmlBase * 0 8576 11 TiXmlBase * 11 TiXmlBase * 0 0 384 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">410 13 atomic string 0 2 13 atomic string 13 atomic string 0 7 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">411 18 TiXmlParsingData * 0 8576 18 TiXmlParsingData * 18 TiXmlParsingData * 0 0 412 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">412 16 TiXmlParsingData 0 2048 16 TiXmlParsingData 16 TiXmlParsingData 0 0 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">413 18 TiXmlDeclaration * 0 8576 18 TiXmlDeclaration * 18 TiXmlDeclaration * 0 0 386 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">414 24 TiXmlDeclaration const * 0 8576 24 TiXmlDeclaration const * 24 TiXmlDeclaration const * 0 0 415 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">415 22 TiXmlDeclaration const 0 8832 22 TiXmlDeclaration const 22 TiXmlDeclaration const 0 0 386 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">416 17 TiXmlNode const * 0 8576 17 TiXmlNode const * 17 TiXmlNode const * 0 0 417 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">417 15 TiXmlNode const 0 8832 15 TiXmlNode const 15 TiXmlNode const 0 0 387 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">418 11 TiXmlNode * 0 8576 11 TiXmlNode * 11 TiXmlNode * 0 0 387 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">419 14 TiXmlElement * 0 8576 14 TiXmlElement * 14 TiXmlElement * 0 0 390 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">420 20 TiXmlElement const * 0 8576 20 TiXmlElement const * 20 TiXmlElement const * 0 0 421 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">421 18 TiXmlElement const 0 8832 18 TiXmlElement const 18 TiXmlElement const 0 0 390 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">422 15 TiXmlDocument * 0 8576 15 TiXmlDocument * 15 TiXmlDocument * 0 0 389 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">423 21 TiXmlDocument const * 0 8576 21 TiXmlDocument const * 21 TiXmlDocument const * 0 0 424 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">424 19 TiXmlDocument const 0 8832 19 TiXmlDocument const 19 TiXmlDocument const 0 0 389 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">425 14 TiXmlComment * 0 8576 14 TiXmlComment * 14 TiXmlComment * 0 0 398 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">426 20 TiXmlComment const * 0 8576 20 TiXmlComment const * 20 TiXmlComment const * 0 0 427 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">427 18 TiXmlComment const 0 8832 18 TiXmlComment const 18 TiXmlComment const 0 0 398 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">428 14 TiXmlUnknown * 0 8576 14 TiXmlUnknown * 14 TiXmlUnknown * 0 0 400 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">429 20 TiXmlUnknown const * 0 8576 20 TiXmlUnknown const * 20 TiXmlUnknown const * 0 0 430 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">430 18 TiXmlUnknown const 0 8832 18 TiXmlUnknown const 18 TiXmlUnknown const 0 0 400 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">431 11 TiXmlText * 0 8576 11 TiXmlText * 11 TiXmlText * 0 0 399 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">432 17 TiXmlText const * 0 8576 17 TiXmlText const * 17 TiXmlText const * 0 0 433 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">433 15 TiXmlText const 0 8832 15 TiXmlText const 15 TiXmlText const 0 0 399 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">434 14 TiXmlVisitor * 0 8576 14 TiXmlVisitor * 14 TiXmlVisitor * 0 0 393 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">435 6 double 0 8194 6 double 6 double 0 3 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">436 16 TiXmlAttribute * 0 8576 16 TiXmlAttribute * 16 TiXmlAttribute * 0 0 396 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">437 22 TiXmlAttribute const * 0 8576 22 TiXmlAttribute const * 22 TiXmlAttribute const * 0 0 438 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">438 20 TiXmlAttribute const 0 8832 20 TiXmlAttribute const 20 TiXmlAttribute const 0 0 396 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">439 19 TiXmlCursor const * 0 8576 19 TiXmlCursor const * 19 TiXmlCursor const * 0 0 440 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">440 17 TiXmlCursor const 0 8832 17 TiXmlCursor const 17 TiXmlCursor const 0 0 392 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">441 13 TiXmlCursor * 0 8576 13 TiXmlCursor * 13 TiXmlCursor * 0 0 392 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">442 20 TiXmlVisitor const * 0 8576 20 TiXmlVisitor const * 20 TiXmlVisitor const * 0 0 443 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">443 18 TiXmlVisitor const 0 8832 18 TiXmlVisitor const 18 TiXmlVisitor const 0 0 393 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">444 19 TiXmlAttributeSet * 0 8576 19 TiXmlAttributeSet * 19 TiXmlAttributeSet * 0 0 397 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">445 25 TiXmlAttributeSet const * 0 8576 25 TiXmlAttributeSet const * 25 TiXmlAttributeSet const * 0 0 446 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">446 23 TiXmlAttributeSet const 0 8832 23 TiXmlAttributeSet const 23 TiXmlAttributeSet const 0 0 397 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">447 19 TiXmlHandle const * 0 8576 19 TiXmlHandle const * 19 TiXmlHandle const * 0 0 448 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">448 17 TiXmlHandle const 0 8832 17 TiXmlHandle const 17 TiXmlHandle const 0 0 401 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">449 13 TiXmlHandle * 0 8576 13 TiXmlHandle * 13 TiXmlHandle * 0 0 401 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">450 14 TiXmlPrinter * 0 8576 14 TiXmlPrinter * 14 TiXmlPrinter * 0 0 402 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">451 20 TiXmlPrinter const * 0 8576 20 TiXmlPrinter const * 20 TiXmlPrinter const * 0 0 452 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">452 18 TiXmlPrinter const 0 8832 18 TiXmlPrinter const 18 TiXmlPrinter const 0 0 402 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">453 6 size_t 0 2105344 11 std::size_t 11 std::size_t 0 0 454 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">454 22 unsigned long long int 0 8230 22 unsigned long long int 22 unsigned long long int 0 8 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">455 9 istream * 0 8576 14 std::istream * 14 std::istream * 0 0 456 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">456 7 istream 0 2048 12 std::istream 12 std::istream 0 0 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">457 9 ostream * 0 8576 14 std::ostream * 14 std::ostream * 0 0 458 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">458 7 ostream 0 2048 12 std::ostream 12 std::ostream 0 0 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">459 16 Filename const * 0 8576 16 Filename const * 16 Filename const * 0 0 460 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">460 14 Filename const 0 8832 14 Filename const 14 Filename const 0 0 461 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">461 8 Filename 0 2048 8 Filename 8 Filename 0 0 0 0 0 0 0 0 0 0 0 0 550</span>
+<span class="s0">/**</span>
+ <span class="s0">* The name of a file, such as a texture file or an Egg file.  Stores the full</span>
+ <span class="s0">* pathname, and includes functions for extracting out the directory prefix</span>
+ <span class="s0">* part and the file extension and stuff.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A Filename is also aware of the mapping between the Unix-like filename</span>
+ <span class="s0">* convention we use internally, and the local OS's specific filename</span>
+ <span class="s0">* convention, and it knows how to perform basic OS-specific I/O, like testing</span>
+ <span class="s0">* for file existence and searching a searchpath, as well as the best way to</span>
+ <span class="s0">* open an fstream for reading or writing.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">5</span>
+<span class="s0">462 16 TINYXML_INCLUDED 0 0 0 0 0 0 </span>
+<span class="s0">463 10 TIXML_SAFE 0 0 0 0 0 0 </span>
+<span class="s0">464 14 TIXML_SNPRINTF 0 0 0 0 0 11 _snprintf_s </span>
+<span class="s0">465 12 TIXML_SSCANF 0 0 0 0 0 8 sscanf_s </span>
+<span class="s0">466 12 TIXML_STRING 0 0 0 0 0 11 std::string </span>
+<span class="s0">4</span>
+<span class="s0">467 19 TIXML_MAJOR_VERSION 0 3 391 311 0 0 0 0 0 0 0 19 TIXML_MAJOR_VERSION 0</span>
+
+<span class="s0">468 19 TIXML_MINOR_VERSION 0 3 391 312 0 0 0 0 0 0 0 19 TIXML_MINOR_VERSION 0</span>
+
+<span class="s0">469 19 TIXML_PATCH_VERSION 0 3 391 313 0 0 0 0 0 0 0 19 TIXML_PATCH_VERSION 0</span>
+
+<span class="s0">470 22 TIXML_DEFAULT_ENCODING 0 3 395 321 0 0 0 0 0 0 0 22 TIXML_DEFAULT_ENCODING 0</span>
+
+<span class="s0">0</span>
+</pre>
+</body>
+</html>

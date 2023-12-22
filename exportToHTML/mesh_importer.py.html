@@ -1,0 +1,596 @@
+<html>
+<head>
+<title>mesh_importer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+mesh_importer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">platform</span>
+<span class="s0">import </span><span class="s1">subprocess</span>
+<span class="s0">from </span><span class="s1">copy </span><span class="s0">import </span><span class="s1">copy</span><span class="s2">, </span><span class="s1">deepcopy</span>
+<span class="s0">from </span><span class="s1">pathlib </span><span class="s0">import </span><span class="s1">Path</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">mesh </span><span class="s0">import </span><span class="s1">Mesh</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">application</span>
+<span class="s0">from </span><span class="s1">time </span><span class="s0">import </span><span class="s1">perf_counter</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">string_utilities </span><span class="s0">import </span><span class="s1">print_info</span><span class="s2">, </span><span class="s1">print_warning</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">vec3 </span><span class="s0">import </span><span class="s1">Vec3</span>
+<span class="s0">import </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">as </span><span class="s1">p3d</span>
+<span class="s0">import </span><span class="s1">gltf</span>
+<span class="s0">import </span><span class="s1">builtins</span>
+
+
+<span class="s1">imported_meshes </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">()</span>
+<span class="s1">blender_scenes </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">()</span>
+
+<span class="s0">def </span><span class="s1">load_model</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">path</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder</span><span class="s2">, </span><span class="s1">file_types</span><span class="s2">=(</span><span class="s3">'.bam'</span><span class="s2">, </span><span class="s3">'.ursinamesh'</span><span class="s2">, </span><span class="s3">'.obj'</span><span class="s2">, </span><span class="s3">'.glb'</span><span class="s2">, </span><span class="s3">'.gltf'</span><span class="s2">, </span><span class="s3">'.blend'</span><span class="s2">), </span><span class="s1">use_deepcopy</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">gltf_no_srgb</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">gltf_no_srgb</span><span class="s2">):</span>
+    <span class="s0">if not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">str</span><span class="s2">):</span>
+        <span class="s0">raise </span><span class="s1">TypeError</span><span class="s2">(</span><span class="s3">f&quot;Argument save must be of type str, not </span><span class="s0">{</span><span class="s1">type</span><span class="s2">(</span><span class="s1">str</span><span class="s2">)</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s3">'.' </span><span class="s0">in </span><span class="s1">name</span><span class="s2">:</span>
+        <span class="s1">full_name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">full_name</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'.'</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">]</span>
+        <span class="s1">file_types </span><span class="s2">= (</span><span class="s3">'.' </span><span class="s2">+ </span><span class="s1">full_name</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'.'</span><span class="s2">,</span><span class="s4">1</span><span class="s2">)[</span><span class="s4">1</span><span class="s2">],)</span>
+
+    <span class="s0">if </span><span class="s1">name </span><span class="s0">in </span><span class="s1">imported_meshes</span><span class="s2">:</span>
+        <span class="s5"># print('load cached model', name)</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">if not </span><span class="s1">use_deepcopy</span><span class="s2">:</span>
+                <span class="s1">instance </span><span class="s2">= </span><span class="s1">copy</span><span class="s2">(</span><span class="s1">imported_meshes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">])</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">instance </span><span class="s2">= </span><span class="s1">deepcopy</span><span class="s2">(</span><span class="s1">imported_meshes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">])</span>
+
+            <span class="s1">instance</span><span class="s2">.</span><span class="s1">clearTexture</span><span class="s2">()</span>
+            <span class="s0">return </span><span class="s1">instance</span>
+
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+
+    <span class="s0">for </span><span class="s1">filetype </span><span class="s0">in </span><span class="s1">file_types</span><span class="s2">:</span>
+        <span class="s0">if </span><span class="s1">use_deepcopy </span><span class="s0">and </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.bam'</span><span class="s2">:</span>
+            <span class="s0">continue</span>
+        <span class="s5"># warning: glob is case-insensitive on windows, so m.path will be all lowercase</span>
+        <span class="s0">for </span><span class="s1">filename </span><span class="s0">in </span><span class="s1">path</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">f'**/</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}{</span><span class="s1">filetype</span><span class="s0">}</span><span class="s3">'</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.bam'</span><span class="s2">:</span>
+                <span class="s5"># print_info('loading bam')</span>
+                <span class="s0">return </span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)  </span><span class="s5"># type: ignore</span>
+
+            <span class="s0">if </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.gltf' </span><span class="s0">or </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.glb'</span><span class="s2">:</span>
+                <span class="s1">gltf_settings </span><span class="s2">= </span><span class="s1">gltf</span><span class="s2">.</span><span class="s1">GltfSettings</span><span class="s2">()</span>
+                <span class="s1">gltf_settings</span><span class="s2">.</span><span class="s1">no_srgb </span><span class="s2">= </span><span class="s1">gltf_no_srgb</span>
+                <span class="s1">model_root </span><span class="s2">= </span><span class="s1">gltf</span><span class="s2">.</span><span class="s1">load_model</span><span class="s2">(</span><span class="s1">str</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">), </span><span class="s1">gltf_settings</span><span class="s2">=</span><span class="s1">gltf_settings</span><span class="s2">)</span>
+                <span class="s1">imported_meshes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">model_root</span><span class="s2">)</span>
+                <span class="s0">return </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">model_root</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.ursinamesh'</span><span class="s2">:</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">) </span><span class="s0">as </span><span class="s1">f</span><span class="s2">:</span>
+                        <span class="s1">m </span><span class="s2">= </span><span class="s1">eval</span><span class="s2">(</span><span class="s1">f</span><span class="s2">.</span><span class="s1">read</span><span class="s2">())</span>
+                        <span class="s1">m</span><span class="s2">.</span><span class="s1">path </span><span class="s2">= </span><span class="s1">filename</span>
+                        <span class="s1">m</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span>
+                        <span class="s1">m</span><span class="s2">.</span><span class="s1">vertices </span><span class="s2">= [</span><span class="s1">Vec3</span><span class="s2">(*</span><span class="s1">v</span><span class="s2">) </span><span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">m</span><span class="s2">.</span><span class="s1">vertices</span><span class="s2">]</span>
+                        <span class="s1">imported_meshes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">m</span>
+                        <span class="s0">return </span><span class="s1">m</span>
+                <span class="s0">except</span><span class="s2">:</span>
+                    <span class="s1">print_warning</span><span class="s2">(</span><span class="s3">'invalid ursinamesh file:'</span><span class="s2">, </span><span class="s1">filename</span><span class="s2">)</span>
+
+
+            <span class="s0">if </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.obj'</span><span class="s2">:</span>
+                <span class="s5"># print('found obj', filename)</span>
+                <span class="s1">m </span><span class="s2">= </span><span class="s1">obj_to_ursinamesh</span><span class="s2">(</span><span class="s1">path</span><span class="s2">=</span><span class="s1">path</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s1">name</span><span class="s2">, </span><span class="s1">return_mesh</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+                <span class="s1">m</span><span class="s2">.</span><span class="s1">path </span><span class="s2">= </span><span class="s1">filename</span>
+                <span class="s1">m</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span>
+                <span class="s1">imported_meshes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">m</span>
+                <span class="s0">if not </span><span class="s1">use_deepcopy</span><span class="s2">:</span>
+                    <span class="s1">m</span><span class="s2">.</span><span class="s1">save</span><span class="s2">(</span><span class="s3">f'</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">.bam'</span><span class="s2">)</span>
+
+                <span class="s0">return </span><span class="s1">m</span>
+
+            <span class="s0">elif </span><span class="s1">filetype </span><span class="s2">== </span><span class="s3">'.blend'</span><span class="s2">:</span>
+                <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'found blend file:'</span><span class="s2">, </span><span class="s1">filename</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">compress_models</span><span class="s2">(</span><span class="s1">path</span><span class="s2">=</span><span class="s1">path</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s1">name</span><span class="s2">):</span>
+                    <span class="s5"># obj_to_ursinamesh(name=name)</span>
+                    <span class="s0">return </span><span class="s1">load_model</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">path</span><span class="s2">, </span><span class="s1">use_deepcopy</span><span class="s2">=</span><span class="s1">use_deepcopy</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s0">return </span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)  </span><span class="s5"># type: ignore</span>
+                <span class="s0">except</span><span class="s2">:</span>
+                    <span class="s0">pass</span>
+
+    <span class="s0">return None</span>
+
+
+<span class="s5"># find blender installations</span>
+<span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">development_mode</span><span class="s2">:</span>
+
+    <span class="s0">if </span><span class="s1">platform</span><span class="s2">.</span><span class="s1">system</span><span class="s2">() == </span><span class="s3">'Windows'</span><span class="s2">:</span>
+        <span class="s5"># get blender path by getting default program for '.blend' file extension</span>
+        <span class="s0">import </span><span class="s1">shlex</span>
+        <span class="s0">import </span><span class="s1">winreg</span>
+
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">class_root </span><span class="s2">= </span><span class="s1">winreg</span><span class="s2">.</span><span class="s1">QueryValue</span><span class="s2">(</span><span class="s1">winreg</span><span class="s2">.</span><span class="s1">HKEY_CLASSES_ROOT</span><span class="s2">, </span><span class="s3">'.blend'</span><span class="s2">)</span>
+            <span class="s0">with </span><span class="s1">winreg</span><span class="s2">.</span><span class="s1">OpenKey</span><span class="s2">(</span><span class="s1">winreg</span><span class="s2">.</span><span class="s1">HKEY_CLASSES_ROOT</span><span class="s2">, </span><span class="s3">fr'</span><span class="s0">{</span><span class="s1">class_root</span><span class="s0">}</span><span class="s3">\shell\open\command'</span><span class="s2">) </span><span class="s0">as </span><span class="s1">key</span><span class="s2">:</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s1">winreg</span><span class="s2">.</span><span class="s1">QueryValueEx</span><span class="s2">(</span><span class="s1">key</span><span class="s2">, </span><span class="s3">''</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">]</span>
+                <span class="s1">default_blender </span><span class="s2">= </span><span class="s1">shlex</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s1">command</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">]</span>
+                <span class="s1">default_blender </span><span class="s2">= </span><span class="s1">Path</span><span class="s2">(</span><span class="s1">default_blender</span><span class="s2">)</span>
+                <span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s3">'default'</span><span class="s2">] = </span><span class="s1">default_blender</span>
+                <span class="s1">blender_foundation_directory </span><span class="s2">= </span><span class="s1">default_blender</span><span class="s2">.</span><span class="s1">parent</span><span class="s2">.</span><span class="s1">parent</span>
+
+                <span class="s0">for </span><span class="s1">blender_installation </span><span class="s0">in </span><span class="s1">blender_foundation_directory</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">'*'</span><span class="s2">):</span>
+                    <span class="s1">first_folder </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">blender_installation</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">'*'</span><span class="s2">))[</span><span class="s4">0</span><span class="s2">] </span><span class="s5"># version</span>
+                    <span class="s1">version_name </span><span class="s2">= </span><span class="s1">first_folder</span><span class="s2">.</span><span class="s1">name</span><span class="s2">[:</span><span class="s4">3</span><span class="s2">]</span>
+                    <span class="s1">blender_path </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">blender_installation</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">'blender.exe'</span><span class="s2">))[</span><span class="s4">0</span><span class="s2">]</span>
+                    <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_path</span><span class="s2">[</span><span class="s3">'default'</span><span class="s2">] == </span><span class="s1">blender_path</span><span class="s2">:</span>
+                        <span class="s0">continue</span>
+                    <span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s1">version_name</span><span class="s2">] = </span><span class="s1">blender_path</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+
+    <span class="s0">elif </span><span class="s1">platform</span><span class="s2">.</span><span class="s1">system</span><span class="s2">() == </span><span class="s3">'Linux'</span><span class="s2">:</span>
+        <span class="s5"># Use &quot;which&quot; command to find blender</span>
+        <span class="s1">which_process </span><span class="s2">= </span><span class="s1">subprocess</span><span class="s2">.</span><span class="s1">run</span><span class="s2">((</span><span class="s3">'which'</span><span class="s2">, </span><span class="s3">'blender'</span><span class="s2">), </span><span class="s1">stdout</span><span class="s2">=</span><span class="s1">subprocess</span><span class="s2">.</span><span class="s1">PIPE</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">which_process</span><span class="s2">.</span><span class="s1">returncode </span><span class="s2">== </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s1">blender_exec </span><span class="s2">= </span><span class="s1">which_process</span><span class="s2">.</span><span class="s1">stdout</span><span class="s2">.</span><span class="s1">decode</span><span class="s2">().</span><span class="s1">strip</span><span class="s2">()</span>
+            <span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s3">'default'</span><span class="s2">] = </span><span class="s1">blender_exec</span>
+
+
+<span class="s0">def </span><span class="s1">load_blender_scene</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">path</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder</span><span class="s2">, </span><span class="s1">reload</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">skip_hidden</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">models_only</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">uvs</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">vertex_colors</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">normals</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">decimals</span><span class="s2">=</span><span class="s4">4</span><span class="s2">):</span>
+    <span class="s1">scenes_folder </span><span class="s2">= </span><span class="s1">Path</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder </span><span class="s2">/ </span><span class="s3">'scenes'</span><span class="s2">)</span>
+    <span class="s0">if not </span><span class="s1">scenes_folder</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+        <span class="s1">scenes_folder</span><span class="s2">.</span><span class="s1">mkdir</span><span class="s2">()</span>
+
+    <span class="s1">out_file_path </span><span class="s2">= </span><span class="s1">scenes_folder </span><span class="s2">/ </span><span class="s3">f'</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">.ursina_blender_scene'</span>
+    <span class="s5"># print('loading:', out_file_path)</span>
+    <span class="s0">if </span><span class="s1">reload </span><span class="s0">or not </span><span class="s1">out_file_path</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'reload:'</span><span class="s2">)</span>
+        <span class="s1">blend_file </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">path</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">f'**/</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">.blend'</span><span class="s2">))</span>
+        <span class="s0">if not </span><span class="s1">blend_file</span><span class="s2">:</span>
+            <span class="s0">raise </span><span class="s1">ValueError</span><span class="s2">(</span><span class="s3">'no blender file found at:'</span><span class="s2">, </span><span class="s1">path </span><span class="s2">/ </span><span class="s1">name</span><span class="s2">)</span>
+
+        <span class="s1">blend_file </span><span class="s2">= </span><span class="s1">blend_file</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'loading blender scene:'</span><span class="s2">, </span><span class="s1">blend_file</span><span class="s2">, </span><span class="s3">'--&gt;'</span><span class="s2">, </span><span class="s1">out_file_path</span><span class="s2">)</span>
+
+        <span class="s1">args </span><span class="s2">= [</span>
+            <span class="s1">get_blender</span><span class="s2">(</span><span class="s1">blend_file</span><span class="s2">),</span>
+            <span class="s1">blend_file</span><span class="s2">,</span>
+            <span class="s3">'--background'</span><span class="s2">,</span>
+            <span class="s3">'--python'</span><span class="s2">,</span>
+            <span class="s1">application</span><span class="s2">.</span><span class="s1">internal_scripts_folder </span><span class="s2">/ </span><span class="s3">'_blender_scene_to_ursina.py'</span><span class="s2">,</span>
+            <span class="s1">out_file_path</span><span class="s2">,</span>
+            <span class="s3">'--skip_hidden' </span><span class="s0">if </span><span class="s1">skip_hidden </span><span class="s0">else </span><span class="s3">''</span><span class="s2">,</span>
+            <span class="s3">'--models_only' </span><span class="s0">if </span><span class="s1">models_only </span><span class="s0">else </span><span class="s3">''</span><span class="s2">,</span>
+            <span class="s3">'--uvs' </span><span class="s0">if </span><span class="s1">uvs </span><span class="s0">else </span><span class="s3">''</span><span class="s2">,</span>
+            <span class="s3">'--normals' </span><span class="s0">if </span><span class="s1">normals </span><span class="s0">else </span><span class="s3">''</span><span class="s2">,</span>
+            <span class="s3">'--vertex_colors' </span><span class="s0">if </span><span class="s1">vertex_colors </span><span class="s0">else </span><span class="s3">''</span><span class="s2">,</span>
+            <span class="s3">f'--decimals=</span><span class="s0">{</span><span class="s1">decimals</span><span class="s0">}</span><span class="s3">'</span><span class="s2">,</span>
+        <span class="s2">]</span>
+
+        <span class="s1">subprocess</span><span class="s2">.</span><span class="s1">run</span><span class="s2">(</span><span class="s1">args</span><span class="s2">)</span>
+
+
+    <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">out_file_path</span><span class="s2">) </span><span class="s0">as </span><span class="s1">f</span><span class="s2">:</span>
+        <span class="s1">file_content </span><span class="s2">= </span><span class="s1">f</span><span class="s2">.</span><span class="s1">read</span><span class="s2">()</span>
+        <span class="s1">loc </span><span class="s2">= {}</span>
+        <span class="s1">exec</span><span class="s2">(</span><span class="s1">file_content</span><span class="s2">, </span><span class="s1">globals</span><span class="s2">(), </span><span class="s1">loc</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">models_only</span><span class="s2">:</span>
+            <span class="s1">blender_scenes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">loc</span><span class="s2">[</span><span class="s3">'meshes'</span><span class="s2">]</span>
+            <span class="s0">return </span><span class="s1">loc</span><span class="s2">[</span><span class="s3">'meshes'</span><span class="s2">]</span>
+
+        <span class="s1">blender_scenes</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">loc</span><span class="s2">[</span><span class="s3">'scene_parent'</span><span class="s2">]</span>
+        <span class="s0">return </span><span class="s1">loc</span><span class="s2">[</span><span class="s3">'scene_parent'</span><span class="s2">]</span>
+
+
+
+<span class="s0">def </span><span class="s1">get_blender</span><span class="s2">(</span><span class="s1">blend_file</span><span class="s2">):    </span><span class="s5"># try to get a matching blender version in case we have multiple blender version installed</span>
+    <span class="s0">if not </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">:</span>
+        <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s3">'error: trying to load .blend file, but no blender installation was found. blender_paths:'</span><span class="s2">, </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">) == </span><span class="s4">1</span><span class="s2">:</span>
+        <span class="s0">return </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s3">'default'</span><span class="s2">]</span>
+
+    <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">blend_file</span><span class="s2">, </span><span class="s3">'rb'</span><span class="s2">) </span><span class="s0">as </span><span class="s1">f</span><span class="s2">:</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">blender_version_number </span><span class="s2">= (</span><span class="s1">f</span><span class="s2">.</span><span class="s1">read</span><span class="s2">(</span><span class="s4">12</span><span class="s2">).</span><span class="s1">decode</span><span class="s2">(</span><span class="s3">&quot;utf-8&quot;</span><span class="s2">))[-</span><span class="s4">3</span><span class="s2">:]   </span><span class="s5"># get version from start of .blend file e.g. 'BLENDER-v280'</span>
+            <span class="s1">blender_version_number </span><span class="s2">= </span><span class="s1">blender_version_number</span><span class="s2">[</span><span class="s4">0</span><span class="s2">] + </span><span class="s3">'.' </span><span class="s2">+ </span><span class="s1">blender_version_number</span><span class="s2">[</span><span class="s4">1</span><span class="s2">:</span><span class="s4">2</span><span class="s2">]</span>
+            <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'blender_version:'</span><span class="s2">, </span><span class="s1">blender_version_number</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">blender_version_number </span><span class="s0">in </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s1">blender_version_number</span><span class="s2">]</span>
+
+            <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'using default blender version'</span><span class="s2">)</span>
+            <span class="s0">return </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s3">'default'</span><span class="s2">]</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'using default blender version'</span><span class="s2">)</span>
+            <span class="s0">return </span><span class="s1">application</span><span class="s2">.</span><span class="s1">blender_paths</span><span class="s2">[</span><span class="s3">'default'</span><span class="s2">]</span>
+
+
+<span class="s0">def </span><span class="s1">compress_models</span><span class="s2">(</span><span class="s1">path</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">outpath</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s3">'*'</span><span class="s2">):</span>
+    <span class="s0">if </span><span class="s3">&quot;/&quot; </span><span class="s0">in </span><span class="s1">name </span><span class="s0">or </span><span class="s3">'</span><span class="s0">\\</span><span class="s3">' </span><span class="s0">in </span><span class="s1">name</span><span class="s2">:</span>
+        <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s3">f'Path character &quot;/&quot; or &quot;</span><span class="s0">\\</span><span class="s3">&quot; found in blender name (</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">). To successfully import .blend files, use only the file name.'</span><span class="s2">)</span>
+
+    <span class="s0">if not </span><span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">.</span><span class="s1">mkdir</span><span class="s2">()</span>
+
+    <span class="s1">export_script_path </span><span class="s2">= </span><span class="s1">application</span><span class="s2">.</span><span class="s1">internal_scripts_folder </span><span class="s2">/ </span><span class="s3">'_blend_export.py'</span>
+    <span class="s1">exported </span><span class="s2">= []</span>
+
+    <span class="s0">for </span><span class="s1">blend_file </span><span class="s0">in </span><span class="s1">path</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">f'**/</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">.blend'</span><span class="s2">):</span>
+        <span class="s1">blender </span><span class="s2">= </span><span class="s1">get_blender</span><span class="s2">(</span><span class="s1">blend_file</span><span class="s2">)</span>
+
+        <span class="s1">out_file_path </span><span class="s2">= </span><span class="s1">outpath </span><span class="s2">/ (</span><span class="s1">blend_file</span><span class="s2">.</span><span class="s1">stem </span><span class="s2">+ </span><span class="s3">'.obj'</span><span class="s2">)</span>
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'converting .blend file to .obj:'</span><span class="s2">, </span><span class="s1">blend_file</span><span class="s2">, </span><span class="s3">'--&gt;'</span><span class="s2">, </span><span class="s1">out_file_path</span><span class="s2">, </span><span class="s3">'using:'</span><span class="s2">, </span><span class="s1">blender</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">platform</span><span class="s2">.</span><span class="s1">system</span><span class="s2">() == </span><span class="s3">'Windows'</span><span class="s2">:</span>
+            <span class="s1">subprocess</span><span class="s2">.</span><span class="s1">call</span><span class="s2">(</span><span class="s3">f'''&quot;</span><span class="s0">{</span><span class="s1">blender</span><span class="s0">}</span><span class="s3">&quot; &quot;</span><span class="s0">{</span><span class="s1">blend_file</span><span class="s0">}</span><span class="s3">&quot; --background --python &quot;</span><span class="s0">{</span><span class="s1">export_script_path</span><span class="s0">}</span><span class="s3">&quot; &quot;</span><span class="s0">{</span><span class="s1">out_file_path</span><span class="s0">}</span><span class="s3">&quot;'''</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">subprocess</span><span class="s2">.</span><span class="s1">run</span><span class="s2">((</span><span class="s1">blender</span><span class="s2">, </span><span class="s1">blend_file</span><span class="s2">, </span><span class="s3">'--background'</span><span class="s2">, </span><span class="s3">'--python'</span><span class="s2">, </span><span class="s1">export_script_path</span><span class="s2">, </span><span class="s1">out_file_path</span><span class="s2">))</span>
+
+        <span class="s1">exported</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">blend_file</span><span class="s2">)</span>
+
+    <span class="s0">return </span><span class="s1">exported</span>
+
+
+<span class="s0">def </span><span class="s1">obj_to_ursinamesh</span><span class="s2">(</span><span class="s1">path</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">, </span><span class="s1">outpath</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s3">'*'</span><span class="s2">, </span><span class="s1">return_mesh</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">save_to_file</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">delete_obj</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+    <span class="s0">if </span><span class="s1">name</span><span class="s2">.</span><span class="s1">endswith</span><span class="s2">(</span><span class="s3">'.obj'</span><span class="s2">):</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">[:-</span><span class="s4">4</span><span class="s2">]</span>
+
+    <span class="s0">for </span><span class="s1">f </span><span class="s0">in </span><span class="s1">path</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s3">f'**/</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">.obj'</span><span class="s2">):</span>
+        <span class="s5"># filepath = path / (os.path.splitext(f)[0] + '.obj')</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'read obj at:'</span><span class="s2">, </span><span class="s1">f</span><span class="s2">)</span>
+
+
+        <span class="s0">with </span><span class="s1">f</span><span class="s2">.</span><span class="s1">open</span><span class="s2">(</span><span class="s3">'r'</span><span class="s2">) </span><span class="s0">as </span><span class="s1">file</span><span class="s2">:</span>
+            <span class="s1">lines </span><span class="s2">= </span><span class="s1">file</span><span class="s2">.</span><span class="s1">readlines</span><span class="s2">()</span>
+
+        <span class="s1">verts </span><span class="s2">= []</span>
+        <span class="s1">tris </span><span class="s2">= []</span>
+
+        <span class="s1">uv_indices </span><span class="s2">= []</span>
+        <span class="s1">uvs </span><span class="s2">= []</span>
+        <span class="s1">norm_indices </span><span class="s2">= []</span>
+        <span class="s1">norms </span><span class="s2">= []</span>
+        <span class="s1">normals </span><span class="s2">= [] </span><span class="s5"># final normals made getting norms with norm_indices</span>
+
+        <span class="s1">vertex_colors </span><span class="s2">= []</span>
+        <span class="s1">current_color </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">mtl_data </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">mtl_dict </span><span class="s2">= {}</span>
+
+        <span class="s5"># parse the obj file to a Mesh</span>
+        <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">l </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">lines</span><span class="s2">):  </span><span class="s5"># noqa: E741</span>
+            <span class="s0">if </span><span class="s1">l</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'v '</span><span class="s2">):</span>
+                <span class="s1">vert </span><span class="s2">= [</span><span class="s1">float</span><span class="s2">(</span><span class="s1">v</span><span class="s2">) </span><span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">l</span><span class="s2">[</span><span class="s4">2</span><span class="s2">:].</span><span class="s1">strip</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s3">' '</span><span class="s2">)]</span>
+                <span class="s1">vert</span><span class="s2">[</span><span class="s4">0</span><span class="s2">] = -</span><span class="s1">vert</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+                <span class="s1">verts</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">vert</span><span class="s2">))</span>
+
+            <span class="s0">elif </span><span class="s1">l</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'vn '</span><span class="s2">):</span>
+                <span class="s1">n </span><span class="s2">= </span><span class="s1">l</span><span class="s2">[</span><span class="s4">3</span><span class="s2">:].</span><span class="s1">strip</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s3">' '</span><span class="s2">)</span>
+                <span class="s1">norms</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">e</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">n</span><span class="s2">))</span>
+
+            <span class="s0">elif </span><span class="s1">l</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'vt '</span><span class="s2">):</span>
+                <span class="s1">uv </span><span class="s2">= </span><span class="s1">l</span><span class="s2">[</span><span class="s4">3</span><span class="s2">:].</span><span class="s1">strip</span><span class="s2">()</span>
+                <span class="s1">uv </span><span class="s2">= </span><span class="s1">uv</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">' '</span><span class="s2">)</span>
+                <span class="s1">uvs</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">e</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">uv</span><span class="s2">))</span>
+
+            <span class="s0">elif </span><span class="s1">l</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'f '</span><span class="s2">):</span>
+                <span class="s1">l </span><span class="s2">= </span><span class="s1">l</span><span class="s2">[</span><span class="s4">2</span><span class="s2">:]  </span><span class="s5"># noqa: E741</span>
+                <span class="s1">l </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">' '</span><span class="s2">)  </span><span class="s5"># noqa: E741</span>
+
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s1">tri </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">t</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">])-</span><span class="s4">1 </span><span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">l </span><span class="s0">if </span><span class="s1">t </span><span class="s2">!= </span><span class="s3">'</span><span class="s0">\n</span><span class="s3">'</span><span class="s2">)</span>
+                <span class="s0">except</span><span class="s2">:</span>
+                    <span class="s1">print_warning</span><span class="s2">(</span><span class="s3">'error in obj file line:'</span><span class="s2">, </span><span class="s1">i</span><span class="s2">, </span><span class="s3">':'</span><span class="s2">, </span><span class="s1">l</span><span class="s2">)</span>
+                    <span class="s0">return</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tri</span><span class="s2">) == </span><span class="s4">3</span><span class="s2">:</span>
+                    <span class="s1">tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">(</span><span class="s1">tri</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">current_color</span><span class="s2">:</span>
+                        <span class="s1">vertex_colors</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">current_color </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">3</span><span class="s2">)])</span>
+
+                <span class="s0">elif </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tri</span><span class="s2">) == </span><span class="s4">4</span><span class="s2">:</span>
+                    <span class="s1">tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">tri</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s4">3</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]))</span>
+                    <span class="s0">if </span><span class="s1">current_color</span><span class="s2">:</span>
+                        <span class="s1">vertex_colors</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">current_color </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">6</span><span class="s2">)])</span>
+
+                <span class="s0">else</span><span class="s2">: </span><span class="s5"># ngon</span>
+                    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tri</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">):</span>
+                        <span class="s1">tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">tri</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s4">1</span><span class="s2">], </span><span class="s1">tri</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]))</span>
+                    <span class="s0">if </span><span class="s1">current_color</span><span class="s2">:</span>
+                        <span class="s1">vertex_colors</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">current_color </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">tri</span><span class="s2">))])</span>
+
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s1">uv </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">t</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">)[</span><span class="s4">1</span><span class="s2">])-</span><span class="s4">1 </span><span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">l</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">uv</span><span class="s2">) == </span><span class="s4">3</span><span class="s2">:</span>
+                        <span class="s1">uv_indices</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">(</span><span class="s1">uv</span><span class="s2">)</span>
+                    <span class="s0">elif </span><span class="s1">len</span><span class="s2">(</span><span class="s1">uv</span><span class="s2">) == </span><span class="s4">4</span><span class="s2">:</span>
+                        <span class="s1">uv_indices</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">uv</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s4">3</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]))</span>
+                    <span class="s0">else</span><span class="s2">: </span><span class="s5"># ngon</span>
+                        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">uv</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">):</span>
+                            <span class="s1">uv_indices</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">uv</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s4">1</span><span class="s2">], </span><span class="s1">uv</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]))</span>
+                <span class="s0">except</span><span class="s2">: </span><span class="s5"># if no uvs</span>
+                    <span class="s0">pass</span>
+
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s1">n </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">t</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">)[</span><span class="s4">2</span><span class="s2">])-</span><span class="s4">1 </span><span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">l</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">n</span><span class="s2">) == </span><span class="s4">3</span><span class="s2">:</span>
+                        <span class="s1">norm_indices</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">(</span><span class="s1">n</span><span class="s2">)</span>
+                    <span class="s0">elif </span><span class="s1">len</span><span class="s2">(</span><span class="s1">uv</span><span class="s2">) == </span><span class="s4">4</span><span class="s2">:</span>
+                        <span class="s1">norm_indices</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">n</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s4">3</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]))</span>
+                    <span class="s0">else</span><span class="s2">: </span><span class="s5"># ngon</span>
+                        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">n</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">):</span>
+                            <span class="s1">norm_indices</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">n</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s4">1</span><span class="s2">], </span><span class="s1">n</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]))</span>
+                <span class="s0">except</span><span class="s2">: </span><span class="s5"># if no normals</span>
+                    <span class="s0">pass</span>
+
+            <span class="s0">elif </span><span class="s1">l</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'mtllib '</span><span class="s2">):    </span><span class="s5"># load mtl file</span>
+                <span class="s1">mtl_file_name </span><span class="s2">= </span><span class="s1">Path</span><span class="s2">(</span><span class="s1">f</span><span class="s2">).</span><span class="s1">with_suffix</span><span class="s2">(</span><span class="s3">'.mtl'</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">mtl_file_name</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+                    <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">mtl_file_name</span><span class="s2">) </span><span class="s0">as </span><span class="s1">mtl_file</span><span class="s2">:</span>
+                        <span class="s1">mtl_data </span><span class="s2">= </span><span class="s1">mtl_file</span><span class="s2">.</span><span class="s1">readlines</span><span class="s2">()</span>
+
+                        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">mtl_data</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">):</span>
+                            <span class="s0">if </span><span class="s1">mtl_data</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'newmtl '</span><span class="s2">):</span>
+                                <span class="s1">material_name </span><span class="s2">= </span><span class="s1">mtl_data</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">strip</span><span class="s2">()[</span><span class="s4">7</span><span class="s2">:] </span><span class="s5"># remove 'newmtl '</span>
+                                <span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">i</span><span class="s2">+</span><span class="s4">1</span><span class="s2">, </span><span class="s1">min</span><span class="s2">(</span><span class="s1">i</span><span class="s2">+</span><span class="s4">8</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">mtl_data</span><span class="s2">))):</span>
+                                    <span class="s0">if </span><span class="s1">mtl_data</span><span class="s2">[</span><span class="s1">j</span><span class="s2">].</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'newmtl'</span><span class="s2">):</span>
+                                        <span class="s0">break</span>
+                                    <span class="s0">if </span><span class="s1">mtl_data</span><span class="s2">[</span><span class="s1">j</span><span class="s2">].</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'Kd '</span><span class="s2">):</span>
+                                        <span class="s1">material_color </span><span class="s2">= [</span><span class="s1">float</span><span class="s2">(</span><span class="s1">e</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">mtl_data</span><span class="s2">[</span><span class="s1">j</span><span class="s2">].</span><span class="s1">strip</span><span class="s2">()[</span><span class="s4">3</span><span class="s2">:].</span><span class="s1">split</span><span class="s2">(</span><span class="s3">' '</span><span class="s2">)]</span>
+                                        <span class="s1">mtl_dict</span><span class="s2">[</span><span class="s1">material_name</span><span class="s2">] = *</span><span class="s1">material_color</span><span class="s2">, </span><span class="s4">1</span>
+
+
+            <span class="s0">elif </span><span class="s1">l</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'usemtl '</span><span class="s2">) </span><span class="s0">and </span><span class="s1">mtl_data</span><span class="s2">: </span><span class="s5"># apply material color</span>
+                <span class="s1">material_name </span><span class="s2">= </span><span class="s1">l</span><span class="s2">[</span><span class="s4">7</span><span class="s2">:].</span><span class="s1">strip</span><span class="s2">()    </span><span class="s5"># remove 'usemtl '</span>
+                <span class="s0">if </span><span class="s1">material_name </span><span class="s0">in </span><span class="s1">mtl_dict</span><span class="s2">:</span>
+                    <span class="s1">current_color </span><span class="s2">= </span><span class="s1">mtl_dict</span><span class="s2">[</span><span class="s1">material_name</span><span class="s2">]</span>
+
+
+        <span class="s0">if </span><span class="s1">norms</span><span class="s2">: </span><span class="s5"># make sure we have normals and not just normal indices (weird edge case).</span>
+            <span class="s1">normals </span><span class="s2">= [(-</span><span class="s1">norms</span><span class="s2">[</span><span class="s1">nid</span><span class="s2">][</span><span class="s4">0</span><span class="s2">], </span><span class="s1">norms</span><span class="s2">[</span><span class="s1">nid</span><span class="s2">][</span><span class="s4">1</span><span class="s2">], </span><span class="s1">norms</span><span class="s2">[</span><span class="s1">nid</span><span class="s2">][</span><span class="s4">2</span><span class="s2">]) </span><span class="s0">for </span><span class="s1">nid </span><span class="s0">in </span><span class="s1">norm_indices</span><span class="s2">]</span>
+
+        <span class="s0">if </span><span class="s1">return_mesh</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">Mesh</span><span class="s2">(</span>
+                <span class="s1">vertices</span><span class="s2">=[</span><span class="s1">verts</span><span class="s2">[</span><span class="s1">t</span><span class="s2">] </span><span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">tris</span><span class="s2">],</span>
+                <span class="s1">normals</span><span class="s2">=</span><span class="s1">normals</span><span class="s2">,</span>
+                <span class="s1">uvs</span><span class="s2">=[</span><span class="s1">uvs</span><span class="s2">[</span><span class="s1">uid</span><span class="s2">] </span><span class="s0">for </span><span class="s1">uid </span><span class="s0">in </span><span class="s1">uv_indices</span><span class="s2">],</span>
+                <span class="s1">colors</span><span class="s2">=</span><span class="s1">vertex_colors</span>
+            <span class="s2">)</span>
+
+        <span class="s1">meshstring </span><span class="s2">= </span><span class="s3">''</span>
+        <span class="s1">meshstring </span><span class="s2">+= </span><span class="s3">'Mesh('</span>
+
+        <span class="s1">meshstring </span><span class="s2">+= </span><span class="s3">'</span><span class="s0">\n</span><span class="s3">vertices='</span>
+        <span class="s1">meshstring </span><span class="s2">+= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">verts</span><span class="s2">[</span><span class="s1">t</span><span class="s2">] </span><span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">tris</span><span class="s2">))</span>
+
+        <span class="s0">if </span><span class="s1">vertex_colors</span><span class="s2">:</span>
+            <span class="s1">meshstring </span><span class="s2">+= </span><span class="s3">'</span><span class="s0">\n</span><span class="s3">colors='</span>
+            <span class="s1">meshstring </span><span class="s2">+= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">col </span><span class="s0">for </span><span class="s1">col </span><span class="s0">in </span><span class="s1">vertex_colors</span><span class="s2">))</span>
+
+        <span class="s0">if </span><span class="s1">uv_indices</span><span class="s2">:</span>
+            <span class="s1">meshstring </span><span class="s2">+= </span><span class="s3">', </span><span class="s0">\n</span><span class="s3">uvs='</span>
+            <span class="s1">meshstring </span><span class="s2">+= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">uvs</span><span class="s2">[</span><span class="s1">uid</span><span class="s2">] </span><span class="s0">for </span><span class="s1">uid </span><span class="s0">in </span><span class="s1">uv_indices</span><span class="s2">))</span>
+
+        <span class="s0">if </span><span class="s1">normals</span><span class="s2">:</span>
+            <span class="s1">meshstring </span><span class="s2">+= </span><span class="s3">', </span><span class="s0">\n</span><span class="s3">normals='</span>
+            <span class="s1">meshstring </span><span class="s2">+= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">normals</span><span class="s2">)</span>
+
+        <span class="s1">meshstring </span><span class="s2">+= </span><span class="s3">''', </span><span class="s0">\n</span><span class="s3">mode='triangle')'''</span>
+
+        <span class="s0">if not </span><span class="s1">save_to_file</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">meshstring</span>
+
+        <span class="s1">outfilepath </span><span class="s2">= </span><span class="s1">outpath </span><span class="s2">/ (</span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">splitext</span><span class="s2">(</span><span class="s1">f</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">] + </span><span class="s3">'.ursinamesh'</span><span class="s2">)</span>
+        <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">outfilepath</span><span class="s2">, </span><span class="s3">'w'</span><span class="s2">) </span><span class="s0">as </span><span class="s1">file</span><span class="s2">:</span>
+            <span class="s1">file</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">meshstring</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">delete_obj</span><span class="s2">:</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">outfilepath</span><span class="s2">)</span>
+
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'saved ursinamesh to:'</span><span class="s2">, </span><span class="s1">outfilepath</span><span class="s2">)</span>
+
+<span class="s5"># faster, but does not apply modifiers</span>
+<span class="s0">def </span><span class="s1">compress_models_fast</span><span class="s2">(</span><span class="s1">model_name</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">write_to_disk</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+    <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'find models'</span><span class="s2">)</span>
+    <span class="s0">from </span><span class="s1">tinyblend </span><span class="s0">import </span><span class="s1">BlenderFile  </span><span class="s5"># type: ignore</span>
+    <span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">.</span><span class="s1">mkdir</span><span class="s2">(</span><span class="s1">parents</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">exist_ok</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+
+    <span class="s1">files </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">listdir</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">models_folder</span><span class="s2">)</span>
+
+    <span class="s0">for </span><span class="s1">f </span><span class="s0">in </span><span class="s1">files</span><span class="s2">:</span>
+        <span class="s0">if </span><span class="s1">f</span><span class="s2">.</span><span class="s1">endswith</span><span class="s2">(</span><span class="s3">'.blend'</span><span class="s2">):</span>
+            <span class="s5"># print('f:', application.compressed_models_folder + '/' + f)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'compress______'</span><span class="s2">, </span><span class="s1">f</span><span class="s2">)</span>
+            <span class="s1">blend </span><span class="s2">= </span><span class="s1">BlenderFile</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">models_folder </span><span class="s2">+ </span><span class="s3">'/' </span><span class="s2">+ </span><span class="s1">f</span><span class="s2">)</span>
+            <span class="s1">number_of_objects </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">blend</span><span class="s2">.</span><span class="s1">list</span><span class="s2">(</span><span class="s3">'Object'</span><span class="s2">))</span>
+
+            <span class="s0">for </span><span class="s1">o </span><span class="s0">in </span><span class="s1">blend</span><span class="s2">.</span><span class="s1">list</span><span class="s2">(</span><span class="s3">'Object'</span><span class="s2">):</span>
+                <span class="s0">if not </span><span class="s1">o</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">mvert</span><span class="s2">:</span>
+                    <span class="s0">continue</span>
+                <span class="s5"># print(o.id.name.decode(&quot;utf-8&quot;, &quot;strict&quot;))</span>
+                <span class="s1">object_name </span><span class="s2">= </span><span class="s1">o</span><span class="s2">.</span><span class="s1">id</span><span class="s2">.</span><span class="s1">name</span><span class="s2">.</span><span class="s1">decode</span><span class="s2">( </span><span class="s3">&quot;utf-8&quot;</span><span class="s2">).</span><span class="s1">replace</span><span class="s2">(</span><span class="s3">&quot;.&quot;</span><span class="s2">, </span><span class="s3">&quot;_&quot;</span><span class="s2">)[</span><span class="s4">2</span><span class="s2">:]</span>
+                <span class="s1">object_name </span><span class="s2">= </span><span class="s1">object_name</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'</span><span class="s0">\0</span><span class="s3">'</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">]</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s3">'name:'</span><span class="s2">, </span><span class="s1">object_name</span><span class="s2">)</span>
+
+                <span class="s1">verts </span><span class="s2">= [</span><span class="s1">v</span><span class="s2">.</span><span class="s1">co </span><span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">o</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">mvert</span><span class="s2">]</span>
+                <span class="s1">verts </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">verts</span><span class="s2">)</span>
+
+                <span class="s1">file_content </span><span class="s2">= </span><span class="s3">'Mesh(' </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">verts</span><span class="s2">)</span>
+
+                <span class="s1">file_name </span><span class="s2">= </span><span class="s3">''</span><span class="s2">.</span><span class="s1">join</span><span class="s2">([</span><span class="s1">f</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'.'</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">], </span><span class="s3">'.ursinamesh'</span><span class="s2">])</span>
+                <span class="s0">if </span><span class="s1">number_of_objects </span><span class="s2">&gt; </span><span class="s4">1</span><span class="s2">:</span>
+                    <span class="s1">file_name </span><span class="s2">= </span><span class="s3">''</span><span class="s2">.</span><span class="s1">join</span><span class="s2">([</span><span class="s1">f</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'.'</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">], </span><span class="s3">'_'</span><span class="s2">, </span><span class="s1">object_name</span><span class="s2">, </span><span class="s3">'.ursinamesh'</span><span class="s2">])</span>
+                <span class="s1">file_path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">, </span><span class="s1">file_name</span><span class="s2">)</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s1">file_path</span><span class="s2">)</span>
+
+                <span class="s1">tris </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">triindex</span><span class="s2">.</span><span class="s1">v </span><span class="s0">for </span><span class="s1">triindex </span><span class="s0">in </span><span class="s1">o</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">mloop</span><span class="s2">)</span>
+                <span class="s1">flippedtris </span><span class="s2">= []</span>
+                <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tris</span><span class="s2">)-</span><span class="s4">3</span><span class="s2">, </span><span class="s4">3</span><span class="s2">):</span>
+                    <span class="s1">flippedtris</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tris</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s4">2</span><span class="s2">])</span>
+                    <span class="s1">flippedtris</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tris</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s4">1</span><span class="s2">])</span>
+                    <span class="s1">flippedtris</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tris</span><span class="s2">[</span><span class="s1">i</span><span class="s2">+</span><span class="s4">0</span><span class="s2">])</span>
+
+                <span class="s1">file_content </span><span class="s2">+= </span><span class="s3">', triangles=' </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">flippedtris</span><span class="s2">)</span>
+
+                <span class="s0">if </span><span class="s1">o</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">mloopuv</span><span class="s2">:</span>
+                    <span class="s1">uvs </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">v</span><span class="s2">.</span><span class="s1">uv </span><span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">o</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">mloopuv</span><span class="s2">)</span>
+                    <span class="s1">file_content </span><span class="s2">+= </span><span class="s3">', uvs=' </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">uvs</span><span class="s2">)</span>
+
+                <span class="s1">file_content </span><span class="s2">+= </span><span class="s3">''', mode='triangle')'''</span>
+
+                <span class="s0">if </span><span class="s1">write_to_disk</span><span class="s2">:</span>
+                    <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">file_path</span><span class="s2">, </span><span class="s3">'w'</span><span class="s2">) </span><span class="s0">as </span><span class="s1">file</span><span class="s2">:</span>
+                        <span class="s1">file</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">file_content</span><span class="s2">)</span>
+
+                <span class="s0">return </span><span class="s1">file_content</span>
+
+<span class="s0">def </span><span class="s1">ursina_mesh_to_obj</span><span class="s2">(</span><span class="s1">mesh</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s3">''</span><span class="s2">, </span><span class="s1">out_path</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">compressed_models_folder</span><span class="s2">, </span><span class="s1">max_decimals</span><span class="s2">=</span><span class="s4">5</span><span class="s2">, </span><span class="s1">flip_faces</span><span class="s2">=</span><span class="s0">True</span><span class="s2">):</span>
+    <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">string_utilities </span><span class="s0">import </span><span class="s1">camel_to_snake</span>
+
+    <span class="s1">obj </span><span class="s2">= </span><span class="s3">''</span>
+    <span class="s1">obj </span><span class="s2">+= </span><span class="s3">f'mtllib </span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s3">.mtl</span><span class="s0">\n</span><span class="s3">'</span>
+    <span class="s1">obj </span><span class="s2">+= </span><span class="s3">f'usemtl </span><span class="s0">{</span><span class="s1">name</span><span class="s0">}\n</span><span class="s3">'</span>
+
+    <span class="s0">if not </span><span class="s1">name</span><span class="s2">:</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">camel_to_snake</span><span class="s2">(</span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">)</span>
+    <span class="s1">obj </span><span class="s2">+= </span><span class="s3">'o ' </span><span class="s2">+ </span><span class="s1">name </span><span class="s2">+ </span><span class="s3">'</span><span class="s0">\n</span><span class="s3">'</span>
+    <span class="s1">verts </span><span class="s2">= </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">vertices</span>
+
+    <span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">verts</span><span class="s2">:</span>
+        <span class="s1">v </span><span class="s2">= [</span><span class="s1">round</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s1">max_decimals</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">v</span><span class="s2">]</span>
+        <span class="s1">obj </span><span class="s2">+= </span><span class="s3">f'v </span><span class="s0">{</span><span class="s1">v</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span><span class="s0">} {</span><span class="s1">v</span><span class="s2">[</span><span class="s4">1</span><span class="s2">]</span><span class="s0">} {</span><span class="s1">v</span><span class="s2">[</span><span class="s4">2</span><span class="s2">]</span><span class="s0">}\n</span><span class="s3">'</span>
+
+    <span class="s0">if </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">uvs</span><span class="s2">:</span>
+        <span class="s0">for </span><span class="s1">uv </span><span class="s0">in </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">uvs</span><span class="s2">:</span>
+            <span class="s1">uv </span><span class="s2">= [</span><span class="s1">round</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s1">max_decimals</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">uv</span><span class="s2">]</span>
+            <span class="s1">obj </span><span class="s2">+= </span><span class="s3">f'vt </span><span class="s0">{</span><span class="s1">uv</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span><span class="s0">} {</span><span class="s1">uv</span><span class="s2">[</span><span class="s4">1</span><span class="s2">]</span><span class="s0">}\n</span><span class="s3">'</span>
+
+    <span class="s1">obj </span><span class="s2">+= </span><span class="s3">'s off</span><span class="s0">\n</span><span class="s3">'</span>
+
+    <span class="s0">if </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">:</span>
+        <span class="s1">tris </span><span class="s2">= </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">triangles</span>
+
+        <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">tris</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">tuple</span><span class="s2">): </span><span class="s5"># convert from tuples to flat</span>
+            <span class="s1">new_tris </span><span class="s2">= []</span>
+            <span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">tris</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">t</span><span class="s2">) == </span><span class="s4">3</span><span class="s2">:</span>
+                    <span class="s0">if not </span><span class="s1">flip_faces</span><span class="s2">:</span>
+                        <span class="s1">new_tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">t</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">2</span><span class="s2">]])</span>
+                    <span class="s0">else</span><span class="s2">:</span>
+                        <span class="s1">new_tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">t</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]])</span>
+                <span class="s0">elif </span><span class="s1">len</span><span class="s2">(</span><span class="s1">t</span><span class="s2">) == </span><span class="s4">4</span><span class="s2">: </span><span class="s5"># turn quad into tris</span>
+                    <span class="s0">if not </span><span class="s1">flip_faces</span><span class="s2">:</span>
+                        <span class="s1">new_tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">t</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">3</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]])</span>
+                    <span class="s0">else</span><span class="s2">:</span>
+                        <span class="s1">new_tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">t</span><span class="s2">[</span><span class="s4">2</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">3</span><span class="s2">], </span><span class="s1">t</span><span class="s2">[</span><span class="s4">2</span><span class="s2">]])</span>
+
+            <span class="s1">tris </span><span class="s2">= </span><span class="s1">new_tris</span>
+
+
+    <span class="s0">if </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">mode </span><span class="s2">== </span><span class="s3">'ngon'</span><span class="s2">:</span>
+        <span class="s1">tris </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">vertices</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">):</span>
+            <span class="s1">tris</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">((</span><span class="s1">i</span><span class="s2">, </span><span class="s1">i</span><span class="s2">+</span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">))</span>
+
+
+    <span class="s5"># tris must be a list of indices</span>
+    <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">t </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">tris</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">i </span><span class="s2">% </span><span class="s4">3 </span><span class="s2">== </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s1">obj </span><span class="s2">+= </span><span class="s3">'</span><span class="s0">\n</span><span class="s3">f '</span>
+        <span class="s1">obj </span><span class="s2">+= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">t</span><span class="s2">+</span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">mesh</span><span class="s2">.</span><span class="s1">uvs</span><span class="s2">:</span>
+            <span class="s1">obj </span><span class="s2">+= </span><span class="s3">'/'</span><span class="s2">+</span><span class="s1">str</span><span class="s2">(</span><span class="s1">t</span><span class="s2">+</span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">obj </span><span class="s2">+= </span><span class="s3">' '</span>
+
+    <span class="s1">obj </span><span class="s2">+= </span><span class="s3">'</span><span class="s0">\n</span><span class="s3">'</span>
+    <span class="s5"># print(obj)</span>
+    <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">out_path </span><span class="s2">/ (</span><span class="s1">name </span><span class="s2">+ </span><span class="s3">'.obj'</span><span class="s2">), </span><span class="s3">'w'</span><span class="s2">) </span><span class="s0">as </span><span class="s1">f</span><span class="s2">:</span>
+        <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+        <span class="s1">print_info</span><span class="s2">(</span><span class="s3">'saved obj:'</span><span class="s2">, </span><span class="s1">out_path </span><span class="s2">/ (</span><span class="s1">name </span><span class="s2">+ </span><span class="s3">'.obj'</span><span class="s2">))</span>
+
+
+
+<span class="s0">def </span><span class="s1">compress_internal</span><span class="s2">():</span>
+    <span class="s1">compress_models</span><span class="s2">(</span><span class="s1">application</span><span class="s2">.</span><span class="s1">internal_models_folder</span><span class="s2">)</span>
+    <span class="s1">obj_to_ursinamesh</span><span class="s2">(</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">internal_models_compressed_folder</span><span class="s2">,</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">internal_models_compressed_folder</span><span class="s2">,</span>
+        <span class="s1">return_mesh</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">save_to_file</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">delete_obj</span><span class="s2">=</span><span class="s0">True</span>
+        <span class="s2">)</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s5"># compress_internal()</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Ursina</span><span class="s2">, </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">EditorCamera</span><span class="s2">, </span><span class="s1">Sky</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s5"># print('imported_meshes:\n', imported_meshes)</span>
+    <span class="s5"># Entity(model='quad').model.save('quad.bam')</span>
+    <span class="s5"># m = obj_to_ursinamesh(path=application.asset_folder.parent / 'samples', name='procedural_rock_0')</span>
+    <span class="s5"># Entity(model=m)</span>
+    <span class="s5"># EditorCamera()</span>
+
+
+    <span class="s5"># application.asset_folder = application.asset_folder.parent / 'samples'</span>
+    <span class="s5"># application.asset_folder = Path(r'C:\\Users\\Petter\\Downloads\\')</span>
+    <span class="s5"># Entity(model='c1a0')</span>
+    <span class="s5"># from ursina.shaders import lit_with_shadows_shader</span>
+    <span class="s5"># Entity.default_shader = lit_with_shadows_shader</span>
+    <span class="s5"># Entity(model='race')</span>
+    <span class="s5"># Entity(model='ambulance', x=1.5)</span>
+
+    <span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder </span><span class="s2">= </span><span class="s1">Path</span><span class="s2">(</span><span class="s3">r'''C:\Users\Petter\Downloads'''</span><span class="s2">)</span>
+    <span class="s1">t </span><span class="s2">= </span><span class="s1">perf_counter</span><span class="s2">()</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s3">'untitled'</span><span class="s2">)</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s3">'-------'</span><span class="s2">, </span><span class="s1">perf_counter</span><span class="s2">() - </span><span class="s1">t</span><span class="s2">)</span>
+    <span class="s1">m </span><span class="s2">= </span><span class="s1">load_model</span><span class="s2">(</span><span class="s3">'cube'</span><span class="s2">, </span><span class="s1">use_deepcopy</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+    <span class="s5"># ground = Entity(model='plane', scale=10, texture='brick', texture_scale=Vec2(4))</span>
+    <span class="s5"># DirectionalLight()</span>
+
+    <span class="s5"># blender_scene = load_blender_scene(path=application.asset_folder, name='desert', reload=True)</span>
+    <span class="s5"># blender_scene = load_blender_scene(path=application.asset_folder, name='blender_level_editor_test_scene_2')</span>
+    <span class="s5"># print('-------', time.time() - t)</span>
+
+    <span class="s5"># print('--------', blender_scene.children)</span>
+    <span class="s5"># for e in blender_scene.children:</span>
+    <span class="s5">#     # e.color = color.random_color()</span>
+    <span class="s5">#     e.shader = rim_shader</span>
+    <span class="s5">#     e.texture='matcap_4'</span>
+    <span class="s5">#</span>
+    <span class="s5">#</span>
+    <span class="s5"># blender_scene.Plane_002.collider = 'mesh'</span>
+    <span class="s5"># from ursina.prefabs.first_person_controller import FirstPersonController</span>
+    <span class="s5"># player = FirstPersonController()</span>
+
+    <span class="s5"># def input(key):</span>
+    <span class="s5">#     if key == '+':</span>
+    <span class="s5">#         for e in blender_scene.children:</span>
+    <span class="s5">#             e.texture_scale = Vec2(e.texture_scale[0], e.texture_scale[1]+.1)</span>
+    <span class="s5">#     if key == '-':</span>
+    <span class="s5">#         for e in blender_scene.children:</span>
+    <span class="s5">#             e.texture_scale = Vec2(e.texture_scale[0], e.texture_scale[1]-.1)</span>
+    <span class="s5">#         print(blender_scene.children[0].texture_scale)</span>
+    <span class="s5">#</span>
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s1">Sky</span><span class="s2">(</span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'sky_sunset'</span><span class="s2">)</span>
+    <span class="s5"># def update():</span>
+    <span class="s5">#     blender_scene.Cube.x += (held_keys['d'] - held_keys['a']) * time.dt * 10</span>
+
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+    <span class="s5"># e = Entity(model=Cylinder(16))</span>
+    <span class="s5"># ursina_mesh_to_obj(e.model, name='quad_export_test')</span>
+</pre>
+</body>
+</html>

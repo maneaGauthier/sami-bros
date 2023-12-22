@@ -1,0 +1,37 @@
+<html>
+<head>
+<title>MemoryLeakHelpers.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #7a7e85;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MemoryLeakHelpers.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1"># Documentation</span>
+<span class="s1"># http://www.python.org/doc/2.2.3/lib/module-gc.html</span>
+<span class="s1"># http://www.python.org/~jeremy/weblog/030410.html</span>
+
+<span class="s1"># Before you chase down leaks, make sure you Config:</span>
+<span class="s1"># want-dev 0</span>
+
+<span class="s1"># You may also want to run pyo-shell so __debug__ is False and assert code is removed.</span>
+
+<span class="s2">import </span><span class="s0">gc</span>
+<span class="s0">gc</span><span class="s3">.</span><span class="s0">set_debug</span><span class="s3">(</span><span class="s0">gc</span><span class="s3">.</span><span class="s0">DEBUG_LEAK</span><span class="s3">)</span>
+<span class="s0">gc</span><span class="s3">.</span><span class="s0">collect</span><span class="s3">()</span>
+<span class="s0">print</span><span class="s3">(</span><span class="s0">gc</span><span class="s3">.</span><span class="s0">garbage</span><span class="s3">)</span>
+
+<span class="s1"># Inside DistributedObjectAI, you can uncomment the __del__ function to</span>
+<span class="s1"># see when your objects are being deleted (or not)</span>
+</pre>
+</body>
+</html>

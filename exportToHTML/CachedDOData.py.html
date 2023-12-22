@@ -1,0 +1,42 @@
+<html>
+<head>
+<title>CachedDOData.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+CachedDOData.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">class </span><span class="s0">CachedDOData</span><span class="s2">:</span>
+    <span class="s3"># base class for objects that are used to store data in the CRDataCache</span>
+    <span class="s3">#</span>
+    <span class="s3"># stores a minimal set of cached data for DistributedObjects between instantiations</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># override and store cached data</span>
+        <span class="s3"># this object now owns the data</span>
+        <span class="s3"># ownership will either pass back to another instantion of the object,</span>
+        <span class="s3"># or the data will be flushed</span>
+        <span class="s1">pass</span>
+
+    <span class="s1">def </span><span class="s0">destroy</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># override and handle this object being destroyed</span>
+        <span class="s3"># this is destruction of this object, not the cached data (see flush)</span>
+        <span class="s1">pass</span>
+
+    <span class="s1">def </span><span class="s0">flush</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># override and destroy the cached data</span>
+        <span class="s3"># cached data is typically created by the DistributedObject and destroyed here</span>
+        <span class="s1">pass</span>
+</pre>
+</body>
+</html>

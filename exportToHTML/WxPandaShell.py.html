@@ -1,0 +1,264 @@
+<html>
+<head>
+<title>WxPandaShell.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #5f826b; font-style: italic;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+WxPandaShell.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">wx</span>
+<span class="s0">from </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">lib</span><span class="s2">.</span><span class="s1">agw </span><span class="s0">import </span><span class="s1">fourwaysplitter </span><span class="s0">as </span><span class="s1">FWS</span>
+
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directtools</span><span class="s2">.</span><span class="s1">DirectGlobals </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">try</span><span class="s2">:</span>
+    <span class="s1">base</span>
+<span class="s0">except </span><span class="s1">NameError</span><span class="s2">:</span>
+    <span class="s1">base </span><span class="s2">= </span><span class="s1">ShowBase</span><span class="s2">(</span><span class="s0">False</span><span class="s2">, </span><span class="s1">windowType </span><span class="s2">= </span><span class="s3">'none'</span><span class="s2">)</span>
+
+<span class="s0">from </span><span class="s2">.</span><span class="s1">WxAppShell </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">ViewPort </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s1">ID_FOUR_VIEW </span><span class="s2">= </span><span class="s4">401</span>
+<span class="s1">ID_TOP_VIEW </span><span class="s2">= </span><span class="s4">402</span>
+<span class="s1">ID_FRONT_VIEW </span><span class="s2">= </span><span class="s4">403</span>
+<span class="s1">ID_LEFT_VIEW </span><span class="s2">= </span><span class="s4">404</span>
+<span class="s1">ID_PERSP_VIEW </span><span class="s2">= </span><span class="s4">405</span>
+
+<span class="s0">class </span><span class="s1">WxPandaShell</span><span class="s2">(</span><span class="s1">WxAppShell</span><span class="s2">):</span>
+    <span class="s5">&quot;&quot;&quot; Class for Panda3D LevelEditor &quot;&quot;&quot;</span>
+    <span class="s1">frameWidth </span><span class="s2">= </span><span class="s4">800</span>
+    <span class="s1">frameHeight </span><span class="s2">= </span><span class="s4">600</span>
+    <span class="s1">appversion      </span><span class="s2">= </span><span class="s3">'1.0'</span>
+    <span class="s1">appname         </span><span class="s2">= </span><span class="s3">'Panda3D Generic WX Frame'</span>
+    <span class="s1">copyright       </span><span class="s2">= (</span><span class="s3">'Copyright 2010 Disney Online Studios.' </span><span class="s2">+</span>
+                       <span class="s3">'</span><span class="s0">\n</span><span class="s3">All Rights Reserved.'</span><span class="s2">)</span>
+
+    <span class="s1">MENU_TEXTS </span><span class="s2">= {</span>
+        <span class="s1">ID_FOUR_VIEW </span><span class="s2">: (</span><span class="s3">&quot;Four Views&quot;</span><span class="s2">, </span><span class="s0">None</span><span class="s2">),</span>
+        <span class="s1">ID_TOP_VIEW </span><span class="s2">: (</span><span class="s3">&quot;Top View&quot;</span><span class="s2">, </span><span class="s0">None</span><span class="s2">),</span>
+        <span class="s1">ID_FRONT_VIEW </span><span class="s2">: (</span><span class="s3">&quot;Front View&quot;</span><span class="s2">, </span><span class="s0">None</span><span class="s2">),</span>
+        <span class="s1">ID_LEFT_VIEW </span><span class="s2">: (</span><span class="s3">&quot;Left View&quot;</span><span class="s2">, </span><span class="s0">None</span><span class="s2">),</span>
+        <span class="s1">ID_PERSP_VIEW </span><span class="s2">: (</span><span class="s3">&quot;Persp View&quot;</span><span class="s2">, </span><span class="s0">None</span><span class="s2">),</span>
+        <span class="s2">}</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fStartDirect </span><span class="s2">= </span><span class="s0">False</span><span class="s2">):</span>
+        <span class="s1">fDirect </span><span class="s2">= (</span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s3">'want-directtools'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">) </span><span class="s0">or</span>
+                   <span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetString</span><span class="s2">(</span><span class="s3">&quot;cluster-mode&quot;</span><span class="s2">, </span><span class="s3">''</span><span class="s2">) != </span><span class="s3">''</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fStartDirect </span><span class="s2">= </span><span class="s1">fStartDirect </span><span class="s0">or </span><span class="s1">fDirect</span>
+
+        <span class="s6"># Create the Wx app</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">wxApp </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">App</span><span class="s2">(</span><span class="s1">redirect </span><span class="s2">= </span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">wxApp</span><span class="s2">.</span><span class="s1">SetAppName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">appname</span><span class="s2">)</span>
+        <span class="s1">WxAppShell</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">=</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Size</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameWidth</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameHeight</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialize</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">createMenu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuView </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Menu</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">Insert</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">GetMenuCount</span><span class="s2">() - </span><span class="s4">1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuView</span><span class="s2">, </span><span class="s3">&quot;&amp;View&quot;</span><span class="s2">)</span>
+
+        <span class="s1">menuItem </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuView</span><span class="s2">.</span><span class="s1">AppendRadioItem</span><span class="s2">(</span><span class="s1">ID_FOUR_VIEW</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">MENU_TEXTS</span><span class="s2">[</span><span class="s1">ID_FOUR_VIEW</span><span class="s2">][</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_MENU</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">=-</span><span class="s4">1</span><span class="s2">:</span><span class="s1">self</span><span class="s2">.</span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">), </span><span class="s1">menuItem</span><span class="s2">)</span>
+
+        <span class="s1">menuItem </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuView</span><span class="s2">.</span><span class="s1">AppendRadioItem</span><span class="s2">(</span><span class="s1">ID_TOP_VIEW</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">MENU_TEXTS</span><span class="s2">[</span><span class="s1">ID_TOP_VIEW</span><span class="s2">][</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_MENU</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">=</span><span class="s4">0</span><span class="s2">:</span><span class="s1">self</span><span class="s2">.</span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">), </span><span class="s1">menuItem</span><span class="s2">)</span>
+
+        <span class="s1">menuItem </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuView</span><span class="s2">.</span><span class="s1">AppendRadioItem</span><span class="s2">(</span><span class="s1">ID_FRONT_VIEW</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">MENU_TEXTS</span><span class="s2">[</span><span class="s1">ID_FRONT_VIEW</span><span class="s2">][</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_MENU</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">=</span><span class="s4">1</span><span class="s2">:</span><span class="s1">self</span><span class="s2">.</span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">), </span><span class="s1">menuItem</span><span class="s2">)</span>
+
+        <span class="s1">menuItem </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuView</span><span class="s2">.</span><span class="s1">AppendRadioItem</span><span class="s2">(</span><span class="s1">ID_LEFT_VIEW</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">MENU_TEXTS</span><span class="s2">[</span><span class="s1">ID_LEFT_VIEW</span><span class="s2">][</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_MENU</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">=</span><span class="s4">2</span><span class="s2">:</span><span class="s1">self</span><span class="s2">.</span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">), </span><span class="s1">menuItem</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspViewMenuItem </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuView</span><span class="s2">.</span><span class="s1">AppendRadioItem</span><span class="s2">(</span><span class="s1">ID_PERSP_VIEW</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">MENU_TEXTS</span><span class="s2">[</span><span class="s1">ID_PERSP_VIEW</span><span class="s2">][</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Bind</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EVT_MENU</span><span class="s2">, </span><span class="s0">lambda </span><span class="s1">p0</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">=</span><span class="s4">3</span><span class="s2">:</span><span class="s1">self</span><span class="s2">.</span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s1">p0</span><span class="s2">, </span><span class="s1">p1</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspViewMenuItem</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">createInterface</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createMenu</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mainFrame </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SplitterWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_3D </span><span class="s2">| </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_BORDER</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">leftFrame </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SplitterWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mainFrame</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_3D </span><span class="s2">| </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_BORDER</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">baseFrame </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SplitterWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mainFrame</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_3D </span><span class="s2">| </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_BORDER</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame </span><span class="s2">= </span><span class="s1">FWS</span><span class="s2">.</span><span class="s1">FourWaySplitter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">baseFrame</span><span class="s2">, </span><span class="s1">style</span><span class="s2">=</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_LIVE_UPDATE</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rightFrame </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SplitterWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">baseFrame</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_3D </span><span class="s2">| </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">SP_BORDER</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">topView </span><span class="s2">= </span><span class="s1">Viewport</span><span class="s2">.</span><span class="s1">makeTop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">AppendWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">topView</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frontView </span><span class="s2">= </span><span class="s1">Viewport</span><span class="s2">.</span><span class="s1">makeFront</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">AppendWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frontView</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">leftView </span><span class="s2">= </span><span class="s1">Viewport</span><span class="s2">.</span><span class="s1">makeLeft</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">AppendWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftView</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspView </span><span class="s2">= </span><span class="s1">Viewport</span><span class="s2">.</span><span class="s1">makePerspective</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">AppendWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspView</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">leftBarUpPane </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Panel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">leftBarDownPane </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Panel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rightBarUpPane </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Panel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rightFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rightBarDownPane </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">Panel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rightFrame</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">leftFrame</span><span class="s2">.</span><span class="s1">SplitHorizontally</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftBarUpPane</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftBarDownPane</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rightFrame</span><span class="s2">.</span><span class="s1">SplitHorizontally</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rightBarUpPane</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rightBarDownPane</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mainFrame</span><span class="s2">.</span><span class="s1">SplitVertically</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftFrame</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">baseFrame</span><span class="s2">, </span><span class="s4">200</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">baseFrame</span><span class="s2">.</span><span class="s1">SplitVertically</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rightFrame</span><span class="s2">, </span><span class="s4">600</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">leftFrame</span><span class="s2">.</span><span class="s1">SetSashGravity</span><span class="s2">(</span><span class="s4">0.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rightFrame</span><span class="s2">.</span><span class="s1">SetSashGravity</span><span class="s2">(</span><span class="s4">0.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">baseFrame</span><span class="s2">.</span><span class="s1">SetSashGravity</span><span class="s2">(</span><span class="s4">1.0</span><span class="s2">)</span>
+
+        <span class="s1">sizer </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">BoxSizer</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">.</span><span class="s1">VERTICAL</span><span class="s2">)</span>
+        <span class="s1">sizer</span><span class="s2">.</span><span class="s1">Add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mainFrame</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EXPAND</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">SetSizer</span><span class="s2">(</span><span class="s1">sizer</span><span class="s2">)</span><span class="s1">; self</span><span class="s2">.</span><span class="s1">Layout</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">initialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">&quot;&quot;&quot;Initializes the viewports and editor.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">Update</span><span class="s2">()</span>
+        <span class="s1">ViewportManager</span><span class="s2">.</span><span class="s1">updateAll</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">wxStep</span><span class="s2">()</span>
+        <span class="s1">ViewportManager</span><span class="s2">.</span><span class="s1">initializeAll</span><span class="s2">()</span>
+        <span class="s6"># Position the camera</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">trackball </span><span class="s2">!= </span><span class="s0">None</span><span class="s2">:</span>
+          <span class="s1">base</span><span class="s2">.</span><span class="s1">trackball</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setPos</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">30</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+          <span class="s1">base</span><span class="s2">.</span><span class="s1">trackball</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">15</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s6"># to make persp view as default</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspViewMenuItem</span><span class="s2">.</span><span class="s1">Toggle</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s0">None</span><span class="s2">, </span><span class="s4">3</span><span class="s2">)</span>
+
+        <span class="s6"># initializing direct</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fStartDirect</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">startDirect</span><span class="s2">(</span><span class="s1">fWantTk </span><span class="s2">= </span><span class="s4">0</span><span class="s2">, </span><span class="s1">fWantWx </span><span class="s2">= </span><span class="s4">0</span><span class="s2">)</span>
+
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">disableMouseEvents</span><span class="s2">()</span>
+            <span class="s1">newMouseEvents </span><span class="s2">= [</span><span class="s3">&quot;_le_per_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">mouseEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_fro_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">mouseEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_lef_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">mouseEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_top_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">mouseEvents</span><span class="s2">]</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">mouseEvents </span><span class="s2">= </span><span class="s1">newMouseEvents</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">enableMouseEvents</span><span class="s2">()</span>
+
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">disableKeyEvents</span><span class="s2">()</span>
+            <span class="s1">keyEvents </span><span class="s2">= [</span><span class="s3">&quot;_le_per_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">keyEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_fro_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">keyEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_lef_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">keyEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_top_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">keyEvents</span><span class="s2">]</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">keyEvents </span><span class="s2">= </span><span class="s1">keyEvents</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">enableKeyEvents</span><span class="s2">()</span>
+
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">disableModifierEvents</span><span class="s2">()</span>
+            <span class="s1">modifierEvents </span><span class="s2">= [</span><span class="s3">&quot;_le_per_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">modifierEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_fro_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">modifierEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_lef_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">modifierEvents</span><span class="s2">] +</span><span class="s1">\</span>
+                             <span class="s2">[</span><span class="s3">&quot;_le_top_%s&quot;</span><span class="s2">%</span><span class="s1">x </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">modifierEvents</span><span class="s2">]</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">modifierEvents </span><span class="s2">= </span><span class="s1">modifierEvents</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">enableModifierEvents</span><span class="s2">()</span>
+
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cameraControl</span><span class="s2">.</span><span class="s1">lockRoll </span><span class="s2">= </span><span class="s0">True</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">setFScaleWidgetByCam</span><span class="s2">(</span><span class="s4">1</span><span class="s2">)</span>
+
+            <span class="s1">unpickables </span><span class="s2">= [</span>
+                <span class="s3">&quot;z-guide&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;y-guide&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;x-guide&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;x-disc-geom&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;x-ring-line&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;x-post-line&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;y-disc-geom&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;y-ring-line&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;y-post-line&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;z-disc-geom&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;z-ring-line&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;z-post-line&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;centerLines&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;majorLines&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;minorLines&quot;</span><span class="s2">,</span>
+                <span class="s3">&quot;Sphere&quot;</span><span class="s2">,]</span>
+
+            <span class="s0">for </span><span class="s1">unpickable </span><span class="s0">in </span><span class="s1">unpickables</span><span class="s2">:</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">addUnpickable</span><span class="s2">(</span><span class="s1">unpickable</span><span class="s2">)</span>
+
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">optionalSkipFlags </span><span class="s2">|= </span><span class="s1">SKIP_UNPICKABLE</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">fAllowMarquee </span><span class="s2">= </span><span class="s4">1</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">supportMultiView</span><span class="s2">()</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cameraControl</span><span class="s2">.</span><span class="s1">useMayaCamControls </span><span class="s2">= </span><span class="s4">1</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cameraControl</span><span class="s2">.</span><span class="s1">perspCollPlane </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspView</span><span class="s2">.</span><span class="s1">collPlane</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cameraControl</span><span class="s2">.</span><span class="s1">perspCollPlane2 </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspView</span><span class="s2">.</span><span class="s1">collPlane2</span>
+
+            <span class="s0">for </span><span class="s1">widget </span><span class="s0">in </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">widgetList</span><span class="s2">:</span>
+                <span class="s1">widget</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'gui-popup'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+                <span class="s1">widget</span><span class="s2">.</span><span class="s1">setDepthTest</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+
+            <span class="s6"># [gjeon] to intercept messages here</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s3">'DIRECT-delete'</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s3">'DIRECT-select'</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s3">'DIRECT-preDeselectAll'</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s3">'DIRECT-toggleWidgetVis'</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fIgnoreDirectOnlyKeyMap </span><span class="s2">= </span><span class="s4">1</span>
+
+            <span class="s6"># [gjeon] do not use the old way of finding current DR</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">drList</span><span class="s2">.</span><span class="s1">tryToGetCurrentDr </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">=</span><span class="s0">None</span>
+        <span class="s6">#base.closeWindow(base.win)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">win </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">winList</span><span class="s2">[</span><span class="s4">3</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">wxStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s5">&quot;&quot;&quot;A step in the WX event loop. You can either call this yourself or use as task.&quot;&quot;&quot;</span>
+        <span class="s0">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">evtLoop</span><span class="s2">.</span><span class="s1">Pending</span><span class="s2">():</span>
+          <span class="s1">self</span><span class="s2">.</span><span class="s1">evtLoop</span><span class="s2">.</span><span class="s1">Dispatch</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">wxApp</span><span class="s2">.</span><span class="s1">ProcessIdle</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">task </span><span class="s2">!= </span><span class="s0">None</span><span class="s2">: </span><span class="s0">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">appInit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">&quot;&quot;&quot;Overridden from WxAppShell.py.&quot;&quot;&quot;</span>
+        <span class="s6"># Create a new event loop (to overide default wxEventLoop)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">evtLoop </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EventLoop</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">oldLoop </span><span class="s2">= </span><span class="s1">wx</span><span class="s2">.</span><span class="s1">EventLoop</span><span class="s2">.</span><span class="s1">GetActive</span><span class="s2">()</span>
+        <span class="s1">wx</span><span class="s2">.</span><span class="s1">EventLoop</span><span class="s2">.</span><span class="s1">SetActive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">evtLoop</span><span class="s2">)</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">wxStep</span><span class="s2">, </span><span class="s3">&quot;evtLoopTask&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">onViewChange</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">evt</span><span class="s2">, </span><span class="s1">viewIdx</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">4</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">viewIdx </span><span class="s2">&gt;=</span><span class="s4">0 </span><span class="s0">and</span><span class="s1">\</span>
+               <span class="s1">i </span><span class="s2">!= </span><span class="s1">viewIdx</span><span class="s2">:</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">winList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setActive</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">winList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setActive</span><span class="s2">(</span><span class="s4">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">SetExpanded</span><span class="s2">(</span><span class="s1">viewIdx</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">getCurrentView</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">&quot;&quot;&quot;Function for get the current Viewport&quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">_expanded </span><span class="s2">== -</span><span class="s4">1</span><span class="s2">: </span><span class="s6">#four view</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentView </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">_expanded </span><span class="s2">== </span><span class="s4">0</span><span class="s2">: </span><span class="s6">#top view</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentView </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">topView</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">_expanded </span><span class="s2">== </span><span class="s4">1</span><span class="s2">: </span><span class="s6">#front view</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentView </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frontView</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">_expanded </span><span class="s2">== </span><span class="s4">2</span><span class="s2">: </span><span class="s6">#left view</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentView </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">leftView</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">viewFrame</span><span class="s2">.</span><span class="s1">_expanded </span><span class="s2">== </span><span class="s4">3</span><span class="s2">: </span><span class="s6">#perspect view</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentView </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspView</span>
+
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currentView</span>
+
+
+</pre>
+</body>
+</html>

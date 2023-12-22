@@ -1,0 +1,1282 @@
+<html>
+<head>
+<title>libp3distort.in</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+libp3distort.in</font>
+</center></td></tr></table>
+<pre><span class="s0">1673266749</span>
+<span class="s0">3 3</span>
+<span class="s0">12 libp3distort 4 2YN4 10 panda3d.fx </span>
+<span class="s0">65</span>
+<span class="s0">64 15 CylindricalLens 0 260 129 32 CylindricalLens::CylindricalLens 0 1 1 22</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline CylindricalLens::CylindricalLens(void);</span>
+
+<span class="s0">65 14 get_class_type 0 4 129 31 CylindricalLens::get_class_type 0 1 2 0</span>
+<span class="s0">56</span>
+<span class="s0">static TypeHandle CylindricalLens::get_class_type(void);</span>
+
+<span class="s0">66 16 ~CylindricalLens 0 516 129 33 CylindricalLens::~CylindricalLens 0 0 0</span>
+<span class="s0">40</span>
+<span class="s0">CylindricalLens::~CylindricalLens(void);</span>
+
+<span class="s0">67 11 FisheyeLens 0 260 131 24 FisheyeLens::FisheyeLens 0 1 3 22</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">38</span>
+<span class="s0">inline FisheyeLens::FisheyeLens(void);</span>
+
+<span class="s0">68 14 get_class_type 0 4 131 27 FisheyeLens::get_class_type 0 1 4 0</span>
+<span class="s0">52</span>
+<span class="s0">static TypeHandle FisheyeLens::get_class_type(void);</span>
+
+<span class="s0">69 12 ~FisheyeLens 0 516 131 25 FisheyeLens::~FisheyeLens 0 0 0</span>
+<span class="s0">32</span>
+<span class="s0">FisheyeLens::~FisheyeLens(void);</span>
+
+<span class="s0">70 16 ProjectionScreen 0 260 132 34 ProjectionScreen::ProjectionScreen 0 1 5 22</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">74</span>
+<span class="s0">explicit ProjectionScreen::ProjectionScreen(std::string const &amp;name = &quot;&quot;);</span>
+
+<span class="s0">71 13 set_projector 0 4 132 31 ProjectionScreen::set_projector 0 1 6 370</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the LensNode that is to serve as the projector for this screen.</span>
+ <span class="s0">* The relative position of the LensNode to the ProjectionScreen, as well as</span>
+ <span class="s0">* the properties of the lens associated with the LensNode, determines the</span>
+ <span class="s0">* UV's that will be assigned to the geometry within the ProjectionScreen.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The NodePath must refer to a LensNode (or a Camera).</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">void ProjectionScreen::set_projector(NodePath const &amp;projector);</span>
+
+<span class="s0">72 13 get_projector 0 4 132 31 ProjectionScreen::get_projector 0 1 7 141</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the NodePath to the LensNode that is to serve as the projector for</span>
+ <span class="s0">* this screen, or empty if no projector is associated.</span>
+ <span class="s0">*/</span>
+<span class="s0">67</span>
+<span class="s0">inline NodePath const &amp;ProjectionScreen::get_projector(void) const;</span>
+
+<span class="s0">73 16 clear_undist_lut 0 4 132 34 ProjectionScreen::clear_undist_lut 0 1 8 80</span>
+<span class="s0">/**</span>
+ <span class="s0">* Removes the distortion lookup table from the projector, if specified.</span>
+ <span class="s0">*/</span>
+<span class="s0">53</span>
+<span class="s0">inline void ProjectionScreen::clear_undist_lut(void);</span>
+
+<span class="s0">74 14 set_undist_lut 0 4 132 32 ProjectionScreen::set_undist_lut 0 1 9 314</span>
+<span class="s0">/**</span>
+ <span class="s0">* Applies a distortion lookup table to the projector.  This mapping warps the</span>
+ <span class="s0">* lens effect by passing each ray through an indirection table: the point</span>
+ <span class="s0">* (u,v) in the indicated lookup table stores the actual (u,v) that the lens</span>
+ <span class="s0">* produces.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This does not affect the operation of generate_screen().</span>
+ <span class="s0">*/</span>
+<span class="s0">72</span>
+<span class="s0">inline void ProjectionScreen::set_undist_lut(PfmFile const &amp;undist_lut);</span>
+
+<span class="s0">75 14 has_undist_lut 0 4 132 32 ProjectionScreen::has_undist_lut 0 1 10 113</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns true if a valid distortion lookup table was provided via</span>
+ <span class="s0">* set_undist_lut(), false otherwise.</span>
+ <span class="s0">*/</span>
+<span class="s0">57</span>
+<span class="s0">inline bool ProjectionScreen::has_undist_lut(void) const;</span>
+
+<span class="s0">76 14 get_undist_lut 0 4 132 32 ProjectionScreen::get_undist_lut 0 1 11 85</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the distortion lookup table provided via set_undist_lut(), if any.</span>
+ <span class="s0">*/</span>
+<span class="s0">67</span>
+<span class="s0">inline PfmFile const &amp;ProjectionScreen::get_undist_lut(void) const;</span>
+
+<span class="s0">77 15 generate_screen 0 4 132 33 ProjectionScreen::generate_screen 0 1 12 1183</span>
+<span class="s0">/**</span>
+ <span class="s0">* Synthesizes a polygon mesh based on the projection area of the indicated</span>
+ <span class="s0">* projector.  This generates and returns a new GeomNode but does not</span>
+ <span class="s0">* automatically parent it to the ProjectionScreen node; see</span>
+ <span class="s0">* regenerate_screen().</span>
+ <span class="s0">*</span>
+ <span class="s0">* The specified projector need not be the same as the projector given to the</span>
+ <span class="s0">* ProjectionScreen with set_projector() (although this is often what you</span>
+ <span class="s0">* want).</span>
+ <span class="s0">*</span>
+ <span class="s0">* num_x_verts and num_y_verts specify the number of vertices to make in the</span>
+ <span class="s0">* grid across the horizontal and vertical dimension of the projector,</span>
+ <span class="s0">* respectively; distance represents the approximate distance of the screen</span>
+ <span class="s0">* from the lens center.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The fill_ratio parameter specifies the fraction of the image to cover.  If</span>
+ <span class="s0">* it is 1.0, the entire image is shown full-size; if it is 0.9, 10% of the</span>
+ <span class="s0">* image around the edges is not part of the grid (and the grid is drawn</span>
+ <span class="s0">* smaller by the same 10%).  This is intended to work around graphics drivers</span>
+ <span class="s0">* that tend to show dark edges or other unsatisfactory artifacts around the</span>
+ <span class="s0">* edges of textures: render the texture larger than necessary by a certain</span>
+ <span class="s0">* fraction, and make the screen smaller by the inverse fraction.</span>
+ <span class="s0">*/</span>
+<span class="s0">195</span>
+<span class="s0">PointerTo&lt; GeomNode &gt; ProjectionScreen::generate_screen(NodePath const &amp;projector, std::string const &amp;screen_name, int num_x_verts, int num_y_verts, PN_stdfloat distance, PN_stdfloat fill_ratio);</span>
+
+<span class="s0">78 17 regenerate_screen 0 4 132 35 ProjectionScreen::regenerate_screen 0 1 13 136</span>
+<span class="s0">/**</span>
+ <span class="s0">* Removes all the children from the ProjectionScreen node, and adds the newly</span>
+ <span class="s0">* generated child returned by generate_screen().</span>
+ <span class="s0">*/</span>
+<span class="s0">180</span>
+<span class="s0">void ProjectionScreen::regenerate_screen(NodePath const &amp;projector, std::string const &amp;screen_name, int num_x_verts, int num_y_verts, PN_stdfloat distance, PN_stdfloat fill_ratio);</span>
+
+<span class="s0">79 14 make_flat_mesh 0 4 132 32 ProjectionScreen::make_flat_mesh 0 1 14 647</span>
+<span class="s0">/**</span>
+ <span class="s0">* Generates a deep copy of the hierarchy at the ProjectionScreen node and</span>
+ <span class="s0">* below, with vertices flattened into two dimensions as if they were seen by</span>
+ <span class="s0">* the indicated camera node.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This is useful for rendering an image as seen through a non-linear lens.</span>
+ <span class="s0">* The resulting mesh will have vertices in the range [-1, 1] in both x and y,</span>
+ <span class="s0">* and may be then rendered with an ordinary orthographic lens, to generate</span>
+ <span class="s0">* the effect of seeing the image through the specified non-linear lens.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The returned node has no parent; it is up to the caller to parent it</span>
+ <span class="s0">* somewhere or store it so that it does not get dereferenced and deleted.</span>
+ <span class="s0">*/</span>
+<span class="s0">105</span>
+<span class="s0">PointerTo&lt; PandaNode &gt; ProjectionScreen::make_flat_mesh(NodePath const &amp;this_np, NodePath const &amp;camera);</span>
+
+<span class="s0">80 17 set_texcoord_name 0 4 132 35 ProjectionScreen::set_texcoord_name 0 1 15 269</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the name of the texture coordinates that are generated by this</span>
+ <span class="s0">* particular ProjectionScreen.  This can be used in the presence of</span>
+ <span class="s0">* multitexturing to compute the UV's for just a subset of all of the active</span>
+ <span class="s0">* stages of the multitexture pipeline.</span>
+ <span class="s0">*/</span>
+<span class="s0">82</span>
+<span class="s0">inline void ProjectionScreen::set_texcoord_name(std::string const &amp;texcoord_name);</span>
+
+<span class="s0">81 17 get_texcoord_name 0 4 132 35 ProjectionScreen::get_texcoord_name 0 1 16 148</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the name of the texture coordinates that will be generated by this</span>
+ <span class="s0">* particular ProjectionScreen, as set by set_texcoord_name().</span>
+ <span class="s0">*/</span>
+<span class="s0">67</span>
+<span class="s0">inline std::string ProjectionScreen::get_texcoord_name(void) const;</span>
+
+<span class="s0">82 14 set_invert_uvs 0 4 132 32 ProjectionScreen::set_invert_uvs 0 1 17 439</span>
+<span class="s0">/**</span>
+ <span class="s0">* Some OpenGL graphics drivers are known to invert the framebuffer image when</span>
+ <span class="s0">* they copy it to texture.  (This is arguably a problem with the OpenGL spec,</span>
+ <span class="s0">* which seems to be unclear about the proper ordering of pixels in this</span>
+ <span class="s0">* operation.)</span>
+ <span class="s0">*</span>
+ <span class="s0">* In any case, set this true to compensate for this effect by inverting the</span>
+ <span class="s0">* UV's of the projection screen.  The default is taken from the Configrc</span>
+ <span class="s0">* variable project-invert-uvs.</span>
+ <span class="s0">*/</span>
+<span class="s0">62</span>
+<span class="s0">inline void ProjectionScreen::set_invert_uvs(bool invert_uvs);</span>
+
+<span class="s0">83 14 get_invert_uvs 0 4 132 32 ProjectionScreen::get_invert_uvs 0 1 18 135</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns whether this screen is compensating for a graphics driver inverting</span>
+ <span class="s0">* the framebuffer image.  See set_invert_uvs().</span>
+ <span class="s0">*/</span>
+<span class="s0">57</span>
+<span class="s0">inline bool ProjectionScreen::get_invert_uvs(void) const;</span>
+
+<span class="s0">84 15 set_texcoord_3d 0 4 132 33 ProjectionScreen::set_texcoord_3d 0 1 19 322</span>
+<span class="s0">/**</span>
+ <span class="s0">* Set this true to force 3-D texture coordinates to be created for the</span>
+ <span class="s0">* geometry.  When this is true and the geometry has only 2-D texture</span>
+ <span class="s0">* coordinates, those texture coordinates are dumped in favor of 3-D</span>
+ <span class="s0">* coordinates.  When this is false, whatever texture coordinates already</span>
+ <span class="s0">* exist are preserved as-is.</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">inline void ProjectionScreen::set_texcoord_3d(bool texcoord_3d);</span>
+
+<span class="s0">85 15 get_texcoord_3d 0 4 132 33 ProjectionScreen::get_texcoord_3d 0 1 20 33</span>
+<span class="s0">/**</span>
+ <span class="s0">* See set_texcoord_3d().</span>
+ <span class="s0">*/</span>
+<span class="s0">58</span>
+<span class="s0">inline bool ProjectionScreen::get_texcoord_3d(void) const;</span>
+
+<span class="s0">86 15 set_vignette_on 0 4 132 33 ProjectionScreen::set_vignette_on 0 1 21 471</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies whether vertex-based vignetting should be on.  When this is</span>
+ <span class="s0">* enabled, vertex color will be set on the screen vertices to color the</span>
+ <span class="s0">* screen two distinct colors, usually white and black, for the parts of the</span>
+ <span class="s0">* screen in front of and outside the lens' frustum, respectively.  When this</span>
+ <span class="s0">* is not enabled, the screen color will be left alone.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This effect generally looks terrible, but it does at least make the</span>
+ <span class="s0">* boundaries of the lens clear.</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">inline void ProjectionScreen::set_vignette_on(bool vignette_on);</span>
+
+<span class="s0">87 15 get_vignette_on 0 4 132 33 ProjectionScreen::get_vignette_on 0 1 22 101</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns true if vertex-based vignetting is on, false otherwise.  See</span>
+ <span class="s0">* set_vignette_on().</span>
+ <span class="s0">*/</span>
+<span class="s0">58</span>
+<span class="s0">inline bool ProjectionScreen::get_vignette_on(void) const;</span>
+
+<span class="s0">88 18 set_vignette_color 0 4 132 36 ProjectionScreen::set_vignette_color 0 1 23 244</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the color the screen will be painted at the portions outside of</span>
+ <span class="s0">* the lens' frustum; i.e.  where the lens can't see it or illuminate it.</span>
+ <span class="s0">* This color is only used if the vignette_on flag is true; see</span>
+ <span class="s0">* set_vignette_on().</span>
+ <span class="s0">*/</span>
+<span class="s0">79</span>
+<span class="s0">inline void ProjectionScreen::set_vignette_color(LColor const &amp;vignette_color);</span>
+
+<span class="s0">89 18 get_vignette_color 0 4 132 36 ProjectionScreen::get_vignette_color 0 1 24 131</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the color the screen will be painted at the portions outside of the</span>
+ <span class="s0">* lens' frustum.  See set_vignette_color().</span>
+ <span class="s0">*/</span>
+<span class="s0">70</span>
+<span class="s0">inline LColor const &amp;ProjectionScreen::get_vignette_color(void) const;</span>
+
+<span class="s0">90 15 set_frame_color 0 4 132 33 ProjectionScreen::set_frame_color 0 1 25 244</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the color the screen will be painted at the portions outside of</span>
+ <span class="s0">* the lens' frustum; i.e.  where the lens can't see it or illuminate it.</span>
+ <span class="s0">* This color is only used if the vignette_on flag is true; see</span>
+ <span class="s0">* set_vignette_on().</span>
+ <span class="s0">*/</span>
+<span class="s0">73</span>
+<span class="s0">inline void ProjectionScreen::set_frame_color(LColor const &amp;frame_color);</span>
+
+<span class="s0">91 15 get_frame_color 0 4 132 33 ProjectionScreen::get_frame_color 0 1 26 128</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the color the screen will be painted at the portions outside of the</span>
+ <span class="s0">* lens' frustum.  See set_frame_color().</span>
+ <span class="s0">*/</span>
+<span class="s0">67</span>
+<span class="s0">inline LColor const &amp;ProjectionScreen::get_frame_color(void) const;</span>
+
+<span class="s0">92 18 set_auto_recompute 0 4 132 36 ProjectionScreen::set_auto_recompute 0 1 27 229</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the auto_recompute flag.  When this is true, the ProjectionScreen will</span>
+ <span class="s0">* always be recomputed if necessary before the frame is drawn; when it is</span>
+ <span class="s0">* false, an explicit call to recompute_if_stale() may be required.</span>
+ <span class="s0">*/</span>
+<span class="s0">70</span>
+<span class="s0">inline void ProjectionScreen::set_auto_recompute(bool auto_recompute);</span>
+
+<span class="s0">93 18 get_auto_recompute 0 4 132 36 ProjectionScreen::get_auto_recompute 0 1 28 232</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the auto_recompute flag.  When this is true, the ProjectionScreen</span>
+ <span class="s0">* will always be recomputed if necessary before the frame is drawn; when it</span>
+ <span class="s0">* is false, an explicit call to recompute_if_stale() may be required.</span>
+ <span class="s0">*/</span>
+<span class="s0">61</span>
+<span class="s0">inline bool ProjectionScreen::get_auto_recompute(void) const;</span>
+
+<span class="s0">94 9 recompute 0 4 132 27 ProjectionScreen::recompute 0 1 29 375</span>
+<span class="s0">/**</span>
+ <span class="s0">* Recomputes all the UV's for geometry below the ProjectionScreen node, as if</span>
+ <span class="s0">* the texture were projected from the associated projector.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This function is normally called automatically whenever the relevant</span>
+ <span class="s0">* properties change, so it should not normally need to be called directly by</span>
+ <span class="s0">* the user.  However, it does no harm to call this if there is any doubt.</span>
+ <span class="s0">*/</span>
+<span class="s0">39</span>
+<span class="s0">void ProjectionScreen::recompute(void);</span>
+
+<span class="s0">95 15 get_last_screen 0 4 132 33 ProjectionScreen::get_last_screen 0 1 30 290</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns an UpdateSeq corresponding to the last time a screen mesh was</span>
+ <span class="s0">* generated for the ProjectionScreen.  Each time generate_screen() is called,</span>
+ <span class="s0">* this number is incremented; this allows other objects (like</span>
+ <span class="s0">* NonlinearImager) to know when they need to recompute themselves.</span>
+ <span class="s0">*/</span>
+<span class="s0">70</span>
+<span class="s0">inline UpdateSeq const &amp;ProjectionScreen::get_last_screen(void) const;</span>
+
+<span class="s0">96 18 recompute_if_stale 0 4 132 36 ProjectionScreen::recompute_if_stale 0 2 31 32 438</span>
+<span class="s0">/**</span>
+ <span class="s0">* Calls recompute() only if the relative transform between the</span>
+ <span class="s0">* ProjectionScreen and the projector has changed, or if any other relevant</span>
+ <span class="s0">* property has changed.  Returns true if recomputed, false otherwise.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Calls recompute() only if the relative transform between the</span>
+ <span class="s0">* ProjectionScreen and the projector has changed, or if any other relevant</span>
+ <span class="s0">* property has changed.  Returns true if recomputed, false otherwise.</span>
+ <span class="s0">*/</span>
+<span class="s0">116</span>
+<span class="s0">bool ProjectionScreen::recompute_if_stale(void);</span>
+<span class="s0">bool ProjectionScreen::recompute_if_stale(NodePath const &amp;this_np);</span>
+
+<span class="s0">97 14 get_class_type 0 4 132 32 ProjectionScreen::get_class_type 0 1 33 0</span>
+<span class="s0">57</span>
+<span class="s0">static TypeHandle ProjectionScreen::get_class_type(void);</span>
+
+<span class="s0">98 15 NonlinearImager 0 260 134 32 NonlinearImager::NonlinearImager 0 2 34 35 10</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">115</span>
+<span class="s0">NonlinearImager::NonlinearImager(void);</span>
+<span class="s0">inline NonlinearImager::NonlinearImager(NonlinearImager const &amp;) = default;</span>
+
+<span class="s0">99 16 ~NonlinearImager 0 516 134 33 NonlinearImager::~NonlinearImager 0 0 10</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">40</span>
+<span class="s0">NonlinearImager::~NonlinearImager(void);</span>
+
+<span class="s0">100 10 add_screen 0 4 134 27 NonlinearImager::add_screen 0 2 36 37 832</span>
+<span class="s0">/**</span>
+ <span class="s0">* This version of this method is deprecated and will soon be removed.  Use</span>
+ <span class="s0">* the version that takes two parameters instead.</span>
+ <span class="s0">*</span>
+ <span class="s0">* @deprecated Use the version that takes two parameters instead.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Adds a new ProjectionScreen to the list of screens that will be processed</span>
+ <span class="s0">* by the NonlinearImager.  Each ProjectionScreen represents a view into the</span>
+ <span class="s0">* world.  It must be based on a linear camera (or whatever kind of camera is</span>
+ <span class="s0">* respected by the graphics engine).</span>
+ <span class="s0">*</span>
+ <span class="s0">* Each ProjectionScreen object should already have some screen geometry</span>
+ <span class="s0">* created.</span>
+ <span class="s0">*</span>
+ <span class="s0">* As each frame is rendered, an offscreen image will be rendered from the</span>
+ <span class="s0">* source camera associated with each ProjectionScreen, and the resulting</span>
+ <span class="s0">* image will be applied to the screen geometry.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is the index number of the new screen.</span>
+ <span class="s0">*/</span>
+<span class="s0">140</span>
+<span class="s0">int NonlinearImager::add_screen(ProjectionScreen *screen);</span>
+<span class="s0">int NonlinearImager::add_screen(NodePath const &amp;screen, std::string const &amp;name);</span>
+
+<span class="s0">101 11 find_screen 0 4 134 28 NonlinearImager::find_screen 0 1 38 141</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the index number of the first appearance of the indicated screen</span>
+ <span class="s0">* within the imager's list, or -1 if it does not appear.</span>
+ <span class="s0">*/</span>
+<span class="s0">63</span>
+<span class="s0">int NonlinearImager::find_screen(NodePath const &amp;screen) const;</span>
+
+<span class="s0">102 13 remove_screen 0 4 134 30 NonlinearImager::remove_screen 0 1 39 78</span>
+<span class="s0">/**</span>
+ <span class="s0">* Removes the screen with the indicated index number from the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">47</span>
+<span class="s0">void NonlinearImager::remove_screen(int index);</span>
+
+<span class="s0">103 18 remove_all_screens 0 4 134 35 NonlinearImager::remove_all_screens 0 1 40 47</span>
+<span class="s0">/**</span>
+ <span class="s0">* Removes all screens from the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">47</span>
+<span class="s0">void NonlinearImager::remove_all_screens(void);</span>
+
+<span class="s0">104 15 get_num_screens 0 4 134 32 NonlinearImager::get_num_screens 0 1 41 76</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the number of screens that have been added to the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">int NonlinearImager::get_num_screens(void) const;</span>
+
+<span class="s0">105 10 get_screen 0 4 134 27 NonlinearImager::get_screen 0 1 42 68</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the nth screen that has been added to the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">54</span>
+<span class="s0">NodePath NonlinearImager::get_screen(int index) const;</span>
+
+<span class="s0">106 10 get_buffer 0 4 134 27 NonlinearImager::get_buffer 0 1 43 190</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the offscreen buffer that is automatically created for the nth</span>
+ <span class="s0">* projection screen.  This may return NULL if the screen is inactive or if it</span>
+ <span class="s0">* has not been rendered yet.</span>
+ <span class="s0">*/</span>
+<span class="s0">61</span>
+<span class="s0">GraphicsOutput *NonlinearImager::get_buffer(int index) const;</span>
+
+<span class="s0">107 16 set_texture_size 0 4 134 33 NonlinearImager::set_texture_size 0 1 44 285</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the width and height of the texture used to render the scene for the</span>
+ <span class="s0">* indicated screen.  This must be less than or equal to the window size, and</span>
+ <span class="s0">* it should be a power of two.</span>
+ <span class="s0">*</span>
+ <span class="s0">* In general, the larger the texture, the greater the detail of the rendered</span>
+ <span class="s0">* scene.</span>
+ <span class="s0">*/</span>
+<span class="s0">73</span>
+<span class="s0">void NonlinearImager::set_texture_size(int index, int width, int height);</span>
+
+<span class="s0">108 17 set_source_camera 0 4 134 34 NonlinearImager::set_source_camera 0 1 45 229</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the camera that will be used to render the image for this</span>
+ <span class="s0">* particular screen.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The parameter must be a NodePath whose node is a Camera.  The camera itself</span>
+ <span class="s0">* indicates the scene that is to be rendered.</span>
+ <span class="s0">*/</span>
+<span class="s0">82</span>
+<span class="s0">void NonlinearImager::set_source_camera(int index, NodePath const &amp;source_camera);</span>
+
+<span class="s0">109 17 set_screen_active 0 4 134 34 NonlinearImager::set_screen_active 0 1 46 144</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the active flag on the indicated screen.  If the active flag is true,</span>
+ <span class="s0">* the screen will be used; otherwise, it will not appear.</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">void NonlinearImager::set_screen_active(int index, bool active);</span>
+
+<span class="s0">110 17 get_screen_active 0 4 134 34 NonlinearImager::get_screen_active 0 1 47 59</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the active flag on the indicated screen.</span>
+ <span class="s0">*/</span>
+<span class="s0">57</span>
+<span class="s0">bool NonlinearImager::get_screen_active(int index) const;</span>
+
+<span class="s0">111 10 add_viewer 0 4 134 27 NonlinearImager::add_viewer 0 1 48 615</span>
+<span class="s0">/**</span>
+ <span class="s0">* Adds the indicated DisplayRegion as a viewer into the NonlinearImager room.</span>
+ <span class="s0">* The camera associated with the DisplayRegion at the time add_viewer() is</span>
+ <span class="s0">* called is used as the initial viewer camera; it may have a nonlinear lens,</span>
+ <span class="s0">* like a fisheye or cylindrical lens.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This sets up a special scene graph for this DisplayRegion alone and sets up</span>
+ <span class="s0">* the DisplayRegion with a specialty camera.  If future changes to the camera</span>
+ <span class="s0">* are desired, you should use the set_viewer_camera() interface.</span>
+ <span class="s0">*</span>
+ <span class="s0">* All viewers must share the same GraphicsEngine.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is the index of the new viewer.</span>
+ <span class="s0">*/</span>
+<span class="s0">51</span>
+<span class="s0">int NonlinearImager::add_viewer(DisplayRegion *dr);</span>
+
+<span class="s0">112 11 find_viewer 0 4 134 28 NonlinearImager::find_viewer 0 1 49 123</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the index number of the indicated DisplayRegion within the list of</span>
+ <span class="s0">* viewers, or -1 if it is not found.</span>
+ <span class="s0">*/</span>
+<span class="s0">58</span>
+<span class="s0">int NonlinearImager::find_viewer(DisplayRegion *dr) const;</span>
+
+<span class="s0">113 13 remove_viewer 0 4 134 30 NonlinearImager::remove_viewer 0 1 50 78</span>
+<span class="s0">/**</span>
+ <span class="s0">* Removes the viewer with the indicated index number from the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">47</span>
+<span class="s0">void NonlinearImager::remove_viewer(int index);</span>
+
+<span class="s0">114 18 remove_all_viewers 0 4 134 35 NonlinearImager::remove_all_viewers 0 1 51 47</span>
+<span class="s0">/**</span>
+ <span class="s0">* Removes all viewers from the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">47</span>
+<span class="s0">void NonlinearImager::remove_all_viewers(void);</span>
+
+<span class="s0">115 17 set_viewer_camera 0 4 134 34 NonlinearImager::set_viewer_camera 0 1 52 584</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the LensNode that is to serve as the viewer for this screen.  The</span>
+ <span class="s0">* relative position of the LensNode to the NonlinearImager, as well as the</span>
+ <span class="s0">* properties of the lens associated with the LensNode, determines the UV's</span>
+ <span class="s0">* that will be assigned to the geometry within the NonlinearImager.</span>
+ <span class="s0">*</span>
+ <span class="s0">* It is not necessary to call this except to change the camera after a viewer</span>
+ <span class="s0">* has been added, since the default is to use whatever camera is associated</span>
+ <span class="s0">* with the DisplayRegion at the time the viewer is added.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The NodePath must refer to a LensNode (or a Camera).</span>
+ <span class="s0">*/</span>
+<span class="s0">82</span>
+<span class="s0">void NonlinearImager::set_viewer_camera(int index, NodePath const &amp;viewer_camera);</span>
+
+<span class="s0">116 17 get_viewer_camera 0 4 134 34 NonlinearImager::get_viewer_camera 0 1 53 98</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the NodePath to the LensNode that is to serve as nth viewer for</span>
+ <span class="s0">* this screen.</span>
+ <span class="s0">*/</span>
+<span class="s0">61</span>
+<span class="s0">NodePath NonlinearImager::get_viewer_camera(int index) const;</span>
+
+<span class="s0">117 16 get_viewer_scene 0 4 134 33 NonlinearImager::get_viewer_scene 0 1 54 451</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns a pointer to the root node of the internal scene graph for the nth</span>
+ <span class="s0">* viewer, which is used to render all of the screen meshes for this viewer.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This is the scene graph in which the screen meshes within the dark room</span>
+ <span class="s0">* have been flattened into the appropriate transformation according to the</span>
+ <span class="s0">* viewer's lens properties (and position relative to the screens).  It is</span>
+ <span class="s0">* this scene graph that is finally rendered to the window.</span>
+ <span class="s0">*/</span>
+<span class="s0">60</span>
+<span class="s0">NodePath NonlinearImager::get_viewer_scene(int index) const;</span>
+
+<span class="s0">118 15 get_num_viewers 0 4 134 32 NonlinearImager::get_num_viewers 0 1 55 76</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the number of viewers that have been added to the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">int NonlinearImager::get_num_viewers(void) const;</span>
+
+<span class="s0">119 10 get_viewer 0 4 134 27 NonlinearImager::get_viewer 0 1 56 84</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the nth viewer's DisplayRegion that has been added to the imager.</span>
+ <span class="s0">*/</span>
+<span class="s0">60</span>
+<span class="s0">DisplayRegion *NonlinearImager::get_viewer(int index) const;</span>
+
+<span class="s0">120 13 get_dark_room 0 4 134 30 NonlinearImager::get_dark_room 0 1 57 566</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the NodePath to the root of the dark room scene.  This is the scene</span>
+ <span class="s0">* in which all of the ProjectionScreens and the viewer cameras reside.  It's</span>
+ <span class="s0">* a standalone scene with a few projection screens arranged artfully around</span>
+ <span class="s0">* one or more viewers; it's so named because it's a little virtual theater.</span>
+ <span class="s0">*</span>
+ <span class="s0">* Normally this scene is not rendered directly; it only exists as an abstract</span>
+ <span class="s0">* concept, and to define the relation between the ProjectionScreens and the</span>
+ <span class="s0">* viewers.  But it may be rendered to help visualize the NonlinearImager's</span>
+ <span class="s0">* behavior.</span>
+ <span class="s0">*/</span>
+<span class="s0">52</span>
+<span class="s0">NodePath NonlinearImager::get_dark_room(void) const;</span>
+
+<span class="s0">121 19 get_graphics_engine 0 4 134 36 NonlinearImager::get_graphics_engine 0 1 58 109</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the GraphicsEngine that all of the viewers added to the</span>
+ <span class="s0">* NonlinearImager have in common.</span>
+ <span class="s0">*/</span>
+<span class="s0">65</span>
+<span class="s0">GraphicsEngine *NonlinearImager::get_graphics_engine(void) const;</span>
+
+<span class="s0">122 9 recompute 0 4 134 26 NonlinearImager::recompute 0 1 59 62</span>
+<span class="s0">/**</span>
+ <span class="s0">* Forces a regeneration of all the mesh objects, etc.</span>
+ <span class="s0">*/</span>
+<span class="s0">38</span>
+<span class="s0">void NonlinearImager::recompute(void);</span>
+
+<span class="s0">123 11 OSphereLens 0 260 135 24 OSphereLens::OSphereLens 0 1 60 22</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">38</span>
+<span class="s0">inline OSphereLens::OSphereLens(void);</span>
+
+<span class="s0">124 14 get_class_type 0 4 135 27 OSphereLens::get_class_type 0 1 61 0</span>
+<span class="s0">52</span>
+<span class="s0">static TypeHandle OSphereLens::get_class_type(void);</span>
+
+<span class="s0">125 12 ~OSphereLens 0 516 135 25 OSphereLens::~OSphereLens 0 0 0</span>
+<span class="s0">32</span>
+<span class="s0">OSphereLens::~OSphereLens(void);</span>
+
+<span class="s0">126 11 PSphereLens 0 260 136 24 PSphereLens::PSphereLens 0 1 62 22</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">38</span>
+<span class="s0">inline PSphereLens::PSphereLens(void);</span>
+
+<span class="s0">127 14 get_class_type 0 4 136 27 PSphereLens::get_class_type 0 1 63 0</span>
+<span class="s0">52</span>
+<span class="s0">static TypeHandle PSphereLens::get_class_type(void);</span>
+
+<span class="s0">128 12 ~PSphereLens 0 516 136 25 PSphereLens::~PSphereLens 0 0 0</span>
+<span class="s0">32</span>
+<span class="s0">PSphereLens::~PSphereLens(void);</span>
+
+<span class="s0">63</span>
+<span class="s0">1 0 0 7 3 137 66 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">2 0 0 7 4 139 0 0 0 0 </span>
+<span class="s0">3 0 0 7 7 140 69 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">4 0 0 7 8 139 0 0 0 0 </span>
+<span class="s0">5 0 0 7 12 142 0 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 1 4 name 5 141  </span>
+<span class="s0">6 0 0 4 13 146 0 0 370 /**</span>
+ <span class="s0">* Specifies the LensNode that is to serve as the projector for this screen.</span>
+ <span class="s0">* The relative position of the LensNode to the ProjectionScreen, as well as</span>
+ <span class="s0">* the properties of the lens associated with the LensNode, determines the</span>
+ <span class="s0">* UV's that will be assigned to the geometry within the ProjectionScreen.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The NodePath must refer to a LensNode (or a Camera).</span>
+ <span class="s0">*/ 2 4 this 3 142  9 projector 1 143  </span>
+<span class="s0">7 0 0 6 14 143 0 0 141 /**</span>
+ <span class="s0">* Returns the NodePath to the LensNode that is to serve as the projector for</span>
+ <span class="s0">* this screen, or empty if no projector is associated.</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">8 0 0 4 15 146 0 0 80 /**</span>
+ <span class="s0">* Removes the distortion lookup table from the projector, if specified.</span>
+ <span class="s0">*/ 1 4 this 3 142  </span>
+<span class="s0">9 0 0 4 16 146 0 0 314 /**</span>
+ <span class="s0">* Applies a distortion lookup table to the projector.  This mapping warps the</span>
+ <span class="s0">* lens effect by passing each ray through an indirection table: the point</span>
+ <span class="s0">* (u,v) in the indicated lookup table stores the actual (u,v) that the lens</span>
+ <span class="s0">* produces.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This does not affect the operation of generate_screen().</span>
+ <span class="s0">*/ 2 4 this 3 142  10 undist_lut 1 149  </span>
+<span class="s0">10 0 0 6 17 152 0 0 113 /**</span>
+ <span class="s0">* Returns true if a valid distortion lookup table was provided via</span>
+ <span class="s0">* set_undist_lut(), false otherwise.</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">11 0 0 6 18 149 0 0 85 /**</span>
+ <span class="s0">* Returns the distortion lookup table provided via set_undist_lut(), if any.</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">12 0 0 7 19 157 0 0 1183 /**</span>
+ <span class="s0">* Synthesizes a polygon mesh based on the projection area of the indicated</span>
+ <span class="s0">* projector.  This generates and returns a new GeomNode but does not</span>
+ <span class="s0">* automatically parent it to the ProjectionScreen node; see</span>
+ <span class="s0">* regenerate_screen().</span>
+ <span class="s0">*</span>
+ <span class="s0">* The specified projector need not be the same as the projector given to the</span>
+ <span class="s0">* ProjectionScreen with set_projector() (although this is often what you</span>
+ <span class="s0">* want).</span>
+ <span class="s0">*</span>
+ <span class="s0">* num_x_verts and num_y_verts specify the number of vertices to make in the</span>
+ <span class="s0">* grid across the horizontal and vertical dimension of the projector,</span>
+ <span class="s0">* respectively; distance represents the approximate distance of the screen</span>
+ <span class="s0">* from the lens center.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The fill_ratio parameter specifies the fraction of the image to cover.  If</span>
+ <span class="s0">* it is 1.0, the entire image is shown full-size; if it is 0.9, 10% of the</span>
+ <span class="s0">* image around the edges is not part of the grid (and the grid is drawn</span>
+ <span class="s0">* smaller by the same 10%).  This is intended to work around graphics drivers</span>
+ <span class="s0">* that tend to show dark edges or other unsatisfactory artifacts around the</span>
+ <span class="s0">* edges of textures: render the texture larger than necessary by a certain</span>
+ <span class="s0">* fraction, and make the screen smaller by the inverse fraction.</span>
+ <span class="s0">*/ 7 4 this 3 142  9 projector 1 143  11 screen_name 1 141  11 num_x_verts 1 154  11 num_y_verts 1 154  8 distance 1 155  10 fill_ratio 1 155  </span>
+<span class="s0">13 0 0 4 20 146 0 0 136 /**</span>
+ <span class="s0">* Removes all the children from the ProjectionScreen node, and adds the newly</span>
+ <span class="s0">* generated child returned by generate_screen().</span>
+ <span class="s0">*/ 7 4 this 3 142  9 projector 1 143  11 screen_name 1 141  11 num_x_verts 1 154  11 num_y_verts 1 154  8 distance 1 155  10 fill_ratio 1 155  </span>
+<span class="s0">14 0 0 7 21 158 0 0 647 /**</span>
+ <span class="s0">* Generates a deep copy of the hierarchy at the ProjectionScreen node and</span>
+ <span class="s0">* below, with vertices flattened into two dimensions as if they were seen by</span>
+ <span class="s0">* the indicated camera node.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This is useful for rendering an image as seen through a non-linear lens.</span>
+ <span class="s0">* The resulting mesh will have vertices in the range [-1, 1] in both x and y,</span>
+ <span class="s0">* and may be then rendered with an ordinary orthographic lens, to generate</span>
+ <span class="s0">* the effect of seeing the image through the specified non-linear lens.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The returned node has no parent; it is up to the caller to parent it</span>
+ <span class="s0">* somewhere or store it so that it does not get dereferenced and deleted.</span>
+ <span class="s0">*/ 3 4 this 3 142  7 this_np 1 143  6 camera 1 143  </span>
+<span class="s0">15 0 0 4 22 146 0 0 269 /**</span>
+ <span class="s0">* Specifies the name of the texture coordinates that are generated by this</span>
+ <span class="s0">* particular ProjectionScreen.  This can be used in the presence of</span>
+ <span class="s0">* multitexturing to compute the UV's for just a subset of all of the active</span>
+ <span class="s0">* stages of the multitexture pipeline.</span>
+ <span class="s0">*/ 2 4 this 3 142  13 texcoord_name 1 141  </span>
+<span class="s0">16 0 0 6 23 141 0 0 148 /**</span>
+ <span class="s0">* Returns the name of the texture coordinates that will be generated by this</span>
+ <span class="s0">* particular ProjectionScreen, as set by set_texcoord_name().</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">17 0 0 4 24 146 0 0 439 /**</span>
+ <span class="s0">* Some OpenGL graphics drivers are known to invert the framebuffer image when</span>
+ <span class="s0">* they copy it to texture.  (This is arguably a problem with the OpenGL spec,</span>
+ <span class="s0">* which seems to be unclear about the proper ordering of pixels in this</span>
+ <span class="s0">* operation.)</span>
+ <span class="s0">*</span>
+ <span class="s0">* In any case, set this true to compensate for this effect by inverting the</span>
+ <span class="s0">* UV's of the projection screen.  The default is taken from the Configrc</span>
+ <span class="s0">* variable project-invert-uvs.</span>
+ <span class="s0">*/ 2 4 this 3 142  10 invert_uvs 1 152  </span>
+<span class="s0">18 0 0 6 25 152 0 0 135 /**</span>
+ <span class="s0">* Returns whether this screen is compensating for a graphics driver inverting</span>
+ <span class="s0">* the framebuffer image.  See set_invert_uvs().</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">19 0 0 4 26 146 0 0 322 /**</span>
+ <span class="s0">* Set this true to force 3-D texture coordinates to be created for the</span>
+ <span class="s0">* geometry.  When this is true and the geometry has only 2-D texture</span>
+ <span class="s0">* coordinates, those texture coordinates are dumped in favor of 3-D</span>
+ <span class="s0">* coordinates.  When this is false, whatever texture coordinates already</span>
+ <span class="s0">* exist are preserved as-is.</span>
+ <span class="s0">*/ 2 4 this 3 142  11 texcoord_3d 1 152  </span>
+<span class="s0">20 0 0 6 27 152 0 0 33 /**</span>
+ <span class="s0">* See set_texcoord_3d().</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">21 0 0 4 28 146 0 0 471 /**</span>
+ <span class="s0">* Specifies whether vertex-based vignetting should be on.  When this is</span>
+ <span class="s0">* enabled, vertex color will be set on the screen vertices to color the</span>
+ <span class="s0">* screen two distinct colors, usually white and black, for the parts of the</span>
+ <span class="s0">* screen in front of and outside the lens' frustum, respectively.  When this</span>
+ <span class="s0">* is not enabled, the screen color will be left alone.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This effect generally looks terrible, but it does at least make the</span>
+ <span class="s0">* boundaries of the lens clear.</span>
+ <span class="s0">*/ 2 4 this 3 142  11 vignette_on 1 152  </span>
+<span class="s0">22 0 0 6 29 152 0 0 101 /**</span>
+ <span class="s0">* Returns true if vertex-based vignetting is on, false otherwise.  See</span>
+ <span class="s0">* set_vignette_on().</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">23 0 0 4 30 146 0 0 244 /**</span>
+ <span class="s0">* Specifies the color the screen will be painted at the portions outside of</span>
+ <span class="s0">* the lens' frustum; i.e.  where the lens can't see it or illuminate it.</span>
+ <span class="s0">* This color is only used if the vignette_on flag is true; see</span>
+ <span class="s0">* set_vignette_on().</span>
+ <span class="s0">*/ 2 4 this 3 142  14 vignette_color 1 159  </span>
+<span class="s0">24 0 0 6 31 159 0 0 131 /**</span>
+ <span class="s0">* Returns the color the screen will be painted at the portions outside of the</span>
+ <span class="s0">* lens' frustum.  See set_vignette_color().</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">25 0 0 4 32 146 0 0 244 /**</span>
+ <span class="s0">* Specifies the color the screen will be painted at the portions outside of</span>
+ <span class="s0">* the lens' frustum; i.e.  where the lens can't see it or illuminate it.</span>
+ <span class="s0">* This color is only used if the vignette_on flag is true; see</span>
+ <span class="s0">* set_vignette_on().</span>
+ <span class="s0">*/ 2 4 this 3 142  11 frame_color 1 159  </span>
+<span class="s0">26 0 0 6 33 159 0 0 128 /**</span>
+ <span class="s0">* Returns the color the screen will be painted at the portions outside of the</span>
+ <span class="s0">* lens' frustum.  See set_frame_color().</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">27 0 0 4 34 146 0 0 229 /**</span>
+ <span class="s0">* Sets the auto_recompute flag.  When this is true, the ProjectionScreen will</span>
+ <span class="s0">* always be recomputed if necessary before the frame is drawn; when it is</span>
+ <span class="s0">* false, an explicit call to recompute_if_stale() may be required.</span>
+ <span class="s0">*/ 2 4 this 3 142  14 auto_recompute 1 152  </span>
+<span class="s0">28 0 0 6 35 152 0 0 232 /**</span>
+ <span class="s0">* Returns the auto_recompute flag.  When this is true, the ProjectionScreen</span>
+ <span class="s0">* will always be recomputed if necessary before the frame is drawn; when it</span>
+ <span class="s0">* is false, an explicit call to recompute_if_stale() may be required.</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">29 0 0 4 36 146 0 0 375 /**</span>
+ <span class="s0">* Recomputes all the UV's for geometry below the ProjectionScreen node, as if</span>
+ <span class="s0">* the texture were projected from the associated projector.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This function is normally called automatically whenever the relevant</span>
+ <span class="s0">* properties change, so it should not normally need to be called directly by</span>
+ <span class="s0">* the user.  However, it does no harm to call this if there is any doubt.</span>
+ <span class="s0">*/ 1 4 this 3 142  </span>
+<span class="s0">30 0 0 6 37 164 0 0 290 /**</span>
+ <span class="s0">* Returns an UpdateSeq corresponding to the last time a screen mesh was</span>
+ <span class="s0">* generated for the ProjectionScreen.  Each time generate_screen() is called,</span>
+ <span class="s0">* this number is incremented; this allows other objects (like</span>
+ <span class="s0">* NonlinearImager) to know when they need to recompute themselves.</span>
+ <span class="s0">*/ 1 4 this 3 147  </span>
+<span class="s0">31 0 0 6 38 152 0 0 218 /**</span>
+ <span class="s0">* Calls recompute() only if the relative transform between the</span>
+ <span class="s0">* ProjectionScreen and the projector has changed, or if any other relevant</span>
+ <span class="s0">* property has changed.  Returns true if recomputed, false otherwise.</span>
+ <span class="s0">*/ 1 4 this 3 142  </span>
+<span class="s0">32 0 0 6 38 152 0 0 218 /**</span>
+ <span class="s0">* Calls recompute() only if the relative transform between the</span>
+ <span class="s0">* ProjectionScreen and the projector has changed, or if any other relevant</span>
+ <span class="s0">* property has changed.  Returns true if recomputed, false otherwise.</span>
+ <span class="s0">*/ 2 4 this 3 142  7 this_np 1 143  </span>
+<span class="s0">33 0 0 7 39 139 0 0 0 0 </span>
+<span class="s0">34 0 0 7 41 167 99 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">35 0 0 15 41 167 99 0 0 1 6 param0 0 168  </span>
+<span class="s0">36 0 0 6 43 154 0 0 628 /**</span>
+ <span class="s0">* Adds a new ProjectionScreen to the list of screens that will be processed</span>
+ <span class="s0">* by the NonlinearImager.  Each ProjectionScreen represents a view into the</span>
+ <span class="s0">* world.  It must be based on a linear camera (or whatever kind of camera is</span>
+ <span class="s0">* respected by the graphics engine).</span>
+ <span class="s0">*</span>
+ <span class="s0">* Each ProjectionScreen object should already have some screen geometry</span>
+ <span class="s0">* created.</span>
+ <span class="s0">*</span>
+ <span class="s0">* As each frame is rendered, an offscreen image will be rendered from the</span>
+ <span class="s0">* source camera associated with each ProjectionScreen, and the resulting</span>
+ <span class="s0">* image will be applied to the screen geometry.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is the index number of the new screen.</span>
+ <span class="s0">*/ 3 4 this 3 167  6 screen 1 143  4 name 1 141  </span>
+<span class="s0">37 0 0 6 43 154 0 0 202 /**</span>
+ <span class="s0">* This version of this method is deprecated and will soon be removed.  Use</span>
+ <span class="s0">* the version that takes two parameters instead.</span>
+ <span class="s0">*</span>
+ <span class="s0">* @deprecated Use the version that takes two parameters instead.</span>
+ <span class="s0">*/ 2 4 this 3 167  6 screen 1 142  </span>
+<span class="s0">38 0 0 6 44 154 0 0 141 /**</span>
+ <span class="s0">* Returns the index number of the first appearance of the indicated screen</span>
+ <span class="s0">* within the imager's list, or -1 if it does not appear.</span>
+ <span class="s0">*/ 2 4 this 3 168  6 screen 1 143  </span>
+<span class="s0">39 0 0 4 45 146 0 0 78 /**</span>
+ <span class="s0">* Removes the screen with the indicated index number from the imager.</span>
+ <span class="s0">*/ 2 4 this 3 167  5 index 1 154  </span>
+<span class="s0">40 0 0 4 46 146 0 0 47 /**</span>
+ <span class="s0">* Removes all screens from the imager.</span>
+ <span class="s0">*/ 1 4 this 3 167  </span>
+<span class="s0">41 0 0 6 47 154 0 0 76 /**</span>
+ <span class="s0">* Returns the number of screens that have been added to the imager.</span>
+ <span class="s0">*/ 1 4 this 3 168  </span>
+<span class="s0">42 0 0 7 48 170 0 0 68 /**</span>
+ <span class="s0">* Returns the nth screen that has been added to the imager.</span>
+ <span class="s0">*/ 2 4 this 3 168  5 index 1 154  </span>
+<span class="s0">43 0 0 7 50 172 0 0 190 /**</span>
+ <span class="s0">* Returns the offscreen buffer that is automatically created for the nth</span>
+ <span class="s0">* projection screen.  This may return NULL if the screen is inactive or if it</span>
+ <span class="s0">* has not been rendered yet.</span>
+ <span class="s0">*/ 2 4 this 3 168  5 index 1 154  </span>
+<span class="s0">44 0 0 4 52 146 0 0 285 /**</span>
+ <span class="s0">* Sets the width and height of the texture used to render the scene for the</span>
+ <span class="s0">* indicated screen.  This must be less than or equal to the window size, and</span>
+ <span class="s0">* it should be a power of two.</span>
+ <span class="s0">*</span>
+ <span class="s0">* In general, the larger the texture, the greater the detail of the rendered</span>
+ <span class="s0">* scene.</span>
+ <span class="s0">*/ 4 4 this 3 167  5 index 1 154  5 width 1 154  6 height 1 154  </span>
+<span class="s0">45 0 0 4 53 146 0 0 229 /**</span>
+ <span class="s0">* Specifies the camera that will be used to render the image for this</span>
+ <span class="s0">* particular screen.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The parameter must be a NodePath whose node is a Camera.  The camera itself</span>
+ <span class="s0">* indicates the scene that is to be rendered.</span>
+ <span class="s0">*/ 3 4 this 3 167  5 index 1 154  13 source_camera 1 143  </span>
+<span class="s0">46 0 0 4 54 146 0 0 144 /**</span>
+ <span class="s0">* Sets the active flag on the indicated screen.  If the active flag is true,</span>
+ <span class="s0">* the screen will be used; otherwise, it will not appear.</span>
+ <span class="s0">*/ 3 4 this 3 167  5 index 1 154  6 active 1 152  </span>
+<span class="s0">47 0 0 6 55 152 0 0 59 /**</span>
+ <span class="s0">* Returns the active flag on the indicated screen.</span>
+ <span class="s0">*/ 2 4 this 3 168  5 index 1 154  </span>
+<span class="s0">48 0 0 6 56 154 0 0 615 /**</span>
+ <span class="s0">* Adds the indicated DisplayRegion as a viewer into the NonlinearImager room.</span>
+ <span class="s0">* The camera associated with the DisplayRegion at the time add_viewer() is</span>
+ <span class="s0">* called is used as the initial viewer camera; it may have a nonlinear lens,</span>
+ <span class="s0">* like a fisheye or cylindrical lens.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This sets up a special scene graph for this DisplayRegion alone and sets up</span>
+ <span class="s0">* the DisplayRegion with a specialty camera.  If future changes to the camera</span>
+ <span class="s0">* are desired, you should use the set_viewer_camera() interface.</span>
+ <span class="s0">*</span>
+ <span class="s0">* All viewers must share the same GraphicsEngine.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is the index of the new viewer.</span>
+ <span class="s0">*/ 2 4 this 3 167  2 dr 1 173  </span>
+<span class="s0">49 0 0 6 57 154 0 0 123 /**</span>
+ <span class="s0">* Returns the index number of the indicated DisplayRegion within the list of</span>
+ <span class="s0">* viewers, or -1 if it is not found.</span>
+ <span class="s0">*/ 2 4 this 3 168  2 dr 1 173  </span>
+<span class="s0">50 0 0 4 58 146 0 0 78 /**</span>
+ <span class="s0">* Removes the viewer with the indicated index number from the imager.</span>
+ <span class="s0">*/ 2 4 this 3 167  5 index 1 154  </span>
+<span class="s0">51 0 0 4 59 146 0 0 47 /**</span>
+ <span class="s0">* Removes all viewers from the imager.</span>
+ <span class="s0">*/ 1 4 this 3 167  </span>
+<span class="s0">52 0 0 4 60 146 0 0 584 /**</span>
+ <span class="s0">* Specifies the LensNode that is to serve as the viewer for this screen.  The</span>
+ <span class="s0">* relative position of the LensNode to the NonlinearImager, as well as the</span>
+ <span class="s0">* properties of the lens associated with the LensNode, determines the UV's</span>
+ <span class="s0">* that will be assigned to the geometry within the NonlinearImager.</span>
+ <span class="s0">*</span>
+ <span class="s0">* It is not necessary to call this except to change the camera after a viewer</span>
+ <span class="s0">* has been added, since the default is to use whatever camera is associated</span>
+ <span class="s0">* with the DisplayRegion at the time the viewer is added.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The NodePath must refer to a LensNode (or a Camera).</span>
+ <span class="s0">*/ 3 4 this 3 167  5 index 1 154  13 viewer_camera 1 143  </span>
+<span class="s0">53 0 0 7 61 170 0 0 98 /**</span>
+ <span class="s0">* Returns the NodePath to the LensNode that is to serve as nth viewer for</span>
+ <span class="s0">* this screen.</span>
+ <span class="s0">*/ 2 4 this 3 168  5 index 1 154  </span>
+<span class="s0">54 0 0 7 62 170 0 0 451 /**</span>
+ <span class="s0">* Returns a pointer to the root node of the internal scene graph for the nth</span>
+ <span class="s0">* viewer, which is used to render all of the screen meshes for this viewer.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This is the scene graph in which the screen meshes within the dark room</span>
+ <span class="s0">* have been flattened into the appropriate transformation according to the</span>
+ <span class="s0">* viewer's lens properties (and position relative to the screens).  It is</span>
+ <span class="s0">* this scene graph that is finally rendered to the window.</span>
+ <span class="s0">*/ 2 4 this 3 168  5 index 1 154  </span>
+<span class="s0">55 0 0 6 63 154 0 0 76 /**</span>
+ <span class="s0">* Returns the number of viewers that have been added to the imager.</span>
+ <span class="s0">*/ 1 4 this 3 168  </span>
+<span class="s0">56 0 0 7 64 173 0 0 84 /**</span>
+ <span class="s0">* Returns the nth viewer's DisplayRegion that has been added to the imager.</span>
+ <span class="s0">*/ 2 4 this 3 168  5 index 1 154  </span>
+<span class="s0">57 0 0 7 66 170 0 0 566 /**</span>
+ <span class="s0">* Returns the NodePath to the root of the dark room scene.  This is the scene</span>
+ <span class="s0">* in which all of the ProjectionScreens and the viewer cameras reside.  It's</span>
+ <span class="s0">* a standalone scene with a few projection screens arranged artfully around</span>
+ <span class="s0">* one or more viewers; it's so named because it's a little virtual theater.</span>
+ <span class="s0">*</span>
+ <span class="s0">* Normally this scene is not rendered directly; it only exists as an abstract</span>
+ <span class="s0">* concept, and to define the relation between the ProjectionScreens and the</span>
+ <span class="s0">* viewers.  But it may be rendered to help visualize the NonlinearImager's</span>
+ <span class="s0">* behavior.</span>
+ <span class="s0">*/ 1 4 this 3 168  </span>
+<span class="s0">58 0 0 7 67 176 0 0 109 /**</span>
+ <span class="s0">* Returns the GraphicsEngine that all of the viewers added to the</span>
+ <span class="s0">* NonlinearImager have in common.</span>
+ <span class="s0">*/ 1 4 this 3 168  </span>
+<span class="s0">59 0 0 4 68 146 0 0 62 /**</span>
+ <span class="s0">* Forces a regeneration of all the mesh objects, etc.</span>
+ <span class="s0">*/ 1 4 this 3 167  </span>
+<span class="s0">60 0 0 7 70 177 125 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">61 0 0 7 71 139 0 0 0 0 </span>
+<span class="s0">62 0 0 7 74 178 128 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">63 0 0 7 75 139 0 0 0 0 </span>
+<span class="s0">50</span>
+<span class="s0">129 15 CylindricalLens 0 141313 15 CylindricalLens 15 CylindricalLens 0 0 0 1 64 66 0 1 65 0 0 1 0 130 0 0 0 0 678</span>
+<span class="s0">/**</span>
+ <span class="s0">* A cylindrical lens.  This is the kind of lens generally used for extremely</span>
+ <span class="s0">* wide panoramic shots.  It behaves like a normal perspective lens in the</span>
+ <span class="s0">* vertical direction, but it is non-linear in the horizontal dimension: a</span>
+ <span class="s0">* point on the film corresponds to a point in space in linear proportion to</span>
+ <span class="s0">* its angle to the camera, not to its straight-line distance from the center.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This allows up to 360 degree lenses in the horizontal dimension, with</span>
+ <span class="s0">* relatively little distortion.  The distortion is not very apparent between</span>
+ <span class="s0">* two relatively nearby points on the film, but it becomes increasingly</span>
+ <span class="s0">* evident as you compare points widely spaced on the film.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">130 4 Lens 0 2048 4 Lens 4 Lens 0 0 0 0 0 0 0 0 0 0 0 0 398</span>
+<span class="s0">/**</span>
+ <span class="s0">* A base class for any number of different kinds of lenses, linear and</span>
+ <span class="s0">* otherwise.  Presently, this includes perspective and orthographic lenses.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A Lens object is the main part of a Camera node, which defines the</span>
+ <span class="s0">* fundamental interface to point-of-view for rendering.  Lenses are also used</span>
+ <span class="s0">* in other contexts, however; for instance, a Spotlight is also defined using</span>
+ <span class="s0">* a lens.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">131 11 FisheyeLens 0 141313 11 FisheyeLens 11 FisheyeLens 0 0 0 1 67 69 0 1 68 0 0 1 0 130 0 0 0 0 241</span>
+<span class="s0">/**</span>
+ <span class="s0">* A fisheye lens.  This nonlinear lens introduces a spherical distortion to</span>
+ <span class="s0">* the image, which is minimal at small angles from the lens, and increases at</span>
+ <span class="s0">* larger angles from the lens.  The field of view may extend to 360 degrees.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">132 16 ProjectionScreen 0 75777 16 ProjectionScreen 16 ProjectionScreen 0 0 0 1 70 0 0 27 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 0 0 1 0 133 0 0 0 0 932</span>
+<span class="s0">/**</span>
+ <span class="s0">* A ProjectionScreen implements a simple system for projective texturing.</span>
+ <span class="s0">* The ProjectionScreen node is the parent of a hierarchy of geometry that is</span>
+ <span class="s0">* considered a &quot;screen&quot;; the ProjectionScreen will automatically recompute</span>
+ <span class="s0">* all the UV's (for a particular texture stage) on its subordinate geometry</span>
+ <span class="s0">* according to the relative position and lens parameters of the indicated</span>
+ <span class="s0">* LensNode.</span>
+ <span class="s0">*</span>
+ <span class="s0">* All this does is recompute UV's; the caller is responsible for applying the</span>
+ <span class="s0">* appropriate texture(s) to the geometry.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This does not take advantage of any hardware-assisted projective texturing;</span>
+ <span class="s0">* all of the UV's are computed in the CPU.  (Use NodePath::project_texture()</span>
+ <span class="s0">* to enable hardware-assisted projective texturing.)  However, the</span>
+ <span class="s0">* ProjectionScreen interface does support any kind of lens, linear or</span>
+ <span class="s0">* nonlinear, that might be defined using the Lens interface, including</span>
+ <span class="s0">* fisheye and cylindrical lenses.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">133 9 PandaNode 0 2048 9 PandaNode 9 PandaNode 0 0 0 0 0 0 0 0 0 0 0 0 175</span>
+<span class="s0">/**</span>
+ <span class="s0">* A basic node of the scene graph or data graph.  This is the base class of</span>
+ <span class="s0">* all specialized nodes, and also serves as a generic node with no special</span>
+ <span class="s0">* properties.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">134 15 NonlinearImager 0 26625 15 NonlinearImager 15 NonlinearImager 0 0 0 1 98 99 0 23 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 3 179 180 181 0 0 0 0 2315</span>
+<span class="s0">/**</span>
+ <span class="s0">* This class object combines the rendered output of a 3-d from one or more</span>
+ <span class="s0">* linear (e.g.  perspective) cameras, as seen through a single, possibly</span>
+ <span class="s0">* nonlinear camera.</span>
+ <span class="s0">*</span>
+ <span class="s0">* This can be used to generate real-time imagery of a 3-d scene using a</span>
+ <span class="s0">* nonlinear camera, for instance a fisheye camera, even though the underlying</span>
+ <span class="s0">* graphics engine may only support linear cameras.  It can also pre-distort</span>
+ <span class="s0">* imagery to compensate for off-axis projectors, and/or curved screens of any</span>
+ <span class="s0">* complexity.</span>
+ <span class="s0">*</span>
+
+ <span class="s0">*</span>
+ <span class="s0">* A NonlinearImager may be visualized as a dark room into which a number of</span>
+ <span class="s0">* projection screens have been placed, of arbitrary size and shape and at any</span>
+ <span class="s0">* arbitrary position and orientation to each other.  Onto each of these</span>
+ <span class="s0">* screens is projected the view as seen by a normal perspective camera that</span>
+ <span class="s0">* exists in the world (that is, under render).</span>
+ <span class="s0">*</span>
+ <span class="s0">* There also exist in the room one or more (possibly nonlinear) cameras,</span>
+ <span class="s0">* called viewers, that observe these screens.  The image of the projection</span>
+ <span class="s0">* screens seen by each viewer is finally displayed on the viewer's associated</span>
+ <span class="s0">* DisplayRegion.  By placing the viewer(s) appropriately relative to the</span>
+ <span class="s0">* screens, and by choosing suitable lens properties for the viewer(s), you</span>
+ <span class="s0">* can achieve a wide variety of distortion effects.</span>
+ <span class="s0">*</span>
+
+ <span class="s0">*</span>
+ <span class="s0">* There are several different LensNode (Camera) objects involved at each</span>
+ <span class="s0">* stage in the process.  To help keep them all straight, different words are</span>
+ <span class="s0">* used to refer to each different kind of Camera used within this object.</span>
+ <span class="s0">* The camera(s) under render, that capture the original view of the world to</span>
+ <span class="s0">* be projected onto the screens, are called source cameras, and are set per</span>
+ <span class="s0">* screen via set_source_camera().  The LensNode that is associated with each</span>
+ <span class="s0">* screen to project the image as seen from the screen's source camera is</span>
+ <span class="s0">* called a projector; these are set via the ProjectionScreen::set_projector()</span>
+ <span class="s0">* interface.  Finally, the cameras that view the whole configuration of</span>
+ <span class="s0">* screens are called viewers; each of these is associated with a</span>
+ <span class="s0">* DisplayRegion, and they are set via set_viewer_camera().</span>
+ <span class="s0">*</span>
+ <span class="s0">* Of all these lenses, only the source cameras must use linear (that is,</span>
+ <span class="s0">* perspective or orthographic) lenses.  The projectors and viewers may be any</span>
+ <span class="s0">* arbitrary lens, linear or otherwise.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">135 11 OSphereLens 0 141313 11 OSphereLens 11 OSphereLens 0 0 0 1 123 125 0 1 124 0 0 1 0 130 0 0 0 0 374</span>
+<span class="s0">/**</span>
+ <span class="s0">* A OSphereLens is a special nonlinear lens that doesn't correspond to any</span>
+ <span class="s0">* real physical lenses.  It's primarily useful for generating 360-degree</span>
+ <span class="s0">* wraparound images while avoiding the distortion associated with fisheye</span>
+ <span class="s0">* images.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A OSphereLens is similar to a Cylindrical lens and PSphereLens, except that</span>
+ <span class="s0">* it is orthographic in the vertical direction.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">136 11 PSphereLens 0 141313 11 PSphereLens 11 PSphereLens 0 0 0 1 126 128 0 1 127 0 0 1 0 130 0 0 0 0 603</span>
+<span class="s0">/**</span>
+ <span class="s0">* A PSphereLens is a special nonlinear lens that doesn't correspond to any</span>
+ <span class="s0">* real physical lenses.  It's primarily useful for generating 360-degree</span>
+ <span class="s0">* wraparound images while avoiding the distortion associated with fisheye</span>
+ <span class="s0">* images.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A PSphereLens is similar to a cylindrical lens, except it is also curved in</span>
+ <span class="s0">* the vertical direction.  This allows it to extend to both poles in the</span>
+ <span class="s0">* vertical direction.  The mapping is similar to what many modeling packages</span>
+ <span class="s0">* call a sphere mapping: the x coordinate is proportional to azimuth, while</span>
+ <span class="s0">* the y coordinate is proportional to altitude.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">137 17 CylindricalLens * 0 8576 17 CylindricalLens * 17 CylindricalLens * 0 0 129 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">138 10 TypeHandle 0 16779264 10 TypeHandle 10 TypeHandle 0 0 0 0 0 0 0 0 0 0 0 0 732</span>
+<span class="s0">/**</span>
+ <span class="s0">* TypeHandle is the identifier used to differentiate C++ class types.  Any</span>
+ <span class="s0">* C++ classes that inherit from some base class, and must be differentiated</span>
+ <span class="s0">* at run time, should store a static TypeHandle object that can be queried</span>
+ <span class="s0">* through a static member function named get_class_type().  Most of the time,</span>
+ <span class="s0">* it is also desirable to inherit from TypedObject, which provides some</span>
+ <span class="s0">* virtual functions to return the TypeHandle for a particular instance.</span>
+ <span class="s0">*</span>
+ <span class="s0">* At its essence, a TypeHandle is simply a unique identifier that is assigned</span>
+ <span class="s0">* by the TypeRegistry.  The TypeRegistry stores a tree of TypeHandles, so</span>
+ <span class="s0">* that ancestry of a particular type may be queried, and the type name may be</span>
+ <span class="s0">* retrieved for run-time display.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">139 12 TypeHandle * 0 8576 12 TypeHandle * 12 TypeHandle * 0 0 138 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">140 13 FisheyeLens * 0 8576 13 FisheyeLens * 13 FisheyeLens * 0 0 131 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">141 13 atomic string 0 2 13 atomic string 13 atomic string 0 7 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">142 18 ProjectionScreen * 0 8576 18 ProjectionScreen * 18 ProjectionScreen * 0 0 132 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">143 16 NodePath const * 0 8576 16 NodePath const * 16 NodePath const * 0 0 144 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">144 14 NodePath const 0 8832 14 NodePath const 14 NodePath const 0 0 145 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">145 8 NodePath 0 2048 8 NodePath 8 NodePath 0 0 0 0 0 0 0 0 0 0 0 0 762</span>
+<span class="s0">/**</span>
+ <span class="s0">* NodePath is the fundamental system for disambiguating instances, and also</span>
+ <span class="s0">* provides a higher-level interface for manipulating the scene graph.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A NodePath is a list of connected nodes from the root of the graph to any</span>
+ <span class="s0">* sub-node.  Each NodePath therefore uniquely describes one instance of a</span>
+ <span class="s0">* node.</span>
+ <span class="s0">*</span>
+ <span class="s0">* NodePaths themselves are lightweight objects that may easily be copied and</span>
+ <span class="s0">* passed by value.  Their data is stored as a series of NodePathComponents</span>
+ <span class="s0">* that are stored on the nodes.  Holding a NodePath will keep a reference</span>
+ <span class="s0">* count to all the nodes in the path.  However, if any node in the path is</span>
+ <span class="s0">* removed or reparented (perhaps through a different NodePath), the NodePath</span>
+ <span class="s0">* will automatically be updated to reflect the changes.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">146 4 void 0 8194 4 void 4 void 0 6 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">147 24 ProjectionScreen const * 0 8576 24 ProjectionScreen const * 24 ProjectionScreen const * 0 0 148 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">148 22 ProjectionScreen const 0 8832 22 ProjectionScreen const 22 ProjectionScreen const 0 0 132 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">149 15 PfmFile const * 0 8576 15 PfmFile const * 15 PfmFile const * 0 0 150 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">150 13 PfmFile const 0 8832 13 PfmFile const 13 PfmFile const 0 0 151 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">151 7 PfmFile 0 2048 7 PfmFile 7 PfmFile 0 0 0 0 0 0 0 0 0 0 0 0 155</span>
+<span class="s0">/**</span>
+ <span class="s0">* Defines a pfm file, a 2-d table of floating-point numbers, either</span>
+ <span class="s0">* 3-component or 1-component, or with a special extension, 2- or 4-component.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">152 4 bool 0 8194 4 bool 4 bool 0 4 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">153 8 GeomNode 0 2048 8 GeomNode 8 GeomNode 0 0 0 0 0 0 0 0 0 0 0 0 208</span>
+<span class="s0">/**</span>
+ <span class="s0">* A node that holds Geom objects, renderable pieces of geometry.  This is the</span>
+ <span class="s0">* primary kind of leaf node in the scene graph; almost all visible objects</span>
+ <span class="s0">* will be contained in a GeomNode somewhere.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">154 3 int 0 8194 3 int 3 int 0 1 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">155 11 PN_stdfloat 0 2105344 11 PN_stdfloat 11 PN_stdfloat 0 0 156 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">156 5 float 0 8194 5 float 5 float 0 2 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">157 10 GeomNode * 0 8576 10 GeomNode * 10 GeomNode * 0 0 153 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">158 11 PandaNode * 0 8576 11 PandaNode * 11 PandaNode * 0 0 133 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">159 14 LColor const * 0 8576 14 LColor const * 14 LColor const * 0 0 160 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">160 12 LColor const 0 8832 12 LColor const 12 LColor const 0 0 161 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">161 6 LColor 0 2105344 6 LColor 6 LColor 0 0 162 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">162 7 LColorf 0 2105344 7 LColorf 7 LColorf 0 0 163 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">163 10 LVecBase4f 0 2048 10 LVecBase4f 10 LVecBase4f 0 0 0 0 0 0 0 0 0 0 0 0 77</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is the base class for all three-component vectors and points.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">164 17 UpdateSeq const * 0 8576 17 UpdateSeq const * 17 UpdateSeq const * 0 0 165 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">165 15 UpdateSeq const 0 8832 15 UpdateSeq const 15 UpdateSeq const 0 0 166 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">166 9 UpdateSeq 0 2048 9 UpdateSeq 9 UpdateSeq 0 0 0 0 0 0 0 0 0 0 0 0 761</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is a sequence number that increments monotonically.  It can be used to</span>
+ <span class="s0">* track cache updates, or serve as a kind of timestamp for any changing</span>
+ <span class="s0">* properties.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A special class is used instead of simply an int, so we can elegantly</span>
+ <span class="s0">* handle such things as wraparound and special cases.  There are two special</span>
+ <span class="s0">* cases.  Firstly, a sequence number is 'initial' when it is first created.</span>
+ <span class="s0">* This sequence is older than any other sequence number.  Secondly, a</span>
+ <span class="s0">* sequence number may be explicitly set to 'old'.  This is older than any</span>
+ <span class="s0">* other sequence number except 'initial'.  Finally, we have the explicit</span>
+ <span class="s0">* number 'fresh', which is newer than any other sequence number.  All other</span>
+ <span class="s0">* sequences are numeric and are monotonically increasing.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">167 17 NonlinearImager * 0 8576 17 NonlinearImager * 17 NonlinearImager * 0 0 134 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">168 23 NonlinearImager const * 0 8576 23 NonlinearImager const * 23 NonlinearImager const * 0 0 169 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">169 21 NonlinearImager const 0 8832 21 NonlinearImager const 21 NonlinearImager const 0 0 134 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">170 10 NodePath * 0 8576 10 NodePath * 10 NodePath * 0 0 145 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">171 14 GraphicsOutput 0 2048 14 GraphicsOutput 14 GraphicsOutput 0 0 0 0 0 0 0 0 0 0 0 0 727</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is a base class for the various different classes that represent the</span>
+ <span class="s0">* result of a frame of rendering.  The most common kind of GraphicsOutput is</span>
+ <span class="s0">* a GraphicsWindow, which is a real-time window on the desktop, but another</span>
+ <span class="s0">* example is GraphicsBuffer, which is an offscreen buffer.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The actual rendering, and anything associated with the graphics context</span>
+ <span class="s0">* itself, is managed by the associated GraphicsStateGuardian (which might</span>
+ <span class="s0">* output to multiple GraphicsOutput objects).</span>
+ <span class="s0">*</span>
+ <span class="s0">* GraphicsOutputs are not actually writable to bam files, of course, but they</span>
+ <span class="s0">* may be passed as event parameters, so they inherit from</span>
+ <span class="s0">* TypedWritableReferenceCount instead of TypedReferenceCount for that</span>
+ <span class="s0">* convenience.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">172 16 GraphicsOutput * 0 8576 16 GraphicsOutput * 16 GraphicsOutput * 0 0 171 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">173 15 DisplayRegion * 0 8576 15 DisplayRegion * 15 DisplayRegion * 0 0 174 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">174 13 DisplayRegion 0 2048 13 DisplayRegion 13 DisplayRegion 0 0 0 0 0 0 0 0 0 0 0 0 399</span>
+<span class="s0">/**</span>
+ <span class="s0">* A rectangular subregion within a window for rendering into.  Typically,</span>
+ <span class="s0">* there is one DisplayRegion that covers the whole window, but you may also</span>
+ <span class="s0">* create smaller DisplayRegions for having different regions within the</span>
+ <span class="s0">* window that represent different scenes.  You may also stack up</span>
+ <span class="s0">* DisplayRegions like panes of glass, usually for layering 2-d interfaces on</span>
+ <span class="s0">* top of a 3-d scene.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">175 14 GraphicsEngine 0 2048 14 GraphicsEngine 14 GraphicsEngine 0 0 0 0 0 0 0 0 0 0 0 0 498</span>
+<span class="s0">/**</span>
+ <span class="s0">* This class is the main interface to controlling the render process.  There</span>
+ <span class="s0">* is typically only one GraphicsEngine in an application, and it synchronizes</span>
+ <span class="s0">* rendering to all all of the active windows; although it is possible to have</span>
+ <span class="s0">* multiple GraphicsEngine objects if multiple synchronicity groups are</span>
+ <span class="s0">* required.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The GraphicsEngine is responsible for managing the various cull and draw</span>
+ <span class="s0">* threads.  The application simply calls engine-&gt;render_frame() and considers</span>
+ <span class="s0">* it done.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">176 16 GraphicsEngine * 0 8576 16 GraphicsEngine * 16 GraphicsEngine * 0 0 175 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">177 13 OSphereLens * 0 8576 13 OSphereLens * 13 OSphereLens * 0 0 135 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">178 13 PSphereLens * 0 8576 13 PSphereLens * 13 PSphereLens * 0 0 136 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">0</span>
+<span class="s0">0</span>
+<span class="s0">3</span>
+<span class="s0">179 11 get_screens 0 104 105 28 NonlinearImager::get_screens 0</span>
+
+<span class="s0">180 11 get_buffers 0 104 106 28 NonlinearImager::get_buffers 0</span>
+
+<span class="s0">181 11 get_viewers 0 118 119 28 NonlinearImager::get_viewers 0</span>
+
+</pre>
+</body>
+</html>

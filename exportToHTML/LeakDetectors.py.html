@@ -1,0 +1,389 @@
+<html>
+<head>
+<title>LeakDetectors.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+LeakDetectors.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains objects that report different types of leaks to the 
+ContainerLeakDetector. 
+&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">DirectObject </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">Job </span><span class="s2">import </span><span class="s1">Job</span>
+<span class="s2">import </span><span class="s1">gc</span><span class="s3">, </span><span class="s1">sys</span>
+
+<span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">version_info </span><span class="s3">&gt;= (</span><span class="s4">3</span><span class="s3">, </span><span class="s4">0</span><span class="s3">):</span>
+    <span class="s2">import </span><span class="s1">builtins</span>
+<span class="s2">else</span><span class="s3">:</span>
+    <span class="s2">import </span><span class="s1">__builtin__ </span><span class="s2">as </span><span class="s1">builtins</span>
+
+
+<span class="s2">class </span><span class="s1">LeakDetector</span><span class="s3">:</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># put this object just under __builtins__ where the</span>
+        <span class="s5"># ContainerLeakDetector will find it quickly</span>
+        <span class="s2">if not </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">builtins</span><span class="s3">, </span><span class="s6">&quot;leakDetectors&quot;</span><span class="s3">):</span>
+            <span class="s1">builtins</span><span class="s3">.</span><span class="s1">leakDetectors </span><span class="s3">= {}</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakDetectorsKey </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getLeakDetectorKey</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">__dev__</span><span class="s3">:</span>
+            <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakDetectorsKey </span><span class="s2">not in </span><span class="s1">leakDetectors</span>
+        <span class="s1">leakDetectors</span><span class="s3">[</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakDetectorsKey</span><span class="s3">] = </span><span class="s1">self</span>
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">del </span><span class="s1">leakDetectors</span><span class="s3">[</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakDetectorsKey</span><span class="s3">]</span>
+
+    <span class="s2">def </span><span class="s1">getLeakDetectorKey</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># this string will be shown to the end user and should ideally contain enough information to</span>
+        <span class="s5"># point to what is leaking</span>
+        <span class="s2">return </span><span class="s6">'%s-%s' </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">, </span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">))</span>
+
+<span class="s2">class </span><span class="s1">ObjectTypeLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">otld</span><span class="s3">, </span><span class="s1">objType</span><span class="s3">, </span><span class="s1">generation</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_otld </span><span class="s3">= </span><span class="s1">otld</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_objType </span><span class="s3">= </span><span class="s1">objType</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_generation </span><span class="s3">= </span><span class="s1">generation</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_otld </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getLeakDetectorKey</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s6">'%s-%s' </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_objType</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">num </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_otld</span><span class="s3">.</span><span class="s1">_getNumObjsOfType</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_objType</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_generation</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_generation </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_otld</span><span class="s3">.</span><span class="s1">_getGeneration</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">num</span>
+
+<span class="s2">class </span><span class="s1">ObjectTypesLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s5"># are we accumulating any particular Python object type?</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_type2ld </span><span class="s3">= {}</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_type2count </span><span class="s3">= {}</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_generation </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_thisLdGen </span><span class="s3">= </span><span class="s4">0</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">for </span><span class="s1">ld </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_type2ld</span><span class="s3">.</span><span class="s1">values</span><span class="s3">():</span>
+            <span class="s1">ld</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_recalc</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">objs </span><span class="s3">= </span><span class="s1">gc</span><span class="s3">.</span><span class="s1">get_objects</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_type2count </span><span class="s3">= {}</span>
+        <span class="s2">for </span><span class="s1">obj </span><span class="s2">in </span><span class="s1">objs</span><span class="s3">:</span>
+            <span class="s1">objType </span><span class="s3">= </span><span class="s1">safeTypeName</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">objType </span><span class="s2">not in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_type2ld</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_type2ld</span><span class="s3">[</span><span class="s1">objType</span><span class="s3">] = </span><span class="s1">ObjectTypeLeakDetector</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">objType</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_generation</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_type2count</span><span class="s3">.</span><span class="s1">setdefault</span><span class="s3">(</span><span class="s1">objType</span><span class="s3">, </span><span class="s4">0</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_type2count</span><span class="s3">[</span><span class="s1">objType</span><span class="s3">] += </span><span class="s4">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_generation </span><span class="s3">+= </span><span class="s4">1</span>
+
+    <span class="s2">def </span><span class="s1">_getGeneration</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_generation</span>
+
+    <span class="s2">def </span><span class="s1">_getNumObjsOfType</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">objType</span><span class="s3">, </span><span class="s1">otherGen</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_generation </span><span class="s3">== </span><span class="s1">otherGen</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_recalc</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_type2count</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s1">objType</span><span class="s3">, </span><span class="s4">0</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_generation </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_thisLdGen</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_recalc</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_thisLdGen </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_generation</span>
+        <span class="s2">return </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_type2count</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">GarbageLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s5"># are we accumulating Python garbage?</span>
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># do a garbage collection</span>
+        <span class="s1">oldFlags </span><span class="s3">= </span><span class="s1">gc</span><span class="s3">.</span><span class="s1">get_debug</span><span class="s3">()</span>
+        <span class="s1">gc</span><span class="s3">.</span><span class="s1">set_debug</span><span class="s3">(</span><span class="s4">0</span><span class="s3">)</span>
+        <span class="s1">gc</span><span class="s3">.</span><span class="s1">collect</span><span class="s3">()</span>
+        <span class="s1">numGarbage </span><span class="s3">= </span><span class="s1">len</span><span class="s3">(</span><span class="s1">gc</span><span class="s3">.</span><span class="s1">garbage</span><span class="s3">)</span>
+        <span class="s2">del </span><span class="s1">gc</span><span class="s3">.</span><span class="s1">garbage</span><span class="s3">[:]</span>
+        <span class="s1">gc</span><span class="s3">.</span><span class="s1">set_debug</span><span class="s3">(</span><span class="s1">oldFlags</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">numGarbage</span>
+
+<span class="s2">class </span><span class="s1">SceneGraphLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s5"># is a scene graph leaking nodes?</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">render</span><span class="s3">):</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_render </span><span class="s3">= </span><span class="s1">render</span>
+        <span class="s2">if </span><span class="s1">config</span><span class="s3">.</span><span class="s1">GetBool</span><span class="s3">(</span><span class="s6">'leak-scene-graph'</span><span class="s3">, </span><span class="s4">0</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName </span><span class="s3">= </span><span class="s6">'leakNodes-%s' </span><span class="s3">% </span><span class="s1">serialNum</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakNode</span><span class="s3">()</span>
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s6">'_leakTaskName'</span><span class="s3">):</span>
+            <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName</span><span class="s3">)</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_render</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s5"># this will be available when the build server finishes</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_render</span><span class="s3">.</span><span class="s1">countNumDescendants</span><span class="s3">()</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_render</span><span class="s3">.</span><span class="s1">getNumDescendants</span><span class="s3">()</span>
+    <span class="s2">def </span><span class="s1">__repr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s6">'SceneGraphLeakDetector(%s)' </span><span class="s3">% </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_render</span>
+    <span class="s2">def </span><span class="s1">_leakNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_render</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s6">'leakNode-%s' </span><span class="s3">% </span><span class="s1">serialNum</span><span class="s3">())</span>
+        <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">doMethodLater</span><span class="s3">(</span><span class="s4">10</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakNode</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">CppMemoryUsage</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">haveMemoryUsage </span><span class="s3">= </span><span class="s2">True</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">MemoryUsage</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">haveMemoryUsage </span><span class="s3">= </span><span class="s2">False</span>
+        <span class="s2">if </span><span class="s1">haveMemoryUsage</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">int</span><span class="s3">(</span><span class="s1">MemoryUsage</span><span class="s3">.</span><span class="s1">getCurrentCppSize</span><span class="s3">())</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s4">0</span>
+
+<span class="s2">class </span><span class="s1">TaskLeakDetectorBase</span><span class="s3">:</span>
+    <span class="s2">def </span><span class="s1">_getTaskNamePattern</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">taskName</span><span class="s3">):</span>
+        <span class="s5"># get a generic string pattern from a task name by removing numeric characters</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s3">(</span><span class="s4">0</span><span class="s3">, </span><span class="s4">1</span><span class="s3">, </span><span class="s4">2</span><span class="s3">, </span><span class="s4">3</span><span class="s3">, </span><span class="s4">4</span><span class="s3">, </span><span class="s4">5</span><span class="s3">, </span><span class="s4">6</span><span class="s3">, </span><span class="s4">7</span><span class="s3">, </span><span class="s4">8</span><span class="s3">, </span><span class="s4">9</span><span class="s3">):</span>
+            <span class="s1">taskName </span><span class="s3">= </span><span class="s1">taskName</span><span class="s3">.</span><span class="s1">replace</span><span class="s3">(</span><span class="s6">'%s' </span><span class="s3">% </span><span class="s1">i</span><span class="s3">, </span><span class="s6">''</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">taskName</span>
+
+<span class="s2">class </span><span class="s1">_TaskNamePatternLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">, </span><span class="s1">TaskLeakDetectorBase</span><span class="s3">):</span>
+    <span class="s5"># tracks the number of each individual task type</span>
+    <span class="s5"># e.g. are we leaking 'examine-&lt;doId&gt;' tasks</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">taskNamePattern</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_taskNamePattern </span><span class="s3">= </span><span class="s1">taskNamePattern</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># count the number of tasks that match our task name pattern</span>
+        <span class="s1">numTasks </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s2">for </span><span class="s1">task </span><span class="s2">in </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">getTasks</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_getTaskNamePattern</span><span class="s3">(</span><span class="s1">task</span><span class="s3">.</span><span class="s1">name</span><span class="s3">) == </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskNamePattern</span><span class="s3">:</span>
+                <span class="s1">numTasks </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s2">for </span><span class="s1">task </span><span class="s2">in </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">getDoLaters</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_getTaskNamePattern</span><span class="s3">(</span><span class="s1">task</span><span class="s3">.</span><span class="s1">name</span><span class="s3">) == </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskNamePattern</span><span class="s3">:</span>
+                <span class="s1">numTasks </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s2">return </span><span class="s1">numTasks</span>
+
+    <span class="s2">def </span><span class="s1">getLeakDetectorKey</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s6">'%s-%s' </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskNamePattern</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">TaskLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">, </span><span class="s1">TaskLeakDetectorBase</span><span class="s3">):</span>
+    <span class="s5"># tracks the number task 'types' and creates leak detectors for each task type</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector </span><span class="s3">= {}</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">for </span><span class="s1">taskName</span><span class="s3">, </span><span class="s1">collector </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector</span><span class="s3">.</span><span class="s1">items</span><span class="s3">():</span>
+            <span class="s1">collector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_processTaskName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">taskName</span><span class="s3">):</span>
+        <span class="s5"># if this is a new task name pattern, create a leak detector for that pattern</span>
+        <span class="s1">namePattern </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_getTaskNamePattern</span><span class="s3">(</span><span class="s1">taskName</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">namePattern </span><span class="s2">not in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector</span><span class="s3">[</span><span class="s1">namePattern</span><span class="s3">] = </span><span class="s1">_TaskNamePatternLeakDetector</span><span class="s3">(</span><span class="s1">namePattern</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector </span><span class="s3">= {}</span>
+        <span class="s5"># update our table of task leak detectors</span>
+        <span class="s2">for </span><span class="s1">task </span><span class="s2">in </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">getTasks</span><span class="s3">():</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_processTaskName</span><span class="s3">(</span><span class="s1">task</span><span class="s3">.</span><span class="s1">name</span><span class="s3">)</span>
+        <span class="s2">for </span><span class="s1">task </span><span class="s2">in </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">getDoLaters</span><span class="s3">():</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_processTaskName</span><span class="s3">(</span><span class="s1">task</span><span class="s3">.</span><span class="s1">name</span><span class="s3">)</span>
+        <span class="s5"># are we leaking task types?</span>
+        <span class="s2">return </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_taskName2collector</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">MessageLeakDetectorBase</span><span class="s3">:</span>
+    <span class="s2">def </span><span class="s1">_getMessageNamePattern</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">msgName</span><span class="s3">):</span>
+        <span class="s5"># get a generic string pattern from a message name by removing numeric characters</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s3">(</span><span class="s4">0</span><span class="s3">, </span><span class="s4">1</span><span class="s3">, </span><span class="s4">2</span><span class="s3">, </span><span class="s4">3</span><span class="s3">, </span><span class="s4">4</span><span class="s3">, </span><span class="s4">5</span><span class="s3">, </span><span class="s4">6</span><span class="s3">, </span><span class="s4">7</span><span class="s3">, </span><span class="s4">8</span><span class="s3">, </span><span class="s4">9</span><span class="s3">):</span>
+            <span class="s1">msgName </span><span class="s3">= </span><span class="s1">msgName</span><span class="s3">.</span><span class="s1">replace</span><span class="s3">(</span><span class="s6">'%s' </span><span class="s3">% </span><span class="s1">i</span><span class="s3">, </span><span class="s6">''</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">msgName</span>
+
+<span class="s2">class </span><span class="s1">_MessageTypeLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">, </span><span class="s1">MessageLeakDetectorBase</span><span class="s3">):</span>
+    <span class="s5"># tracks the number of objects that are listening to each message</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">msgNamePattern</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_msgNamePattern </span><span class="s3">= </span><span class="s1">msgNamePattern</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_msgNames </span><span class="s3">= </span><span class="s1">set</span><span class="s3">()</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">addMsgName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">msgName</span><span class="s3">):</span>
+        <span class="s5"># for efficiency, we keep the actual message names around</span>
+        <span class="s5"># for queries on the messenger</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_msgNames</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">msgName</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">toRemove </span><span class="s3">= </span><span class="s1">set</span><span class="s3">()</span>
+        <span class="s1">num </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s2">for </span><span class="s1">msgName </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_msgNames</span><span class="s3">:</span>
+            <span class="s1">n </span><span class="s3">= </span><span class="s1">messenger</span><span class="s3">.</span><span class="s1">_getNumListeners</span><span class="s3">(</span><span class="s1">msgName</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">n </span><span class="s3">== </span><span class="s4">0</span><span class="s3">:</span>
+                <span class="s1">toRemove</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">msgName</span><span class="s3">)</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">num </span><span class="s3">+= </span><span class="s1">n</span>
+        <span class="s5"># remove message names that are no longer in the messenger</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_msgNames</span><span class="s3">.</span><span class="s1">difference_update</span><span class="s3">(</span><span class="s1">toRemove</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">num</span>
+
+    <span class="s2">def </span><span class="s1">getLeakDetectorKey</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s6">'%s-%s' </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_msgNamePattern</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">_MessageTypeLeakDetectorCreator</span><span class="s3">(</span><span class="s1">Job</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">creator</span><span class="s3">):</span>
+        <span class="s1">Job</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s1">typeName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator </span><span class="s3">= </span><span class="s1">creator</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">Job</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">finished</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">Job</span><span class="s3">.</span><span class="s1">finished</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">for </span><span class="s1">msgName </span><span class="s2">in </span><span class="s1">messenger</span><span class="s3">.</span><span class="s1">_getEvents</span><span class="s3">():</span>
+            <span class="s2">yield None</span>
+            <span class="s1">namePattern </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_creator</span><span class="s3">.</span><span class="s1">_getMessageNamePattern</span><span class="s3">(</span><span class="s1">msgName</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">namePattern </span><span class="s2">not in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_creator</span><span class="s3">.</span><span class="s1">_msgName2detector</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator</span><span class="s3">.</span><span class="s1">_msgName2detector</span><span class="s3">[</span><span class="s1">namePattern</span><span class="s3">] = </span><span class="s1">_MessageTypeLeakDetector</span><span class="s3">(</span><span class="s1">namePattern</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator</span><span class="s3">.</span><span class="s1">_msgName2detector</span><span class="s3">[</span><span class="s1">namePattern</span><span class="s3">].</span><span class="s1">addMsgName</span><span class="s3">(</span><span class="s1">msgName</span><span class="s3">)</span>
+        <span class="s2">yield </span><span class="s1">Job</span><span class="s3">.</span><span class="s1">Done</span>
+
+<span class="s2">class </span><span class="s1">MessageTypesLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">, </span><span class="s1">MessageLeakDetectorBase</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_msgName2detector </span><span class="s3">= {}</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">config</span><span class="s3">.</span><span class="s1">GetBool</span><span class="s3">(</span><span class="s6">'leak-message-types'</span><span class="s3">, </span><span class="s4">0</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers </span><span class="s3">= []</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName </span><span class="s3">= </span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s6">'leak-message-types'</span><span class="s3">)</span>
+            <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leak</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_leak</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">())</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers</span><span class="s3">[-</span><span class="s4">1</span><span class="s3">].</span><span class="s1">accept</span><span class="s3">(</span><span class="s6">'leak-msg'</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leak</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s6">'_leakTaskName'</span><span class="s3">):</span>
+            <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName</span><span class="s3">)</span>
+            <span class="s2">for </span><span class="s1">leaker </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers</span><span class="s3">:</span>
+                <span class="s1">leaker</span><span class="s3">.</span><span class="s1">ignoreAll</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">for </span><span class="s1">msgName</span><span class="s3">, </span><span class="s1">detector </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_msgName2detector</span><span class="s3">.</span><span class="s1">items</span><span class="s3">():</span>
+            <span class="s1">detector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_msgName2detector</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">.</span><span class="s1">isFinished</span><span class="s3">():</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s1">_MessageTypeLeakDetectorCreator</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">jobMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">)</span>
+        <span class="s5"># are we leaking message types?</span>
+        <span class="s2">return </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_msgName2detector</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">_MessageListenerTypeLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s5"># tracks the number of each object type that is listening for events</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">typeName</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName </span><span class="s3">= </span><span class="s1">typeName</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">numObjs </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s2">for </span><span class="s1">obj </span><span class="s2">in </span><span class="s1">messenger</span><span class="s3">.</span><span class="s1">_getObjects</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">typeName</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">) == </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName</span><span class="s3">:</span>
+                <span class="s1">numObjs </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s2">return </span><span class="s1">numObjs</span>
+
+    <span class="s2">def </span><span class="s1">getLeakDetectorKey</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s6">'%s-%s' </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">_MessageListenerTypeLeakDetectorCreator</span><span class="s3">(</span><span class="s1">Job</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">creator</span><span class="s3">):</span>
+        <span class="s1">Job</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s1">typeName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator </span><span class="s3">= </span><span class="s1">creator</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">Job</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">finished</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">Job</span><span class="s3">.</span><span class="s1">finished</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">for </span><span class="s1">obj </span><span class="s2">in </span><span class="s1">messenger</span><span class="s3">.</span><span class="s1">_getObjects</span><span class="s3">():</span>
+            <span class="s2">yield None</span>
+            <span class="s1">tName </span><span class="s3">= </span><span class="s1">typeName</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">tName </span><span class="s2">not in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_creator</span><span class="s3">.</span><span class="s1">_typeName2detector</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_creator</span><span class="s3">.</span><span class="s1">_typeName2detector</span><span class="s3">[</span><span class="s1">tName</span><span class="s3">] = (</span>
+                    <span class="s1">_MessageListenerTypeLeakDetector</span><span class="s3">(</span><span class="s1">tName</span><span class="s3">))</span>
+        <span class="s2">yield </span><span class="s1">Job</span><span class="s3">.</span><span class="s1">Done</span>
+
+<span class="s2">class </span><span class="s1">MessageListenerTypesLeakDetector</span><span class="s3">(</span><span class="s1">LeakDetector</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName2detector </span><span class="s3">= {}</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">config</span><span class="s3">.</span><span class="s1">GetBool</span><span class="s3">(</span><span class="s6">'leak-message-listeners'</span><span class="s3">, </span><span class="s4">0</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers </span><span class="s3">= []</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName </span><span class="s3">= </span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s6">'leak-message-listeners'</span><span class="s3">)</span>
+            <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leak</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_leak</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">())</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers</span><span class="s3">[-</span><span class="s4">1</span><span class="s3">].</span><span class="s1">accept</span><span class="s3">(</span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s6">'leak-msg-listeners'</span><span class="s3">), </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leak</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s6">'_leakTaskName'</span><span class="s3">):</span>
+            <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakTaskName</span><span class="s3">)</span>
+            <span class="s2">for </span><span class="s1">leaker </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers</span><span class="s3">:</span>
+                <span class="s1">leaker</span><span class="s3">.</span><span class="s1">ignoreAll</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_leakers </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">for </span><span class="s1">typeName</span><span class="s3">, </span><span class="s1">detector </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName2detector</span><span class="s3">.</span><span class="s1">items</span><span class="s3">():</span>
+            <span class="s1">detector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName2detector</span>
+        <span class="s1">LeakDetector</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">.</span><span class="s1">isFinished</span><span class="s3">():</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">.</span><span class="s1">destroy</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob </span><span class="s3">= </span><span class="s1">_MessageListenerTypeLeakDetectorCreator</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">jobMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_createJob</span><span class="s3">)</span>
+        <span class="s5"># are we leaking listener types?</span>
+        <span class="s2">return </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_typeName2detector</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

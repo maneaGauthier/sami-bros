@@ -1,0 +1,864 @@
+<html>
+<head>
+<title>MotionTrail.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MotionTrail.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s0">import </span><span class="s1">Task</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s0">import </span><span class="s1">taskMgr</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+
+
+<span class="s1">_want_python_motion_trails </span><span class="s2">= </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'want-python-motion-trails'</span><span class="s2">, </span><span class="s0">False</span><span class="s2">)</span>
+
+
+<span class="s0">def </span><span class="s1">remove_task</span><span class="s2">():</span>
+    <span class="s0">if </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">task_added</span><span class="s2">:</span>
+        <span class="s1">total_motion_trails </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">total_motion_trails </span><span class="s2">&gt; </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;warning: %d motion trails still exist when motion trail task is removed&quot; </span><span class="s2">% (</span><span class="s1">total_motion_trails</span><span class="s2">))</span>
+
+        <span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list </span><span class="s2">= []</span>
+
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_task_name</span><span class="s2">)</span>
+
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;MotionTrail task removed&quot;</span><span class="s2">)</span>
+
+        <span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">task_added </span><span class="s2">= </span><span class="s0">False</span>
+
+
+<span class="s0">class </span><span class="s1">MotionTrailVertex</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">vertex_id</span><span class="s2">, </span><span class="s1">vertex_function</span><span class="s2">, </span><span class="s1">context</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_id </span><span class="s2">= </span><span class="s1">vertex_id</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_function </span><span class="s2">= </span><span class="s1">vertex_function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">context </span><span class="s2">= </span><span class="s1">context</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">1.0</span><span class="s2">)</span>
+
+        <span class="s5"># default</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">start_color </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s4">1.0</span><span class="s2">, </span><span class="s4">1.0</span><span class="s2">, </span><span class="s4">1.0</span><span class="s2">, </span><span class="s4">1.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">end_color </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">1.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">v </span><span class="s2">= </span><span class="s4">0.0</span>
+
+
+<span class="s0">class </span><span class="s1">MotionTrailFrame</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">, </span><span class="s1">transform</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">time </span><span class="s2">= </span><span class="s1">current_time</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">transform </span><span class="s2">= </span><span class="s1">transform</span>
+
+
+<span class="s0">class </span><span class="s1">MotionTrail</span><span class="s2">(</span><span class="s1">NodePath</span><span class="s2">, </span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s6">&quot;&quot;&quot;Generates smooth geometry-based motion trails behind a moving object. 
+ 
+    To use this class, first define the shape of the cross-section polygon that 
+    is to be extruded along the motion trail by calling `add_vertex()` and 
+    `set_vertex_color()`.  When this is done, call `update_vertices()`. 
+ 
+    To generate the motion trail, either call `register_motion_trail()` 
+    to have Panda update it automatically, or periodically call the method 
+    `update_motion_trail()` with the current time and the new transform. 
+ 
+    The duration of the sample history is specified by `time_window`.  A larger 
+    time window creates longer motion trails (given constant speed).  Samples 
+    that are no longer within the time window are automatically discarded. 
+ 
+    The `use_nurbs` option can be used to create smooth interpolated curves 
+    from the samples.  This option is useful for animations that lack sampling 
+    to begin with, animations that move very quickly, or low frame rates, or if 
+    `sampling_time` is used to artificially slow down the update frequency. 
+ 
+    By default, the optimized C++ implementation (provided by `.CMotionTrail`) 
+    is used to generate the motion trails.  If for some reason you want to use 
+    the pure-Python implementation instead, set `want-python-motion-trails` to 
+    true in Config.prc. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;MotionTrail&quot;</span><span class="s2">)</span>
+
+    <span class="s1">task_added </span><span class="s2">= </span><span class="s0">False</span>
+    <span class="s1">motion_trail_list </span><span class="s2">= []</span>
+    <span class="s1">motion_trail_task_name </span><span class="s2">= </span><span class="s3">&quot;motion_trail_task&quot;</span>
+
+    <span class="s1">global_enable </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s2">@</span><span class="s1">classmethod</span>
+    <span class="s0">def </span><span class="s1">setGlobalEnable</span><span class="s2">(</span><span class="s1">cls</span><span class="s2">, </span><span class="s1">enable</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Set this to False to have the task stop updating all motion trails. 
+        This does not prevent updating them manually using the 
+        `update_motion_trail()` method. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">cls</span><span class="s2">.</span><span class="s1">global_enable </span><span class="s2">= </span><span class="s1">enable</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">parent_node_path</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Creates the motion trail with the given name and parents it to the 
+        given root node. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">NodePath</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">)</span>
+
+        <span class="s5"># required initialization</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">active </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enable </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pause </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pause_time </span><span class="s2">= </span><span class="s4">0.0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_end </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_start_time </span><span class="s2">= </span><span class="s4">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_color_scale </span><span class="s2">= </span><span class="s4">1.0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices </span><span class="s2">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">last_update_time </span><span class="s2">= </span><span class="s4">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list </span><span class="s2">= []</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parent_node_path </span><span class="s2">= </span><span class="s1">parent_node_path</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">previous_matrix </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">calculate_relative_matrix </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">playing </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s5"># default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">continuous_motion_trail </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color_scale </span><span class="s2">= </span><span class="s4">1.0</span>
+
+        <span class="s5">#: How long the time window is for which the trail is computed.  Can be</span>
+        <span class="s5">#: increased to obtain a longer trail, decreased for a shorter trail.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">time_window </span><span class="s2">= </span><span class="s4">1.0</span>
+
+        <span class="s5">#: How often the trail updates, in seconds.  The default is 0.0, which</span>
+        <span class="s5">#: has the trail updated every frame for the smoothest result.  Higher</span>
+        <span class="s5">#: values will generate a choppier trail.  The `use_nurbs` option can</span>
+        <span class="s5">#: compensate partially for this choppiness, however.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sampling_time </span><span class="s2">= </span><span class="s4">0.0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">square_t </span><span class="s2">= </span><span class="s0">True</span>
+
+<span class="s5">#        self.task_transform = False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s5"># node path states</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">parent_node_path</span><span class="s2">)</span>
+
+        <span class="s5">#: A `.GeomNode` object containing the generated geometry.  By default</span>
+        <span class="s5">#: parented to the MotionTrail itself, but can be reparented elsewhere</span>
+        <span class="s5">#: if necessary.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node </span><span class="s2">= </span><span class="s1">GeomNode</span><span class="s2">(</span><span class="s3">&quot;motion_trail&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node_path </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node</span><span class="s2">)</span>
+        <span class="s1">node_path </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node_path</span>
+
+        <span class="s5">### set render states</span>
+
+        <span class="s1">node_path</span><span class="s2">.</span><span class="s1">setTwoSided</span><span class="s2">(</span><span class="s0">True</span><span class="s2">)</span>
+
+        <span class="s5"># set additive blend effects</span>
+        <span class="s1">node_path</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s1">node_path</span><span class="s2">.</span><span class="s1">setDepthWrite</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">node_path</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setAttrib</span><span class="s2">(</span><span class="s1">ColorBlendAttrib</span><span class="s2">.</span><span class="s1">make</span><span class="s2">(</span><span class="s1">ColorBlendAttrib</span><span class="s2">.</span><span class="s1">MAdd</span><span class="s2">))</span>
+
+        <span class="s5"># do not light</span>
+        <span class="s1">node_path</span><span class="s2">.</span><span class="s1">setLightOff</span><span class="s2">()</span>
+
+        <span class="s5"># disable writes to destination alpha, write out rgb colors only</span>
+        <span class="s1">node_path</span><span class="s2">.</span><span class="s1">setAttrib</span><span class="s2">(</span><span class="s1">ColorWriteAttrib</span><span class="s2">.</span><span class="s1">make</span><span class="s2">(</span><span class="s1">ColorWriteAttrib</span><span class="s2">.</span><span class="s1">CRed </span><span class="s2">| </span><span class="s1">ColorWriteAttrib</span><span class="s2">.</span><span class="s1">CGreen </span><span class="s2">| </span><span class="s1">ColorWriteAttrib</span><span class="s2">.</span><span class="s1">CBlue</span><span class="s2">))</span>
+
+        <span class="s0">if not </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">task_added</span><span class="s2">:</span>
+            <span class="s5">#taskMgr.add(self.motion_trail_task, &quot;motion_trail_task&quot;, priority = 50)</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">motion_trail_task</span><span class="s2">, </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_task_name</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">acceptOnce</span><span class="s2">(</span><span class="s3">&quot;clientLogout&quot;</span><span class="s2">, </span><span class="s1">remove_task</span><span class="s2">)</span>
+
+            <span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">task_added </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">relative_to_render </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s5">#: Set this to True to use a NURBS curve to generate a smooth trail,</span>
+        <span class="s5">#: even if the underlying animation or movement is janky.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">use_nurbs </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s5">#: This can be changed to fine-tune the resolution of the NURBS curve.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">resolution_distance </span><span class="s2">= </span><span class="s4">0.5</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail </span><span class="s2">= </span><span class="s1">CMotionTrail</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">setGeomNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s0">if </span><span class="s1">_want_python_motion_trails</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">use_python_version </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">use_python_version </span><span class="s2">= </span><span class="s0">False</span>
+
+    <span class="s0">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Completely cleans up the motion trail object. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reset_motion_trail</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reset_motion_trail_geometry</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">resetVertexList</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">print_matrix</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">):</span>
+        <span class="s1">separator </span><span class="s2">= </span><span class="s3">' '</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">2</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">3</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">2</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">3</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">2</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">2</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">2</span><span class="s2">, </span><span class="s4">2</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">2</span><span class="s2">, </span><span class="s4">3</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">3</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">3</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">3</span><span class="s2">, </span><span class="s4">2</span><span class="s2">), </span><span class="s1">separator</span><span class="s2">, </span><span class="s1">matrix</span><span class="s2">.</span><span class="s1">getCell</span><span class="s2">(</span><span class="s4">3</span><span class="s2">, </span><span class="s4">3</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">motion_trail_task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+
+        <span class="s1">current_time </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time</span>
+        <span class="s1">total_motion_trails </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list</span><span class="s2">)</span>
+
+        <span class="s1">index </span><span class="s2">= </span><span class="s4">0</span>
+        <span class="s0">while </span><span class="s1">index </span><span class="s2">&lt; </span><span class="s1">total_motion_trails</span><span class="s2">:</span>
+            <span class="s1">motion_trail </span><span class="s2">= </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list </span><span class="s2">[</span><span class="s1">index</span><span class="s2">]</span>
+
+            <span class="s0">if </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">global_enable</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">use_python_version</span><span class="s2">:</span>
+                    <span class="s5"># Python version</span>
+                    <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">active </span><span class="s0">and </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">check_for_update</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">):</span>
+                        <span class="s1">transform </span><span class="s2">= </span><span class="s0">None</span>
+                        <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s0">is not None and </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s2">!= </span><span class="s1">render</span><span class="s2">:</span>
+                            <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+                        <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s0">and not </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">relative_to_render</span><span class="s2">:</span>
+                            <span class="s1">transform </span><span class="s2">= </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">getMat</span><span class="s2">(</span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path</span><span class="s2">)</span>
+                        <span class="s0">else</span><span class="s2">:</span>
+                            <span class="s1">transform </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">(</span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">getNetTransform</span><span class="s2">().</span><span class="s1">getMat</span><span class="s2">())</span>
+
+                        <span class="s0">if </span><span class="s1">transform </span><span class="s0">is not None</span><span class="s2">:</span>
+                            <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">update_motion_trail</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">, </span><span class="s1">transform</span><span class="s2">)</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s5"># C++ version</span>
+                    <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">active </span><span class="s0">and </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">checkForUpdate</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">):</span>
+                        <span class="s1">transform </span><span class="s2">= </span><span class="s0">None</span>
+                        <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s0">is not None and </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s2">!= </span><span class="s1">render</span><span class="s2">:</span>
+                            <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+                        <span class="s0">if </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path </span><span class="s0">and not </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">relative_to_render</span><span class="s2">:</span>
+                            <span class="s1">transform </span><span class="s2">= </span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">getMat</span><span class="s2">(</span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">root_node_path</span><span class="s2">)</span>
+                        <span class="s0">else</span><span class="s2">:</span>
+                            <span class="s1">transform </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">(</span><span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">getNetTransform</span><span class="s2">().</span><span class="s1">getMat</span><span class="s2">())</span>
+
+                        <span class="s0">if </span><span class="s1">transform </span><span class="s0">is not None</span><span class="s2">:</span>
+                            <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">transferVertices</span><span class="s2">()</span>
+                            <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">updateMotionTrail</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">, </span><span class="s1">transform</span><span class="s2">)</span>
+
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">reset_motion_trail</span><span class="s2">()</span>
+                <span class="s1">motion_trail</span><span class="s2">.</span><span class="s1">reset_motion_trail_geometry</span><span class="s2">()</span>
+
+            <span class="s1">index </span><span class="s2">+= </span><span class="s4">1</span>
+
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">add_vertex</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">vertex_id</span><span class="s2">, </span><span class="s1">vertex_function</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">context</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;This must be called initially to define the polygon that forms the 
+        cross-section of the generated motion trail geometry.  The first 
+        argument is a user-defined vertex identifier, the second is a function 
+        that will be called with three parameters that should return the 
+        position of the vertex as a `.Vec4` object, and the third is an 
+        arbitrary context object that is passed as last argument to the 
+        provided function. 
+ 
+        After calling this, you must call `update_vertices()` before the 
+        changes will fully take effect. 
+ 
+        As of Panda3D 1.10.13, you may alternatively simply pass in a single 
+        argument containing the vertex position as a `.Vec4` or `.Point3`. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">vertex_function </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">motion_trail_vertex </span><span class="s2">= </span><span class="s1">MotionTrailVertex</span><span class="s2">(</span><span class="s0">None</span><span class="s2">, </span><span class="s0">None</span><span class="s2">, </span><span class="s1">context</span><span class="s2">)</span>
+            <span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">vertex </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s1">vertex_id</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">motion_trail_vertex </span><span class="s2">= </span><span class="s1">MotionTrailVertex</span><span class="s2">(</span><span class="s1">vertex_id</span><span class="s2">, </span><span class="s1">vertex_function</span><span class="s2">, </span><span class="s1">context</span><span class="s2">)</span>
+        <span class="s1">total_vertices </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">total_vertices </span><span class="s2">: </span><span class="s1">total_vertices</span><span class="s2">] = [</span><span class="s1">motion_trail_vertex</span><span class="s2">]</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s0">return </span><span class="s1">motion_trail_vertex</span>
+
+    <span class="s0">def </span><span class="s1">set_vertex_color</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">vertex_id</span><span class="s2">, </span><span class="s1">start_color</span><span class="s2">, </span><span class="s1">end_color</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Sets the start and end color of the vertex with the given index, 
+        which must have been previously added by `add_vertex()`.  The motion 
+        trail will contain a smooth gradient between these colors.  By default, 
+        the motion trail fades from white to black (which, with the default 
+        additive blending mode, makes it show up as a purely white motion trail 
+        that fades out towards the end). 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">vertex_id </span><span class="s2">&gt;= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">vertex_id </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices</span><span class="s2">:</span>
+            <span class="s1">motion_trail_vertex </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_id</span><span class="s2">]</span>
+            <span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">start_color </span><span class="s2">= </span><span class="s1">start_color</span>
+            <span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">end_color </span><span class="s2">= </span><span class="s1">end_color</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s0">def </span><span class="s1">set_texture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Defines the texture that should be applied to the trail geometry. 
+        This also enables generation of UV coordinates. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s2">= </span><span class="s1">texture</span>
+        <span class="s0">if </span><span class="s1">texture</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node_path</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">texture</span><span class="s2">)</span>
+<span class="s5">#            texture.setWrapU(Texture.WMClamp)</span>
+<span class="s5">#            texture.setWrapV(Texture.WMClamp)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node_path</span><span class="s2">.</span><span class="s1">clearTexture</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s0">def </span><span class="s1">update_vertices</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;This must be called after the list of vertices defining the 
+        cross-section shape of the motion trail has been defined by 
+        `add_vertex()` and `set_vertex_color()`. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">total_vertices </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices </span><span class="s2">= </span><span class="s1">total_vertices</span>
+        <span class="s0">if </span><span class="s1">total_vertices </span><span class="s2">&gt;= </span><span class="s4">2</span><span class="s2">:</span>
+            <span class="s1">vertex_index </span><span class="s2">= </span><span class="s4">0</span>
+            <span class="s0">while </span><span class="s1">vertex_index </span><span class="s2">&lt; </span><span class="s1">total_vertices</span><span class="s2">:</span>
+                <span class="s1">motion_trail_vertex </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_index</span><span class="s2">]</span>
+                <span class="s0">if </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">vertex_function </span><span class="s0">is not None</span><span class="s2">:</span>
+                    <span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">vertex </span><span class="s2">= </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">vertex_function</span><span class="s2">(</span><span class="s1">motion_trail_vertex</span><span class="s2">, </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">vertex_id</span><span class="s2">, </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">context</span><span class="s2">)</span>
+                <span class="s1">vertex_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+            <span class="s5"># calculate v coordinate</span>
+            <span class="s5"># this is based on the number of vertices only and not on the relative positions of the vertices</span>
+            <span class="s1">vertex_index </span><span class="s2">= </span><span class="s4">0</span>
+            <span class="s1">float_vertex_index </span><span class="s2">= </span><span class="s4">0.0</span>
+            <span class="s1">float_total_vertices </span><span class="s2">= </span><span class="s4">0.0</span>
+            <span class="s1">float_total_vertices </span><span class="s2">= </span><span class="s1">total_vertices </span><span class="s2">- </span><span class="s4">1.0</span>
+            <span class="s0">while </span><span class="s1">vertex_index </span><span class="s2">&lt; </span><span class="s1">total_vertices</span><span class="s2">:</span>
+                <span class="s1">motion_trail_vertex </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_index</span><span class="s2">]</span>
+                <span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">v </span><span class="s2">= </span><span class="s1">float_vertex_index </span><span class="s2">/ </span><span class="s1">float_total_vertices</span>
+                <span class="s1">vertex_index </span><span class="s2">+= </span><span class="s4">1</span>
+                <span class="s1">float_vertex_index </span><span class="s2">+= </span><span class="s4">1.0</span>
+
+<span class="s5">#                print &quot;motion_trail_vertex.v&quot;, motion_trail_vertex.v</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s0">def </span><span class="s1">transferVertices</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+
+        <span class="s5"># transfer only on modification</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">setParameters</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sampling_time</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">time_window</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s0">is not None</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">calculate_relative_matrix</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_nurbs</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resolution_distance</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">resetVertexList</span><span class="s2">()</span>
+
+            <span class="s1">vertex_index </span><span class="s2">= </span><span class="s4">0</span>
+            <span class="s1">total_vertices </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">)</span>
+            <span class="s0">while </span><span class="s1">vertex_index </span><span class="s2">&lt; </span><span class="s1">total_vertices</span><span class="s2">:</span>
+                <span class="s1">motion_trail_vertex </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_index</span><span class="s2">]</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">, </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">start_color</span><span class="s2">, </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">end_color</span><span class="s2">, </span><span class="s1">motion_trail_vertex</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+                <span class="s1">vertex_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">modified_vertices </span><span class="s2">= </span><span class="s0">False</span>
+
+    <span class="s0">def </span><span class="s1">register_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Adds this motion trail to the list of trails that are updated 
+        automatically every frame.  Be careful not to call this twice. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list </span><span class="s2">= </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list </span><span class="s2">+ [</span><span class="s1">self</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">unregister_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Removes this motion trail from the list of trails that are updated 
+        automatically every frame.  If it is not on that list, does nothing. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">self </span><span class="s0">in </span><span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list</span><span class="s2">:</span>
+            <span class="s1">MotionTrail</span><span class="s2">.</span><span class="s1">motion_trail_list</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">begin_geometry</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_index </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">format </span><span class="s2">= </span><span class="s1">GeomVertexFormat</span><span class="s2">.</span><span class="s1">getV3c4t2</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">format </span><span class="s2">= </span><span class="s1">GeomVertexFormat</span><span class="s2">.</span><span class="s1">getV3c4</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_data </span><span class="s2">= </span><span class="s1">GeomVertexData</span><span class="s2">(</span><span class="s3">&quot;vertices&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">format</span><span class="s2">, </span><span class="s1">Geom</span><span class="s2">.</span><span class="s1">UHStatic</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_writer </span><span class="s2">= </span><span class="s1">GeomVertexWriter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_data</span><span class="s2">, </span><span class="s3">&quot;vertex&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color_writer </span><span class="s2">= </span><span class="s1">GeomVertexWriter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_data</span><span class="s2">, </span><span class="s3">&quot;color&quot;</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texture_writer </span><span class="s2">= </span><span class="s1">GeomVertexWriter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_data</span><span class="s2">, </span><span class="s3">&quot;texcoord&quot;</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles </span><span class="s2">= </span><span class="s1">GeomTriangles</span><span class="s2">(</span><span class="s1">Geom</span><span class="s2">.</span><span class="s1">UHStatic</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">add_geometry_quad</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">v0</span><span class="s2">, </span><span class="s1">v1</span><span class="s2">, </span><span class="s1">v2</span><span class="s2">, </span><span class="s1">v3</span><span class="s2">, </span><span class="s1">c0</span><span class="s2">, </span><span class="s1">c1</span><span class="s2">, </span><span class="s1">c2</span><span class="s2">, </span><span class="s1">c3</span><span class="s2">, </span><span class="s1">t0</span><span class="s2">, </span><span class="s1">t1</span><span class="s2">, </span><span class="s1">t2</span><span class="s2">, </span><span class="s1">t3</span><span class="s2">):</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_writer</span><span class="s2">.</span><span class="s1">addData3</span><span class="s2">(</span><span class="s1">v0</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">v0</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">v0</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_writer</span><span class="s2">.</span><span class="s1">addData3</span><span class="s2">(</span><span class="s1">v1</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">v1</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">v1</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_writer</span><span class="s2">.</span><span class="s1">addData3</span><span class="s2">(</span><span class="s1">v2</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">v2</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">v2</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_writer</span><span class="s2">.</span><span class="s1">addData3</span><span class="s2">(</span><span class="s1">v3</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">v3</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">v3</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color_writer</span><span class="s2">.</span><span class="s1">addData4</span><span class="s2">(</span><span class="s1">c0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color_writer</span><span class="s2">.</span><span class="s1">addData4</span><span class="s2">(</span><span class="s1">c1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color_writer</span><span class="s2">.</span><span class="s1">addData4</span><span class="s2">(</span><span class="s1">c2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color_writer</span><span class="s2">.</span><span class="s1">addData4</span><span class="s2">(</span><span class="s1">c3</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texture_writer</span><span class="s2">.</span><span class="s1">addData2</span><span class="s2">(</span><span class="s1">t0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texture_writer</span><span class="s2">.</span><span class="s1">addData2</span><span class="s2">(</span><span class="s1">t1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texture_writer</span><span class="s2">.</span><span class="s1">addData2</span><span class="s2">(</span><span class="s1">t2</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texture_writer</span><span class="s2">.</span><span class="s1">addData2</span><span class="s2">(</span><span class="s1">t3</span><span class="s2">)</span>
+
+        <span class="s1">vertex_index </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_index</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">vertex_index </span><span class="s2">+ </span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">vertex_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">vertex_index </span><span class="s2">+ </span><span class="s4">2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">closePrimitive</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">vertex_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">vertex_index </span><span class="s2">+ </span><span class="s4">3</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertex</span><span class="s2">(</span><span class="s1">vertex_index </span><span class="s2">+ </span><span class="s4">2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">closePrimitive</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_index </span><span class="s2">+= </span><span class="s4">4</span>
+
+    <span class="s0">def </span><span class="s1">end_geometry</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geometry </span><span class="s2">= </span><span class="s1">Geom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_data</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geometry</span><span class="s2">.</span><span class="s1">addPrimitive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node</span><span class="s2">.</span><span class="s1">removeAllGeoms</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node</span><span class="s2">.</span><span class="s1">addGeom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">geometry</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">check_for_update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Returns true if the motion trail is overdue for an update based on 
+        the configured `sampling_time` (by default 0.0 to update continuously), 
+        and is not currently paused. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">state </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">current_time </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">last_update_time</span><span class="s2">) &gt;= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sampling_time</span><span class="s2">:</span>
+            <span class="s1">state </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">:</span>
+            <span class="s1">state </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">update </span><span class="s2">= </span><span class="s1">state </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enable</span>
+
+        <span class="s0">return </span><span class="s1">state</span>
+
+    <span class="s0">def </span><span class="s1">update_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">, </span><span class="s1">transform</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;If the trail is overdue for an update based on the given time in 
+        seconds, updates it, extracting the new object position from the given 
+        transform matrix. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">) &gt;= </span><span class="s4">1</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">transform </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s4">0</span><span class="s2">].</span><span class="s1">transform</span><span class="s2">:</span>
+                <span class="s5"># ignore duplicate transform updates</span>
+                <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">check_for_update</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">):</span>
+            <span class="s1">color_scale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">color_scale</span>
+
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">:</span>
+                <span class="s1">elapsed_time </span><span class="s2">= </span><span class="s1">current_time </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade_start_time</span>
+
+                <span class="s0">if </span><span class="s1">elapsed_time </span><span class="s2">&lt; </span><span class="s4">0.0</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;elapsed_time &lt; 0: %f&quot; </span><span class="s2">% (</span><span class="s1">elapsed_time</span><span class="s2">))</span>
+                    <span class="s1">elapsed_time </span><span class="s2">= </span><span class="s4">0.0</span>
+
+                <span class="s0">if </span><span class="s1">elapsed_time </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade_time</span><span class="s2">:</span>
+                    <span class="s1">color_scale </span><span class="s2">= (</span><span class="s4">1.0 </span><span class="s2">- (</span><span class="s1">elapsed_time </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade_time</span><span class="s2">)) * </span><span class="s1">color_scale</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">color_scale </span><span class="s2">= </span><span class="s4">0.0</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_end </span><span class="s2">= </span><span class="s0">True</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">last_update_time </span><span class="s2">= </span><span class="s1">current_time</span>
+
+            <span class="s5"># remove expired frames</span>
+            <span class="s1">minimum_time </span><span class="s2">= </span><span class="s1">current_time </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">time_window</span>
+
+            <span class="s1">index </span><span class="s2">= </span><span class="s4">0</span>
+
+            <span class="s1">last_frame_index </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">) - </span><span class="s4">1</span>
+
+            <span class="s0">while </span><span class="s1">index </span><span class="s2">&lt;= </span><span class="s1">last_frame_index</span><span class="s2">:</span>
+                <span class="s1">motion_trail_frame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">last_frame_index </span><span class="s2">- </span><span class="s1">index</span><span class="s2">]</span>
+                <span class="s0">if </span><span class="s1">motion_trail_frame</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt;= </span><span class="s1">minimum_time</span><span class="s2">:</span>
+                    <span class="s0">break</span>
+                <span class="s1">index </span><span class="s2">+= </span><span class="s4">1</span>
+
+            <span class="s0">if </span><span class="s1">index </span><span class="s2">&gt; </span><span class="s4">0</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">last_frame_index </span><span class="s2">- </span><span class="s1">index</span><span class="s2">: </span><span class="s1">last_frame_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">] = []</span>
+
+            <span class="s5"># add new frame to beginning of list</span>
+            <span class="s1">motion_trail_frame </span><span class="s2">= </span><span class="s1">MotionTrailFrame</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">, </span><span class="s1">transform</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list </span><span class="s2">= [</span><span class="s1">motion_trail_frame</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span>
+
+            <span class="s5"># convert frames and vertices to geometry</span>
+            <span class="s1">total_frames </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">)</span>
+
+            <span class="s5">#print(&quot;total_frames&quot;, total_frames)</span>
+            <span class="s5">#</span>
+            <span class="s5">#index = 0</span>
+            <span class="s5">#while index &lt; total_frames:</span>
+            <span class="s5">#    motion_trail_frame = self.frame_list[index]</span>
+            <span class="s5">#    print(&quot;frame time&quot;, index, motion_trail_frame.time)</span>
+            <span class="s5">#    index += 1</span>
+
+            <span class="s0">if </span><span class="s1">total_frames </span><span class="s2">&gt;= </span><span class="s4">2 </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices </span><span class="s2">&gt;= </span><span class="s4">2</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">begin_geometry</span><span class="s2">()</span>
+                <span class="s1">total_segments </span><span class="s2">= </span><span class="s1">total_frames </span><span class="s2">- </span><span class="s4">1</span>
+                <span class="s1">last_motion_trail_frame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">total_segments</span><span class="s2">]</span>
+                <span class="s1">minimum_time </span><span class="s2">= </span><span class="s1">last_motion_trail_frame</span><span class="s2">.</span><span class="s1">time</span>
+                <span class="s1">delta_time </span><span class="s2">= </span><span class="s1">current_time </span><span class="s2">- </span><span class="s1">minimum_time</span>
+
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">calculate_relative_matrix</span><span class="s2">:</span>
+                    <span class="s1">inverse_matrix </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">(</span><span class="s1">transform</span><span class="s2">)</span>
+                    <span class="s1">inverse_matrix</span><span class="s2">.</span><span class="s1">invertInPlace</span><span class="s2">()</span>
+
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_nurbs </span><span class="s0">and </span><span class="s1">total_frames </span><span class="s2">&gt;= </span><span class="s4">5</span><span class="s2">:</span>
+
+                    <span class="s1">total_distance </span><span class="s2">= </span><span class="s4">0.0</span>
+                    <span class="s1">vector </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">()</span>
+
+                    <span class="s1">nurbs_curve_evaluator_list </span><span class="s2">= []</span>
+
+                    <span class="s1">total_vertex_segments </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices </span><span class="s2">- </span><span class="s4">1</span>
+
+                    <span class="s5"># create a NurbsCurveEvaluator for each vertex(the starting point for the trail)</span>
+                    <span class="s1">index </span><span class="s2">= </span><span class="s4">0</span>
+                    <span class="s0">while </span><span class="s1">index </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices</span><span class="s2">:</span>
+                        <span class="s1">nurbs_curve_evaluator </span><span class="s2">= </span><span class="s1">NurbsCurveEvaluator</span><span class="s2">()</span>
+                        <span class="s1">nurbs_curve_evaluator</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">(</span><span class="s1">total_segments</span><span class="s2">)</span>
+                        <span class="s1">nurbs_curve_evaluator_list </span><span class="s2">= </span><span class="s1">nurbs_curve_evaluator_list </span><span class="s2">+ [</span><span class="s1">nurbs_curve_evaluator</span><span class="s2">]</span>
+                        <span class="s1">index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                    <span class="s5"># add vertices to each NurbsCurveEvaluator</span>
+                    <span class="s1">segment_index </span><span class="s2">= </span><span class="s4">0</span>
+                    <span class="s0">while </span><span class="s1">segment_index </span><span class="s2">&lt; </span><span class="s1">total_segments</span><span class="s2">:</span>
+                        <span class="s1">motion_trail_frame_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">segment_index</span><span class="s2">]</span>
+                        <span class="s1">motion_trail_frame_end </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                        <span class="s1">vertex_segment_index </span><span class="s2">= </span><span class="s4">0</span>
+
+                        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">calculate_relative_matrix</span><span class="s2">:</span>
+                            <span class="s1">start_transform </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">()</span>
+                            <span class="s1">end_transform </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">()</span>
+
+                            <span class="s1">start_transform</span><span class="s2">.</span><span class="s1">multiply</span><span class="s2">(</span><span class="s1">motion_trail_frame_start</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">, </span><span class="s1">inverse_matrix</span><span class="s2">)</span>
+                            <span class="s1">end_transform</span><span class="s2">.</span><span class="s1">multiply</span><span class="s2">(</span><span class="s1">motion_trail_frame_end</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">, </span><span class="s1">inverse_matrix</span><span class="s2">)</span>
+
+                        <span class="s0">else</span><span class="s2">:</span>
+                            <span class="s1">start_transform </span><span class="s2">= </span><span class="s1">motion_trail_frame_start</span><span class="s2">.</span><span class="s1">transform</span>
+                            <span class="s1">end_transform </span><span class="s2">= </span><span class="s1">motion_trail_frame_end</span><span class="s2">.</span><span class="s1">transform</span>
+
+                        <span class="s1">motion_trail_vertex_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+
+                        <span class="s1">v0 </span><span class="s2">= </span><span class="s1">start_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+                        <span class="s1">v2 </span><span class="s2">= </span><span class="s1">end_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+
+                        <span class="s1">nurbs_curve_evaluator </span><span class="s2">= </span><span class="s1">nurbs_curve_evaluator_list </span><span class="s2">[</span><span class="s1">vertex_segment_index</span><span class="s2">]</span>
+
+                        <span class="s1">nurbs_curve_evaluator</span><span class="s2">.</span><span class="s1">setVertex</span><span class="s2">(</span><span class="s1">segment_index</span><span class="s2">, </span><span class="s1">v0</span><span class="s2">)</span>
+
+                        <span class="s0">while </span><span class="s1">vertex_segment_index </span><span class="s2">&lt; </span><span class="s1">total_vertex_segments</span><span class="s2">:</span>
+
+                            <span class="s1">motion_trail_vertex_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_segment_index</span><span class="s2">]</span>
+                            <span class="s1">motion_trail_vertex_end </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                            <span class="s1">v1 </span><span class="s2">= </span><span class="s1">start_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+                            <span class="s1">v3 </span><span class="s2">= </span><span class="s1">end_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+
+                            <span class="s1">nurbs_curve_evaluator </span><span class="s2">= </span><span class="s1">nurbs_curve_evaluator_list </span><span class="s2">[</span><span class="s1">vertex_segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                            <span class="s1">nurbs_curve_evaluator</span><span class="s2">.</span><span class="s1">setVertex</span><span class="s2">(</span><span class="s1">segment_index</span><span class="s2">, </span><span class="s1">v1</span><span class="s2">)</span>
+
+                            <span class="s0">if </span><span class="s1">vertex_segment_index </span><span class="s2">== (</span><span class="s1">total_vertex_segments </span><span class="s2">- </span><span class="s4">1</span><span class="s2">):</span>
+                                <span class="s1">v </span><span class="s2">= </span><span class="s1">v1 </span><span class="s2">- </span><span class="s1">v3</span>
+                                <span class="s1">vector</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">v</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">v</span><span class="s2">[</span><span class="s4">1</span><span class="s2">], </span><span class="s1">v</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])</span>
+                                <span class="s1">distance </span><span class="s2">= </span><span class="s1">vector</span><span class="s2">.</span><span class="s1">length</span><span class="s2">()</span>
+                                <span class="s1">total_distance </span><span class="s2">+= </span><span class="s1">distance</span>
+
+                            <span class="s1">vertex_segment_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                        <span class="s1">segment_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                    <span class="s5"># evaluate NurbsCurveEvaluator for each vertex</span>
+                    <span class="s1">index </span><span class="s2">= </span><span class="s4">0</span>
+                    <span class="s1">nurbs_curve_result_list </span><span class="s2">= []</span>
+                    <span class="s0">while </span><span class="s1">index </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices</span><span class="s2">:</span>
+                        <span class="s1">nurbs_curve_evaluator </span><span class="s2">= </span><span class="s1">nurbs_curve_evaluator_list </span><span class="s2">[</span><span class="s1">index</span><span class="s2">]</span>
+                        <span class="s1">nurbs_curve_result </span><span class="s2">= </span><span class="s1">nurbs_curve_evaluator</span><span class="s2">.</span><span class="s1">evaluate</span><span class="s2">()</span>
+                        <span class="s1">nurbs_curve_result_list </span><span class="s2">= </span><span class="s1">nurbs_curve_result_list </span><span class="s2">+ [</span><span class="s1">nurbs_curve_result</span><span class="s2">]</span>
+
+                        <span class="s1">nurbs_start_t </span><span class="s2">= </span><span class="s1">nurbs_curve_result</span><span class="s2">.</span><span class="s1">getStartT</span><span class="s2">()</span>
+                        <span class="s1">nurbs_end_t </span><span class="s2">= </span><span class="s1">nurbs_curve_result</span><span class="s2">.</span><span class="s1">getEndT</span><span class="s2">()</span>
+
+                        <span class="s1">index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                    <span class="s5"># create quads from NurbsCurveResult</span>
+                    <span class="s1">total_curve_segments </span><span class="s2">= </span><span class="s1">total_distance </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resolution_distance</span>
+                    <span class="s0">if </span><span class="s1">total_curve_segments </span><span class="s2">&lt; </span><span class="s1">total_segments</span><span class="s2">:</span>
+                        <span class="s1">total_curve_segments </span><span class="s2">= </span><span class="s1">total_segments</span>
+
+                    <span class="s1">v0 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">()</span>
+                    <span class="s1">v1 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">()</span>
+                    <span class="s1">v2 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">()</span>
+                    <span class="s1">v3 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">()</span>
+
+                    <span class="s0">def </span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">x</span><span class="s2">):</span>
+                        <span class="s1">x </span><span class="s2">= </span><span class="s4">1.0 </span><span class="s2">- </span><span class="s1">x</span>
+                        <span class="s0">if </span><span class="s1">x </span><span class="s2">&lt; </span><span class="s4">0.0</span><span class="s2">:</span>
+                            <span class="s1">x </span><span class="s2">= </span><span class="s4">0.0</span>
+                        <span class="s0">return </span><span class="s1">x</span>
+
+                    <span class="s1">curve_segment_index </span><span class="s2">= </span><span class="s4">0.0</span>
+                    <span class="s0">while </span><span class="s1">curve_segment_index </span><span class="s2">&lt; </span><span class="s1">total_curve_segments</span><span class="s2">:</span>
+
+                        <span class="s1">vertex_segment_index </span><span class="s2">= </span><span class="s4">0</span>
+
+                        <span class="s1">st </span><span class="s2">= </span><span class="s1">curve_segment_index </span><span class="s2">/ </span><span class="s1">total_curve_segments</span>
+                        <span class="s1">et </span><span class="s2">= (</span><span class="s1">curve_segment_index </span><span class="s2">+ </span><span class="s4">1.0</span><span class="s2">) / </span><span class="s1">total_curve_segments</span>
+                        <span class="s5">#st = curve_segment_index / total_segments</span>
+                        <span class="s5">#et = (curve_segment_index + 1.0) / total_segments</span>
+
+                        <span class="s1">start_t </span><span class="s2">= </span><span class="s1">st</span>
+                        <span class="s1">end_t </span><span class="s2">= </span><span class="s1">et</span>
+
+                        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">square_t</span><span class="s2">:</span>
+                            <span class="s1">start_t </span><span class="s2">*= </span><span class="s1">start_t</span>
+                            <span class="s1">end_t </span><span class="s2">*= </span><span class="s1">end_t</span>
+
+                        <span class="s1">motion_trail_vertex_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+
+                        <span class="s1">vertex_start_color </span><span class="s2">= </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">end_color </span><span class="s2">+ (</span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">start_color </span><span class="s2">- </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">end_color</span><span class="s2">)</span>
+                        <span class="s1">color_start_t </span><span class="s2">= </span><span class="s1">color_scale </span><span class="s2">* </span><span class="s1">start_t</span>
+                        <span class="s1">color_end_t </span><span class="s2">= </span><span class="s1">color_scale </span><span class="s2">* </span><span class="s1">end_t</span>
+                        <span class="s1">c0 </span><span class="s2">= </span><span class="s1">vertex_start_color </span><span class="s2">* </span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">color_start_t</span><span class="s2">)</span>
+                        <span class="s1">c2 </span><span class="s2">= </span><span class="s1">vertex_start_color </span><span class="s2">* </span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">color_end_t</span><span class="s2">)</span>
+
+                        <span class="s1">t0 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">st</span><span class="s2">), </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+                        <span class="s1">t2 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">et</span><span class="s2">), </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+
+                        <span class="s0">while </span><span class="s1">vertex_segment_index </span><span class="s2">&lt; </span><span class="s1">total_vertex_segments</span><span class="s2">:</span>
+
+                            <span class="s1">motion_trail_vertex_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_segment_index</span><span class="s2">]</span>
+                            <span class="s1">motion_trail_vertex_end </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                            <span class="s1">start_nurbs_curve_result </span><span class="s2">= </span><span class="s1">nurbs_curve_result_list </span><span class="s2">[</span><span class="s1">vertex_segment_index</span><span class="s2">]</span>
+                            <span class="s1">end_nurbs_curve_result </span><span class="s2">= </span><span class="s1">nurbs_curve_result_list </span><span class="s2">[</span><span class="s1">vertex_segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                            <span class="s1">start_nurbs_start_t </span><span class="s2">= </span><span class="s1">start_nurbs_curve_result</span><span class="s2">.</span><span class="s1">getStartT</span><span class="s2">()</span>
+                            <span class="s1">start_nurbs_end_t </span><span class="s2">= </span><span class="s1">start_nurbs_curve_result</span><span class="s2">.</span><span class="s1">getEndT</span><span class="s2">()</span>
+                            <span class="s1">end_nurbs_start_t </span><span class="s2">= </span><span class="s1">end_nurbs_curve_result</span><span class="s2">.</span><span class="s1">getStartT</span><span class="s2">()</span>
+                            <span class="s1">end_nurbs_end_t </span><span class="s2">= </span><span class="s1">end_nurbs_curve_result</span><span class="s2">.</span><span class="s1">getEndT</span><span class="s2">()</span>
+
+                            <span class="s1">start_delta_t </span><span class="s2">= (</span><span class="s1">start_nurbs_end_t </span><span class="s2">- </span><span class="s1">start_nurbs_start_t</span><span class="s2">)</span>
+                            <span class="s1">end_delta_t </span><span class="s2">= (</span><span class="s1">end_nurbs_end_t </span><span class="s2">- </span><span class="s1">end_nurbs_start_t</span><span class="s2">)</span>
+
+                            <span class="s1">start_nurbs_curve_result</span><span class="s2">.</span><span class="s1">evalPoint</span><span class="s2">(</span><span class="s1">start_nurbs_start_t </span><span class="s2">+ (</span><span class="s1">start_delta_t </span><span class="s2">* </span><span class="s1">st</span><span class="s2">), </span><span class="s1">v0</span><span class="s2">)</span>
+                            <span class="s1">end_nurbs_curve_result</span><span class="s2">.</span><span class="s1">evalPoint</span><span class="s2">(</span><span class="s1">end_nurbs_start_t </span><span class="s2">+ (</span><span class="s1">end_delta_t </span><span class="s2">* </span><span class="s1">st</span><span class="s2">), </span><span class="s1">v1</span><span class="s2">)</span>
+
+                            <span class="s1">start_nurbs_curve_result</span><span class="s2">.</span><span class="s1">evalPoint</span><span class="s2">(</span><span class="s1">start_nurbs_start_t </span><span class="s2">+ (</span><span class="s1">start_delta_t </span><span class="s2">* </span><span class="s1">et</span><span class="s2">), </span><span class="s1">v2</span><span class="s2">)</span>
+                            <span class="s1">end_nurbs_curve_result</span><span class="s2">.</span><span class="s1">evalPoint</span><span class="s2">(</span><span class="s1">end_nurbs_start_t </span><span class="s2">+ (</span><span class="s1">end_delta_t </span><span class="s2">* </span><span class="s1">et</span><span class="s2">), </span><span class="s1">v3</span><span class="s2">)</span>
+
+                            <span class="s5"># color</span>
+                            <span class="s1">vertex_end_color </span><span class="s2">= </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">end_color </span><span class="s2">+ (</span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">start_color </span><span class="s2">- </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">end_color</span><span class="s2">)</span>
+
+                            <span class="s1">c1 </span><span class="s2">= </span><span class="s1">vertex_end_color </span><span class="s2">* </span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">color_start_t</span><span class="s2">)</span>
+                            <span class="s1">c3 </span><span class="s2">= </span><span class="s1">vertex_end_color </span><span class="s2">* </span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">color_end_t</span><span class="s2">)</span>
+
+                            <span class="s5"># uv</span>
+                            <span class="s1">t1 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">st</span><span class="s2">), </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+                            <span class="s1">t3 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">one_minus_x</span><span class="s2">(</span><span class="s1">et</span><span class="s2">), </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">add_geometry_quad</span><span class="s2">(</span><span class="s1">v0</span><span class="s2">, </span><span class="s1">v1</span><span class="s2">, </span><span class="s1">v2</span><span class="s2">, </span><span class="s1">v3</span><span class="s2">, </span><span class="s1">c0</span><span class="s2">, </span><span class="s1">c1</span><span class="s2">, </span><span class="s1">c2</span><span class="s2">, </span><span class="s1">c3</span><span class="s2">, </span><span class="s1">t0</span><span class="s2">, </span><span class="s1">t1</span><span class="s2">, </span><span class="s1">t2</span><span class="s2">, </span><span class="s1">t3</span><span class="s2">)</span>
+
+                            <span class="s5"># reuse calculations</span>
+                            <span class="s1">c0 </span><span class="s2">= </span><span class="s1">c1</span>
+                            <span class="s1">c2 </span><span class="s2">= </span><span class="s1">c3</span>
+
+                            <span class="s1">t0 </span><span class="s2">= </span><span class="s1">t1</span>
+                            <span class="s1">t2 </span><span class="s2">= </span><span class="s1">t3</span>
+
+                            <span class="s1">vertex_segment_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                        <span class="s1">curve_segment_index </span><span class="s2">+= </span><span class="s4">1.0</span>
+
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">segment_index </span><span class="s2">= </span><span class="s4">0</span>
+                    <span class="s0">while </span><span class="s1">segment_index </span><span class="s2">&lt; </span><span class="s1">total_segments</span><span class="s2">:</span>
+                        <span class="s1">motion_trail_frame_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">segment_index</span><span class="s2">]</span>
+                        <span class="s1">motion_trail_frame_end </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                        <span class="s1">start_t </span><span class="s2">= (</span><span class="s1">motion_trail_frame_start</span><span class="s2">.</span><span class="s1">time </span><span class="s2">- </span><span class="s1">minimum_time</span><span class="s2">) / </span><span class="s1">delta_time</span>
+                        <span class="s1">end_t </span><span class="s2">= (</span><span class="s1">motion_trail_frame_end</span><span class="s2">.</span><span class="s1">time </span><span class="s2">- </span><span class="s1">minimum_time</span><span class="s2">) / </span><span class="s1">delta_time</span>
+
+                        <span class="s1">st </span><span class="s2">= </span><span class="s1">start_t</span>
+                        <span class="s1">et </span><span class="s2">= </span><span class="s1">end_t</span>
+
+                        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">square_t</span><span class="s2">:</span>
+                            <span class="s1">start_t </span><span class="s2">*= </span><span class="s1">start_t</span>
+                            <span class="s1">end_t </span><span class="s2">*= </span><span class="s1">end_t</span>
+
+                        <span class="s1">vertex_segment_index </span><span class="s2">= </span><span class="s4">0</span>
+                        <span class="s1">total_vertex_segments </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_vertices </span><span class="s2">- </span><span class="s4">1</span>
+
+                        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">calculate_relative_matrix</span><span class="s2">:</span>
+                            <span class="s1">start_transform </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">()</span>
+                            <span class="s1">end_transform </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">()</span>
+                            <span class="s1">start_transform</span><span class="s2">.</span><span class="s1">multiply</span><span class="s2">(</span><span class="s1">motion_trail_frame_start</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">, </span><span class="s1">inverse_matrix</span><span class="s2">)</span>
+                            <span class="s1">end_transform</span><span class="s2">.</span><span class="s1">multiply</span><span class="s2">(</span><span class="s1">motion_trail_frame_end</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">, </span><span class="s1">inverse_matrix</span><span class="s2">)</span>
+                        <span class="s0">else</span><span class="s2">:</span>
+                            <span class="s1">start_transform </span><span class="s2">= </span><span class="s1">motion_trail_frame_start</span><span class="s2">.</span><span class="s1">transform</span>
+                            <span class="s1">end_transform </span><span class="s2">= </span><span class="s1">motion_trail_frame_end</span><span class="s2">.</span><span class="s1">transform</span>
+
+                        <span class="s1">motion_trail_vertex_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+
+                        <span class="s1">v0 </span><span class="s2">= </span><span class="s1">start_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+                        <span class="s1">v2 </span><span class="s2">= </span><span class="s1">end_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+
+                        <span class="s1">vertex_start_color </span><span class="s2">= </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">end_color </span><span class="s2">+ (</span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">start_color </span><span class="s2">- </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">end_color</span><span class="s2">)</span>
+                        <span class="s1">color_start_t </span><span class="s2">= </span><span class="s1">color_scale </span><span class="s2">* </span><span class="s1">start_t</span>
+                        <span class="s1">color_end_t </span><span class="s2">= </span><span class="s1">color_scale </span><span class="s2">* </span><span class="s1">end_t</span>
+                        <span class="s1">c0 </span><span class="s2">= </span><span class="s1">vertex_start_color </span><span class="s2">* </span><span class="s1">color_start_t</span>
+                        <span class="s1">c2 </span><span class="s2">= </span><span class="s1">vertex_start_color </span><span class="s2">* </span><span class="s1">color_end_t</span>
+
+                        <span class="s1">t0 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">st</span><span class="s2">, </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+                        <span class="s1">t2 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">et</span><span class="s2">, </span><span class="s1">motion_trail_vertex_start</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+
+                        <span class="s0">while </span><span class="s1">vertex_segment_index </span><span class="s2">&lt; </span><span class="s1">total_vertex_segments</span><span class="s2">:</span>
+
+                            <span class="s1">motion_trail_vertex_start </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_segment_index</span><span class="s2">]</span>
+                            <span class="s1">motion_trail_vertex_end </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">vertex_list</span><span class="s2">[</span><span class="s1">vertex_segment_index </span><span class="s2">+ </span><span class="s4">1</span><span class="s2">]</span>
+
+                            <span class="s1">v1 </span><span class="s2">= </span><span class="s1">start_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+                            <span class="s1">v3 </span><span class="s2">= </span><span class="s1">end_transform</span><span class="s2">.</span><span class="s1">xform</span><span class="s2">(</span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">vertex</span><span class="s2">)</span>
+
+                            <span class="s5"># color</span>
+                            <span class="s1">vertex_end_color </span><span class="s2">= </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">end_color </span><span class="s2">+ (</span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">start_color </span><span class="s2">- </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">end_color</span><span class="s2">)</span>
+
+                            <span class="s1">c1 </span><span class="s2">= </span><span class="s1">vertex_end_color </span><span class="s2">* </span><span class="s1">color_start_t</span>
+                            <span class="s1">c3 </span><span class="s2">= </span><span class="s1">vertex_end_color </span><span class="s2">* </span><span class="s1">color_end_t</span>
+
+                            <span class="s5"># uv</span>
+                            <span class="s1">t1 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">st</span><span class="s2">, </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+                            <span class="s1">t3 </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">et</span><span class="s2">, </span><span class="s1">motion_trail_vertex_end</span><span class="s2">.</span><span class="s1">v</span><span class="s2">)</span>
+
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">add_geometry_quad</span><span class="s2">(</span><span class="s1">v0</span><span class="s2">, </span><span class="s1">v1</span><span class="s2">, </span><span class="s1">v2</span><span class="s2">, </span><span class="s1">v3</span><span class="s2">, </span><span class="s1">c0</span><span class="s2">, </span><span class="s1">c1</span><span class="s2">, </span><span class="s1">c2</span><span class="s2">, </span><span class="s1">c3</span><span class="s2">, </span><span class="s1">t0</span><span class="s2">, </span><span class="s1">t1</span><span class="s2">, </span><span class="s1">t2</span><span class="s2">, </span><span class="s1">t3</span><span class="s2">)</span>
+
+                            <span class="s5"># reuse calculations</span>
+                            <span class="s1">v0 </span><span class="s2">= </span><span class="s1">v1</span>
+                            <span class="s1">v2 </span><span class="s2">= </span><span class="s1">v3</span>
+
+                            <span class="s1">c0 </span><span class="s2">= </span><span class="s1">c1</span>
+                            <span class="s1">c2 </span><span class="s2">= </span><span class="s1">c3</span>
+
+                            <span class="s1">t0 </span><span class="s2">= </span><span class="s1">t1</span>
+                            <span class="s1">t2 </span><span class="s2">= </span><span class="s1">t3</span>
+
+                            <span class="s1">vertex_segment_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                        <span class="s1">segment_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">end_geometry</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">enable_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">enable</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Sets whether the motion trail is currently enabled.  Every motion 
+        trail starts off as being enabled, passing False to this method prevents 
+        it from being updated. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enable </span><span class="s2">= </span><span class="s1">enable</span>
+
+    <span class="s0">def </span><span class="s1">reset_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Call this to have the motion trail restart from nothing on the next 
+        update. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cmotion_trail</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">reset_motion_trail_geometry</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Destroys the currently generated motion trail geometry immediately. 
+        However, it will be fully regenerated on the next call to update, see 
+        `reset_motion_trail()` to prevent this. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">geom_node</span><span class="s2">.</span><span class="s1">removeAllGeoms</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">attach_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot;Alias of `reset_motion_trail()`. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reset_motion_trail</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">begin_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">continuous_motion_trail</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">reset_motion_trail</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">active </span><span class="s2">= </span><span class="s0">True</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">playing </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s0">def </span><span class="s1">end_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">continuous_motion_trail</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">active </span><span class="s2">= </span><span class="s0">False</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">reset_motion_trail</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">reset_motion_trail_geometry</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">playing </span><span class="s2">= </span><span class="s0">False</span>
+
+    <span class="s5"># the following functions are not currently supported in the C++ version</span>
+
+    <span class="s0">def </span><span class="s1">set_fade</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">time</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_color_scale </span><span class="s2">= </span><span class="s4">1.0</span>
+
+            <span class="s0">if </span><span class="s1">time </span><span class="s2">== </span><span class="s4">0.0</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s2">= </span><span class="s0">False</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_start_time </span><span class="s2">= </span><span class="s1">current_time</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_time </span><span class="s2">= </span><span class="s1">time</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s0">def </span><span class="s1">pause_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pause_time </span><span class="s2">= </span><span class="s1">current_time</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pause </span><span class="s2">= </span><span class="s0">True</span>
+
+    <span class="s0">def </span><span class="s1">resume_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">:</span>
+            <span class="s1">delta_time </span><span class="s2">= </span><span class="s1">current_time </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pause_time</span>
+
+            <span class="s1">frame_index </span><span class="s2">= </span><span class="s4">0</span>
+            <span class="s1">total_frames </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">)</span>
+            <span class="s0">while </span><span class="s1">frame_index </span><span class="s2">&lt; </span><span class="s1">total_frames</span><span class="s2">:</span>
+                <span class="s1">motion_trail_frame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame_list</span><span class="s2">[</span><span class="s1">frame_index</span><span class="s2">]</span>
+                <span class="s1">motion_trail_frame</span><span class="s2">.</span><span class="s1">time </span><span class="s2">+= </span><span class="s1">delta_time</span>
+                <span class="s1">frame_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade_start_time </span><span class="s2">+= </span><span class="s1">delta_time</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pause </span><span class="s2">= </span><span class="s0">False</span>
+
+    <span class="s0">def </span><span class="s1">toggle_pause_motion_trail</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">current_time</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">resume_motion_trail</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pause_motion_trail</span><span class="s2">(</span><span class="s1">current_time</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<html>
+<head>
+<title>lights.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+lights.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">Vec2</span><span class="s2">, </span><span class="s1">invoke</span><span class="s2">, </span><span class="s1">scene</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">DirectionalLight </span><span class="s0">as </span><span class="s1">PandaDirectionalLight</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">PointLight </span><span class="s0">as </span><span class="s1">PandaPointLight</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">AmbientLight </span><span class="s0">as </span><span class="s1">PandaAmbientLight</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">Spotlight </span><span class="s0">as </span><span class="s1">PandaSpotLight</span>
+
+
+<span class="s0">class </span><span class="s1">Light</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">rotation_x</span><span class="s2">=</span><span class="s3">90</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">color</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_color</span>
+
+    <span class="s2">@</span><span class="s1">color</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">color</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_color </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+
+<span class="s0">class </span><span class="s1">DirectionalLight</span><span class="s2">(</span><span class="s1">Light</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">shadows</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_light </span><span class="s2">= </span><span class="s1">PandaDirectionalLight</span><span class="s2">(</span><span class="s4">'directional_light'</span><span class="s2">)</span>
+        <span class="s1">render</span><span class="s2">.</span><span class="s1">setLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">shadow_map_resolution </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s3">1024</span><span class="s2">, </span><span class="s3">1024</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key </span><span class="s2">,</span><span class="s1">value</span><span class="s2">)</span>
+
+        <span class="s1">invoke</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">, </span><span class="s4">'shadows'</span><span class="s2">, </span><span class="s1">shadows</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s3">.1</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">shadows</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_shadows</span>
+
+    <span class="s2">@</span><span class="s1">shadows</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">shadows</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_shadows </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s0">if </span><span class="s1">value</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">.</span><span class="s1">set_shadow_caster</span><span class="s2">(</span><span class="s0">True</span><span class="s2">, </span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">shadow_map_resolution</span><span class="s2">[</span><span class="s3">0</span><span class="s2">]), </span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">shadow_map_resolution</span><span class="s2">[</span><span class="s3">1</span><span class="s2">]))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">update_bounds</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">.</span><span class="s1">set_shadow_caster</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">update_bounds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">entity</span><span class="s2">=</span><span class="s1">scene</span><span class="s2">):  </span><span class="s5"># update the shadow area to fit the bounds of target entity, defaulted to scene.</span>
+        <span class="s1">bmin</span><span class="s2">, </span><span class="s1">bmax </span><span class="s2">= </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">get_tight_bounds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">lens </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">.</span><span class="s1">get_lens</span><span class="s2">()</span>
+        <span class="s1">lens</span><span class="s2">.</span><span class="s1">set_near_far</span><span class="s2">(</span><span class="s1">bmin</span><span class="s2">.</span><span class="s1">z</span><span class="s2">*</span><span class="s3">2</span><span class="s2">, </span><span class="s1">bmax</span><span class="s2">.</span><span class="s1">z</span><span class="s2">*</span><span class="s3">2</span><span class="s2">)</span>
+        <span class="s1">lens</span><span class="s2">.</span><span class="s1">set_film_offset</span><span class="s2">((</span><span class="s1">bmin</span><span class="s2">.</span><span class="s1">xy </span><span class="s2">+ </span><span class="s1">bmax</span><span class="s2">.</span><span class="s1">xy</span><span class="s2">) * </span><span class="s3">.5</span><span class="s2">)</span>
+        <span class="s1">lens</span><span class="s2">.</span><span class="s1">set_film_size</span><span class="s2">(</span><span class="s1">bmax</span><span class="s2">.</span><span class="s1">xy </span><span class="s2">- </span><span class="s1">bmin</span><span class="s2">.</span><span class="s1">xy</span><span class="s2">)</span>
+
+
+<span class="s0">class </span><span class="s1">PointLight</span><span class="s2">(</span><span class="s1">Light</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_light </span><span class="s2">= </span><span class="s1">PandaPointLight</span><span class="s2">(</span><span class="s4">'point_light'</span><span class="s2">)</span>
+        <span class="s1">render</span><span class="s2">.</span><span class="s1">setLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">))</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key </span><span class="s2">,</span><span class="s1">value</span><span class="s2">)</span>
+
+
+
+<span class="s0">class </span><span class="s1">AmbientLight</span><span class="s2">(</span><span class="s1">Light</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_light </span><span class="s2">= </span><span class="s1">PandaAmbientLight</span><span class="s2">(</span><span class="s4">'ambient_light'</span><span class="s2">)</span>
+        <span class="s1">render</span><span class="s2">.</span><span class="s1">setLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">))</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key </span><span class="s2">,</span><span class="s1">value</span><span class="s2">)</span>
+
+
+
+<span class="s0">class </span><span class="s1">SpotLight</span><span class="s2">(</span><span class="s1">Light</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_light </span><span class="s2">= </span><span class="s1">PandaSpotLight</span><span class="s2">(</span><span class="s4">'spot_light'</span><span class="s2">)</span>
+        <span class="s1">render</span><span class="s2">.</span><span class="s1">setLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_light</span><span class="s2">))</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key </span><span class="s2">,</span><span class="s1">value</span><span class="s2">)</span>
+
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Ursina</span><span class="s2">, </span><span class="s1">EditorCamera</span><span class="s2">, </span><span class="s1">color</span>
+
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">shaders </span><span class="s0">import </span><span class="s1">lit_with_shadows_shader </span><span class="s5"># you have to apply this shader to enties for them to receive shadows.</span>
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s4">'plane'</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s3">10</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">gray</span><span class="s2">, </span><span class="s1">shader</span><span class="s2">=</span><span class="s1">lit_with_shadows_shader</span><span class="s2">)</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s4">'cube'</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=</span><span class="s3">1</span><span class="s2">, </span><span class="s1">shader</span><span class="s2">=</span><span class="s1">lit_with_shadows_shader</span><span class="s2">)</span>
+    <span class="s1">pivot </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">()</span>
+    <span class="s1">DirectionalLight</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">pivot</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=</span><span class="s3">2</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=</span><span class="s3">3</span><span class="s2">, </span><span class="s1">shadows</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

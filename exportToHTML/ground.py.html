@@ -1,0 +1,32 @@
+<html>
+<head>
+<title>ground.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ground.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">Ground</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s3">'plane'</span><span class="s2">, </span><span class="s1">collider</span><span class="s2">=</span><span class="s3">'mesh'</span><span class="s2">, </span><span class="s1">double_sided</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+                     <span class="s1">scale</span><span class="s2">=</span><span class="s4">1000</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">),</span>
+                    <span class="s1">texture_scale</span><span class="s2">=(</span><span class="s4">100</span><span class="s2">,</span><span class="s4">100</span><span class="s2">),</span>
+                    <span class="s1">texture</span><span class="s2">=</span><span class="s3">'wooden_texture.jpg'</span>
+                              <span class="s2">)</span>
+
+
+</pre>
+</body>
+</html>

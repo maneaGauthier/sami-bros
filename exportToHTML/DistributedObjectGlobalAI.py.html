@@ -1,0 +1,54 @@
+<html>
+<head>
+<title>DistributedObjectGlobalAI.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedObjectGlobalAI.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s2">.</span><span class="s0">DistributedObjectAI </span><span class="s1">import </span><span class="s0">DistributedObjectAI</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directnotify</span><span class="s2">.</span><span class="s0">DirectNotifyGlobal </span><span class="s1">import </span><span class="s0">directNotify</span>
+
+
+<span class="s1">class </span><span class="s0">DistributedObjectGlobalAI</span><span class="s2">(</span><span class="s0">DistributedObjectAI</span><span class="s2">):</span>
+    <span class="s0">notify </span><span class="s2">= </span><span class="s0">directNotify</span><span class="s2">.</span><span class="s0">newCategory</span><span class="s2">(</span><span class="s3">'DistributedObjectGlobalAI'</span><span class="s2">)</span>
+
+    <span class="s0">doNotDeallocateChannel </span><span class="s2">= </span><span class="s4">1</span>
+    <span class="s0">isGlobalDistObj </span><span class="s2">= </span><span class="s4">1</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">):</span>
+        <span class="s0">DistributedObjectAI</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">announceGenerate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">DistributedObjectAI</span><span class="s2">.</span><span class="s0">announceGenerate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s1">try</span><span class="s2">:</span>
+            <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doNotListenToChannel</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">registerForChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+        <span class="s1">except </span><span class="s0">AttributeError</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">registerForChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+        <span class="s1">return False</span>
+
+    <span class="s1">def </span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+       <span class="s0">DistributedObjectAI</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+       <span class="s1">try</span><span class="s2">:</span>
+            <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doNotListenToChannel</span><span class="s2">:</span>
+               <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">unregisterForChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+       <span class="s1">except </span><span class="s0">AttributeError</span><span class="s2">:</span>
+           <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">unregisterForChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+        <span class="s5">## self.air.removeDOFromTables(self)</span>
+
+</pre>
+</body>
+</html>

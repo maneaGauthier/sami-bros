@@ -1,0 +1,158 @@
+<html>
+<head>
+<title>DirectLights.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectLights.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core </span><span class="s1">import </span><span class="s2">*</span>
+
+<span class="s1">class </span><span class="s0">DirectLight</span><span class="s2">(</span><span class="s0">NodePath</span><span class="s2">):</span>
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">light</span><span class="s2">, </span><span class="s0">parent</span><span class="s2">):</span>
+        <span class="s3"># Initialize the superclass</span>
+        <span class="s0">NodePath</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s3"># Record light and name</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">light </span><span class="s2">= </span><span class="s0">light</span>
+
+        <span class="s3"># Attach node to self</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">assign</span><span class="s2">(</span><span class="s0">parent</span><span class="s2">.</span><span class="s0">attachNewNode</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">light</span><span class="s2">))</span>
+
+    <span class="s1">def </span><span class="s0">getName</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">light</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">getLight</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">light</span>
+
+<span class="s1">class </span><span class="s0">DirectLights</span><span class="s2">(</span><span class="s0">NodePath</span><span class="s2">):</span>
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">parent </span><span class="s2">= </span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">parent </span><span class="s1">is None</span><span class="s2">:</span>
+            <span class="s0">parent </span><span class="s2">= </span><span class="s0">base</span><span class="s2">.</span><span class="s0">render</span>
+
+        <span class="s3"># Initialize the superclass</span>
+        <span class="s0">NodePath</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s3"># Create a node for the lights</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">assign</span><span class="s2">(</span><span class="s0">parent</span><span class="s2">.</span><span class="s0">attachNewNode</span><span class="s2">(</span><span class="s4">'DIRECT Lights'</span><span class="s2">))</span>
+        <span class="s3"># Create a list of all active lights</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict </span><span class="s2">= {}</span>
+        <span class="s3"># Counts of the various types of lights</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">ambientCount </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">directionalCount </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">pointCount </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">spotCount </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s1">def </span><span class="s0">__getitem__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">name</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">.</span><span class="s0">get</span><span class="s2">(</span><span class="s0">name</span><span class="s2">, </span><span class="s1">None</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">__len__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">len</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">light</span><span class="s2">):</span>
+        <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">[</span><span class="s0">light</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">()]</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">setOff</span><span class="s2">(</span><span class="s0">light</span><span class="s2">)</span>
+        <span class="s0">light</span><span class="s2">.</span><span class="s0">removeNode</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">deleteAll</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">light </span><span class="s1">in </span><span class="s0">self</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">(</span><span class="s0">light</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">asList</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s2">[</span><span class="s0">self</span><span class="s2">[</span><span class="s0">n</span><span class="s2">] </span><span class="s1">for </span><span class="s0">n </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getNameList</span><span class="s2">()]</span>
+
+    <span class="s1">def </span><span class="s0">getNameList</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># Return a sorted list of all lights in the light dict</span>
+        <span class="s0">nameList </span><span class="s2">= [</span><span class="s0">x</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">() </span><span class="s1">for </span><span class="s0">x </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()]</span>
+        <span class="s0">nameList</span><span class="s2">.</span><span class="s0">sort</span><span class="s2">()</span>
+        <span class="s1">return </span><span class="s0">nameList</span>
+
+    <span class="s1">def </span><span class="s0">create</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">type</span><span class="s2">):</span>
+        <span class="s0">type </span><span class="s2">= </span><span class="s0">type</span><span class="s2">.</span><span class="s0">lower</span><span class="s2">()</span>
+        <span class="s1">if </span><span class="s0">type </span><span class="s2">== </span><span class="s4">'ambient'</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">ambientCount </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s0">light </span><span class="s2">= </span><span class="s0">AmbientLight</span><span class="s2">(</span><span class="s4">'ambient-' </span><span class="s2">+ </span><span class="s0">repr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">ambientCount</span><span class="s2">))</span>
+            <span class="s0">light</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">VBase4</span><span class="s2">(</span><span class="s5">.3</span><span class="s2">, </span><span class="s5">.3</span><span class="s2">, </span><span class="s5">.3</span><span class="s2">, </span><span class="s5">1</span><span class="s2">))</span>
+        <span class="s1">elif </span><span class="s0">type </span><span class="s2">== </span><span class="s4">'directional'</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">directionalCount </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s0">light </span><span class="s2">= </span><span class="s0">DirectionalLight</span><span class="s2">(</span><span class="s4">'directional-' </span><span class="s2">+ </span><span class="s0">repr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">directionalCount</span><span class="s2">))</span>
+            <span class="s0">light</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">VBase4</span><span class="s2">(</span><span class="s5">1</span><span class="s2">))</span>
+        <span class="s1">elif </span><span class="s0">type </span><span class="s2">== </span><span class="s4">'point'</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">pointCount </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s0">light </span><span class="s2">= </span><span class="s0">PointLight</span><span class="s2">(</span><span class="s4">'point-' </span><span class="s2">+ </span><span class="s0">repr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">pointCount</span><span class="s2">))</span>
+            <span class="s0">light</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">VBase4</span><span class="s2">(</span><span class="s5">1</span><span class="s2">))</span>
+        <span class="s1">elif </span><span class="s0">type </span><span class="s2">== </span><span class="s4">'spot'</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">spotCount </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s0">light </span><span class="s2">= </span><span class="s0">Spotlight</span><span class="s2">(</span><span class="s4">'spot-' </span><span class="s2">+ </span><span class="s0">repr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">spotCount</span><span class="s2">))</span>
+            <span class="s0">light</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">VBase4</span><span class="s2">(</span><span class="s5">1</span><span class="s2">))</span>
+            <span class="s0">light</span><span class="s2">.</span><span class="s0">setLens</span><span class="s2">(</span><span class="s0">PerspectiveLens</span><span class="s2">())</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s4">'Invalid light type'</span><span class="s2">)</span>
+            <span class="s1">return None</span>
+        <span class="s3"># Add the new light</span>
+        <span class="s0">directLight </span><span class="s2">= </span><span class="s0">DirectLight</span><span class="s2">(</span><span class="s0">light</span><span class="s2">, </span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">[</span><span class="s0">directLight</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">()] = </span><span class="s0">directLight</span>
+        <span class="s3"># Turn it on as a default</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">setOn</span><span class="s2">(</span><span class="s0">directLight</span><span class="s2">)</span>
+        <span class="s3"># Send an event to all watching objects</span>
+        <span class="s0">messenger</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s4">'DIRECT_addLight'</span><span class="s2">, [</span><span class="s0">directLight</span><span class="s2">])</span>
+        <span class="s3"># Return the new light</span>
+        <span class="s1">return </span><span class="s0">directLight</span>
+
+    <span class="s1">def </span><span class="s0">createDefaultLights</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">create</span><span class="s2">(</span><span class="s4">'ambient'</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">create</span><span class="s2">(</span><span class="s4">'directional'</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">allOn</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Turn on all DIRECT lights 
+        &quot;&quot;&quot;</span>
+        <span class="s1">for </span><span class="s0">light </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">setOn</span><span class="s2">(</span><span class="s0">light</span><span class="s2">)</span>
+        <span class="s3"># Make sure there is a default material</span>
+        <span class="s0">render</span><span class="s2">.</span><span class="s0">setMaterial</span><span class="s2">(</span><span class="s0">Material</span><span class="s2">())</span>
+
+    <span class="s1">def </span><span class="s0">allOff</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Turn off all DIRECT lights 
+        &quot;&quot;&quot;</span>
+        <span class="s1">for </span><span class="s0">light </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">lightDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">setOff</span><span class="s2">(</span><span class="s0">light</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">toggle</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Toggles light attribute, but doesn't toggle individual lights 
+        &quot;&quot;&quot;</span>
+        <span class="s1">if </span><span class="s0">render</span><span class="s2">.</span><span class="s0">node</span><span class="s2">().</span><span class="s0">hasAttrib</span><span class="s2">(</span><span class="s0">LightAttrib</span><span class="s2">.</span><span class="s0">getClassType</span><span class="s2">()):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">allOff</span><span class="s2">()</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">allOn</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">setOn</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">directLight</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Turn on the given directLight 
+        &quot;&quot;&quot;</span>
+        <span class="s0">render</span><span class="s2">.</span><span class="s0">setLight</span><span class="s2">(</span><span class="s0">directLight</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">setOff</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">directLight</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Turn off the given directLight 
+        &quot;&quot;&quot;</span>
+        <span class="s0">render</span><span class="s2">.</span><span class="s0">clearLight</span><span class="s2">(</span><span class="s0">directLight</span><span class="s2">)</span>
+
+
+
+</pre>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<html>
+<head>
+<title>AsyncRequest.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+AsyncRequest.py</font>
+</center></td></tr></table>
+<pre><span class="s0">#from otp.ai.AIBaseGlobal import *</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directnotify </span><span class="s2">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">DirectObject </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">ConnectionRepository </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s1">ConfigVariableDouble</span><span class="s3">, </span><span class="s1">ConfigVariableInt</span><span class="s3">, </span><span class="s1">ConfigVariableBool</span>
+
+<span class="s1">ASYNC_REQUEST_DEFAULT_TIMEOUT_IN_SECONDS </span><span class="s3">= </span><span class="s4">8.0</span>
+<span class="s1">ASYNC_REQUEST_INFINITE_RETRIES </span><span class="s3">= -</span><span class="s4">1</span>
+<span class="s1">ASYNC_REQUEST_DEFAULT_NUM_RETRIES </span><span class="s3">= </span><span class="s4">0</span>
+
+<span class="s2">if __debug__</span><span class="s3">:</span>
+    <span class="s1">_overrideTimeoutTimeForAllAsyncRequests </span><span class="s3">= </span><span class="s1">ConfigVariableDouble</span><span class="s3">(</span><span class="s5">&quot;async-request-timeout&quot;</span><span class="s3">, -</span><span class="s4">1.0</span><span class="s3">)</span>
+    <span class="s1">_overrideNumRetriesForAllAsyncRequests </span><span class="s3">= </span><span class="s1">ConfigVariableInt</span><span class="s3">(</span><span class="s5">&quot;async-request-num-retries&quot;</span><span class="s3">, -</span><span class="s4">1</span><span class="s3">)</span>
+    <span class="s1">_breakOnTimeout </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s5">&quot;async-request-break-on-timeout&quot;</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">AsyncRequest</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; 
+    This class is used to make asynchronous reads and creates to a database. 
+ 
+    You can create a list of self.neededObjects and then ask for each to be 
+    read or created, or if you only have one object that you need you can 
+    skip the self.neededObjects because calling askForObject or createObject 
+    will set the self.neededObjects value for you. 
+ 
+    Once all the objects have been read or created, the self.finish() method 
+    will be called.  You may override this function to run your code in a 
+    derived class. 
+ 
+    If you wish to queue up several items that you all need before the finish 
+    method is called, you can put items in self.neededObjects and then call 
+    askForObject or createObject afterwards.  That way the _checkCompletion 
+    will not call finish until after all the requests have been done. 
+ 
+    If you need to chain serveral object reads or creates, just add more 
+    entries to the self.neededObjects dictionary in the self.finish function 
+    and return without calling AsyncRequest.finish().  Your finish method 
+    will be called again when the new self.neededObjects is complete.  You 
+    may repeat this as necessary. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">_asyncRequests </span><span class="s3">= {}</span>
+
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">DirectNotifyGlobal</span><span class="s3">.</span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s5">'AsyncRequest'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">air</span><span class="s3">, </span><span class="s1">replyToChannelId </span><span class="s3">= </span><span class="s2">None</span><span class="s3">,</span>
+                 <span class="s1">timeoutTime </span><span class="s3">= </span><span class="s1">ASYNC_REQUEST_DEFAULT_TIMEOUT_IN_SECONDS</span><span class="s3">,</span>
+                 <span class="s1">numRetries </span><span class="s3">= </span><span class="s1">ASYNC_REQUEST_DEFAULT_NUM_RETRIES</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        air is the AI Respository. 
+        replyToChannelId may be an avatarId, an accountId, or a channelId. 
+        timeoutTime is how many seconds to wait before aborting the request. 
+        numRetries is the number of times to retry the request before giving up. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">if __debug__</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">_overrideTimeoutTimeForAllAsyncRequests</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">() &gt;= </span><span class="s4">0.0</span><span class="s3">:</span>
+                <span class="s1">timeoutTime </span><span class="s3">= </span><span class="s1">_overrideTimeoutTimeForAllAsyncRequests</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">()</span>
+            <span class="s2">if </span><span class="s1">_overrideNumRetriesForAllAsyncRequests</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">() &gt;= </span><span class="s4">0</span><span class="s3">:</span>
+                <span class="s1">numRetries </span><span class="s3">= </span><span class="s1">_overrideNumRetriesForAllAsyncRequests</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">()</span>
+        <span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">_asyncRequests</span><span class="s3">[</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)] = </span><span class="s1">self</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">deletingMessage </span><span class="s3">= </span><span class="s5">&quot;AsyncRequest-deleting-%s&quot;</span><span class="s3">%(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">,))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air </span><span class="s3">= </span><span class="s1">air</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">replyToChannelId </span><span class="s3">= </span><span class="s1">replyToChannelId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">timeoutTask </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects </span><span class="s3">= {}</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_timeoutTime </span><span class="s3">= </span><span class="s1">timeoutTime</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_initialNumRetries </span><span class="s3">= </span><span class="s1">numRetries</span>
+
+    <span class="s2">def </span><span class="s1">delete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">del </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">_asyncRequests</span><span class="s3">[</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ignoreAll</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">(</span><span class="s2">False</span><span class="s3">)</span>
+        <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">deletingMessage</span><span class="s3">, [])</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">replyToChannelId</span>
+
+    <span class="s2">def </span><span class="s1">askForObjectField</span><span class="s3">(</span>
+            <span class="s1">self</span><span class="s3">, </span><span class="s1">dclassName</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">key </span><span class="s3">= </span><span class="s2">None</span><span class="s3">, </span><span class="s1">context </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Request an already created object, i.e. read from database. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">key </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s0"># default the dictionary key to the fieldName</span>
+            <span class="s1">key </span><span class="s3">= </span><span class="s1">fieldName</span>
+        <span class="s2">assert </span><span class="s1">doId</span>
+        <span class="s2">if </span><span class="s1">context </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">context </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateContext</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">contextToClassName</span><span class="s3">[</span><span class="s1">context</span><span class="s3">] = </span><span class="s1">dclassName</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">acceptOnce</span><span class="s3">(</span>
+            <span class="s5">&quot;doFieldResponse-%s&quot;</span><span class="s3">%(</span><span class="s1">context</span><span class="s3">,),</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_checkCompletion</span><span class="s3">, [</span><span class="s1">key</span><span class="s3">])</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">[</span><span class="s1">key</span><span class="s3">] = </span><span class="s2">None</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">queryObjectField</span><span class="s3">(</span><span class="s1">dclassName</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">askForObjectFields</span><span class="s3">(</span>
+            <span class="s1">self</span><span class="s3">, </span><span class="s1">dclassName</span><span class="s3">, </span><span class="s1">fieldNames</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">key </span><span class="s3">= </span><span class="s2">None</span><span class="s3">, </span><span class="s1">context </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Request an already created object, i.e. read from database. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">key </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s0"># default the dictionary key to the fieldName</span>
+            <span class="s1">key </span><span class="s3">= </span><span class="s1">fieldNames</span><span class="s3">[</span><span class="s4">0</span><span class="s3">]</span>
+        <span class="s2">assert </span><span class="s1">doId</span>
+        <span class="s2">if </span><span class="s1">context </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">context </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateContext</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">contextToClassName</span><span class="s3">[</span><span class="s1">context</span><span class="s3">] = </span><span class="s1">dclassName</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">acceptOnce</span><span class="s3">(</span>
+            <span class="s5">&quot;doFieldResponse-%s&quot;</span><span class="s3">%(</span><span class="s1">context</span><span class="s3">,),</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_checkCompletion</span><span class="s3">, [</span><span class="s1">key</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">queryObjectFields</span><span class="s3">(</span><span class="s1">dclassName</span><span class="s3">, </span><span class="s1">fieldNames</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">askForObjectFieldsByString</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">dbId</span><span class="s3">, </span><span class="s1">dclassName</span><span class="s3">, </span><span class="s1">objString</span><span class="s3">, </span><span class="s1">fieldNames</span><span class="s3">, </span><span class="s1">key</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">context</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">assert </span><span class="s1">dbId</span>
+        <span class="s2">if </span><span class="s1">key </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s0"># default the dictionary key to the fieldNames</span>
+            <span class="s1">key </span><span class="s3">= </span><span class="s1">fieldNames</span>
+        <span class="s2">if </span><span class="s1">context </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">context</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateContext</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">contextToClassName</span><span class="s3">[</span><span class="s1">context</span><span class="s3">]=</span><span class="s1">dclassName</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">acceptOnce</span><span class="s3">(</span>
+            <span class="s5">&quot;doFieldResponse-%s&quot;</span><span class="s3">%(</span><span class="s1">context</span><span class="s3">,),</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_checkCompletion</span><span class="s3">, [</span><span class="s1">key</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">queryObjectStringFields</span><span class="s3">(</span><span class="s1">dbId</span><span class="s3">,</span><span class="s1">dclassName</span><span class="s3">,</span><span class="s1">objString</span><span class="s3">,</span><span class="s1">fieldNames</span><span class="s3">,</span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">askForObject</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">context </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Request an already created object, i.e. read from database. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">assert </span><span class="s1">doId</span>
+        <span class="s2">if </span><span class="s1">context </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">context </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateContext</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">acceptOnce</span><span class="s3">(</span>
+            <span class="s5">&quot;doRequestResponse-%s&quot;</span><span class="s3">%(</span><span class="s1">context</span><span class="s3">,),</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_checkCompletion</span><span class="s3">, [</span><span class="s2">None</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">queryObjectAll</span><span class="s3">(</span><span class="s1">doId</span><span class="s3">, </span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">createObject</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">className</span><span class="s3">,</span>
+            <span class="s1">databaseId </span><span class="s3">= </span><span class="s2">None</span><span class="s3">, </span><span class="s1">values </span><span class="s3">= </span><span class="s2">None</span><span class="s3">, </span><span class="s1">context </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Create a new database object.  You can get the doId from within 
+        your self.finish() function. 
+ 
+        This functions is different from createObjectId in that it does 
+        generate the object when the response comes back.  The object is 
+        added to the doId2do and so forth and treated as a full regular 
+        object (which it is).  This is useful on the AI where we really 
+        do want the object on the AI. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">assert </span><span class="s1">name</span>
+        <span class="s2">assert </span><span class="s1">className</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">[</span><span class="s1">name</span><span class="s3">] = </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">context </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">context </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateContext</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getDatabaseGenerateResponseEvent</span><span class="s3">(</span><span class="s1">context</span><span class="s3">),</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_doCreateObject</span><span class="s3">, [</span><span class="s1">name</span><span class="s3">, </span><span class="s1">className</span><span class="s3">, </span><span class="s1">values</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">requestDatabaseGenerate</span><span class="s3">(</span>
+            <span class="s1">className</span><span class="s3">, </span><span class="s1">context</span><span class="s3">, </span><span class="s1">databaseId </span><span class="s3">= </span><span class="s1">databaseId</span><span class="s3">, </span><span class="s1">values </span><span class="s3">= </span><span class="s1">values</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">createObjectId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">className</span><span class="s3">, </span><span class="s1">values </span><span class="s3">= </span><span class="s2">None</span><span class="s3">, </span><span class="s1">context </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Create a new database object.  You can get the doId from within 
+        your self.finish() function. 
+ 
+        This functions is different from createObject in that it does not 
+        generate the object when the response comes back.  It only tells you 
+        the doId.  This is useful on the UD where we don't really want the 
+        object on the UD, we just want the object created and the UD wants 
+        to send messages to it using the ID. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s2">assert </span><span class="s1">name</span>
+        <span class="s2">assert </span><span class="s1">className</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">[</span><span class="s1">name</span><span class="s3">] = </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">context </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">context </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateContext</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getDatabaseGenerateResponseEvent</span><span class="s3">(</span><span class="s1">context</span><span class="s3">),</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_checkCompletion</span><span class="s3">, [</span><span class="s1">name</span><span class="s3">, </span><span class="s2">None</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">requestDatabaseGenerate</span><span class="s3">(</span><span class="s1">className</span><span class="s3">, </span><span class="s1">context</span><span class="s3">, </span><span class="s1">values </span><span class="s3">= </span><span class="s1">values</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_resetTimeoutTask</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">finish</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        This is the function that gets called when all of the needed objects 
+        are in (i.e. all the askForObject and createObject requests have 
+        been satisfied). 
+        If the other requests timeout, finish will not be called. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">delete</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">_doCreateObject</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">className</span><span class="s3">, </span><span class="s1">values</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">):</span>
+        <span class="s1">isInDoId2do </span><span class="s3">= </span><span class="s1">doId </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">doId2do</span>
+        <span class="s1">distObj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">generateGlobalObject</span><span class="s3">(</span><span class="s1">doId</span><span class="s3">, </span><span class="s1">className</span><span class="s3">, </span><span class="s1">values</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">isInDoId2do </span><span class="s2">and </span><span class="s1">game</span><span class="s3">.</span><span class="s1">name </span><span class="s3">== </span><span class="s5">'uberDog'</span><span class="s3">:</span>
+            <span class="s0"># only remove doId if this is the uberdog?, in pirates this was</span>
+            <span class="s0"># causing traded inventory objects to be generated twice, once</span>
+            <span class="s0"># here and again later when it was noticed the doId was not in</span>
+            <span class="s0"># the doId2do list yet.</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">doId2do</span><span class="s3">.</span><span class="s1">pop</span><span class="s3">(</span><span class="s1">doId</span><span class="s3">, </span><span class="s2">None</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_checkCompletion</span><span class="s3">(</span><span class="s1">name</span><span class="s3">, </span><span class="s2">None</span><span class="s3">, </span><span class="s1">distObj</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_checkCompletion</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">context</span><span class="s3">, </span><span class="s1">distObj</span><span class="s3">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        This checks whether we have all the needed objects and calls 
+        finish() if we do. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">name </span><span class="s2">is not None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">[</span><span class="s1">name</span><span class="s3">] = </span><span class="s1">distObj</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">[</span><span class="s1">distObj</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">] = </span><span class="s1">distObj</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">.</span><span class="s1">values</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">i </span><span class="s2">is None</span><span class="s3">:</span>
+                <span class="s2">return</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">finish</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">_resetTimeoutTask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">createAnew </span><span class="s3">= </span><span class="s2">True</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">timeoutTask</span><span class="s3">:</span>
+            <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">timeoutTask</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">timeoutTask </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">createAnew</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">numRetries </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_initialNumRetries</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">timeoutTask </span><span class="s3">= </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">doMethodLater</span><span class="s3">(</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_timeoutTime</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">timeout</span><span class="s3">,</span>
+                <span class="s5">&quot;AsyncRequestTimer-%s&quot;</span><span class="s3">%(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">,)))</span>
+
+    <span class="s2">def </span><span class="s1">timeout</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugCall</span><span class="s3">(</span>
+            <span class="s5">&quot;neededObjects: %s&quot;</span><span class="s3">%(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">,))</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">numRetries </span><span class="s3">&gt; </span><span class="s4">0</span><span class="s3">:</span>
+            <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span>
+                <span class="s5">'Timed out. Trying %d more time(s) : %s' </span><span class="s3">%</span>
+                <span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">numRetries </span><span class="s3">+ </span><span class="s4">1</span><span class="s3">, </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">)))</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">numRetries </span><span class="s3">-= </span><span class="s4">1</span>
+            <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">again</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">if __debug__</span><span class="s3">:</span>
+                <span class="s2">if </span><span class="s1">_breakOnTimeout</span><span class="s3">:</span>
+                    <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s5">&quot;avatarId&quot;</span><span class="s3">):</span>
+                        <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;</span><span class="s2">\n\n</span><span class="s5">self.avatarId =&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarId</span><span class="s3">)</span>
+                    <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;</span><span class="s2">\n</span><span class="s5">self.neededObjects =&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">neededObjects</span><span class="s3">)</span>
+                    <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;</span><span class="s2">\n</span><span class="s5">timed out after %s seconds.</span><span class="s2">\n\n</span><span class="s5">&quot;</span><span class="s3">%(</span><span class="s1">task</span><span class="s3">.</span><span class="s1">delayTime</span><span class="s3">,))</span>
+                    <span class="s2">import </span><span class="s1">pdb; pdb</span><span class="s3">.</span><span class="s1">set_trace</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">delete</span><span class="s3">()</span>
+            <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">done</span>
+
+<span class="s2">def </span><span class="s1">cleanupAsyncRequests</span><span class="s3">():</span>
+    <span class="s6">&quot;&quot;&quot; 
+    Only call this when the application is shuting down. 
+    &quot;&quot;&quot;</span>
+    <span class="s2">for </span><span class="s1">asyncRequest </span><span class="s2">in </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">_asyncRequests</span><span class="s3">:</span>
+        <span class="s1">asyncRequest</span><span class="s3">.</span><span class="s1">delete</span><span class="s3">()</span>
+    <span class="s2">assert </span><span class="s1">AsyncRequest</span><span class="s3">.</span><span class="s1">_asyncRequests </span><span class="s3">== {}</span>
+</pre>
+</body>
+</html>

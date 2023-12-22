@@ -1,0 +1,334 @@
+<html>
+<head>
+<title>PackageMerger.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+PackageMerger.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+.. deprecated:: 1.10.0 
+   The p3d packaging system has been replaced with the new setuptools-based 
+   system.  See the :ref:`distribution` manual section. 
+&quot;&quot;&quot;</span>
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">&quot;PackageMerger&quot;</span><span class="s2">, </span><span class="s3">&quot;PackageMergerError&quot;</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">FileSpec </span><span class="s4">import </span><span class="s1">FileSpec</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">SeqValue </span><span class="s4">import </span><span class="s1">SeqValue</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">import </span><span class="s1">shutil</span>
+<span class="s4">import </span><span class="s1">os</span>
+
+<span class="s4">class </span><span class="s1">PackageMergerError</span><span class="s2">(</span><span class="s1">Exception</span><span class="s2">):</span>
+    <span class="s4">pass</span>
+
+<span class="s4">class </span><span class="s1">PackageMerger</span><span class="s2">:</span>
+    <span class="s0">&quot;&quot;&quot; This class will combine two or more separately-built stage 
+    directories, the output of Packager.py or the ppackage tool, into 
+    a single output directory.  It assumes that the clocks on all 
+    hosts are in sync, so that the file across all builds with the 
+    most recent timestamp (indicated in the contents.xml file) is 
+    always the most current version of the file. &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;PackageMerger&quot;</span><span class="s2">)</span>
+
+    <span class="s4">class </span><span class="s1">PackageEntry</span><span class="s2">:</span>
+        <span class="s0">&quot;&quot;&quot; This corresponds to a &lt;package&gt; entry in the contents.xml 
+        file. &quot;&quot;&quot;</span>
+
+        <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">xpackage</span><span class="s2">, </span><span class="s1">sourceDir</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sourceDir </span><span class="s2">= </span><span class="s1">sourceDir</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">)</span>
+
+        <span class="s4">def </span><span class="s1">getKey</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; Returns a tuple used for sorting the PackageEntry 
+            objects uniquely per package. &quot;&quot;&quot;</span>
+            <span class="s4">return </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">platform</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">version</span><span class="s2">)</span>
+
+        <span class="s4">def </span><span class="s1">isNewer</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">timestamp </span><span class="s2">&gt; </span><span class="s1">other</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">timestamp</span>
+
+        <span class="s4">def </span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">xpackage</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageName </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'name'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">platform </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'platform'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">version </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'version'</span><span class="s2">)</span>
+            <span class="s1">solo </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'solo'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">solo </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">solo </span><span class="s4">or </span><span class="s3">'0'</span><span class="s2">)</span>
+            <span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'per_platform'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">perPlatform </span><span class="s4">or </span><span class="s3">'0'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">descFile </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">validatePackageContents</span><span class="s2">()</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">PackageMerger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">, </span><span class="s1">correctSelf </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageSeq </span><span class="s2">= </span><span class="s1">SeqValue</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageSeq</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">, </span><span class="s3">'seq'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageSetVer </span><span class="s2">= </span><span class="s1">SeqValue</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageSetVer</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">, </span><span class="s3">'set_ver'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">ximport </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'import'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">ximport</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">ximport</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">PackageMerger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">, </span><span class="s1">correctSelf </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+        <span class="s4">def </span><span class="s1">makeXml</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; Returns a new TiXmlElement. &quot;&quot;&quot;</span>
+            <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">TiXmlElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+            <span class="s1">xpackage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'name'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">platform</span><span class="s2">:</span>
+                <span class="s1">xpackage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'platform'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">platform</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">version</span><span class="s2">:</span>
+                <span class="s1">xpackage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'version'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">version</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">solo</span><span class="s2">:</span>
+                <span class="s1">xpackage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'solo'</span><span class="s2">, </span><span class="s3">'1'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform</span><span class="s2">:</span>
+                <span class="s1">xpackage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'per_platform'</span><span class="s2">, </span><span class="s3">'1'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageSeq</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">, </span><span class="s3">'seq'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageSetVer</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">, </span><span class="s3">'set_ver'</span><span class="s2">)</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile</span><span class="s2">:</span>
+                <span class="s1">ximport </span><span class="s2">= </span><span class="s1">TiXmlElement</span><span class="s2">(</span><span class="s3">'import'</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">ximport</span><span class="s2">)</span>
+                <span class="s1">xpackage</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">ximport</span><span class="s2">)</span>
+
+            <span class="s4">return </span><span class="s1">xpackage</span>
+
+        <span class="s4">def </span><span class="s1">validatePackageContents</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; Validates the contents of the package directory itself 
+            against the expected hashes and timestamps.  Updates 
+            hashes and timestamps where needed. &quot;&quot;&quot;</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">solo</span><span class="s2">:</span>
+                <span class="s4">return</span>
+
+            <span class="s1">needsChange </span><span class="s2">= </span><span class="s4">False</span>
+            <span class="s1">packageDescFullpath </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">packageDir </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">packageDescFullpath</span><span class="s2">.</span><span class="s1">getDirname</span><span class="s2">())</span>
+            <span class="s1">doc </span><span class="s2">= </span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">packageDescFullpath</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+            <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">LoadFile</span><span class="s2">():</span>
+                <span class="s1">message </span><span class="s2">= </span><span class="s3">&quot;Could not read XML file: %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+                <span class="s4">raise </span><span class="s1">OSError</span><span class="s2">(</span><span class="s1">message</span><span class="s2">)</span>
+
+            <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+            <span class="s4">if not </span><span class="s1">xpackage</span><span class="s2">:</span>
+                <span class="s1">message </span><span class="s2">= </span><span class="s3">&quot;No package definition: %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+                <span class="s4">raise </span><span class="s1">OSError</span><span class="s2">(</span><span class="s1">message</span><span class="s2">)</span>
+
+            <span class="s1">xcompressed </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'compressed_archive'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">xcompressed</span><span class="s2">:</span>
+                <span class="s1">spec </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+                <span class="s1">spec</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xcompressed</span><span class="s2">)</span>
+                <span class="s4">if not </span><span class="s1">spec</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">packageDir</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">PackageMerger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">, </span><span class="s1">correctSelf </span><span class="s2">= </span><span class="s4">True</span><span class="s2">):</span>
+                    <span class="s1">spec</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xcompressed</span><span class="s2">)</span>
+                    <span class="s1">needsChange </span><span class="s2">= </span><span class="s4">True</span>
+
+            <span class="s1">xpatch </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'patch'</span><span class="s2">)</span>
+            <span class="s4">while </span><span class="s1">xpatch</span><span class="s2">:</span>
+                <span class="s1">spec </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+                <span class="s1">spec</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xpatch</span><span class="s2">)</span>
+                <span class="s4">if not </span><span class="s1">spec</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">packageDir</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">PackageMerger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">, </span><span class="s1">correctSelf </span><span class="s2">= </span><span class="s4">True</span><span class="s2">):</span>
+                    <span class="s1">spec</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xpatch</span><span class="s2">)</span>
+                    <span class="s1">needsChange </span><span class="s2">= </span><span class="s4">True</span>
+
+                <span class="s1">xpatch </span><span class="s2">= </span><span class="s1">xpatch</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'patch'</span><span class="s2">)</span>
+
+            <span class="s4">if </span><span class="s1">needsChange</span><span class="s2">:</span>
+                <span class="s1">PackageMerger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Rewriting %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+                <span class="s1">doc</span><span class="s2">.</span><span class="s1">SaveFile</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">PackageMerger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">, </span><span class="s1">correctSelf </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+    <span class="s5"># PackageMerger constructor</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">installDir</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">installDir </span><span class="s2">= </span><span class="s1">installDir</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xhost </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contents </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSeq </span><span class="s2">= </span><span class="s1">SeqValue</span><span class="s2">()</span>
+
+        <span class="s5"># We allow the first one to fail quietly.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__readContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">installDir</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__readContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">packageNames</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Reads the contents.xml file from the indicated sourceDir, 
+        and updates the internal set of packages appropriately. &quot;&quot;&quot;</span>
+
+        <span class="s4">assert </span><span class="s1">sourceDir </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">, </span><span class="s3">&quot;No source directory was specified!&quot;</span>
+        <span class="s1">contentsFilename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s3">'contents.xml'</span><span class="s2">)</span>
+        <span class="s1">doc </span><span class="s2">= </span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">contentsFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+        <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">LoadFile</span><span class="s2">():</span>
+            <span class="s5"># Couldn't read file.</span>
+            <span class="s4">return False</span>
+
+        <span class="s1">xcontents </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'contents'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">xcontents</span><span class="s2">:</span>
+            <span class="s1">maxAge </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'max_age'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">maxAge</span><span class="s2">:</span>
+                <span class="s1">maxAge </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">maxAge</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge </span><span class="s4">is None</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge </span><span class="s2">= </span><span class="s1">maxAge</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge</span><span class="s2">, </span><span class="s1">maxAge</span><span class="s2">)</span>
+
+            <span class="s1">contentsSeq </span><span class="s2">= </span><span class="s1">SeqValue</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">contentsSeq</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xcontents</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSeq </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSeq</span><span class="s2">, </span><span class="s1">contentsSeq</span><span class="s2">)</span>
+
+            <span class="s1">xhost </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'host'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">xhost</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">xhost </span><span class="s2">= </span><span class="s1">xhost</span><span class="s2">.</span><span class="s1">Clone</span><span class="s2">()</span>
+
+            <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">xcontents</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+            <span class="s4">while </span><span class="s1">xpackage</span><span class="s2">:</span>
+                <span class="s1">pe </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">PackageEntry</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">, </span><span class="s1">sourceDir</span><span class="s2">)</span>
+
+                <span class="s5"># Filter out any packages not listed in</span>
+                <span class="s5"># packageNames (unless packageNames is None,</span>
+                <span class="s5"># in which case don't filter anything).</span>
+                <span class="s4">if </span><span class="s1">packageNames </span><span class="s4">is None or </span><span class="s1">pe</span><span class="s2">.</span><span class="s1">packageName </span><span class="s4">in </span><span class="s1">packageNames</span><span class="s2">:</span>
+                    <span class="s1">other </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">contents</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">pe</span><span class="s2">.</span><span class="s1">getKey</span><span class="s2">(), </span><span class="s4">None</span><span class="s2">)</span>
+                    <span class="s4">if not </span><span class="s1">other </span><span class="s4">or </span><span class="s1">pe</span><span class="s2">.</span><span class="s1">isNewer</span><span class="s2">(</span><span class="s1">other</span><span class="s2">):</span>
+                        <span class="s5"># Store this package in the resulting output.</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">contents</span><span class="s2">[</span><span class="s1">pe</span><span class="s2">.</span><span class="s1">getKey</span><span class="s2">()] = </span><span class="s1">pe</span>
+
+                <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsDoc </span><span class="s2">= </span><span class="s1">doc</span>
+
+        <span class="s4">return True</span>
+
+    <span class="s4">def </span><span class="s1">__writeContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Writes the contents.xml file at the end of processing. &quot;&quot;&quot;</span>
+
+        <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">installDir</span><span class="s2">, </span><span class="s3">'contents.xml'</span><span class="s2">)</span>
+        <span class="s1">doc </span><span class="s2">= </span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+        <span class="s1">decl </span><span class="s2">= </span><span class="s1">TiXmlDeclaration</span><span class="s2">(</span><span class="s3">&quot;1.0&quot;</span><span class="s2">, </span><span class="s3">&quot;utf-8&quot;</span><span class="s2">, </span><span class="s3">&quot;&quot;</span><span class="s2">)</span>
+        <span class="s1">doc</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">decl</span><span class="s2">)</span>
+
+        <span class="s1">xcontents </span><span class="s2">= </span><span class="s1">TiXmlElement</span><span class="s2">(</span><span class="s3">'contents'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xhost</span><span class="s2">:</span>
+            <span class="s1">xcontents</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">xhost</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">xcontents</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'max_age'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxAge</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSeq</span><span class="s2">.</span><span class="s1">storeXml</span><span class="s2">(</span><span class="s1">xcontents</span><span class="s2">)</span>
+
+        <span class="s1">contents </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">contents</span><span class="s2">.</span><span class="s1">items</span><span class="s2">())</span>
+        <span class="s1">contents</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">pe </span><span class="s4">in </span><span class="s1">contents</span><span class="s2">:</span>
+            <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">pe</span><span class="s2">.</span><span class="s1">makeXml</span><span class="s2">()</span>
+            <span class="s1">xcontents</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">)</span>
+
+        <span class="s1">doc</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">xcontents</span><span class="s2">)</span>
+        <span class="s1">doc</span><span class="s2">.</span><span class="s1">SaveFile</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__copySubdirectory</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">pe</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Copies the subdirectory referenced in the indicated 
+        PackageEntry object into the installDir, replacing the 
+        contents of any similarly-named subdirectory already 
+        there. &quot;&quot;&quot;</span>
+
+        <span class="s1">dirname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">pe</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">).</span><span class="s1">getDirname</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;copying %s&quot; </span><span class="s2">% (</span><span class="s1">dirname</span><span class="s2">))</span>
+        <span class="s1">sourceDirname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">pe</span><span class="s2">.</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">dirname</span><span class="s2">)</span>
+        <span class="s1">targetDirname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">installDir</span><span class="s2">, </span><span class="s1">dirname</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__rCopyTree</span><span class="s2">(</span><span class="s1">sourceDirname</span><span class="s2">, </span><span class="s1">targetDirname</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__rCopyTree</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sourceFilename</span><span class="s2">, </span><span class="s1">targetFilename</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Recursively copies the contents of sourceDirname onto 
+        targetDirname.  This behaves like shutil.copytree, but it does 
+        not remove pre-existing subdirectories. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">targetFilename</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+            <span class="s4">if not </span><span class="s1">targetFilename</span><span class="s2">.</span><span class="s1">isDirectory</span><span class="s2">():</span>
+                <span class="s5"># Delete any regular files in the way.</span>
+                <span class="s1">targetFilename</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+
+            <span class="s4">elif not </span><span class="s1">sourceFilename</span><span class="s2">.</span><span class="s1">isDirectory</span><span class="s2">():</span>
+                <span class="s5"># If the source file is a regular file, but the target</span>
+                <span class="s5"># file is a directory, completely remove the target</span>
+                <span class="s5"># file.</span>
+                <span class="s1">shutil</span><span class="s2">.</span><span class="s1">rmtree</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Both the source file and target file are</span>
+                <span class="s5"># directories.</span>
+
+                <span class="s5"># We have to clean out the target directory first.</span>
+                <span class="s5"># Instead of using shutil.rmtree(), remove the files in</span>
+                <span class="s5"># this directory one at a time, so we don't inadvertently</span>
+                <span class="s5"># clean out subdirectories too.</span>
+                <span class="s1">files </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">listdir</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+                <span class="s4">for </span><span class="s1">file </span><span class="s4">in </span><span class="s1">files</span><span class="s2">:</span>
+                    <span class="s1">f </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">, </span><span class="s1">file</span><span class="s2">)</span>
+                    <span class="s4">if </span><span class="s1">f</span><span class="s2">.</span><span class="s1">isRegularFile</span><span class="s2">():</span>
+                        <span class="s1">f</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">sourceFilename</span><span class="s2">.</span><span class="s1">isDirectory</span><span class="s2">():</span>
+            <span class="s5"># Recursively copying a directory.</span>
+            <span class="s1">Filename</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">, </span><span class="s3">''</span><span class="s2">).</span><span class="s1">makeDir</span><span class="s2">()</span>
+            <span class="s1">files </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">listdir</span><span class="s2">(</span><span class="s1">sourceFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+            <span class="s4">for </span><span class="s1">file </span><span class="s4">in </span><span class="s1">files</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__rCopyTree</span><span class="s2">(</span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">sourceFilename</span><span class="s2">, </span><span class="s1">file</span><span class="s2">),</span>
+                                 <span class="s1">Filename</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">, </span><span class="s1">file</span><span class="s2">))</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Copying a regular file.</span>
+            <span class="s1">sourceFilename</span><span class="s2">.</span><span class="s1">copyTo</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">)</span>
+
+            <span class="s5"># Also try to copy the timestamp, but don't fuss too much</span>
+            <span class="s5"># if it doesn't work.</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">st </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">stat</span><span class="s2">(</span><span class="s1">sourceFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+                <span class="s1">os</span><span class="s2">.</span><span class="s1">utime</span><span class="s2">(</span><span class="s1">targetFilename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">(), (</span><span class="s1">st</span><span class="s2">.</span><span class="s1">st_atime</span><span class="s2">, </span><span class="s1">st</span><span class="s2">.</span><span class="s1">st_mtime</span><span class="s2">))</span>
+            <span class="s4">except </span><span class="s1">OSError</span><span class="s2">:</span>
+                <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">merge</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">packageNames </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Adds the contents of the indicated source directory into 
+        the current pool.  If packageNames is not None, it is a list 
+        of package names that we wish to include from the source; 
+        packages not named in this list will be unchanged. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__readContentsFile</span><span class="s2">(</span><span class="s1">sourceDir</span><span class="s2">, </span><span class="s1">packageNames</span><span class="s2">):</span>
+            <span class="s1">message </span><span class="s2">= </span><span class="s3">&quot;Couldn't read %s&quot; </span><span class="s2">% (</span><span class="s1">sourceDir</span><span class="s2">)</span>
+            <span class="s4">raise </span><span class="s1">PackageMergerError</span><span class="s2">(</span><span class="s1">message</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">close</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Finalizes the results of all of the previous calls to 
+        merge(), writes the new contents.xml file, and copies in all 
+        of the new contents. &quot;&quot;&quot;</span>
+
+        <span class="s1">dirname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">installDir</span><span class="s2">, </span><span class="s3">''</span><span class="s2">)</span>
+        <span class="s1">dirname</span><span class="s2">.</span><span class="s1">makeDir</span><span class="s2">()</span>
+
+        <span class="s4">for </span><span class="s1">pe </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">contents</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+            <span class="s4">if </span><span class="s1">pe</span><span class="s2">.</span><span class="s1">sourceDir </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installDir</span><span class="s2">:</span>
+                <span class="s5"># Here's a new subdirectory we have to copy in.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__copySubdirectory</span><span class="s2">(</span><span class="s1">pe</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">contentsSeq </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__writeContentsFile</span><span class="s2">()</span>
+
+</pre>
+</body>
+</html>

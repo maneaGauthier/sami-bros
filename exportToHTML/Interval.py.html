@@ -1,0 +1,537 @@
+<html>
+<head>
+<title>Interval.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Interval.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Interval module: contains the Interval class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Interval'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">Task </span><span class="s4">import </span><span class="s1">Task</span><span class="s2">, </span><span class="s1">TaskManager</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s4">import </span><span class="s1">taskMgr</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">extensions_native </span><span class="s4">import </span><span class="s1">CInterval_extensions</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">extensions_native </span><span class="s4">import </span><span class="s1">NodePath_extensions</span>
+<span class="s4">import </span><span class="s1">math</span>
+
+<span class="s4">class </span><span class="s1">Interval</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;Interval class: Base class for timeline functionality&quot;&quot;&quot;</span>
+
+    <span class="s5"># create Interval DirectNotify category</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;Interval&quot;</span><span class="s2">)</span>
+
+    <span class="s1">playbackCounter </span><span class="s2">= </span><span class="s6">0</span>
+
+    <span class="s5"># Class methods</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">, </span><span class="s1">openEnded</span><span class="s2">=</span><span class="s6">1</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">duration </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">duration</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s6">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">doneEvent </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setTHooks </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startT </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startTAtStart </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">= </span><span class="s1">duration</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">= </span><span class="s6">1.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__doLoop </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pstats </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if __debug__ and </span><span class="s1">TaskManager</span><span class="s2">.</span><span class="s1">taskTimerVerbose</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pname </span><span class="s2">= </span><span class="s1">name</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'-'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)[</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pstats </span><span class="s2">= </span><span class="s1">PStatCollector</span><span class="s2">(</span><span class="s3">&quot;App:Show code:ivalLoop:%s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">pname</span><span class="s2">))</span>
+
+        <span class="s5"># Set true if the interval should be invoked if it was</span>
+        <span class="s5"># completely skipped over during initialize or finalize, false</span>
+        <span class="s5"># if it should be ignored in this case.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">openEnded </span><span class="s2">= </span><span class="s1">openEnded</span>
+
+    <span class="s4">def </span><span class="s1">getName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span>
+
+    <span class="s4">def </span><span class="s1">getDuration</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span>
+
+    <span class="s4">def </span><span class="s1">getOpenEnded</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">openEnded</span>
+
+    <span class="s4">def </span><span class="s1">setLoop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">loop</span><span class="s2">=</span><span class="s6">1</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__doLoop </span><span class="s2">= </span><span class="s1">loop</span>
+
+    <span class="s4">def </span><span class="s1">getLoop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__doLoop</span>
+
+    <span class="s4">def </span><span class="s1">getState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span>
+
+    <span class="s4">def </span><span class="s1">isPaused</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">() == </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SPaused</span>
+
+    <span class="s4">def </span><span class="s1">isStopped</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Returns true if the interval has not been started, has already</span>
+        <span class="s5"># played to its completion, or has been explicitly stopped via</span>
+        <span class="s5"># finish().</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">() == </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial </span><span class="s4">or </span><span class="s1">\</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">() == </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setT</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5"># There doesn't seem to be any reason to clamp this, and it</span>
+        <span class="s5"># breaks looping intervals.  The interval code should properly</span>
+        <span class="s5"># handle t values outside the proper range.</span>
+        <span class="s5">#t = min(max(t, 0.0), self.getDuration())</span>
+
+        <span class="s1">state </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">state </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isPlaying</span><span class="s2">():</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">setupResume</span><span class="s2">()</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">state </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span><span class="s2">:</span>
+            <span class="s5"># Support modifying t while the interval is playing.  We</span>
+            <span class="s5"># assume is_playing() will be true in this state.</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isPlaying</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setupResume</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">state </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SPaused</span><span class="s2">:</span>
+            <span class="s5"># Support modifying t while the interval is paused.  In</span>
+            <span class="s5"># this case, we simply step to the new value of t; but</span>
+            <span class="s5"># this will change the state to S_started, so we must then</span>
+            <span class="s5"># change it back to S_paused by hand (because we're still</span>
+            <span class="s5"># paused).</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">state </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseInitialize</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isPlaying</span><span class="s2">():</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">setupResume</span><span class="s2">()</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">&quot;Invalid state: %s&quot; </span><span class="s2">% (</span><span class="s1">state</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privPostEvent</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getT</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currT</span>
+
+    <span class="s4">def </span><span class="s1">start</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startT </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">endT </span><span class="s2">= -</span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">playRate </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Starts the interval.  Returns an awaitable. &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setupPlay</span><span class="s2">(</span><span class="s1">startT</span><span class="s2">, </span><span class="s1">endT</span><span class="s2">, </span><span class="s1">playRate</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__spawnTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">loop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startT </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">endT </span><span class="s2">= -</span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">playRate </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setupPlay</span><span class="s2">(</span><span class="s1">startT</span><span class="s2">, </span><span class="s1">endT</span><span class="s2">, </span><span class="s1">playRate</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__spawnTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">pause</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">() == </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privPostEvent</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeTask</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getT</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">resume</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startT </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">startT </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setT</span><span class="s2">(</span><span class="s1">startT</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setupResume</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isPlaying</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__spawnTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">resumeUntil</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">endT</span><span class="s2">):</span>
+        <span class="s1">duration </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">endT </span><span class="s2">&lt; </span><span class="s6">0 </span><span class="s4">or </span><span class="s1">endT </span><span class="s2">&gt;= </span><span class="s1">duration</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">= </span><span class="s1">duration</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">= </span><span class="s1">endT</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setupResume</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isPlaying</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__spawnTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">finish</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">state </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">state </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInstant</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">state </span><span class="s2">!= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privFinalize</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privPostEvent</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">clearToInitial</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># This method resets the interval's internal state to the</span>
+        <span class="s5"># initial state, abandoning any parts of the interval that</span>
+        <span class="s5"># have not yet been called.  Calling it is like pausing the</span>
+        <span class="s5"># interval and creating a new one in its place.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s6">0.0</span>
+
+    <span class="s4">def </span><span class="s1">isPlaying</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">hasTaskNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'-play'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getPlayRate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the play rate as set by the last call to start(), 
+        loop(), or setPlayRate(). &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate</span>
+
+    <span class="s4">def </span><span class="s1">setPlayRate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">playRate</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Changes the play rate of the interval.  If the interval is 
+        already started, this changes its speed on-the-fly.  Note that 
+        since playRate is a parameter to start() and loop(), the next 
+        call to start() or loop() will reset this parameter. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isPlaying</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">= </span><span class="s1">playRate</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">resume</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">= </span><span class="s1">playRate</span>
+
+    <span class="s4">def </span><span class="s1">setDoneEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">doneEvent </span><span class="s2">= </span><span class="s1">event</span>
+
+    <span class="s4">def </span><span class="s1">getDoneEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doneEvent</span>
+
+    <span class="s4">def </span><span class="s1">privDoEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETStep</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETFinalize</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privFinalize</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETInterrupt</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETInstant</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInstant</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETInitialize</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETReverseFinalize</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseFinalize</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETReverseInstant</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseInstant</span><span class="s2">()</span>
+        <span class="s4">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">ETReverseInitialize</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseInitialize</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'Invalid event type: %s' </span><span class="s2">% (</span><span class="s1">event</span><span class="s2">))</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+
+    <span class="s4">def </span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">privInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">intervalDone</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s1">t</span>
+
+    <span class="s4">def </span><span class="s1">privFinalize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">intervalDone</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">privReverseInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">privReverseInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span>
+
+    <span class="s4">def </span><span class="s1">privReverseFinalize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span>
+
+    <span class="s4">def </span><span class="s1">privInterrupt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Subclasses may redefine this function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SPaused</span>
+
+    <span class="s4">def </span><span class="s1">intervalDone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Subclasses should call this when the interval transitions to</span>
+        <span class="s5"># its final state.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doneEvent</span><span class="s2">:</span>
+            <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">doneEvent</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setupPlay</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startT</span><span class="s2">, </span><span class="s1">endT</span><span class="s2">, </span><span class="s1">playRate</span><span class="s2">, </span><span class="s1">doLoop</span><span class="s2">):</span>
+        <span class="s1">duration </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">startT </span><span class="s2">&lt;= </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__startT </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__startTAtStart </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s4">elif </span><span class="s1">startT </span><span class="s2">&gt; </span><span class="s1">duration</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__startT </span><span class="s2">= </span><span class="s1">duration</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__startTAtStart </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__startT </span><span class="s2">= </span><span class="s1">startT</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__startTAtStart </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s4">if </span><span class="s1">endT </span><span class="s2">&lt; </span><span class="s6">0 </span><span class="s4">or </span><span class="s1">endT </span><span class="s2">&gt;= </span><span class="s1">duration</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">= </span><span class="s1">duration</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">= </span><span class="s1">endT</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart </span><span class="s2">= </span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">getGlobalClock</span><span class="s2">().</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">= </span><span class="s1">playRate</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__doLoop </span><span class="s2">= </span><span class="s1">doLoop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">= </span><span class="s6">0</span>
+
+    <span class="s4">def </span><span class="s1">setupResume</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">getGlobalClock</span><span class="s2">().</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">&gt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart </span><span class="s2">= </span><span class="s1">now </span><span class="s2">- ((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getT</span><span class="s2">() - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">) / </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">&lt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart </span><span class="s2">= </span><span class="s1">now </span><span class="s2">- ((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getT</span><span class="s2">() - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT</span><span class="s2">) / </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">= </span><span class="s6">0</span>
+
+    <span class="s4">def </span><span class="s1">stepPlay</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">getGlobalClock</span><span class="s2">().</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">&gt;= </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">t </span><span class="s2">= (</span><span class="s1">now </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">()</span>
+
+            <span class="s4">if </span><span class="s1">t </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT</span><span class="s2">:</span>
+                <span class="s5"># In the middle of the interval, not a problem.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Past the ending point; time to finalize.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endTAtEnd</span><span class="s2">:</span>
+                    <span class="s5"># Only finalize if the playback cycle includes the</span>
+                    <span class="s5"># whole interval.</span>
+                    <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+                        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getOpenEnded</span><span class="s2">() </span><span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">!= </span><span class="s6">0</span><span class="s2">:</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInstant</span><span class="s2">()</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">privFinalize</span><span class="s2">()</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT</span><span class="s2">)</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT</span><span class="s2">)</span>
+
+                <span class="s5"># Advance the clock for the next loop cycle.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">:</span>
+                    <span class="s5"># If the interval has no length, we loop exactly once.</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">+= </span><span class="s6">1</span>
+
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s5"># Otherwise, figure out how many loops we need to</span>
+                    <span class="s5"># skip.</span>
+                    <span class="s1">timePerLoop </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">) / </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate</span>
+                    <span class="s1">numLoops </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">floor</span><span class="s2">((</span><span class="s1">now </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart</span><span class="s2">) / </span><span class="s1">timePerLoop</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">+= </span><span class="s1">numLoops</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart </span><span class="s2">+= </span><span class="s1">numLoops </span><span class="s2">* </span><span class="s1">timePerLoop</span>
+
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Playing backwards</span>
+            <span class="s1">t </span><span class="s2">= (</span><span class="s1">now </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT</span>
+
+            <span class="s4">if </span><span class="s1">t </span><span class="s2">&gt;= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">:</span>
+                <span class="s5"># In the middle of the interval, not a problem.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Past the ending point; time to finalize.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startTAtStart</span><span class="s2">:</span>
+                    <span class="s5"># Only finalize if the playback cycle includes the</span>
+                    <span class="s5"># whole interval.</span>
+                    <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+                        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getOpenEnded</span><span class="s2">() </span><span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">!= </span><span class="s6">0</span><span class="s2">:</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseInstant</span><span class="s2">()</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseFinalize</span><span class="s2">()</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">privReverseInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">)</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">)</span>
+
+                <span class="s5"># Advance the clock for the next loop cycle.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">:</span>
+                    <span class="s5"># If the interval has no length, we loop exactly once.</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">+= </span><span class="s6">1</span>
+
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s5"># Otherwise, figure out how many loops we need to</span>
+                    <span class="s5"># skip.</span>
+                    <span class="s1">timePerLoop </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__endT </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__startT</span><span class="s2">) / -</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playRate</span>
+                    <span class="s1">numLoops </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">floor</span><span class="s2">((</span><span class="s1">now </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart</span><span class="s2">) / </span><span class="s1">timePerLoop</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">+= </span><span class="s1">numLoops</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__clockStart </span><span class="s2">+= </span><span class="s1">numLoops </span><span class="s2">* </span><span class="s1">timePerLoop</span>
+
+        <span class="s1">shouldContinue </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__loopCount </span><span class="s2">== </span><span class="s6">0 </span><span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__doLoop</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s2">(</span><span class="s4">not </span><span class="s1">shouldContinue </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">() == </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+
+        <span class="s4">return </span><span class="s1">shouldContinue</span>
+
+    <span class="s4">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">indent</span><span class="s2">=</span><span class="s6">0</span><span class="s2">):</span>
+        <span class="s1">space </span><span class="s2">= </span><span class="s3">''</span>
+        <span class="s4">for </span><span class="s1">l </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">indent</span><span class="s2">):</span>
+            <span class="s1">space </span><span class="s2">= </span><span class="s1">space </span><span class="s2">+ </span><span class="s3">' '</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">space </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">name </span><span class="s2">+ </span><span class="s3">' dur: %.2f' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">)</span>
+
+    <span class="s1">open_ended </span><span class="s2">= </span><span class="s1">property</span><span class="s2">(</span><span class="s1">getOpenEnded</span><span class="s2">)</span>
+    <span class="s1">stopped </span><span class="s2">= </span><span class="s1">property</span><span class="s2">(</span><span class="s1">isStopped</span><span class="s2">)</span>
+    <span class="s1">t </span><span class="s2">= </span><span class="s1">property</span><span class="s2">(</span><span class="s1">getT</span><span class="s2">, </span><span class="s1">setT</span><span class="s2">)</span>
+    <span class="s1">play_rate </span><span class="s2">= </span><span class="s1">property</span><span class="s2">(</span><span class="s1">getPlayRate</span><span class="s2">, </span><span class="s1">setPlayRate</span><span class="s2">)</span>
+    <span class="s1">done_event </span><span class="s2">= </span><span class="s1">property</span><span class="s2">(</span><span class="s1">getDoneEvent</span><span class="s2">, </span><span class="s1">setDoneEvent</span><span class="s2">)</span>
+
+    <span class="s5"># The rest of these methods are duplicates of functions defined</span>
+    <span class="s5"># for the CInterval class via the file CInterval-extensions.py.</span>
+
+    <span class="s4">def </span><span class="s1">privPostEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Call after calling any of the priv* methods to do any required</span>
+        <span class="s5"># Python finishing steps.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getT</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;setTHooks&quot;</span><span class="s2">):</span>
+            <span class="s4">for </span><span class="s1">func </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setTHooks</span><span class="s2">:</span>
+                <span class="s1">func</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pstats</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__spawnTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Spawn task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeTask</span><span class="s2">()</span>
+        <span class="s1">taskName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'-play'</span>
+        <span class="s1">task </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__playTask</span><span class="s2">)</span>
+        <span class="s1">task</span><span class="s2">.</span><span class="s1">interval </span><span class="s2">= </span><span class="s1">self</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">taskName</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">__removeTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill old task(s), including those from a similarly-named but</span>
+        <span class="s5"># different interval.</span>
+        <span class="s1">taskName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'-play'</span>
+        <span class="s1">oldTasks </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s1">taskName</span><span class="s2">)</span>
+        <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">oldTasks</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s3">&quot;interval&quot;</span><span class="s2">):</span>
+                <span class="s1">task</span><span class="s2">.</span><span class="s1">interval</span><span class="s2">.</span><span class="s1">privInterrupt</span><span class="s2">()</span>
+                <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__playTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s1">again </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepPlay</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">privPostEvent</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">again</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+
+    <span class="s4">def </span><span class="s1">popupControls</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tl </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Popup control panel for interval. 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Don't use a regular import, to prevent ModuleFinder from picking</span>
+        <span class="s5"># it up as a dependency when building a .p3d package.</span>
+        <span class="s4">import </span><span class="s1">importlib</span><span class="s2">, </span><span class="s1">sys</span>
+        <span class="s1">EntryScale </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.tkwidgets.EntryScale'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s1">tkinter </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'tkinter'</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">tkinter </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'Tkinter'</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">tl </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">tl </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Toplevel</span><span class="s2">()</span>
+            <span class="s1">tl</span><span class="s2">.</span><span class="s1">title</span><span class="s2">(</span><span class="s3">'Interval Controls'</span><span class="s2">)</span>
+        <span class="s1">outerFrame </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">tl</span><span class="s2">)</span>
+        <span class="s4">def </span><span class="s1">entryScaleCommand</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">setT</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">es </span><span class="s2">= </span><span class="s1">es </span><span class="s2">= </span><span class="s1">EntryScale</span><span class="s2">.</span><span class="s1">EntryScale</span><span class="s2">(</span>
+            <span class="s1">outerFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">() * </span><span class="s6">100</span><span class="s2">) / </span><span class="s6">100</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">entryScaleCommand</span><span class="s2">)</span>
+        <span class="s1">es</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getT</span><span class="s2">(), </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">es</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">bf </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">outerFrame</span><span class="s2">)</span>
+        <span class="s5"># Jump to start and end</span>
+        <span class="s4">def </span><span class="s1">toStart</span><span class="s2">(</span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">es</span><span class="s2">=</span><span class="s1">es</span><span class="s2">):</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">clearToInitial</span><span class="s2">()</span>
+            <span class="s1">es</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4">def </span><span class="s1">toEnd</span><span class="s2">(</span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">setT</span><span class="s2">(</span><span class="s1">s</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">())</span>
+            <span class="s1">es</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">s</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">(), </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+        <span class="s1">jumpToStart </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Button</span><span class="s2">(</span><span class="s1">bf</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'&lt;&lt;'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">toStart</span><span class="s2">)</span>
+        <span class="s5"># Stop/play buttons</span>
+        <span class="s4">def </span><span class="s1">doPlay</span><span class="s2">(</span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">es</span><span class="s2">=</span><span class="s1">es</span><span class="s2">):</span>
+            <span class="s1">s</span><span class="s2">.</span><span class="s1">resume</span><span class="s2">(</span><span class="s1">es</span><span class="s2">.</span><span class="s1">get</span><span class="s2">())</span>
+
+        <span class="s1">stop </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Button</span><span class="s2">(</span><span class="s1">bf</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Stop'</span><span class="s2">,</span>
+                      <span class="s1">command </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">: </span><span class="s1">s</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">())</span>
+        <span class="s1">play </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">bf</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Play'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">doPlay</span><span class="s2">)</span>
+        <span class="s1">jumpToEnd </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">Button</span><span class="s2">(</span><span class="s1">bf</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'&gt;&gt;'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">toEnd</span><span class="s2">)</span>
+        <span class="s1">jumpToStart</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">play</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">stop</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">jumpToEnd</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">bf</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">outerFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s5"># Add function to update slider during setT calls</span>
+        <span class="s4">def </span><span class="s1">update</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s1">es</span><span class="s2">=</span><span class="s1">es</span><span class="s2">):</span>
+            <span class="s1">es</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;setTHooks&quot;</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setTHooks </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setTHooks</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">update</span><span class="s2">)</span>
+        <span class="s5"># Clear out function on destroy</span>
+        <span class="s4">def </span><span class="s1">onDestroy</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">u</span><span class="s2">=</span><span class="s1">update</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">u </span><span class="s4">in </span><span class="s1">s</span><span class="s2">.</span><span class="s1">setTHooks</span><span class="s2">:</span>
+                <span class="s1">s</span><span class="s2">.</span><span class="s1">setTHooks</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">u</span><span class="s2">)</span>
+        <span class="s1">tl</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;Destroy&gt;'</span><span class="s2">, </span><span class="s1">onDestroy</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

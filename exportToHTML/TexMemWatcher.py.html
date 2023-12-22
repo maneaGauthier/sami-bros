@@ -1,0 +1,1289 @@
+<html>
+<head>
+<title>TexMemWatcher.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+TexMemWatcher.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">import </span><span class="s1">math</span>
+<span class="s0">import </span><span class="s1">copy</span>
+
+<span class="s0">class </span><span class="s1">TexMemWatcher</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This class creates a separate graphics window that displays an 
+    approximation of the current texture memory, showing the textures 
+    that are resident and/or active, and an approximation of the 
+    amount of texture memory consumed by each one.  It's intended as a 
+    useful tool to help determine where texture memory is being spent. 
+ 
+    Although it represents the textures visually in a 2-d space, it 
+    doesn't actually have any idea how textures are physically laid 
+    out in memory--but it has to lay them out somehow, so it makes 
+    something up.  It occasionally rearranges the texture display when 
+    it feels it needs to, without regard to what the graphics card is 
+    actually doing.  This tool can't be used to research texture 
+    memory fragmentation issues. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">NextIndex </span><span class="s2">= </span><span class="s4">1</span>
+
+    <span class="s1">StatusHeight </span><span class="s2">= </span><span class="s4">20  </span><span class="s5"># in pixels</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">gsg </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">limit </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+        <span class="s5"># First, we'll need a name to uniquify the object.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s6">'tex-mem%s' </span><span class="s2">% (</span><span class="s1">TexMemWatcher</span><span class="s2">.</span><span class="s1">NextIndex</span><span class="s2">)</span>
+        <span class="s1">TexMemWatcher</span><span class="s2">.</span><span class="s1">NextIndex </span><span class="s2">+= </span><span class="s4">1</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cleanedUp </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">top </span><span class="s2">= </span><span class="s4">1.0</span>
+
+        <span class="s5"># The textures managed by the TexMemWatcher are packed</span>
+        <span class="s5"># arbitrarily into the canvas, which is the viewable region</span>
+        <span class="s5"># that represents texture memory allocation.  The packing</span>
+        <span class="s5"># arrangement has no relation to actual layout within texture</span>
+        <span class="s5"># memory (which we have no way to determine).</span>
+
+        <span class="s5"># The visual size of each texture is chosen in proportion to</span>
+        <span class="s5"># the total number of bytes of texture memory the texture</span>
+        <span class="s5"># consumes.  This includes mipmaps, and accounts for texture</span>
+        <span class="s5"># compression.  Visually, a texture with mipmaps will be</span>
+        <span class="s5"># represented by a rectangle 33% larger than an</span>
+        <span class="s5"># equivalent-sized texture without mipmaps.  Of course, this</span>
+        <span class="s5"># once again has little bearing to the way the textures are</span>
+        <span class="s5"># actually arranged in memory; but it serves to give a visual</span>
+        <span class="s5"># indication of how much texture memory each texture consumes.</span>
+
+        <span class="s5"># There is an arbitrary limit, self.limit, which may have been</span>
+        <span class="s5"># passed to the constructor, or which may be arbitrarily</span>
+        <span class="s5"># determined.  This represents the intended limit to texture</span>
+        <span class="s5"># memory utilization.  We (generously) assume that the</span>
+        <span class="s5"># graphics card will implement a perfect texture packing</span>
+        <span class="s5"># algorithm, so that as long as our total utilization &lt;=</span>
+        <span class="s5"># self.limit, it must fit within texture memory.  We represent</span>
+        <span class="s5"># this visually by aggressively packing textures within the</span>
+        <span class="s5"># self.limit block so that they are guaranteed to fit, as long</span>
+        <span class="s5"># as we do not exceed the total utilization.  This may</span>
+        <span class="s5"># sometimes mean distorting a texture block or even breaking</span>
+        <span class="s5"># it into multiple pieces to get it to fit, clearly</span>
+        <span class="s5"># fictionalizing whatever the graphics driver is actually</span>
+        <span class="s5"># doing.</span>
+
+        <span class="s5"># Internally, textures are packed into an integer grid of</span>
+        <span class="s5"># Q-units.  Q-units are in proportion to texture bytes.</span>
+        <span class="s5"># Specifically, each Q-unit corresponds to a block of</span>
+        <span class="s5"># self.quantize * self.quantize texture bytes in the Texture</span>
+        <span class="s5"># Memory window.  The Q-units are the smallest packable unit;</span>
+        <span class="s5"># increasing self.quantize therefore reduces the visual</span>
+        <span class="s5"># packing resolution correspondingly.  Q-units very roughly</span>
+        <span class="s5"># correspond to pixels onscreen (they may be larger, sometimes</span>
+        <span class="s5"># considerably larger, than 1 pixel, depending on the window</span>
+        <span class="s5"># size).</span>
+
+
+        <span class="s5"># This number defines the size of a Q-unit square, in texture</span>
+        <span class="s5"># bytes.  It is automatically adjusted in repack() based on</span>
+        <span class="s5"># the window size and the texture memory size.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">= </span><span class="s4">1</span>
+
+        <span class="s5"># This is the maximum number of bitmask rows (within</span>
+        <span class="s5"># self.limit) to allocate for packing.  This controls the</span>
+        <span class="s5"># value assigned to self.quantize in repack().</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetInt</span><span class="s2">(</span><span class="s6">'tex-mem-max-height'</span><span class="s2">, </span><span class="s4">300</span><span class="s2">)</span>
+
+        <span class="s5"># The total number of texture bytes tracked, including overflow.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s5"># The total number of texture bytes placed, not including</span>
+        <span class="s5"># overflow (that is, within self.limit).</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s5"># The total number of Q-units placed, not including overflow.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s5"># If no GSG is specified, use the main GSG.</span>
+        <span class="s0">if </span><span class="s1">gsg </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">gsg </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getGsg</span><span class="s2">()</span>
+        <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">gsg</span><span class="s2">, </span><span class="s1">GraphicsOutput</span><span class="s2">):</span>
+            <span class="s5"># If we were passed a window, use that window's GSG.</span>
+            <span class="s1">gsg </span><span class="s2">= </span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">getGsg</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gsg </span><span class="s2">= </span><span class="s1">gsg</span>
+
+        <span class="s5"># Now open a new window just to render the output.</span>
+        <span class="s1">size </span><span class="s2">= </span><span class="s1">ConfigVariableInt</span><span class="s2">(</span><span class="s6">'tex-mem-win-size'</span><span class="s2">, </span><span class="s6">'300 300'</span><span class="s2">)</span>
+        <span class="s1">origin </span><span class="s2">= </span><span class="s1">ConfigVariableInt</span><span class="s2">(</span><span class="s6">'tex-mem-win-origin'</span><span class="s2">, </span><span class="s6">'100 100'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">winSize </span><span class="s2">= (</span><span class="s1">size</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">size</span><span class="s2">[</span><span class="s4">1</span><span class="s2">])</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s6">'Texture Memory'</span>
+        <span class="s1">props </span><span class="s2">= </span><span class="s1">WindowProperties</span><span class="s2">()</span>
+        <span class="s1">props</span><span class="s2">.</span><span class="s1">setOrigin</span><span class="s2">(</span><span class="s1">origin</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">origin</span><span class="s2">[</span><span class="s4">1</span><span class="s2">])</span>
+        <span class="s1">props</span><span class="s2">.</span><span class="s1">setSize</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span><span class="s2">)</span>
+        <span class="s1">props</span><span class="s2">.</span><span class="s1">setTitle</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">props</span><span class="s2">.</span><span class="s1">setFullscreen</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">props</span><span class="s2">.</span><span class="s1">setUndecorated</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+
+        <span class="s1">fbprops </span><span class="s2">= </span><span class="s1">FrameBufferProperties</span><span class="s2">.</span><span class="s1">getDefault</span><span class="s2">()</span>
+        <span class="s1">flags </span><span class="s2">= </span><span class="s1">GraphicsPipe</span><span class="s2">.</span><span class="s1">BFFbPropsOptional </span><span class="s2">| </span><span class="s1">GraphicsPipe</span><span class="s2">.</span><span class="s1">BFRequireWindow</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pipe </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s5"># Set this to tinydisplay if you're running on a machine with</span>
+        <span class="s5"># limited texture memory.  That way you won't compete for</span>
+        <span class="s5"># texture memory with the main scene.</span>
+        <span class="s1">moduleName </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetString</span><span class="s2">(</span><span class="s6">'tex-mem-pipe'</span><span class="s2">, </span><span class="s6">''</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">moduleName</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pipe </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">makeModulePipe</span><span class="s2">(</span><span class="s1">moduleName</span><span class="s2">)</span>
+
+        <span class="s5"># If the requested pipe fails for some reason, we'll use the</span>
+        <span class="s5"># regular pipe.</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pipe</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pipe </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">pipe</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">graphicsEngine</span><span class="s2">.</span><span class="s1">makeOutput</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">pipe</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">fbprops</span><span class="s2">,</span>
+                                                  <span class="s1">props</span><span class="s2">, </span><span class="s1">flags</span><span class="s2">)</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span>
+
+        <span class="s5"># We should render at the end of the frame.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">setSort</span><span class="s2">(</span><span class="s4">10000</span><span class="s2">)</span>
+
+        <span class="s5"># We don't need to clear the color buffer, since we'll be</span>
+        <span class="s5"># filling it with a texture.  We also don't need to clear the</span>
+        <span class="s5"># depth buffer, since we won't be using it.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">setClearColorActive</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">setClearDepthActive</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+
+        <span class="s1">eventName </span><span class="s2">= </span><span class="s6">'%s-window' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">setWindowEvent</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">windowEvent</span><span class="s2">)</span>
+
+        <span class="s5"># Listen for this event so we can update appropriately, if</span>
+        <span class="s5"># anyone changes the window's graphics memory limit,</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s6">'graphics_memory_limit_changed'</span><span class="s2">,</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">graphicsMemoryLimitChanged</span><span class="s2">)</span>
+
+        <span class="s5"># We'll need a mouse object to get mouse events.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mouse </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">dataRoot</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">MouseAndKeyboard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s6">'%s-mouse' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)))</span>
+        <span class="s1">bt </span><span class="s2">= </span><span class="s1">ButtonThrower</span><span class="s2">(</span><span class="s6">'%s-thrower' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">bt</span><span class="s2">)</span>
+        <span class="s1">bt</span><span class="s2">.</span><span class="s1">setPrefix</span><span class="s2">(</span><span class="s6">'button-%s-' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s6">'button-%s-mouse1' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseClick</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setupGui</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setupCanvas</span><span class="s2">()</span>
+
+        <span class="s5"># Now start handling up the actual stuff in the scene.</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">background </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nextTexRecordKey </span><span class="s2">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rollover </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isolate </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isolated </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">needsRepack </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s5"># How frequently should the texture memory window check for</span>
+        <span class="s5"># state changes?</span>
+        <span class="s1">updateInterval </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetDouble</span><span class="s2">(</span><span class="s6">&quot;tex-mem-update-interval&quot;</span><span class="s2">, </span><span class="s4">0.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">task </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">updateInterval</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateTextures</span><span class="s2">, </span><span class="s6">'TexMemWatcher'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setLimit</span><span class="s2">(</span><span class="s1">limit</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setupGui</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Creates the gui elements and supporting structures. &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render2d </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s6">'render2d'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">setDepthTest</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">setDepthWrite</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">setTwoSided</span><span class="s2">(</span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s6">'unsorted'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s5"># Create a DisplayRegion and an associated camera.</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">makeDisplayRegion</span><span class="s2">()</span>
+        <span class="s1">cam </span><span class="s2">= </span><span class="s1">Camera</span><span class="s2">(</span><span class="s6">'cam2d'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens </span><span class="s2">= </span><span class="s1">OrthographicLens</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setNearFar</span><span class="s2">(-</span><span class="s4">1000</span><span class="s2">, </span><span class="s4">1000</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setFilmSize</span><span class="s2">(</span><span class="s4">2</span><span class="s2">, </span><span class="s4">2</span><span class="s2">)</span>
+        <span class="s1">cam</span><span class="s2">.</span><span class="s1">setLens</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">)</span>
+
+        <span class="s1">np </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cam</span><span class="s2">)</span>
+        <span class="s1">dr</span><span class="s2">.</span><span class="s1">setCamera</span><span class="s2">(</span><span class="s1">np</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">aspect2d </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'aspect2d'</span><span class="s2">)</span>
+
+        <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s6">'statusBackground'</span><span class="s2">)</span>
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s4">0.85</span><span class="s2">, </span><span class="s4">0.85</span><span class="s2">, </span><span class="s4">0.85</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">2</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusBackground </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">(), -</span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusBackground</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(-</span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, -</span><span class="s4">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">status </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect2d</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'status'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusText </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">(</span><span class="s6">'statusText'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusText</span><span class="s2">.</span><span class="s1">setTextColor</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusTextNP </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">status</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">statusText</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusTextNP</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s4">1.5</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">(</span><span class="s6">'sizeText'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">.</span><span class="s1">setTextColor</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">.</span><span class="s1">setAlign</span><span class="s2">(</span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ARight</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">.</span><span class="s1">setCardAsMargin</span><span class="s2">(</span><span class="s4">0.25</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, -</span><span class="s4">0.25</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">.</span><span class="s1">setCardColor</span><span class="s2">(</span><span class="s4">0.85</span><span class="s2">, </span><span class="s4">0.85</span><span class="s2">, </span><span class="s4">0.85</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeTextNP </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">status</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeTextNP</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s4">1.5</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setupCanvas</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Creates the &quot;canvas&quot;, which is the checkerboard area where 
+        texture memory is laid out.  The canvas has its own 
+        DisplayRegion. &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s6">'canvasRoot'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">setDepthTest</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">setDepthWrite</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">setTwoSided</span><span class="s2">(</span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s6">'unsorted'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'canvas'</span><span class="s2">)</span>
+
+        <span class="s5"># Create a DisplayRegion and an associated camera.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">makeDisplayRegion</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR</span><span class="s2">.</span><span class="s1">setSort</span><span class="s2">(-</span><span class="s4">10</span><span class="s2">)</span>
+        <span class="s1">cam </span><span class="s2">= </span><span class="s1">Camera</span><span class="s2">(</span><span class="s6">'cam2d'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasLens </span><span class="s2">= </span><span class="s1">OrthographicLens</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasLens</span><span class="s2">.</span><span class="s1">setNearFar</span><span class="s2">(-</span><span class="s4">1000</span><span class="s2">, </span><span class="s4">1000</span><span class="s2">)</span>
+        <span class="s1">cam</span><span class="s2">.</span><span class="s1">setLens</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasLens</span><span class="s2">)</span>
+
+        <span class="s1">np </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cam</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR</span><span class="s2">.</span><span class="s1">setCamera</span><span class="s2">(</span><span class="s1">np</span><span class="s2">)</span>
+
+        <span class="s5"># Create a MouseWatcher so we can interact with the various</span>
+        <span class="s5"># textures.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mw </span><span class="s2">= </span><span class="s1">MouseWatcher</span><span class="s2">(</span><span class="s6">'%s-watcher' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">setDisplayRegion</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR</span><span class="s2">)</span>
+        <span class="s1">mwnp </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">)</span>
+
+        <span class="s1">eventName </span><span class="s2">= </span><span class="s6">'%s-enter' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">setEnterPattern</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enterRegion</span><span class="s2">)</span>
+
+        <span class="s1">eventName </span><span class="s2">= </span><span class="s6">'%s-leave' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">setLeavePattern</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">leaveRegion</span><span class="s2">)</span>
+
+        <span class="s5"># Create a checkerboard background card for the canvas.</span>
+        <span class="s1">p </span><span class="s2">= </span><span class="s1">PNMImage</span><span class="s2">(</span><span class="s4">2</span><span class="s2">, </span><span class="s4">2</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">p</span><span class="s2">.</span><span class="s1">setGray</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0.40</span><span class="s2">)</span>
+        <span class="s1">p</span><span class="s2">.</span><span class="s1">setGray</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">0.40</span><span class="s2">)</span>
+        <span class="s1">p</span><span class="s2">.</span><span class="s1">setGray</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">0.75</span><span class="s2">)</span>
+        <span class="s1">p</span><span class="s2">.</span><span class="s1">setGray</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0.75</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">checkTex </span><span class="s2">= </span><span class="s1">Texture</span><span class="s2">(</span><span class="s6">'checkTex'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">checkTex</span><span class="s2">.</span><span class="s1">load</span><span class="s2">(</span><span class="s1">p</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">checkTex</span><span class="s2">.</span><span class="s1">setMagfilter</span><span class="s2">(</span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">FTNearest</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">makeCanvasBackground</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">makeCanvasBackground</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasRoot</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'canvasBackground'</span><span class="s2">, -</span><span class="s4">100</span><span class="s2">)</span>
+
+        <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s6">'background'</span><span class="s2">)</span>
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setUvRange</span><span class="s2">((</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), (</span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span><span class="s2">)</span>
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setUvRange</span><span class="s2">((</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), (</span><span class="s4">1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span><span class="s2">))</span>
+        <span class="s1">bad </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+        <span class="s1">bad</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">((</span><span class="s4">0.8</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">1</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">checkTex</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setLimit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">limit </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Indicates the texture memory limit.  If limit is None or 
+        unspecified, the limit is taken from the GSG, if any; or there 
+        is no limit. &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__doSetLimit</span><span class="s2">(</span><span class="s1">limit</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reconfigureWindow</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__doSetLimit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">limit</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Internal implementation of setLimit(). &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">limit </span><span class="s2">= </span><span class="s1">limit</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lruLimit </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s0">if not </span><span class="s1">limit</span><span class="s2">:</span>
+            <span class="s5"># If no limit was specified, use the specified graphics</span>
+            <span class="s5"># memory limit, if any.</span>
+            <span class="s1">lruSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">getPreparedObjects</span><span class="s2">().</span><span class="s1">getGraphicsMemoryLimit</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">lruSize </span><span class="s0">and </span><span class="s1">lruSize </span><span class="s2">&lt; </span><span class="s4">2</span><span class="s2">**</span><span class="s4">32 </span><span class="s2">- </span><span class="s4">1</span><span class="s2">:</span>
+                <span class="s5"># Got a real lruSize.  Use it.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">limit </span><span class="s2">= </span><span class="s1">lruSize</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lruLimit </span><span class="s2">= </span><span class="s0">True</span>
+
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s5"># No LRU limit either, so there won't be a practical</span>
+                <span class="s5"># limit to the TexMemWatcher.  We'll determine our</span>
+                <span class="s5"># limit on-the-fly instead.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit</span><span class="s2">:</span>
+            <span class="s5"># Choose a suitable limit by rounding to the next power of two.</span>
+            <span class="s1">limit </span><span class="s2">= </span><span class="s4">1</span>
+            <span class="s0">while </span><span class="s1">limit </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize</span><span class="s2">:</span>
+                <span class="s1">limit </span><span class="s2">*= </span><span class="s4">2</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">limit </span><span class="s2">= </span><span class="s1">limit</span>
+
+        <span class="s5"># Set our GSG to limit itself to no more textures than we</span>
+        <span class="s5"># expect to display onscreen, so we don't go crazy with</span>
+        <span class="s5"># texture memory.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getGsg</span><span class="s2">().</span><span class="s1">getPreparedObjects</span><span class="s2">().</span><span class="s1">setGraphicsMemoryLimit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">limit</span><span class="s2">)</span>
+
+        <span class="s5"># The actual height of the canvas, including the overflow</span>
+        <span class="s5"># area.  The texture memory itself is restricted to (0..1)</span>
+        <span class="s5"># vertically; anything higher than 1 is overflow.</span>
+        <span class="s1">top </span><span class="s2">= </span><span class="s4">1.25</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit</span><span class="s2">:</span>
+            <span class="s5"># Actually, we'll never exceed texture memory, so never mind.</span>
+            <span class="s1">top </span><span class="s2">= </span><span class="s4">1</span>
+        <span class="s0">if </span><span class="s1">top </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">top </span><span class="s2">= </span><span class="s1">top</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">makeCanvasBackground</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasLens</span><span class="s2">.</span><span class="s1">setFilmSize</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasLens</span><span class="s2">.</span><span class="s1">setFilmOffset</span><span class="s2">(</span><span class="s4">0.5</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top </span><span class="s2">/ </span><span class="s4">2.0</span><span class="s2">)  </span><span class="s5"># lens covers 0..1 in x and y</span>
+
+    <span class="s0">def </span><span class="s1">cleanup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cleanedUp</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cleanedUp </span><span class="s2">= </span><span class="s0">True</span>
+
+            <span class="s5"># Remove the window.</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">graphicsEngine</span><span class="s2">.</span><span class="s1">removeWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">win </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">gsg </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pipe </span><span class="s2">= </span><span class="s0">None</span>
+
+            <span class="s5"># Remove the mouse.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">task</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">()</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">.</span><span class="s1">getChildren</span><span class="s2">().</span><span class="s1">detach</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex </span><span class="s2">= {}</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey </span><span class="s2">= {}</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements </span><span class="s2">= {}</span>
+
+    <span class="s0">def </span><span class="s1">graphicsMemoryLimitChanged</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit </span><span class="s0">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lruLimit</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__doSetLimit</span><span class="s2">(</span><span class="s0">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">reconfigureWindow</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">windowEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">win</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">win </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">:</span>
+            <span class="s1">props </span><span class="s2">= </span><span class="s1">win</span><span class="s2">.</span><span class="s1">getProperties</span><span class="s2">()</span>
+            <span class="s0">if not </span><span class="s1">props</span><span class="s2">.</span><span class="s1">getOpen</span><span class="s2">():</span>
+                <span class="s5"># User closed window.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+                <span class="s0">return</span>
+
+            <span class="s1">size </span><span class="s2">= (</span><span class="s1">props</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">(), </span><span class="s1">props</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">())</span>
+            <span class="s0">if </span><span class="s1">size </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">winSize </span><span class="s2">= </span><span class="s1">size</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">reconfigureWindow</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">enterRegion</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">region</span><span class="s2">, </span><span class="s1">buttonName</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; the mouse has rolled over a texture. &quot;&quot;&quot;</span>
+        <span class="s1">key</span><span class="s2">, </span><span class="s1">pi </span><span class="s2">= </span><span class="s1">map</span><span class="s2">(</span><span class="s1">int</span><span class="s2">, </span><span class="s1">region</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s6">':'</span><span class="s2">))</span>
+        <span class="s1">tr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+        <span class="s0">if not </span><span class="s1">tr</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setRollover</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">, </span><span class="s1">pi</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">leaveRegion</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">region</span><span class="s2">, </span><span class="s1">buttonName</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; the mouse is no longer over a texture. &quot;&quot;&quot;</span>
+        <span class="s1">key</span><span class="s2">, </span><span class="s1">pi </span><span class="s2">= </span><span class="s1">map</span><span class="s2">(</span><span class="s1">int</span><span class="s2">, </span><span class="s1">region</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s6">':'</span><span class="s2">))</span>
+        <span class="s1">tr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">tr </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rollover</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setRollover</span><span class="s2">(</span><span class="s0">None</span><span class="s2">, </span><span class="s0">None</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">mouseClick</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Received a mouse-click within the window.  This isolates 
+        the currently-highlighted texture into a full-window 
+        presentation. &quot;&quot;&quot;</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">:</span>
+            <span class="s5"># We're already isolating a texture; the click undoes this.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">isolateTexture</span><span class="s2">(</span><span class="s0">None</span><span class="s2">)</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rollover</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">isolateTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rollover</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setRollover</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">, </span><span class="s1">pi</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Sets the highlighted texture (due to mouse rollover) to 
+        the indicated texture, or None to clear it. &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rollover </span><span class="s2">= </span><span class="s1">tr</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">rollover</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">statusText</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">statusText</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">(</span><span class="s6">''</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">isolateTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Isolates the indicated texture onscreen, or None to 
+        restore normal mode. &quot;&quot;&quot;</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">isolate </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isolated </span><span class="s2">= </span><span class="s1">tr</span>
+
+        <span class="s5"># Undo the previous call to isolate.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">clearColor</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getGsg</span><span class="s2">().</span><span class="s1">setTextureQualityOverride</span><span class="s2">(</span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">QLDefault</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">, </span><span class="s6">'clearFlashTexture'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">clearFlashTexture</span><span class="s2">()</span>
+
+        <span class="s0">if not </span><span class="s1">tr</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s5"># Now isolate.</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+        <span class="s5"># Disable the red bar at the top.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+
+        <span class="s5"># Show the texture in all its filtered glory.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getGsg</span><span class="s2">().</span><span class="s1">setTextureQualityOverride</span><span class="s2">(</span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">QLBest</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">, </span><span class="s6">'setFlashTexture'</span><span class="s2">):</span>
+            <span class="s5"># Start the texture flashing in the main window.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">setFlashTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isolate </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'isolate'</span><span class="s2">)</span>
+
+        <span class="s1">wx</span><span class="s2">, </span><span class="s1">wy </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span>
+
+        <span class="s5"># Put a label on the bottom of the screen.</span>
+        <span class="s1">tn </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">(</span><span class="s6">'tn'</span><span class="s2">)</span>
+        <span class="s1">tn</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">(</span><span class="s6">'%s</span><span class="s0">\n</span><span class="s6">%s x %s</span><span class="s0">\n</span><span class="s6">%s' </span><span class="s2">% (</span>
+            <span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(), </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">(), </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">(),</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">formatSize</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">size</span><span class="s2">)))</span>
+        <span class="s1">tn</span><span class="s2">.</span><span class="s1">setAlign</span><span class="s2">(</span><span class="s1">tn</span><span class="s2">.</span><span class="s1">ACenter</span><span class="s2">)</span>
+        <span class="s1">tn</span><span class="s2">.</span><span class="s1">setCardAsMargin</span><span class="s2">(</span><span class="s4">100.0</span><span class="s2">, </span><span class="s4">100.0</span><span class="s2">, </span><span class="s4">0.1</span><span class="s2">, </span><span class="s4">0.1</span><span class="s2">)</span>
+        <span class="s1">tn</span><span class="s2">.</span><span class="s1">setCardColor</span><span class="s2">(</span><span class="s4">0.1</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">0.4</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">tnp </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">tn</span><span class="s2">)</span>
+        <span class="s1">scale </span><span class="s2">= </span><span class="s4">30.0 </span><span class="s2">/ </span><span class="s1">wy</span>
+        <span class="s1">tnp</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">scale </span><span class="s2">* </span><span class="s1">wy </span><span class="s2">/ </span><span class="s1">wx</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">)</span>
+        <span class="s1">tnp</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">render2d</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, -</span><span class="s4">1 </span><span class="s2">- </span><span class="s1">tn</span><span class="s2">.</span><span class="s1">getBottom</span><span class="s2">() * </span><span class="s1">scale</span><span class="s2">)</span>
+
+        <span class="s1">labelTop </span><span class="s2">= </span><span class="s1">tn</span><span class="s2">.</span><span class="s1">getHeight</span><span class="s2">() * </span><span class="s1">scale</span>
+
+        <span class="s5"># Make a card that shows the texture in actual pixel size, but</span>
+        <span class="s5"># don't let it exceed the screen size.</span>
+        <span class="s1">tw </span><span class="s2">= </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">()</span>
+        <span class="s1">th </span><span class="s2">= </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">()</span>
+
+        <span class="s1">wx </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">)</span>
+        <span class="s1">wy </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">wy</span><span class="s2">) * (</span><span class="s4">2.0 </span><span class="s2">- </span><span class="s1">labelTop</span><span class="s2">) * </span><span class="s4">0.5</span>
+
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">tw</span><span class="s2">, </span><span class="s1">wx</span><span class="s2">)</span>
+        <span class="s1">h </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">th</span><span class="s2">, </span><span class="s1">wy</span><span class="s2">)</span>
+
+        <span class="s1">sx </span><span class="s2">= </span><span class="s1">w </span><span class="s2">/ </span><span class="s1">tw</span>
+        <span class="s1">sy </span><span class="s2">= </span><span class="s1">h </span><span class="s2">/ </span><span class="s1">th</span>
+        <span class="s1">s </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">sx</span><span class="s2">, </span><span class="s1">sy</span><span class="s2">)</span>
+
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">tw </span><span class="s2">* </span><span class="s1">s </span><span class="s2">/ </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span><span class="s2">[</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">h </span><span class="s2">= </span><span class="s1">th </span><span class="s2">* </span><span class="s1">s </span><span class="s2">/ </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span><span class="s2">[</span><span class="s4">1</span><span class="s2">])</span>
+
+        <span class="s1">cx </span><span class="s2">= </span><span class="s4">0.0</span>
+        <span class="s1">cy </span><span class="s2">= </span><span class="s4">1.0 </span><span class="s2">- (</span><span class="s4">2.0 </span><span class="s2">- </span><span class="s1">labelTop</span><span class="s2">) * </span><span class="s4">0.5</span>
+
+        <span class="s1">l </span><span class="s2">= </span><span class="s1">cx </span><span class="s2">- </span><span class="s1">w</span>
+        <span class="s1">r </span><span class="s2">= </span><span class="s1">cx </span><span class="s2">+ </span><span class="s1">w</span>
+        <span class="s1">b </span><span class="s2">= </span><span class="s1">cy </span><span class="s2">- </span><span class="s1">h</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">cy </span><span class="s2">+ </span><span class="s1">h</span>
+
+        <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s6">'card'</span><span class="s2">)</span>
+        <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s1">c </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+        <span class="s1">c</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">)</span>
+        <span class="s1">c</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s1">TransparencyAttrib</span><span class="s2">.</span><span class="s1">MAlpha</span><span class="s2">)</span>
+
+        <span class="s1">ls </span><span class="s2">= </span><span class="s1">LineSegs</span><span class="s2">(</span><span class="s6">'frame'</span><span class="s2">)</span>
+        <span class="s1">ls</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">ls</span><span class="s2">.</span><span class="s1">moveTo</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+        <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+        <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">ls</span><span class="s2">.</span><span class="s1">create</span><span class="s2">())</span>
+
+
+    <span class="s0">def </span><span class="s1">reconfigureWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Resets everything for a new window size. &quot;&quot;&quot;</span>
+
+        <span class="s1">wx</span><span class="s2">, </span><span class="s1">wy </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span>
+        <span class="s0">if </span><span class="s1">wx </span><span class="s2">&lt;= </span><span class="s4">0 </span><span class="s0">or </span><span class="s1">wy </span><span class="s2">&lt;= </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">aspect2d</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">wy</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">wx</span><span class="s2">), </span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+
+        <span class="s5"># Reserve self.StatusHeight pixels for the status bar;</span>
+        <span class="s5"># everything else is for the canvas.</span>
+
+        <span class="s1">statusScale </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">StatusHeight</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">wy</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusBackground</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s1">statusScale</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">status</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">statusScale</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">statusTextNP</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">statusBackground</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeTextNP</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">statusBackground</span><span class="s2">, </span><span class="s4">2</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0.5</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR</span><span class="s2">.</span><span class="s1">setDimensions</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">, </span><span class="s1">statusScale</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR</span><span class="s2">.</span><span class="s1">getPixelWidth</span><span class="s2">()</span>
+        <span class="s1">h </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvasDR</span><span class="s2">.</span><span class="s1">getPixelHeight</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvasBackground</span><span class="s2">.</span><span class="s1">setTexScale</span><span class="s2">(</span><span class="s1">TextureStage</span><span class="s2">.</span><span class="s1">getDefault</span><span class="s2">(),</span>
+                                          <span class="s1">w </span><span class="s2">/ </span><span class="s4">20.0</span><span class="s2">, </span><span class="s1">h </span><span class="s2">/ (</span><span class="s4">20.0 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span><span class="s2">))</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">:</span>
+            <span class="s5"># If we're currently showing an isolated texture, refresh</span>
+            <span class="s5"># that display so we get its size right.  And when we come</span>
+            <span class="s5"># back to the main window (but not now), repack it.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">needsRepack </span><span class="s2">= </span><span class="s0">True</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">isolateTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolated</span><span class="s2">)</span>
+
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s5"># If we're showing the main window, just repack it</span>
+            <span class="s5"># immediately.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">repack</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">updateTextures</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Gets the current list of resident textures and adds new 
+        textures or removes old ones from the onscreen display, as 
+        necessary. &quot;&quot;&quot;</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isolate</span><span class="s2">:</span>
+            <span class="s5"># never mind for now.</span>
+            <span class="s0">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">again</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">needsRepack</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">needsRepack </span><span class="s2">= </span><span class="s0">False</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">repack</span><span class="s2">()</span>
+            <span class="s0">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">again</span>
+
+        <span class="s1">pgo </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">getPreparedObjects</span><span class="s2">()</span>
+        <span class="s1">totalSize </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s1">texRecords </span><span class="s2">= []</span>
+        <span class="s1">neverVisited </span><span class="s2">= </span><span class="s1">copy</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex</span><span class="s2">)</span>
+        <span class="s0">for </span><span class="s1">tex </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">getPreparedTextures</span><span class="s2">():</span>
+            <span class="s5"># We have visited this texture; remove it from the</span>
+            <span class="s5"># neverVisited list.</span>
+            <span class="s0">if </span><span class="s1">tex </span><span class="s0">in </span><span class="s1">neverVisited</span><span class="s2">:</span>
+                <span class="s0">del </span><span class="s1">neverVisited</span><span class="s2">[</span><span class="s1">tex</span><span class="s2">]</span>
+
+            <span class="s1">size </span><span class="s2">= </span><span class="s4">0</span>
+            <span class="s0">if </span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getResident</span><span class="s2">(</span><span class="s1">pgo</span><span class="s2">):</span>
+                <span class="s1">size </span><span class="s2">= </span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getDataSizeBytes</span><span class="s2">(</span><span class="s1">pgo</span><span class="s2">)</span>
+
+            <span class="s1">tr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">tex</span><span class="s2">, </span><span class="s0">None</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s1">size</span><span class="s2">:</span>
+                <span class="s1">totalSize </span><span class="s2">+= </span><span class="s1">size</span>
+                <span class="s1">active </span><span class="s2">= </span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getActive</span><span class="s2">(</span><span class="s1">pgo</span><span class="s2">)</span>
+                <span class="s0">if not </span><span class="s1">tr</span><span class="s2">:</span>
+                    <span class="s5"># This is a new texture; need to record it.</span>
+                    <span class="s1">key </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nextTexRecordKey</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">nextTexRecordKey </span><span class="s2">+= </span><span class="s4">1</span>
+                    <span class="s1">tr </span><span class="s2">= </span><span class="s1">TexRecord</span><span class="s2">(</span><span class="s1">key</span><span class="s2">, </span><span class="s1">tex</span><span class="s2">, </span><span class="s1">size</span><span class="s2">, </span><span class="s1">active</span><span class="s2">)</span>
+                    <span class="s1">texRecords</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">tr</span><span class="s2">.</span><span class="s1">setActive</span><span class="s2">(</span><span class="s1">active</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">size </span><span class="s2">!= </span><span class="s1">size </span><span class="s0">or not </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">placements</span><span class="s2">:</span>
+                        <span class="s5"># The size has changed; reapply it.</span>
+                        <span class="s1">tr</span><span class="s2">.</span><span class="s1">setSize</span><span class="s2">(</span><span class="s1">size</span><span class="s2">)</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">unplaceTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+                        <span class="s1">texRecords</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">tr</span><span class="s2">:</span>
+                    <span class="s5"># This texture is no longer resident; need to remove it.</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">unplaceTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+
+        <span class="s5"># Now go through and make sure we unplace (and remove!) any</span>
+        <span class="s5"># textures that we didn't visit at all this pass.</span>
+        <span class="s0">for </span><span class="s1">tex</span><span class="s2">, </span><span class="s1">tr </span><span class="s0">in </span><span class="s1">neverVisited</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">unplaceTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex</span><span class="s2">[</span><span class="s1">tex</span><span class="s2">]</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey</span><span class="s2">[</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">key</span><span class="s2">]</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize </span><span class="s2">= </span><span class="s1">totalSize</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">formatSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize</span><span class="s2">))</span>
+        <span class="s0">if </span><span class="s1">totalSize </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">limit </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit</span><span class="s2">:</span>
+            <span class="s5"># Actually, never mind on the update: we have exceeded the</span>
+            <span class="s5"># dynamic limit computed before, and therefore we need to</span>
+            <span class="s5"># repack.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">repack</span><span class="s2">()</span>
+
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">overflowCount </span><span class="s2">= </span><span class="s1">sum</span><span class="s2">([</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s0">for </span><span class="s1">tp </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()])</span>
+            <span class="s0">if </span><span class="s1">totalSize </span><span class="s2">&lt;= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">limit </span><span class="s0">and </span><span class="s1">overflowCount</span><span class="s2">:</span>
+                <span class="s5"># Shouldn't be overflowing any more.  Better repack.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">repack</span><span class="s2">()</span>
+
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s5"># Pack in just the newly-loaded textures.</span>
+
+                <span class="s5"># Sort the regions from largest to smallest to maximize</span>
+                <span class="s5"># packing effectiveness.</span>
+                <span class="s1">texRecords</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">(</span><span class="s1">key </span><span class="s2">= </span><span class="s0">lambda </span><span class="s1">tr</span><span class="s2">: (</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tw</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">th</span><span class="s2">), </span><span class="s1">reverse </span><span class="s2">= </span><span class="s0">True</span><span class="s2">)</span>
+
+                <span class="s0">for </span><span class="s1">tr </span><span class="s0">in </span><span class="s1">texRecords</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">placeTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex</span><span class="s2">[</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">] = </span><span class="s1">tr</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey</span><span class="s2">[</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">key</span><span class="s2">] = </span><span class="s1">tr</span>
+
+        <span class="s0">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">again</span>
+
+
+    <span class="s0">def </span><span class="s1">repack</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Repacks all of the current textures. &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">.</span><span class="s1">getChildren</span><span class="s2">().</span><span class="s1">detach</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">clearRegions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setRollover</span><span class="s2">(</span><span class="s0">None</span><span class="s2">, </span><span class="s0">None</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">w </span><span class="s2">= </span><span class="s4">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">h </span><span class="s2">= </span><span class="s4">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize </span><span class="s2">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s1">pgo </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">getPreparedObjects</span><span class="s2">()</span>
+        <span class="s1">totalSize </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s0">for </span><span class="s1">tex </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">gsg</span><span class="s2">.</span><span class="s1">getPreparedTextures</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getResident</span><span class="s2">(</span><span class="s1">pgo</span><span class="s2">):</span>
+                <span class="s1">size </span><span class="s2">= </span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getDataSizeBytes</span><span class="s2">(</span><span class="s1">pgo</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">size</span><span class="s2">:</span>
+                    <span class="s1">active </span><span class="s2">= </span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getActive</span><span class="s2">(</span><span class="s1">pgo</span><span class="s2">)</span>
+                    <span class="s1">key </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nextTexRecordKey</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">nextTexRecordKey </span><span class="s2">+= </span><span class="s4">1</span>
+                    <span class="s1">tr </span><span class="s2">= </span><span class="s1">TexRecord</span><span class="s2">(</span><span class="s1">key</span><span class="s2">, </span><span class="s1">tex</span><span class="s2">, </span><span class="s1">size</span><span class="s2">, </span><span class="s1">active</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex</span><span class="s2">[</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">] = </span><span class="s1">tr</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByKey</span><span class="s2">[</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">key</span><span class="s2">] = </span><span class="s1">tr</span>
+                    <span class="s1">totalSize </span><span class="s2">+= </span><span class="s1">size</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize </span><span class="s2">= </span><span class="s1">totalSize</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeText</span><span class="s2">.</span><span class="s1">setText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">formatSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize</span><span class="s2">))</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">totalSize</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicLimit </span><span class="s0">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lruLimit</span><span class="s2">:</span>
+            <span class="s5"># Adjust the limit to ensure we keep tracking the lru size.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__doSetLimit</span><span class="s2">(</span><span class="s0">None</span><span class="s2">)</span>
+
+        <span class="s5"># Now make that into a 2-D rectangle of the appropriate shape,</span>
+        <span class="s5"># such that w * h == limit.</span>
+
+        <span class="s5"># Window size</span>
+        <span class="s1">x</span><span class="s2">, </span><span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">winSize</span>
+
+        <span class="s5"># There should be a little buffer on the top so we can see if</span>
+        <span class="s5"># we overflow.</span>
+        <span class="s1">y </span><span class="s2">/= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span>
+
+        <span class="s1">r </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">y</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)</span>
+
+        <span class="s5"># Region size</span>
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">sqrt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">limit</span><span class="s2">) / </span><span class="s1">math</span><span class="s2">.</span><span class="s1">sqrt</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+        <span class="s1">h </span><span class="s2">= </span><span class="s1">w </span><span class="s2">* </span><span class="s1">r</span>
+
+        <span class="s5"># Now choose self.quantize so that we don't exceed</span>
+        <span class="s5"># self.maxHeight.</span>
+        <span class="s0">if </span><span class="s1">h </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">ceil</span><span class="s2">(</span><span class="s1">h </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight</span><span class="s2">))</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">= </span><span class="s4">1</span>
+
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">w </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">+ </span><span class="s4">0.5</span><span class="s2">), </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">h </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">h </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">+ </span><span class="s4">0.5</span><span class="s2">), </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">w </span><span class="s2">= </span><span class="s1">w</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">h </span><span class="s2">= </span><span class="s1">h</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">area </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">h</span>
+
+        <span class="s5"># We store a bitarray for each row, for fast lookup for</span>
+        <span class="s5"># unallocated space on the canvas.  Each Q-unit on the row</span>
+        <span class="s5"># corresponds to a bit in the bitarray, where bit 0 is Q-unit</span>
+        <span class="s5"># 0, bit 1 is Q-unit 1, and so on.  If the bit is set, the</span>
+        <span class="s5"># space is occupied.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">h</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">BitArray</span><span class="s2">())</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s4">1.0 </span><span class="s2">/ </span><span class="s1">w</span><span class="s2">, </span><span class="s4">1.0</span><span class="s2">, </span><span class="s4">1.0 </span><span class="s2">/ </span><span class="s1">h</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s1">w</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">h </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top</span><span class="s2">)</span>
+
+        <span class="s5"># Sort the regions from largest to smallest to maximize</span>
+        <span class="s5"># packing effectiveness.</span>
+        <span class="s1">texRecords </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">texRecordsByTex</span><span class="s2">.</span><span class="s1">values</span><span class="s2">())</span>
+        <span class="s1">texRecords</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">(</span><span class="s1">key </span><span class="s2">= </span><span class="s0">lambda </span><span class="s1">tr</span><span class="s2">: (</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">tw</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">th</span><span class="s2">), </span><span class="s1">reverse </span><span class="s2">= </span><span class="s0">True</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">tr </span><span class="s0">in </span><span class="s1">texRecords</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">placeTexture</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">formatSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Returns a size in MB, KB, GB, whatever. &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">size </span><span class="s2">&lt; </span><span class="s4">1000</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s6">'%s bytes' </span><span class="s2">% (</span><span class="s1">size</span><span class="s2">)</span>
+        <span class="s1">size </span><span class="s2">/= </span><span class="s4">1024.0</span>
+        <span class="s0">if </span><span class="s1">size </span><span class="s2">&lt; </span><span class="s4">1000</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s6">'%0.1f kb' </span><span class="s2">% (</span><span class="s1">size</span><span class="s2">)</span>
+        <span class="s1">size </span><span class="s2">/= </span><span class="s4">1024.0</span>
+        <span class="s0">if </span><span class="s1">size </span><span class="s2">&lt; </span><span class="s4">1000</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s6">'%0.1f MB' </span><span class="s2">% (</span><span class="s1">size</span><span class="s2">)</span>
+        <span class="s1">size </span><span class="s2">/= </span><span class="s4">1024.0</span>
+        <span class="s0">return </span><span class="s6">'%0.1f GB' </span><span class="s2">% (</span><span class="s1">size</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">unplaceTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Removes the texture from its place on the canvas. &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">placements</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">tp </span><span class="s0">in </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">placements</span><span class="s2">:</span>
+                <span class="s1">tp</span><span class="s2">.</span><span class="s1">clearBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">)</span>
+                <span class="s0">if not </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">overflowed</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize </span><span class="s2">-= </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">area</span>
+                    <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize </span><span class="s2">&gt;= </span><span class="s4">0</span>
+                <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">[</span><span class="s1">tp</span><span class="s2">]</span>
+            <span class="s1">tr</span><span class="s2">.</span><span class="s1">placements </span><span class="s2">= []</span>
+            <span class="s1">tr</span><span class="s2">.</span><span class="s1">clearCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s0">if not </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">overflowed</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize </span><span class="s2">-= </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">size</span>
+                <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize </span><span class="s2">&gt;= </span><span class="s4">0</span>
+        <span class="s1">tr</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s2">= </span><span class="s4">0</span>
+
+    <span class="s0">def </span><span class="s1">placeTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Places the texture somewhere on the canvas where it will 
+        fit. &quot;&quot;&quot;</span>
+
+        <span class="s1">tr</span><span class="s2">.</span><span class="s1">computePlacementSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">tr</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s1">shouldFit </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">availableSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">limit </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize</span>
+        <span class="s0">if </span><span class="s1">availableSize </span><span class="s2">&gt;= </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">size</span><span class="s2">:</span>
+            <span class="s1">shouldFit </span><span class="s2">= </span><span class="s0">True</span>
+            <span class="s1">availableQSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">area </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize</span>
+            <span class="s0">if </span><span class="s1">availableQSize </span><span class="s2">&lt; </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">area</span><span class="s2">:</span>
+                <span class="s5"># The texture should fit, but won't, due to roundoff</span>
+                <span class="s5"># error.  Make it correspondingly smaller, so we can</span>
+                <span class="s5"># place it anyway.</span>
+                <span class="s1">tr</span><span class="s2">.</span><span class="s1">area </span><span class="s2">= </span><span class="s1">availableQSize</span>
+
+        <span class="s0">if </span><span class="s1">shouldFit</span><span class="s2">:</span>
+            <span class="s5"># Look for a single rectangular hole to hold this piece.</span>
+            <span class="s1">tp </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findHole</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">area</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">w</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">h</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">tp</span><span class="s2">:</span>
+                <span class="s1">texCmp </span><span class="s2">= (</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">w </span><span class="s2">&gt; </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">h</span><span class="s2">) - (</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">w </span><span class="s2">&lt; </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">h</span><span class="s2">)</span>
+                <span class="s1">holeCmp </span><span class="s2">= ((</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">1</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]) &gt; (</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">3</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])) </span><span class="s1">\</span>
+                        <span class="s2">- ((</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">1</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]) &lt; (</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">3</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">2</span><span class="s2">]))</span>
+                <span class="s0">if </span><span class="s1">texCmp </span><span class="s2">!= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">holeCmp </span><span class="s2">!= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">texCmp </span><span class="s2">!= </span><span class="s1">holeCmp</span><span class="s2">:</span>
+                    <span class="s1">tp</span><span class="s2">.</span><span class="s1">rotated </span><span class="s2">= </span><span class="s0">True</span>
+                <span class="s1">tr</span><span class="s2">.</span><span class="s1">placements </span><span class="s2">= [</span><span class="s1">tp</span><span class="s2">]</span>
+                <span class="s1">tr</span><span class="s2">.</span><span class="s1">makeCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+                <span class="s1">tp</span><span class="s2">.</span><span class="s1">setBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize </span><span class="s2">+= </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">area</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">[</span><span class="s1">tp</span><span class="s2">] = </span><span class="s1">tr</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize </span><span class="s2">+= </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">size</span>
+                <span class="s0">return</span>
+
+            <span class="s5"># Couldn't find a single rectangular hole.  We'll have to</span>
+            <span class="s5"># divide the texture up into several smaller pieces to cram it</span>
+            <span class="s5"># in.</span>
+            <span class="s1">tpList </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findHolePieces</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">area</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">tpList</span><span class="s2">:</span>
+                <span class="s1">texCmp </span><span class="s2">= (</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">w </span><span class="s2">&gt; </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">h</span><span class="s2">) - (</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">w </span><span class="s2">&lt; </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">h</span><span class="s2">)</span>
+                <span class="s1">tr</span><span class="s2">.</span><span class="s1">placements </span><span class="s2">= </span><span class="s1">tpList</span>
+                <span class="s0">for </span><span class="s1">tp </span><span class="s0">in </span><span class="s1">tpList</span><span class="s2">:</span>
+                    <span class="s1">holeCmp </span><span class="s2">= ((</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">1</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]) &gt; (</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">3</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])) </span><span class="s1">\</span>
+                            <span class="s2">- ((</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">1</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]) &lt; (</span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">3</span><span class="s2">] - </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">2</span><span class="s2">]))</span>
+                    <span class="s0">if </span><span class="s1">texCmp </span><span class="s2">!= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">holeCmp </span><span class="s2">!= </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">texCmp </span><span class="s2">!= </span><span class="s1">holeCmp</span><span class="s2">:</span>
+                        <span class="s1">tp</span><span class="s2">.</span><span class="s1">rotated </span><span class="s2">= </span><span class="s0">True</span>
+                    <span class="s1">tp</span><span class="s2">.</span><span class="s1">setBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">placedQSize </span><span class="s2">+= </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">area</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">[</span><span class="s1">tp</span><span class="s2">] = </span><span class="s1">tr</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">placedSize </span><span class="s2">+= </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">size</span>
+                <span class="s1">tr</span><span class="s2">.</span><span class="s1">makeCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+                <span class="s0">return</span>
+
+        <span class="s5"># Just let it overflow.</span>
+        <span class="s1">tr</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s2">= </span><span class="s4">1</span>
+        <span class="s1">tp </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findOverflowHole</span><span class="s2">(</span><span class="s1">tr</span><span class="s2">.</span><span class="s1">area</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">w</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">.</span><span class="s1">h</span><span class="s2">)</span>
+        <span class="s1">tp</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s2">= </span><span class="s4">1</span>
+        <span class="s0">while </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">) &lt;= </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span><span class="s2">[</span><span class="s4">3</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">BitArray</span><span class="s2">())</span>
+
+        <span class="s1">tr</span><span class="s2">.</span><span class="s1">placements </span><span class="s2">= [</span><span class="s1">tp</span><span class="s2">]</span>
+        <span class="s1">tr</span><span class="s2">.</span><span class="s1">makeCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">tp</span><span class="s2">.</span><span class="s1">setBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">[</span><span class="s1">tp</span><span class="s2">] = </span><span class="s1">tr</span>
+
+
+    <span class="s0">def </span><span class="s1">findHole</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">area</span><span class="s2">, </span><span class="s1">w</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Searches for a rectangular hole that is at least area 
+        square units big, regardless of its shape, but attempt to find 
+        one that comes close to the right shape, at least.  If one is 
+        found, returns an appropriate TexPlacement; otherwise, returns 
+        None. &quot;&quot;&quot;</span>
+
+        <span class="s0">if </span><span class="s1">area </span><span class="s2">== </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s1">tp </span><span class="s2">= </span><span class="s1">TexPlacement</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+            <span class="s0">return </span><span class="s1">tp</span>
+
+        <span class="s5"># Rotate the hole to horizontal first.</span>
+        <span class="s1">w</span><span class="s2">, </span><span class="s1">h </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">w</span><span class="s2">, </span><span class="s1">h</span><span class="s2">), </span><span class="s1">min</span><span class="s2">(</span><span class="s1">w</span><span class="s2">, </span><span class="s1">h</span><span class="s2">)</span>
+
+        <span class="s1">aspect </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">w</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">h</span><span class="s2">)</span>
+        <span class="s1">holes </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findAvailableHoles</span><span class="s2">(</span><span class="s1">area</span><span class="s2">, </span><span class="s1">w</span><span class="s2">, </span><span class="s1">h</span><span class="s2">)</span>
+
+        <span class="s5"># Walk through the list and find the one with the best aspect</span>
+        <span class="s5"># match.</span>
+        <span class="s1">matches </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">tarea</span><span class="s2">, </span><span class="s1">tp </span><span class="s0">in </span><span class="s1">holes</span><span class="s2">:</span>
+            <span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t </span><span class="s2">= </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span>
+            <span class="s1">tw </span><span class="s2">= </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span>
+            <span class="s1">th </span><span class="s2">= </span><span class="s1">t </span><span class="s2">- </span><span class="s1">b</span>
+
+            <span class="s5"># To constrain our area within this rectangle, how would</span>
+            <span class="s5"># we have to squish it?</span>
+            <span class="s0">if </span><span class="s1">tw </span><span class="s2">&lt; </span><span class="s1">w</span><span class="s2">:</span>
+                <span class="s5"># We'd have to make it taller.</span>
+                <span class="s1">nh </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">area </span><span class="s2">// </span><span class="s1">tw</span><span class="s2">, </span><span class="s1">th</span><span class="s2">)</span>
+                <span class="s1">th </span><span class="s2">= </span><span class="s1">nh</span>
+            <span class="s0">elif </span><span class="s1">th </span><span class="s2">&lt; </span><span class="s1">h</span><span class="s2">:</span>
+                <span class="s5"># We'd have to make it narrower.</span>
+                <span class="s1">nw </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">area </span><span class="s2">// </span><span class="s1">th</span><span class="s2">, </span><span class="s1">tw</span><span class="s2">)</span>
+                <span class="s1">tw </span><span class="s2">= </span><span class="s1">nw</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s5"># Hey, we don't have to squish it after all!  Just</span>
+                <span class="s5"># return this hole.</span>
+                <span class="s1">tw </span><span class="s2">= </span><span class="s1">w</span>
+                <span class="s1">th </span><span class="s2">= </span><span class="s1">h</span>
+
+            <span class="s5"># Make a new tp that has the right area.</span>
+            <span class="s1">tp </span><span class="s2">= </span><span class="s1">TexPlacement</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">l </span><span class="s2">+ </span><span class="s1">tw</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">b </span><span class="s2">+ </span><span class="s1">th</span><span class="s2">)</span>
+
+            <span class="s1">ta </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">max</span><span class="s2">(</span><span class="s1">tw</span><span class="s2">, </span><span class="s1">th</span><span class="s2">)) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">tw</span><span class="s2">, </span><span class="s1">th</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">ta </span><span class="s2">== </span><span class="s1">aspect</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">tp</span>
+
+            <span class="s1">match </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">ta</span><span class="s2">, </span><span class="s1">aspect</span><span class="s2">) / </span><span class="s1">max</span><span class="s2">(</span><span class="s1">ta</span><span class="s2">, </span><span class="s1">aspect</span><span class="s2">)</span>
+            <span class="s1">matches</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">match</span><span class="s2">, </span><span class="s1">tp</span><span class="s2">))</span>
+
+        <span class="s0">if </span><span class="s1">matches</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">max</span><span class="s2">(</span><span class="s1">matches</span><span class="s2">, </span><span class="s1">key</span><span class="s2">=</span><span class="s0">lambda </span><span class="s1">match</span><span class="s2">: </span><span class="s1">match</span><span class="s2">[</span><span class="s4">0</span><span class="s2">])[</span><span class="s4">1</span><span class="s2">]</span>
+        <span class="s0">return None</span>
+
+    <span class="s0">def </span><span class="s1">findHolePieces</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">area</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Returns a list of holes whose net area sums to the given 
+        area, or None if there are not enough holes. &quot;&quot;&quot;</span>
+
+        <span class="s5"># First, save the original value of self.texPlacements, since</span>
+        <span class="s5"># we will be modifying that during this search.</span>
+        <span class="s1">savedTexPlacements </span><span class="s2">= </span><span class="s1">copy</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">)</span>
+        <span class="s1">savedBitmasks </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">ba </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">:</span>
+            <span class="s1">savedBitmasks</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">BitArray</span><span class="s2">(</span><span class="s1">ba</span><span class="s2">))</span>
+
+        <span class="s1">result </span><span class="s2">= []</span>
+
+        <span class="s0">while </span><span class="s1">area </span><span class="s2">&gt; </span><span class="s4">0</span><span class="s2">:</span>
+
+            <span class="s5"># We have to call findLargestHole() each time through this</span>
+            <span class="s5"># loop, instead of just walking through</span>
+            <span class="s5"># findAvailableHoles() in order, because</span>
+            <span class="s5"># findAvailableHoles() might return a list of overlapping</span>
+            <span class="s5"># holes.</span>
+            <span class="s1">tp </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findLargestHole</span><span class="s2">()</span>
+            <span class="s0">if not </span><span class="s1">tp</span><span class="s2">:</span>
+                <span class="s0">break</span>
+
+            <span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t </span><span class="s2">= </span><span class="s1">tp</span><span class="s2">.</span><span class="s1">p</span>
+            <span class="s1">tpArea </span><span class="s2">= (</span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">) * (</span><span class="s1">t </span><span class="s2">- </span><span class="s1">b</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">tpArea </span><span class="s2">&gt;= </span><span class="s1">area</span><span class="s2">:</span>
+                <span class="s5"># we're done.</span>
+                <span class="s1">shorten </span><span class="s2">= (</span><span class="s1">tpArea </span><span class="s2">- </span><span class="s1">area</span><span class="s2">) // (</span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+                <span class="s1">t </span><span class="s2">-= </span><span class="s1">shorten</span>
+                <span class="s1">tp</span><span class="s2">.</span><span class="s1">p </span><span class="s2">= (</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+                <span class="s1">tp</span><span class="s2">.</span><span class="s1">area </span><span class="s2">= (</span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">) * (</span><span class="s1">t </span><span class="s2">- </span><span class="s1">b</span><span class="s2">)</span>
+                <span class="s1">result</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tp</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements </span><span class="s2">= </span><span class="s1">savedTexPlacements</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks </span><span class="s2">= </span><span class="s1">savedBitmasks</span>
+                <span class="s0">return </span><span class="s1">result</span>
+
+            <span class="s5"># Keep going.</span>
+            <span class="s1">area </span><span class="s2">-= </span><span class="s1">tpArea</span>
+            <span class="s1">result</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">tp</span><span class="s2">)</span>
+            <span class="s1">tp</span><span class="s2">.</span><span class="s1">setBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements</span><span class="s2">[</span><span class="s1">tp</span><span class="s2">] = </span><span class="s0">None</span>
+
+        <span class="s5"># Huh, not enough room, or no more holes.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texPlacements </span><span class="s2">= </span><span class="s1">savedTexPlacements</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks </span><span class="s2">= </span><span class="s1">savedBitmasks</span>
+        <span class="s0">return None</span>
+
+    <span class="s0">def </span><span class="s1">findLargestHole</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">holes </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findAvailableHoles</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">holes</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">max</span><span class="s2">(</span><span class="s1">holes</span><span class="s2">, </span><span class="s1">key</span><span class="s2">=</span><span class="s0">lambda </span><span class="s1">hole</span><span class="s2">: </span><span class="s1">hole</span><span class="s2">[</span><span class="s4">0</span><span class="s2">])[</span><span class="s4">1</span><span class="s2">]</span>
+        <span class="s0">return None</span>
+
+    <span class="s0">def </span><span class="s1">findAvailableHoles</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">area</span><span class="s2">, </span><span class="s1">w </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">h </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Finds a list of available holes, of at least the indicated 
+        area.  Returns a list of tuples, where each tuple is of the 
+        form (area, tp). 
+ 
+        If w and h are non-None, this will short-circuit on the first 
+        hole it finds that fits w x h, and return just that hole in a 
+        singleton list. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s1">holes </span><span class="s2">= []</span>
+        <span class="s1">lastTuples </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+        <span class="s1">lastBitmask </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">b </span><span class="s2">= </span><span class="s4">0</span>
+        <span class="s0">while </span><span class="s1">b </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">h</span><span class="s2">:</span>
+            <span class="s5"># Separate this row into (l, r) tuples.</span>
+            <span class="s1">bm </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">b</span><span class="s2">]</span>
+            <span class="s0">if </span><span class="s1">bm </span><span class="s2">== </span><span class="s1">lastBitmask</span><span class="s2">:</span>
+                <span class="s5"># This row is exactly the same as the row below; no</span>
+                <span class="s5"># need to reexamine.</span>
+                <span class="s1">b </span><span class="s2">+= </span><span class="s4">1</span>
+                <span class="s0">continue</span>
+
+            <span class="s1">lastBitmask </span><span class="s2">= </span><span class="s1">bm</span>
+
+            <span class="s1">tuples </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findEmptyRuns</span><span class="s2">(</span><span class="s1">bm</span><span class="s2">)</span>
+            <span class="s1">newTuples </span><span class="s2">= </span><span class="s1">tuples</span><span class="s2">.</span><span class="s1">difference</span><span class="s2">(</span><span class="s1">lastTuples</span><span class="s2">)</span>
+
+            <span class="s0">for </span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s0">in </span><span class="s1">newTuples</span><span class="s2">:</span>
+                <span class="s5"># Find out how high we can go with this bitmask.</span>
+                <span class="s1">mask </span><span class="s2">= </span><span class="s1">BitArray</span><span class="s2">.</span><span class="s1">range</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+                <span class="s1">t </span><span class="s2">= </span><span class="s1">b </span><span class="s2">+ </span><span class="s4">1</span>
+                <span class="s0">while </span><span class="s1">t </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">h </span><span class="s0">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">t</span><span class="s2">] &amp; </span><span class="s1">mask</span><span class="s2">).</span><span class="s1">isZero</span><span class="s2">():</span>
+                    <span class="s1">t </span><span class="s2">+= </span><span class="s4">1</span>
+
+                <span class="s1">tpw </span><span class="s2">= (</span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+                <span class="s1">tph </span><span class="s2">= (</span><span class="s1">t </span><span class="s2">- </span><span class="s1">b</span><span class="s2">)</span>
+                <span class="s1">tarea </span><span class="s2">= </span><span class="s1">tpw </span><span class="s2">* </span><span class="s1">tph</span>
+                <span class="s0">assert </span><span class="s1">tarea </span><span class="s2">&gt; </span><span class="s4">0</span>
+                <span class="s0">if </span><span class="s1">tarea </span><span class="s2">&gt;= </span><span class="s1">area</span><span class="s2">:</span>
+                    <span class="s1">tp </span><span class="s2">= </span><span class="s1">TexPlacement</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">w </span><span class="s0">and </span><span class="s1">h </span><span class="s0">and </span><span class="s1">\</span>
+                       <span class="s2">((</span><span class="s1">tpw </span><span class="s2">&gt;= </span><span class="s1">w </span><span class="s0">and </span><span class="s1">tph </span><span class="s2">&gt;= </span><span class="s1">h</span><span class="s2">) </span><span class="s0">or </span><span class="s1">\</span>
+                        <span class="s2">(</span><span class="s1">tph </span><span class="s2">&gt;= </span><span class="s1">w </span><span class="s0">and </span><span class="s1">tpw </span><span class="s2">&gt;= </span><span class="s1">h</span><span class="s2">)):</span>
+                        <span class="s5"># This hole is big enough; short circuit.</span>
+                        <span class="s0">return </span><span class="s2">[(</span><span class="s1">tarea</span><span class="s2">, </span><span class="s1">tp</span><span class="s2">)]</span>
+
+                    <span class="s1">holes</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">tarea</span><span class="s2">, </span><span class="s1">tp</span><span class="s2">))</span>
+
+            <span class="s1">lastTuples </span><span class="s2">= </span><span class="s1">tuples</span>
+            <span class="s1">b </span><span class="s2">+= </span><span class="s4">1</span>
+
+        <span class="s0">return </span><span class="s1">holes</span>
+
+    <span class="s0">def </span><span class="s1">findOverflowHole</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">area</span><span class="s2">, </span><span class="s1">w</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Searches for a hole large enough for (w, h), in the 
+        overflow space.  Since the overflow space is infinite, this 
+        will always succeed. &quot;&quot;&quot;</span>
+
+        <span class="s0">if </span><span class="s1">w </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span><span class="s2">:</span>
+            <span class="s5"># It won't fit within the margins at all; just stack it on</span>
+            <span class="s5"># the top.</span>
+
+            <span class="s5"># Scan down past all of the empty bitmasks that may be</span>
+            <span class="s5"># stacked on top.</span>
+            <span class="s1">b </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">)</span>
+            <span class="s0">while </span><span class="s1">b </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">h </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">b </span><span class="s2">- </span><span class="s4">1</span><span class="s2">].</span><span class="s1">isZero</span><span class="s2">():</span>
+                <span class="s1">b </span><span class="s2">-= </span><span class="s4">1</span>
+
+            <span class="s1">tp </span><span class="s2">= </span><span class="s1">TexPlacement</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s1">w</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">b </span><span class="s2">+ </span><span class="s1">h</span><span class="s2">)</span>
+            <span class="s0">return </span><span class="s1">tp</span>
+
+        <span class="s5"># It fits within the margins; find the first row with enough</span>
+        <span class="s5"># space for it.</span>
+
+        <span class="s1">lastTuples </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+        <span class="s1">lastBitmask </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">b </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">h</span>
+        <span class="s0">while True</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">b </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">):</span>
+                <span class="s5"># Off the top.  Just leave it here.</span>
+                <span class="s1">tp </span><span class="s2">= </span><span class="s1">TexPlacement</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s1">w</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">b </span><span class="s2">+ </span><span class="s1">h</span><span class="s2">)</span>
+                <span class="s0">return </span><span class="s1">tp</span>
+
+            <span class="s5"># Separate this row into (l, r) tuples.</span>
+            <span class="s1">bm </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">b</span><span class="s2">]</span>
+            <span class="s0">if </span><span class="s1">bm </span><span class="s2">== </span><span class="s1">lastBitmask</span><span class="s2">:</span>
+                <span class="s5"># This row is exactly the same as the row below; no</span>
+                <span class="s5"># need to reexamine.</span>
+                <span class="s1">b </span><span class="s2">+= </span><span class="s4">1</span>
+                <span class="s0">continue</span>
+
+            <span class="s1">lastBitmask </span><span class="s2">= </span><span class="s1">bm</span>
+
+            <span class="s1">tuples </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">findEmptyRuns</span><span class="s2">(</span><span class="s1">bm</span><span class="s2">)</span>
+            <span class="s1">newTuples </span><span class="s2">= </span><span class="s1">tuples</span><span class="s2">.</span><span class="s1">difference</span><span class="s2">(</span><span class="s1">lastTuples</span><span class="s2">)</span>
+
+            <span class="s0">for </span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s0">in </span><span class="s1">newTuples</span><span class="s2">:</span>
+                <span class="s5"># Is this region wide enough?</span>
+                <span class="s0">if </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l </span><span class="s2">&lt; </span><span class="s1">w</span><span class="s2">:</span>
+                    <span class="s0">continue</span>
+
+                <span class="s5"># Is it tall enough?</span>
+                <span class="s1">r </span><span class="s2">= </span><span class="s1">l </span><span class="s2">+ </span><span class="s1">w</span>
+                <span class="s1">mask </span><span class="s2">= </span><span class="s1">BitArray</span><span class="s2">.</span><span class="s1">range</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+
+                <span class="s1">t </span><span class="s2">= </span><span class="s1">b </span><span class="s2">+ </span><span class="s4">1</span>
+                <span class="s0">while </span><span class="s1">t </span><span class="s2">&lt; </span><span class="s1">b </span><span class="s2">+ </span><span class="s1">h </span><span class="s0">and </span><span class="s1">\</span>
+                      <span class="s2">(</span><span class="s1">t </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">) </span><span class="s0">or </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">t</span><span class="s2">] &amp; </span><span class="s1">mask</span><span class="s2">).</span><span class="s1">isZero</span><span class="s2">()):</span>
+                    <span class="s1">t </span><span class="s2">+= </span><span class="s4">1</span>
+
+                <span class="s0">if </span><span class="s1">t </span><span class="s2">&lt; </span><span class="s1">b </span><span class="s2">+ </span><span class="s1">h</span><span class="s2">:</span>
+                    <span class="s5"># Not tall enough.</span>
+                    <span class="s0">continue</span>
+
+                <span class="s1">tp </span><span class="s2">= </span><span class="s1">TexPlacement</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+                <span class="s0">return </span><span class="s1">tp</span>
+
+            <span class="s1">lastTuples </span><span class="s2">= </span><span class="s1">tuples</span>
+            <span class="s1">b </span><span class="s2">+= </span><span class="s4">1</span>
+
+    <span class="s0">def </span><span class="s1">findEmptyRuns</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">bm</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Separates a bitmask into a list of (l, r) tuples, 
+        corresponding to the empty regions in the row between 0 and 
+        self.w. &quot;&quot;&quot;</span>
+
+        <span class="s1">tuples </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+        <span class="s1">l </span><span class="s2">= </span><span class="s1">bm</span><span class="s2">.</span><span class="s1">getLowestOffBit</span><span class="s2">()</span>
+        <span class="s0">assert </span><span class="s1">l </span><span class="s2">!= -</span><span class="s4">1</span>
+        <span class="s0">if </span><span class="s1">l </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span><span class="s2">:</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s1">bm</span><span class="s2">.</span><span class="s1">getNextHigherDifferentBit</span><span class="s2">(</span><span class="s1">l</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">r </span><span class="s2">== </span><span class="s1">l </span><span class="s0">or </span><span class="s1">r </span><span class="s2">&gt;= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span><span class="s2">:</span>
+                <span class="s1">r </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span>
+            <span class="s1">tuples</span><span class="s2">.</span><span class="s1">add</span><span class="s2">((</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">))</span>
+            <span class="s1">l </span><span class="s2">= </span><span class="s1">bm</span><span class="s2">.</span><span class="s1">getNextHigherDifferentBit</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+            <span class="s0">while </span><span class="s1">l </span><span class="s2">!= </span><span class="s1">r </span><span class="s0">and </span><span class="s1">l </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span><span class="s2">:</span>
+                <span class="s1">r </span><span class="s2">= </span><span class="s1">bm</span><span class="s2">.</span><span class="s1">getNextHigherDifferentBit</span><span class="s2">(</span><span class="s1">l</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">r </span><span class="s2">== </span><span class="s1">l </span><span class="s0">or </span><span class="s1">r </span><span class="s2">&gt;= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span><span class="s2">:</span>
+                    <span class="s1">r </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w</span>
+                <span class="s1">tuples</span><span class="s2">.</span><span class="s1">add</span><span class="s2">((</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">))</span>
+                <span class="s1">l </span><span class="s2">= </span><span class="s1">bm</span><span class="s2">.</span><span class="s1">getNextHigherDifferentBit</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+
+        <span class="s0">return </span><span class="s1">tuples</span>
+
+
+<span class="s0">class </span><span class="s1">TexRecord</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">tex</span><span class="s2">, </span><span class="s1">size</span><span class="s2">, </span><span class="s1">active</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">key </span><span class="s2">= </span><span class="s1">key</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tex </span><span class="s2">= </span><span class="s1">tex</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">active </span><span class="s2">= </span><span class="s1">active</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">root </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">regions </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">placements </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setSize</span><span class="s2">(</span><span class="s1">size</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">size </span><span class="s2">= </span><span class="s1">size</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">()</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">()</span>
+        <span class="s1">r </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">y</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)</span>
+
+        <span class="s5"># Card size, in unscaled texel units.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tw </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">sqrt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">size</span><span class="s2">) / </span><span class="s1">math</span><span class="s2">.</span><span class="s1">sqrt</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">th </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tw </span><span class="s2">* </span><span class="s1">r</span>
+
+    <span class="s0">def </span><span class="s1">computePlacementSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tmw</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">w </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">tw </span><span class="s2">/ </span><span class="s1">tmw</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">+ </span><span class="s4">0.5</span><span class="s2">), </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">h </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">th </span><span class="s2">/ </span><span class="s1">tmw</span><span class="s2">.</span><span class="s1">quantize </span><span class="s2">+ </span><span class="s4">0.5</span><span class="s2">), </span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">area </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">w </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">h</span>
+
+
+    <span class="s0">def </span><span class="s1">setActive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">flag</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">active </span><span class="s2">= </span><span class="s1">flag</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">active</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">backing</span><span class="s2">.</span><span class="s1">clearColor</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">matte</span><span class="s2">.</span><span class="s1">clearColor</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">card</span><span class="s2">.</span><span class="s1">clearColor</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">backing</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">((</span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s4">2</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">matte</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">((</span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">0.2</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s4">2</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">card</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">((</span><span class="s4">0.4</span><span class="s2">, </span><span class="s4">0.4</span><span class="s2">, </span><span class="s4">0.4</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), </span><span class="s4">2</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">clearCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tmw</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">root</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">root</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">root </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s0">for </span><span class="s1">r </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">regions</span><span class="s2">:</span>
+            <span class="s1">tmw</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">removeRegion</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">regions </span><span class="s2">= []</span>
+
+    <span class="s0">def </span><span class="s1">makeCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tmw</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">clearCard</span><span class="s2">(</span><span class="s1">tmw</span><span class="s2">)</span>
+        <span class="s1">root </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s6">'root'</span><span class="s2">)</span>
+
+        <span class="s5"># A matte to frame the texture and indicate its status.</span>
+        <span class="s1">matte </span><span class="s2">= </span><span class="s1">root</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'matte'</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s5"># A backing to put behind the card.</span>
+        <span class="s1">backing </span><span class="s2">= </span><span class="s1">root</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'backing'</span><span class="s2">, </span><span class="s4">10</span><span class="s2">)</span>
+
+        <span class="s5"># A card to display the texture.</span>
+        <span class="s1">card </span><span class="s2">= </span><span class="s1">root</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'card'</span><span class="s2">, </span><span class="s4">20</span><span class="s2">)</span>
+
+        <span class="s5"># A wire frame to ring the matte and separate the card from</span>
+        <span class="s5"># its neighbors.</span>
+        <span class="s1">frame </span><span class="s2">= </span><span class="s1">root</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s6">'frame'</span><span class="s2">, </span><span class="s4">30</span><span class="s2">)</span>
+
+
+        <span class="s0">for </span><span class="s1">p </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">placements</span><span class="s2">:</span>
+            <span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t </span><span class="s2">= </span><span class="s1">p</span><span class="s2">.</span><span class="s1">p</span>
+            <span class="s1">cx </span><span class="s2">= (</span><span class="s1">l </span><span class="s2">+ </span><span class="s1">r</span><span class="s2">) * </span><span class="s4">0.5</span>
+            <span class="s1">cy </span><span class="s2">= (</span><span class="s1">b </span><span class="s2">+ </span><span class="s1">t</span><span class="s2">) * </span><span class="s4">0.5</span>
+            <span class="s1">shrinkMat </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">.</span><span class="s1">translateMat</span><span class="s2">(-</span><span class="s1">cx</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, -</span><span class="s1">cy</span><span class="s2">) * </span><span class="s1">Mat4</span><span class="s2">.</span><span class="s1">scaleMat</span><span class="s2">(</span><span class="s4">0.9</span><span class="s2">) * </span><span class="s1">Mat4</span><span class="s2">.</span><span class="s1">translateMat</span><span class="s2">(</span><span class="s1">cx</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">cy</span><span class="s2">)</span>
+
+            <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s6">'backing'</span><span class="s2">)</span>
+            <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">cm</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s4">0.1</span><span class="s2">, </span><span class="s4">0.3</span><span class="s2">, </span><span class="s4">0.5</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+            <span class="s1">c </span><span class="s2">= </span><span class="s1">backing</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+            <span class="s1">c</span><span class="s2">.</span><span class="s1">setMat</span><span class="s2">(</span><span class="s1">shrinkMat</span><span class="s2">)</span>
+
+            <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s6">'card'</span><span class="s2">)</span>
+            <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">p</span><span class="s2">.</span><span class="s1">rotated</span><span class="s2">:</span>
+                <span class="s1">cm</span><span class="s2">.</span><span class="s1">setUvRange</span><span class="s2">((</span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">), (</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), (</span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">), (</span><span class="s4">1</span><span class="s2">, </span><span class="s4">1</span><span class="s2">))</span>
+            <span class="s1">c </span><span class="s2">= </span><span class="s1">card</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+            <span class="s1">c</span><span class="s2">.</span><span class="s1">setMat</span><span class="s2">(</span><span class="s1">shrinkMat</span><span class="s2">)</span>
+
+            <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s6">'matte'</span><span class="s2">)</span>
+            <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">matte</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+
+            <span class="s1">ls </span><span class="s2">= </span><span class="s1">LineSegs</span><span class="s2">(</span><span class="s6">'frame'</span><span class="s2">)</span>
+            <span class="s1">ls</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span>
+            <span class="s1">ls</span><span class="s2">.</span><span class="s1">moveTo</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+            <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+            <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+            <span class="s1">ls</span><span class="s2">.</span><span class="s1">drawTo</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+            <span class="s1">f1 </span><span class="s2">= </span><span class="s1">frame</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">ls</span><span class="s2">.</span><span class="s1">create</span><span class="s2">())</span>
+            <span class="s1">f2 </span><span class="s2">= </span><span class="s1">f1</span><span class="s2">.</span><span class="s1">copyTo</span><span class="s2">(</span><span class="s1">frame</span><span class="s2">)</span>
+            <span class="s1">f2</span><span class="s2">.</span><span class="s1">setMat</span><span class="s2">(</span><span class="s1">shrinkMat</span><span class="s2">)</span>
+
+        <span class="s5">#matte.flattenStrong()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">matte </span><span class="s2">= </span><span class="s1">matte</span>
+
+        <span class="s5">#backing.flattenStrong()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backing </span><span class="s2">= </span><span class="s1">backing</span>
+
+        <span class="s1">card</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s1">TransparencyAttrib</span><span class="s2">.</span><span class="s1">MAlpha</span><span class="s2">)</span>
+        <span class="s1">card</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">)</span>
+        <span class="s5">#card.flattenStrong()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">card </span><span class="s2">= </span><span class="s1">card</span>
+
+        <span class="s5">#frame.flattenStrong()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frame </span><span class="s2">= </span><span class="s1">frame</span>
+
+        <span class="s1">root</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">tmw</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">root </span><span class="s2">= </span><span class="s1">root</span>
+
+        <span class="s5"># Also, make one or more clickable MouseWatcherRegions.</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">regions </span><span class="s2">== []</span>
+        <span class="s0">for </span><span class="s1">pi </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">placements</span><span class="s2">)):</span>
+            <span class="s1">p </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">placements</span><span class="s2">[</span><span class="s1">pi</span><span class="s2">]</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s1">MouseWatcherRegion</span><span class="s2">(</span><span class="s6">'%s:%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">key</span><span class="s2">, </span><span class="s1">pi</span><span class="s2">), *</span><span class="s1">p</span><span class="s2">.</span><span class="s1">p</span><span class="s2">)</span>
+            <span class="s1">tmw</span><span class="s2">.</span><span class="s1">mw</span><span class="s2">.</span><span class="s1">addRegion</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">regions</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">r</span><span class="s2">)</span>
+
+<span class="s0">class </span><span class="s1">TexPlacement</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">p </span><span class="s2">= (</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">area </span><span class="s2">= (</span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">) * (</span><span class="s1">t </span><span class="s2">- </span><span class="s1">b</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rotated </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">overflowed </span><span class="s2">= </span><span class="s4">0</span>
+
+    <span class="s0">def </span><span class="s1">intersects</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Returns True if the placements intersect, False 
+        otherwise. &quot;&quot;&quot;</span>
+
+        <span class="s1">ml</span><span class="s2">, </span><span class="s1">mr</span><span class="s2">, </span><span class="s1">mb</span><span class="s2">, </span><span class="s1">mt </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">p</span>
+        <span class="s1">tl</span><span class="s2">, </span><span class="s1">tr</span><span class="s2">, </span><span class="s1">tb</span><span class="s2">, </span><span class="s1">tt </span><span class="s2">= </span><span class="s1">other</span><span class="s2">.</span><span class="s1">p</span>
+
+        <span class="s0">return </span><span class="s2">(</span><span class="s1">tl </span><span class="s2">&lt; </span><span class="s1">mr </span><span class="s0">and </span><span class="s1">tr </span><span class="s2">&gt; </span><span class="s1">ml </span><span class="s0">and</span>
+                <span class="s1">tb </span><span class="s2">&lt; </span><span class="s1">mt </span><span class="s0">and </span><span class="s1">tt </span><span class="s2">&gt; </span><span class="s1">mb</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">bitmasks</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Sets all of the appropriate bits to indicate this region 
+        is taken. &quot;&quot;&quot;</span>
+
+        <span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">p</span>
+        <span class="s1">mask </span><span class="s2">= </span><span class="s1">BitArray</span><span class="s2">.</span><span class="s1">range</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">yi </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+            <span class="s0">assert </span><span class="s2">(</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">yi</span><span class="s2">] &amp; </span><span class="s1">mask</span><span class="s2">).</span><span class="s1">isZero</span><span class="s2">()</span>
+            <span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">yi</span><span class="s2">] |= </span><span class="s1">mask</span>
+
+    <span class="s0">def </span><span class="s1">clearBitmasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">bitmasks</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Clears all of the appropriate bits to indicate this region 
+        is available. &quot;&quot;&quot;</span>
+
+        <span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">p</span>
+        <span class="s1">mask </span><span class="s2">= ~</span><span class="s1">BitArray</span><span class="s2">.</span><span class="s1">range</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">yi </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+            <span class="s0">assert </span><span class="s2">(</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">yi</span><span class="s2">] | </span><span class="s1">mask</span><span class="s2">).</span><span class="s1">isAllOn</span><span class="s2">()</span>
+            <span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">yi</span><span class="s2">] &amp;= </span><span class="s1">mask</span>
+
+    <span class="s0">def </span><span class="s1">hasOverlap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">bitmasks</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Returns true if there is an overlap with this region and 
+        any other region, false otherwise. &quot;&quot;&quot;</span>
+
+        <span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">p</span>
+        <span class="s1">mask </span><span class="s2">= </span><span class="s1">BitArray</span><span class="s2">.</span><span class="s1">range</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">yi </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+            <span class="s0">if not </span><span class="s2">(</span><span class="s1">bitmasks</span><span class="s2">[</span><span class="s1">yi</span><span class="s2">] &amp; </span><span class="s1">mask</span><span class="s2">).</span><span class="s1">isZero</span><span class="s2">():</span>
+                <span class="s0">return True</span>
+        <span class="s0">return False</span>
+</pre>
+</body>
+</html>

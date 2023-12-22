@@ -1,0 +1,624 @@
+<html>
+<head>
+<title>make_installer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+make_installer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">#! /usr/bin/env python</span>
+
+<span class="s2">import </span><span class="s1">os</span>
+<span class="s2">import </span><span class="s1">sys</span>
+<span class="s2">import </span><span class="s1">shutil</span>
+<span class="s2">import </span><span class="s1">platform</span>
+<span class="s2">import </span><span class="s1">tempfile</span>
+<span class="s2">from </span><span class="s1">optparse </span><span class="s2">import </span><span class="s1">OptionParser</span>
+<span class="s2">import </span><span class="s1">subprocess</span>
+
+<span class="s2">try</span><span class="s3">:</span>
+    <span class="s2">from </span><span class="s1">hashlib </span><span class="s2">import </span><span class="s1">sha1 </span><span class="s2">as </span><span class="s1">sha</span>
+<span class="s2">except </span><span class="s1">ImportError</span><span class="s3">:</span>
+    <span class="s2">from </span><span class="s1">sha </span><span class="s2">import </span><span class="s1">sha</span>
+
+<span class="s1">usage </span><span class="s3">= </span><span class="s4">&quot;&quot;&quot; 
+This command creates a graphical installer for the 
+Panda3D plugin and runtime environment. 
+ 
+  %prog [opts]&quot;&quot;&quot;</span>
+
+<span class="s1">parser </span><span class="s3">= </span><span class="s1">OptionParser</span><span class="s3">(</span><span class="s1">usage </span><span class="s3">= </span><span class="s1">usage</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">'-n'</span><span class="s3">, </span><span class="s4">'--short'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'short_name'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The product short name'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s4">'Panda3D'</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">'-N'</span><span class="s3">, </span><span class="s4">'--long'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'long_name'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The product long name'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s4">'Panda3D Game Engine'</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">'-v'</span><span class="s3">, </span><span class="s4">'--version'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'version'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The product version'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">'-p'</span><span class="s3">, </span><span class="s4">'--publisher'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'publisher'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The name of the publisher'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s4">'Carnegie Mellon Entertainment Technology Center'</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--install'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'install_dir'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">&quot;The install directory on the user's machine (Windows only)&quot;</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s4">'$PROGRAMFILES</span><span class="s2">\\</span><span class="s4">Panda3D'</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">'-l'</span><span class="s3">, </span><span class="s4">'--license'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'license'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'A file containing the license or EULA text'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">'-w'</span><span class="s3">, </span><span class="s4">'--website'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'website'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The product website'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s4">'https://www.panda3d.org'</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--start'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'start'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'Specify this option to add a start menu'</span><span class="s3">,</span>
+                  <span class="s1">action </span><span class="s3">= </span><span class="s4">'store_true'</span><span class="s3">, </span><span class="s1">default </span><span class="s3">= </span><span class="s2">False</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--welcome_image'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'welcome_image'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The image to display on the installer, 170x312 BMP'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--install_icon'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'install_icon'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The icon to give to the installer'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--nsis'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'nsis'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The path to the makensis executable'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--cab'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'cab'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'Generate an ActiveX CAB file (Windows only).  If --spc and --pvk are not also specified, the CAB file will be unsigned.'</span><span class="s3">,</span>
+                  <span class="s1">action </span><span class="s3">= </span><span class="s4">'store_true'</span><span class="s3">, </span><span class="s1">default </span><span class="s3">= </span><span class="s2">False</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--spc'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'spc'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'Sign the CAB file generated by --cab with the indicated spc file (Windows only).  You must also specify --pvk.'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--pvk'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'pvk'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'Specifies the private key to be used in conjuction with --spc to sign a CAB file (Windows only).'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--mssdk'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'mssdk'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'The path to the MS Platform SDK directory (Windows only).  mssdk/bin should contain cabarc.exe and signcode.exe.'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+<span class="s1">parser</span><span class="s3">.</span><span class="s1">add_option</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'--regview'</span><span class="s3">, </span><span class="s1">dest </span><span class="s3">= </span><span class="s4">'regview'</span><span class="s3">,</span>
+                  <span class="s1">help </span><span class="s3">= </span><span class="s4">'Which registry view to use, 64 or 32.'</span><span class="s3">,</span>
+                  <span class="s1">default </span><span class="s3">= </span><span class="s2">None</span><span class="s3">)</span>
+
+<span class="s3">(</span><span class="s1">options</span><span class="s3">, </span><span class="s1">args</span><span class="s3">) = </span><span class="s1">parser</span><span class="s3">.</span><span class="s1">parse_args</span><span class="s3">()</span>
+
+<span class="s1">this_dir </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">[</span><span class="s5">0</span><span class="s3">])[</span><span class="s5">0</span><span class="s3">]</span>
+
+<span class="s2">assert </span><span class="s1">options</span><span class="s3">.</span><span class="s1">version</span><span class="s3">, </span><span class="s4">&quot;A version number must be supplied!&quot;</span>
+
+<span class="s0">##############################################################################</span>
+<span class="s0">#</span>
+<span class="s0"># This Info.plist file is used only for the OSX 10.4 version of packagemaker.</span>
+<span class="s0">#</span>
+<span class="s0">##############################################################################</span>
+
+<span class="s1">Info_plist </span><span class="s3">= </span><span class="s4">&quot;&quot;&quot;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt; 
+&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt; 
+&lt;plist version=&quot;1.0&quot;&gt; 
+&lt;dict&gt; 
+  &lt;key&gt;CFBundleIdentifier&lt;/key&gt; 
+  &lt;string&gt;%(package_id)s&lt;/string&gt; 
+  &lt;key&gt;CFBundleShortVersionString&lt;/key&gt; 
+  &lt;string&gt;%(version)s&lt;/string&gt; 
+  &lt;key&gt;IFPkgFlagRelocatable&lt;/key&gt; 
+  &lt;false/&gt; 
+  &lt;key&gt;IFPkgFlagAuthorizationAction&lt;/key&gt; 
+  &lt;string&gt;RootAuthorization&lt;/string&gt; 
+&lt;/dict&gt; 
+&lt;/plist&gt; 
+&quot;&quot;&quot;</span>
+
+<span class="s0">##############################################################################</span>
+<span class="s0">#</span>
+<span class="s0"># This Description.plist file is used only for the OSX 10.4 version of packagemaker.</span>
+<span class="s0">#</span>
+<span class="s0">##############################################################################</span>
+
+<span class="s1">Description_plist </span><span class="s3">= </span><span class="s4">&quot;&quot;&quot;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt; 
+&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt; 
+&lt;plist version=&quot;1.0&quot;&gt; 
+&lt;dict&gt; 
+  &lt;key&gt;IFPkgDescriptionDescription&lt;/key&gt; 
+  &lt;string&gt;&lt;/string&gt; 
+  &lt;key&gt;IFPkgDescriptionTitle&lt;/key&gt; 
+  &lt;string&gt;%(long_name)s&lt;/string&gt; 
+&lt;/dict&gt; 
+&lt;/plist&gt; 
+&quot;&quot;&quot;</span>
+
+
+<span class="s0">##############################################################################</span>
+<span class="s0">#</span>
+<span class="s0"># Locate the relevant files.</span>
+<span class="s0">#</span>
+<span class="s0">##############################################################################</span>
+
+<span class="s2">def </span><span class="s1">findExecutable</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; Searches for the named .exe or .dll file along the system PATH 
+    and returns its full path if found, or None if not found. &quot;&quot;&quot;</span>
+
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot;</span><span class="s3">:</span>
+        <span class="s2">for </span><span class="s1">p </span><span class="s2">in </span><span class="s1">os</span><span class="s3">.</span><span class="s1">defpath</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s4">&quot;;&quot;</span><span class="s3">) + </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">[</span><span class="s4">&quot;PATH&quot;</span><span class="s3">].</span><span class="s1">split</span><span class="s3">(</span><span class="s4">&quot;;&quot;</span><span class="s3">):</span>
+            <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">p</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">)):</span>
+                <span class="s2">return </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">p</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">)</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s2">for </span><span class="s1">p </span><span class="s2">in </span><span class="s1">os</span><span class="s3">.</span><span class="s1">defpath</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s4">&quot;:&quot;</span><span class="s3">) + </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">[</span><span class="s4">&quot;PATH&quot;</span><span class="s3">].</span><span class="s1">split</span><span class="s3">(</span><span class="s4">&quot;:&quot;</span><span class="s3">):</span>
+            <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">p</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">)):</span>
+                <span class="s2">return </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">p</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">)</span>
+    <span class="s2">return None</span>
+
+
+<span class="s2">if not </span><span class="s1">options</span><span class="s3">.</span><span class="s1">nsis</span><span class="s3">:</span>
+    <span class="s1">makensis </span><span class="s3">= </span><span class="s1">findExecutable</span><span class="s3">(</span><span class="s4">'makensis.exe'</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot;</span><span class="s3">:</span>
+        <span class="s2">if not </span><span class="s1">makensis</span><span class="s3">:</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s2">import </span><span class="s1">pandac</span>
+                <span class="s1">makensis </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">pandac</span><span class="s3">.</span><span class="s1">__file__</span><span class="s3">))</span>
+                <span class="s1">makensis </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">makensis</span><span class="s3">, </span><span class="s4">&quot;nsis&quot;</span><span class="s3">, </span><span class="s4">&quot;makensis.exe&quot;</span><span class="s3">)</span>
+                <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">makensis</span><span class="s3">):</span>
+                    <span class="s1">makensis </span><span class="s3">= </span><span class="s2">None</span>
+            <span class="s2">except </span><span class="s1">ImportError</span><span class="s3">: </span><span class="s2">pass</span>
+        <span class="s2">if not </span><span class="s1">makensis</span><span class="s3">:</span>
+            <span class="s1">thirdparty </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s4">&quot;MAKEPANDA_THIRDPARTY&quot;</span><span class="s3">, </span><span class="s4">&quot;thirdparty&quot;</span><span class="s3">)</span>
+            <span class="s1">makensis </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">thirdparty</span><span class="s3">, </span><span class="s4">&quot;win-nsis&quot;</span><span class="s3">, </span><span class="s4">&quot;makensis.exe&quot;</span><span class="s3">)</span>
+            <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">makensis</span><span class="s3">):</span>
+                <span class="s1">makensis </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">options</span><span class="s3">.</span><span class="s1">nsis </span><span class="s3">= </span><span class="s1">makensis</span>
+
+<span class="s2">if not </span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">:</span>
+    <span class="s2">try</span><span class="s3">:</span>
+        <span class="s2">import </span><span class="s1">pandac</span>
+        <span class="s1">options</span><span class="s3">.</span><span class="s1">license </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">pandac</span><span class="s3">.</span><span class="s1">__file__</span><span class="s3">)), </span><span class="s4">&quot;LICENSE&quot;</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">):</span>
+            <span class="s1">options</span><span class="s3">.</span><span class="s1">license </span><span class="s3">= </span><span class="s2">None</span>
+    <span class="s2">except</span><span class="s3">: </span><span class="s2">pass</span>
+    <span class="s2">if not </span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">:</span>
+        <span class="s1">options</span><span class="s3">.</span><span class="s1">license </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s4">&quot;doc&quot;</span><span class="s3">, </span><span class="s4">&quot;LICENSE&quot;</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">):</span>
+            <span class="s1">options</span><span class="s3">.</span><span class="s1">license </span><span class="s3">= </span><span class="s2">None</span>
+    <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">:</span>
+        <span class="s1">options</span><span class="s3">.</span><span class="s1">license </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">abspath</span><span class="s3">(</span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">)</span>
+
+<span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot; </span><span class="s2">and not </span><span class="s1">options</span><span class="s3">.</span><span class="s1">welcome_image</span><span class="s3">:</span>
+    <span class="s1">filename </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s4">'models'</span><span class="s3">, </span><span class="s4">'plugin_images'</span><span class="s3">, </span><span class="s4">'installer.bmp'</span><span class="s3">)</span>
+    <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">):</span>
+        <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s4">&quot;Couldn't find installer.bmp for welcome_image.&quot;</span><span class="s3">)</span>
+    <span class="s1">options</span><span class="s3">.</span><span class="s1">welcome_image </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">abspath</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">)</span>
+
+<span class="s2">def </span><span class="s1">parseDependenciesWindows</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; Reads the indicated temporary file, the output from 
+    dumpbin /dependents, to determine the list of dll's this 
+    executable file depends on. &quot;&quot;&quot;</span>
+
+    <span class="s1">lines </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">, </span><span class="s4">'rU'</span><span class="s3">).</span><span class="s1">readlines</span><span class="s3">()</span>
+    <span class="s1">li </span><span class="s3">= </span><span class="s5">0</span>
+    <span class="s2">while </span><span class="s1">li </span><span class="s3">&lt; </span><span class="s1">len</span><span class="s3">(</span><span class="s1">lines</span><span class="s3">):</span>
+        <span class="s1">line </span><span class="s3">= </span><span class="s1">lines</span><span class="s3">[</span><span class="s1">li</span><span class="s3">]</span>
+        <span class="s1">li </span><span class="s3">+= </span><span class="s5">1</span>
+        <span class="s2">if </span><span class="s1">line</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">' has the following dependencies'</span><span class="s3">) != -</span><span class="s5">1</span><span class="s3">:</span>
+            <span class="s2">break</span>
+
+    <span class="s2">if </span><span class="s1">li </span><span class="s3">&lt; </span><span class="s1">len</span><span class="s3">(</span><span class="s1">lines</span><span class="s3">):</span>
+        <span class="s1">line </span><span class="s3">= </span><span class="s1">lines</span><span class="s3">[</span><span class="s1">li</span><span class="s3">]</span>
+        <span class="s2">if </span><span class="s1">line</span><span class="s3">.</span><span class="s1">strip</span><span class="s3">() == </span><span class="s4">''</span><span class="s3">:</span>
+            <span class="s0"># Skip a blank line.</span>
+            <span class="s1">li </span><span class="s3">+= </span><span class="s5">1</span>
+
+    <span class="s0"># Now we're finding filenames, until the next blank line.</span>
+    <span class="s1">filenames </span><span class="s3">= []</span>
+    <span class="s2">while </span><span class="s1">li </span><span class="s3">&lt; </span><span class="s1">len</span><span class="s3">(</span><span class="s1">lines</span><span class="s3">):</span>
+        <span class="s1">line </span><span class="s3">= </span><span class="s1">lines</span><span class="s3">[</span><span class="s1">li</span><span class="s3">]</span>
+        <span class="s1">li </span><span class="s3">+= </span><span class="s5">1</span>
+        <span class="s1">line </span><span class="s3">= </span><span class="s1">line</span><span class="s3">.</span><span class="s1">strip</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">line </span><span class="s3">== </span><span class="s4">''</span><span class="s3">:</span>
+            <span class="s0"># We're done.</span>
+            <span class="s2">return </span><span class="s1">filenames</span>
+        <span class="s1">filenames</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">line</span><span class="s3">)</span>
+
+    <span class="s0"># Hmm, we ran out of data.  Oh well.</span>
+    <span class="s2">if not </span><span class="s1">filenames</span><span class="s3">:</span>
+        <span class="s0"># Some parse error.</span>
+        <span class="s2">return None</span>
+
+    <span class="s0"># At least we got some data.</span>
+    <span class="s2">return </span><span class="s1">filenames</span>
+
+<span class="s2">def </span><span class="s1">parseDependenciesUnix</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; Reads the indicated temporary file, the output from 
+    otool -XL or ldd, to determine the list of dll's this 
+    executable file depends on. &quot;&quot;&quot;</span>
+
+    <span class="s1">lines </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">, </span><span class="s4">'rU'</span><span class="s3">).</span><span class="s1">readlines</span><span class="s3">()</span>
+    <span class="s1">filenames </span><span class="s3">= []</span>
+    <span class="s2">for </span><span class="s1">l </span><span class="s2">in </span><span class="s1">lines</span><span class="s3">:</span>
+        <span class="s1">filenames</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">l</span><span class="s3">.</span><span class="s1">strip</span><span class="s3">().</span><span class="s1">split</span><span class="s3">(</span><span class="s4">' '</span><span class="s3">, </span><span class="s5">1</span><span class="s3">)[</span><span class="s5">0</span><span class="s3">])</span>
+    <span class="s2">return </span><span class="s1">filenames</span>
+
+<span class="s2">def </span><span class="s1">addDependencies</span><span class="s3">(</span><span class="s1">path</span><span class="s3">, </span><span class="s1">pathname</span><span class="s3">, </span><span class="s1">file</span><span class="s3">, </span><span class="s1">pluginDependencies</span><span class="s3">, </span><span class="s1">dependentFiles</span><span class="s3">, </span><span class="s1">required</span><span class="s3">=</span><span class="s2">True</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; Checks the named file for DLL dependencies, and adds any 
+    appropriate dependencies found into pluginDependencies and 
+    dependentFiles. &quot;&quot;&quot;</span>
+
+    <span class="s1">tempFile </span><span class="s3">= </span><span class="s1">tempfile</span><span class="s3">.</span><span class="s1">mktemp</span><span class="s3">(</span><span class="s4">'.txt'</span><span class="s3">, </span><span class="s4">'p3d_'</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;darwin&quot;</span><span class="s3">:</span>
+        <span class="s1">command </span><span class="s3">= </span><span class="s4">'otool -XL &quot;%s&quot; &gt;&quot;%s&quot;'</span>
+    <span class="s2">elif </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot;</span><span class="s3">:</span>
+        <span class="s1">command </span><span class="s3">= </span><span class="s4">'dumpbin /dependents &quot;%s&quot; &gt;&quot;%s&quot;'</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s1">command </span><span class="s3">= </span><span class="s4">'ldd &quot;%s&quot; &gt;&quot;%s&quot;'</span>
+    <span class="s1">command </span><span class="s3">= </span><span class="s1">command </span><span class="s3">% (</span><span class="s1">pathname</span><span class="s3">, </span><span class="s1">tempFile</span><span class="s3">)</span>
+    <span class="s2">try</span><span class="s3">:</span>
+        <span class="s1">os</span><span class="s3">.</span><span class="s1">system</span><span class="s3">(</span><span class="s1">command</span><span class="s3">)</span>
+    <span class="s2">except</span><span class="s3">:</span>
+        <span class="s2">pass</span>
+    <span class="s1">filenames </span><span class="s3">= </span><span class="s2">None</span>
+
+    <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot;</span><span class="s3">:</span>
+            <span class="s1">filenames </span><span class="s3">= </span><span class="s1">parseDependenciesWindows</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">filenames </span><span class="s3">= </span><span class="s1">parseDependenciesUnix</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">)</span>
+        <span class="s1">os</span><span class="s3">.</span><span class="s1">unlink</span><span class="s3">(</span><span class="s1">tempFile</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">filenames </span><span class="s2">is None</span><span class="s3">:</span>
+        <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s4">&quot;Unable to determine dependencies from %s&quot; </span><span class="s3">% (</span><span class="s1">pathname</span><span class="s3">))</span>
+
+    <span class="s0"># Look for MSVC[RP]*.dll, and MFC*.dll.  These dependent files</span>
+    <span class="s0"># have to be included too.  Also, any Panda-based libraries, or</span>
+    <span class="s0"># the Python DLL, should be included, in case panda3d.exe wasn't</span>
+    <span class="s0"># built static.  The Panda-based libraries begin with &quot;lib&quot; and</span>
+    <span class="s0"># are all lowercase, or start with libpanda/libp3d.</span>
+    <span class="s2">for </span><span class="s1">dfile </span><span class="s2">in </span><span class="s1">filenames</span><span class="s3">:</span>
+        <span class="s1">dfilelower </span><span class="s3">= </span><span class="s1">dfile</span><span class="s3">.</span><span class="s1">lower</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">dfilelower </span><span class="s2">not in </span><span class="s1">dependentFiles</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">dfilelower</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'msvc'</span><span class="s3">) </span><span class="s2">or </span><span class="s1">\</span>
+               <span class="s1">dfilelower</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'mfc'</span><span class="s3">) </span><span class="s2">or </span><span class="s1">\</span>
+               <span class="s1">dfilelower</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'zlib1'</span><span class="s3">) </span><span class="s2">or </span><span class="s1">\</span>
+               <span class="s3">(</span><span class="s1">dfile</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'lib'</span><span class="s3">) </span><span class="s2">and </span><span class="s1">dfile </span><span class="s3">== </span><span class="s1">dfilelower</span><span class="s3">) </span><span class="s2">or </span><span class="s1">\</span>
+               <span class="s1">dfilelower</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'libpanda'</span><span class="s3">) </span><span class="s2">or </span><span class="s1">\</span>
+               <span class="s1">dfilelower</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'libp3d'</span><span class="s3">) </span><span class="s2">or </span><span class="s1">\</span>
+               <span class="s1">dfilelower</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s4">'python'</span><span class="s3">):</span>
+                <span class="s1">pathname </span><span class="s3">= </span><span class="s2">None</span>
+                <span class="s2">for </span><span class="s1">pitem </span><span class="s2">in </span><span class="s1">path</span><span class="s3">:</span>
+                    <span class="s1">pathname </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">pitem</span><span class="s3">, </span><span class="s1">dfile</span><span class="s3">)</span>
+                    <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">pathname</span><span class="s3">):</span>
+                        <span class="s2">break</span>
+                    <span class="s1">pathname </span><span class="s3">= </span><span class="s2">None</span>
+                <span class="s2">if not </span><span class="s1">pathname</span><span class="s3">:</span>
+                    <span class="s2">if </span><span class="s1">required</span><span class="s3">:</span>
+                        <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s4">&quot;Couldn't find %s.&quot; </span><span class="s3">% (</span><span class="s1">dfile</span><span class="s3">))</span>
+                    <span class="s1">sys</span><span class="s3">.</span><span class="s1">stderr</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">&quot;Warning: couldn't find %s.&quot; </span><span class="s3">% (</span><span class="s1">dfile</span><span class="s3">))</span>
+                    <span class="s2">continue</span>
+                <span class="s1">pathname </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">abspath</span><span class="s3">(</span><span class="s1">pathname</span><span class="s3">)</span>
+                <span class="s1">dependentFiles</span><span class="s3">[</span><span class="s1">dfilelower</span><span class="s3">] = </span><span class="s1">pathname</span>
+
+                <span class="s0"># Also recurse.</span>
+                <span class="s1">addDependencies</span><span class="s3">(</span><span class="s1">path</span><span class="s3">, </span><span class="s1">pathname</span><span class="s3">, </span><span class="s1">file</span><span class="s3">, </span><span class="s1">pluginDependencies</span><span class="s3">, </span><span class="s1">dependentFiles</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">dfilelower </span><span class="s2">in </span><span class="s1">dependentFiles </span><span class="s2">and </span><span class="s1">dfilelower </span><span class="s2">not in </span><span class="s1">pluginDependencies</span><span class="s3">[</span><span class="s1">file</span><span class="s3">]:</span>
+            <span class="s1">pluginDependencies</span><span class="s3">[</span><span class="s1">file</span><span class="s3">].</span><span class="s1">append</span><span class="s3">(</span><span class="s1">dfilelower</span><span class="s3">)</span>
+
+<span class="s2">def </span><span class="s1">getDllVersion</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; Returns the DLL version number in the indicated DLL, as a 
+    string of comma-separated integers.  Windows only. &quot;&quot;&quot;</span>
+
+    <span class="s0"># This relies on the VBScript program in the same directory as</span>
+    <span class="s0"># this script.</span>
+    <span class="s1">thisdir </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">[</span><span class="s5">0</span><span class="s3">])[</span><span class="s5">0</span><span class="s3">]</span>
+    <span class="s1">versionInfo </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">thisdir</span><span class="s3">, </span><span class="s4">'VersionInfo.vbs'</span><span class="s3">)</span>
+    <span class="s1">tempfile </span><span class="s3">= </span><span class="s4">'tversion.txt'</span>
+    <span class="s1">tempdata </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">tempfile</span><span class="s3">, </span><span class="s4">'w+'</span><span class="s3">)</span>
+    <span class="s1">cmd </span><span class="s3">= </span><span class="s4">'cscript //nologo &quot;%s&quot; &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">versionInfo</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">)</span>
+    <span class="s1">print</span><span class="s3">(</span><span class="s1">cmd</span><span class="s3">)</span>
+    <span class="s1">result </span><span class="s3">= </span><span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">cmd</span><span class="s3">, </span><span class="s1">stdout </span><span class="s3">= </span><span class="s1">tempdata</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">result</span><span class="s3">:</span>
+        <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s1">result</span><span class="s3">)</span>
+
+    <span class="s1">tempdata</span><span class="s3">.</span><span class="s1">seek</span><span class="s3">(</span><span class="s5">0</span><span class="s3">)</span>
+    <span class="s1">data </span><span class="s3">= </span><span class="s1">tempdata</span><span class="s3">.</span><span class="s1">read</span><span class="s3">()</span>
+    <span class="s1">tempdata</span><span class="s3">.</span><span class="s1">close</span><span class="s3">()</span>
+    <span class="s1">os</span><span class="s3">.</span><span class="s1">unlink</span><span class="s3">(</span><span class="s1">tempfile</span><span class="s3">)</span>
+    <span class="s2">return </span><span class="s4">','</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">data</span><span class="s3">.</span><span class="s1">strip</span><span class="s3">().</span><span class="s1">split</span><span class="s3">(</span><span class="s4">'.'</span><span class="s3">))</span>
+
+
+<span class="s2">def </span><span class="s1">makeCabFile</span><span class="s3">(</span><span class="s1">ocx</span><span class="s3">, </span><span class="s1">pluginDependencies</span><span class="s3">):</span>
+    <span class="s6">&quot;&quot;&quot; Creates an ActiveX CAB file.  Windows only. &quot;&quot;&quot;</span>
+
+    <span class="s1">ocxFullpath </span><span class="s3">= </span><span class="s1">findExecutable</span><span class="s3">(</span><span class="s1">ocx</span><span class="s3">)</span>
+    <span class="s1">cabFilename </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">splitext</span><span class="s3">(</span><span class="s1">ocx</span><span class="s3">)[</span><span class="s5">0</span><span class="s3">] + </span><span class="s4">'.cab'</span>
+
+    <span class="s1">cabarc </span><span class="s3">= </span><span class="s4">'cabarc'</span>
+    <span class="s1">signcode </span><span class="s3">= </span><span class="s4">'signcode'</span>
+    <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">mssdk</span><span class="s3">:</span>
+        <span class="s1">cabarc </span><span class="s3">= </span><span class="s1">options</span><span class="s3">.</span><span class="s1">mssdk </span><span class="s3">+ </span><span class="s4">'/bin/cabarc'</span>
+        <span class="s1">signcode </span><span class="s3">= </span><span class="s1">options</span><span class="s3">.</span><span class="s1">mssdk </span><span class="s3">+ </span><span class="s4">'/bin/signcode'</span>
+
+    <span class="s0"># First, we must generate an INF file.</span>
+    <span class="s1">infFile </span><span class="s3">= </span><span class="s4">'temp.inf'</span>
+    <span class="s1">inf </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">infFile</span><span class="s3">, </span><span class="s4">'w'</span><span class="s3">)</span>
+
+    <span class="s1">info</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">'[Add.Code]</span><span class="s2">\n</span><span class="s4">%s=%s</span><span class="s2">\n</span><span class="s4">%s=%s</span><span class="s2">\n</span><span class="s4">' </span><span class="s3">% (</span><span class="s1">infFile</span><span class="s3">, </span><span class="s1">infFile</span><span class="s3">, </span><span class="s1">ocx</span><span class="s3">, </span><span class="s1">ocx</span><span class="s3">))</span>
+    <span class="s1">dependencies </span><span class="s3">= </span><span class="s1">pluginDependencies</span><span class="s3">[</span><span class="s1">ocx</span><span class="s3">]</span>
+    <span class="s2">for </span><span class="s1">filename </span><span class="s2">in </span><span class="s1">dependencies</span><span class="s3">:</span>
+        <span class="s1">inf</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">'%s=%s</span><span class="s2">\n</span><span class="s4">' </span><span class="s3">% (</span><span class="s1">filename</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">))</span>
+    <span class="s1">inf</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">'</span><span class="s2">\n</span><span class="s4">[%s]</span><span class="s2">\n</span><span class="s4">file=thiscab</span><span class="s2">\n</span><span class="s4">' </span><span class="s3">% (</span><span class="s1">infFile</span><span class="s3">))</span>
+    <span class="s1">inf</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">'</span><span class="s2">\n</span><span class="s4">[%s]</span><span class="s2">\n</span><span class="s4">file=thiscab</span><span class="s2">\n</span><span class="s4">clsid={924B4927-D3BA-41EA-9F7E-8A89194AB3AC}</span><span class="s2">\n</span><span class="s4">RegisterServer=yes</span><span class="s2">\n</span><span class="s4">FileVersion=%s</span><span class="s2">\n</span><span class="s4">' </span><span class="s3">% (</span><span class="s1">ocx</span><span class="s3">, </span><span class="s1">getDllVersion</span><span class="s3">(</span><span class="s1">ocxFullpath</span><span class="s3">)))</span>
+
+    <span class="s1">fullpaths </span><span class="s3">= []</span>
+    <span class="s2">for </span><span class="s1">filename </span><span class="s2">in </span><span class="s1">dependencies</span><span class="s3">:</span>
+        <span class="s1">fullpath </span><span class="s3">= </span><span class="s1">findExecutable</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">)</span>
+        <span class="s1">fullpaths</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">fullpath</span><span class="s3">)</span>
+        <span class="s1">inf</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">'</span><span class="s2">\n</span><span class="s4">[%s]</span><span class="s2">\n</span><span class="s4">file=thiscab</span><span class="s2">\n</span><span class="s4">DestDir=11</span><span class="s2">\n</span><span class="s4">RegisterServer=yes</span><span class="s2">\n</span><span class="s4">FileVersion=%s</span><span class="s2">\n</span><span class="s4">' </span><span class="s3">% (</span><span class="s1">filename</span><span class="s3">, </span><span class="s1">getDllVersion</span><span class="s3">(</span><span class="s1">fullpath</span><span class="s3">)))</span>
+    <span class="s1">inf</span><span class="s3">.</span><span class="s1">close</span><span class="s3">()</span>
+
+    <span class="s0"># Now process the inf file with cabarc.</span>
+    <span class="s2">try</span><span class="s3">:</span>
+        <span class="s1">os</span><span class="s3">.</span><span class="s1">unlink</span><span class="s3">(</span><span class="s1">cabFilename</span><span class="s3">)</span>
+    <span class="s2">except </span><span class="s1">OSError</span><span class="s3">:</span>
+        <span class="s2">pass</span>
+
+    <span class="s1">cmd </span><span class="s3">= </span><span class="s4">'&quot;%s&quot; -s 6144 n &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">cabarc</span><span class="s3">, </span><span class="s1">cabFilename</span><span class="s3">)</span>
+    <span class="s2">for </span><span class="s1">fullpath </span><span class="s2">in </span><span class="s1">fullpaths</span><span class="s3">:</span>
+        <span class="s1">cmd </span><span class="s3">+= </span><span class="s4">' &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">fullpath</span><span class="s3">)</span>
+    <span class="s1">cmd </span><span class="s3">+= </span><span class="s4">' &quot;%s&quot; %s' </span><span class="s3">% (</span><span class="s1">ocxFullpath</span><span class="s3">, </span><span class="s1">infFile</span><span class="s3">)</span>
+    <span class="s1">print</span><span class="s3">(</span><span class="s1">cmd</span><span class="s3">)</span>
+    <span class="s1">result </span><span class="s3">= </span><span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">cmd</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">result</span><span class="s3">:</span>
+        <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s1">result</span><span class="s3">)</span>
+    <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">cabFilename</span><span class="s3">):</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;Couldn't generate %s&quot; </span><span class="s3">% (</span><span class="s1">cabFilename</span><span class="s3">))</span>
+        <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s5">1</span><span class="s3">)</span>
+
+    <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;Successfully generated %s&quot; </span><span class="s3">% (</span><span class="s1">cabFilename</span><span class="s3">))</span>
+
+    <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">spc </span><span class="s2">and </span><span class="s1">options</span><span class="s3">.</span><span class="s1">pvk</span><span class="s3">:</span>
+        <span class="s0"># Now we have to sign the cab file.</span>
+        <span class="s1">cmd </span><span class="s3">= </span><span class="s4">'&quot;%s&quot; -spc &quot;%s&quot; -k &quot;%s&quot; &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">signcode</span><span class="s3">, </span><span class="s1">options</span><span class="s3">.</span><span class="s1">spc</span><span class="s3">, </span><span class="s1">options</span><span class="s3">.</span><span class="s1">pvk</span><span class="s3">, </span><span class="s1">cabFilename</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s1">cmd</span><span class="s3">)</span>
+        <span class="s1">result </span><span class="s3">= </span><span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">cmd</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">result</span><span class="s3">:</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s1">result</span><span class="s3">)</span>
+
+<span class="s2">def </span><span class="s1">makeInstaller</span><span class="s3">():</span>
+    <span class="s0"># Locate the plugin(s).</span>
+    <span class="s1">pluginFiles </span><span class="s3">= {}</span>
+    <span class="s1">pluginDependencies </span><span class="s3">= {}</span>
+    <span class="s1">dependentFiles </span><span class="s3">= {}</span>
+
+    <span class="s0"># These are the primary files that make</span>
+    <span class="s0"># up the plugin/runtime.</span>
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;darwin&quot;</span><span class="s3">:</span>
+        <span class="s1">npapi </span><span class="s3">= </span><span class="s4">'nppanda3d.plugin'</span>
+        <span class="s1">panda3d </span><span class="s3">= </span><span class="s4">'panda3d'</span>
+        <span class="s1">panda3dapp </span><span class="s3">= </span><span class="s4">'Panda3D.app'</span>
+        <span class="s1">baseFiles </span><span class="s3">= [</span><span class="s1">npapi</span><span class="s3">, </span><span class="s1">panda3d</span><span class="s3">, </span><span class="s1">panda3dapp</span><span class="s3">]</span>
+    <span class="s2">elif </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">'win32'</span><span class="s3">:</span>
+        <span class="s1">ocx </span><span class="s3">= </span><span class="s4">'p3dactivex.ocx'</span>
+        <span class="s1">npapi </span><span class="s3">= </span><span class="s4">'nppanda3d.dll'</span>
+        <span class="s1">panda3d </span><span class="s3">= </span><span class="s4">'panda3d.exe'</span>
+        <span class="s1">panda3dw </span><span class="s3">= </span><span class="s4">'panda3dw.exe'</span>
+        <span class="s1">baseFiles </span><span class="s3">= [</span><span class="s1">ocx</span><span class="s3">, </span><span class="s1">npapi</span><span class="s3">, </span><span class="s1">panda3d</span><span class="s3">, </span><span class="s1">panda3dw</span><span class="s3">]</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s1">baseFiles </span><span class="s3">= []</span>
+
+    <span class="s1">path </span><span class="s3">= []</span>
+    <span class="s1">pathsep </span><span class="s3">= </span><span class="s4">':'</span>
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot;</span><span class="s3">:</span>
+        <span class="s1">pathsep </span><span class="s3">= </span><span class="s4">';'</span>
+    <span class="s2">if </span><span class="s4">'PATH' </span><span class="s2">in </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">:</span>
+        <span class="s1">path </span><span class="s3">+= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">[</span><span class="s4">'PATH'</span><span class="s3">].</span><span class="s1">split</span><span class="s3">(</span><span class="s1">pathsep</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">!= </span><span class="s4">&quot;win32&quot; </span><span class="s2">and </span><span class="s4">'LD_LIBRARY_PATH' </span><span class="s2">in </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">:</span>
+        <span class="s1">path </span><span class="s3">+= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">[</span><span class="s4">'LD_LIBRARY_PATH'</span><span class="s3">].</span><span class="s1">split</span><span class="s3">(</span><span class="s1">pathsep</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;darwin&quot; </span><span class="s2">and </span><span class="s4">'DYLD_LIBRARY_PATH' </span><span class="s2">in </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">:</span>
+        <span class="s1">path </span><span class="s3">+= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">environ</span><span class="s3">[</span><span class="s4">'DYLD_LIBRARY_PATH'</span><span class="s3">].</span><span class="s1">split</span><span class="s3">(</span><span class="s1">pathsep</span><span class="s3">)</span>
+    <span class="s1">path </span><span class="s3">+= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">defpath</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s1">pathsep</span><span class="s3">)</span>
+    <span class="s2">for </span><span class="s1">file </span><span class="s2">in </span><span class="s1">baseFiles</span><span class="s3">:</span>
+        <span class="s1">pathname </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">for </span><span class="s1">pitem </span><span class="s2">in </span><span class="s1">path</span><span class="s3">:</span>
+            <span class="s1">pathname </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">pitem</span><span class="s3">, </span><span class="s1">file</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">pathname</span><span class="s3">):</span>
+                <span class="s2">break</span>
+            <span class="s1">pathname </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if not </span><span class="s1">pathname</span><span class="s3">:</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s4">&quot;Couldn't find %s.&quot; </span><span class="s3">% (</span><span class="s1">file</span><span class="s3">))</span>
+
+        <span class="s1">pathname </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">abspath</span><span class="s3">(</span><span class="s1">pathname</span><span class="s3">)</span>
+        <span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">file</span><span class="s3">] = </span><span class="s1">pathname</span>
+        <span class="s1">pluginDependencies</span><span class="s3">[</span><span class="s1">file</span><span class="s3">] = []</span>
+
+        <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;win32&quot;</span><span class="s3">:</span>
+            <span class="s0"># Also look for the dll's that these plugins reference.</span>
+            <span class="s1">addDependencies</span><span class="s3">(</span><span class="s1">path</span><span class="s3">, </span><span class="s1">pathname</span><span class="s3">, </span><span class="s1">file</span><span class="s3">, </span><span class="s1">pluginDependencies</span><span class="s3">, </span><span class="s1">dependentFiles</span><span class="s3">)</span>
+
+    <span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">&quot;darwin&quot;</span><span class="s3">:</span>
+        <span class="s1">tmproot </span><span class="s3">= </span><span class="s4">&quot;/var/tmp/Panda3D Runtime/&quot;</span>
+
+        <span class="s0"># Apparently, we have to rename this package with each</span>
+        <span class="s0"># version, or Snow Leopard won't think the versions are</span>
+        <span class="s0"># increasing.  I don't really understand why this is so.  It</span>
+        <span class="s0"># might be related to the use of the Tiger PackageMaker's</span>
+        <span class="s0"># output being run on Snow Leopard.  Whatever.  Numbering the</span>
+        <span class="s0"># package files works around the problem and doesn't seem to</span>
+        <span class="s0"># cause additional problems, so we'll do that.</span>
+        <span class="s1">pkgname </span><span class="s3">= </span><span class="s4">'p3d-setup-%s.pkg' </span><span class="s3">% (</span><span class="s1">options</span><span class="s3">.</span><span class="s1">version</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">):</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">rmtree</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isfile</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">):</span>
+            <span class="s1">os</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">)</span>
+        <span class="s2">elif </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isdir</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">):</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">rmtree</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">):</span>
+            <span class="s1">os</span><span class="s3">.</span><span class="s1">makedirs</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">)</span>
+        <span class="s1">dst_npapi </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">, </span><span class="s4">&quot;Library&quot;</span><span class="s3">, </span><span class="s4">&quot;Internet Plug-Ins&quot;</span><span class="s3">, </span><span class="s1">npapi</span><span class="s3">)</span>
+        <span class="s1">dst_panda3d </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">, </span><span class="s4">&quot;usr&quot;</span><span class="s3">, </span><span class="s4">&quot;local&quot;</span><span class="s3">, </span><span class="s4">&quot;bin&quot;</span><span class="s3">, </span><span class="s1">panda3d</span><span class="s3">)</span>
+        <span class="s1">dst_panda3dapp </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">, </span><span class="s4">&quot;Applications&quot;</span><span class="s3">, </span><span class="s1">panda3dapp</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">dst_npapi</span><span class="s3">): </span><span class="s1">os</span><span class="s3">.</span><span class="s1">makedirs</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">dst_npapi</span><span class="s3">))</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">dst_panda3d</span><span class="s3">): </span><span class="s1">os</span><span class="s3">.</span><span class="s1">makedirs</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">dst_panda3d</span><span class="s3">))</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">dst_panda3dapp</span><span class="s3">): </span><span class="s1">os</span><span class="s3">.</span><span class="s1">makedirs</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">dirname</span><span class="s3">(</span><span class="s1">dst_panda3dapp</span><span class="s3">))</span>
+        <span class="s1">shutil</span><span class="s3">.</span><span class="s1">copytree</span><span class="s3">(</span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">npapi</span><span class="s3">], </span><span class="s1">dst_npapi</span><span class="s3">)</span>
+        <span class="s1">shutil</span><span class="s3">.</span><span class="s1">copyfile</span><span class="s3">(</span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">panda3d</span><span class="s3">], </span><span class="s1">dst_panda3d</span><span class="s3">)</span>
+        <span class="s1">os</span><span class="s3">.</span><span class="s1">chmod</span><span class="s3">(</span><span class="s1">dst_panda3d</span><span class="s3">, </span><span class="s5">493</span><span class="s3">) </span><span class="s0"># 0o755</span>
+        <span class="s1">shutil</span><span class="s3">.</span><span class="s1">copytree</span><span class="s3">(</span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">panda3dapp</span><span class="s3">], </span><span class="s1">dst_panda3dapp</span><span class="s3">)</span>
+
+        <span class="s1">tmpresdir </span><span class="s3">= </span><span class="s1">tempfile</span><span class="s3">.</span><span class="s1">mktemp</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'p3d-resources'</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">tmpresdir</span><span class="s3">):</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">rmtree</span><span class="s3">(</span><span class="s1">tmpresdir</span><span class="s3">)</span>
+        <span class="s1">os</span><span class="s3">.</span><span class="s1">makedirs</span><span class="s3">(</span><span class="s1">tmpresdir</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">:</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">copyfile</span><span class="s3">(</span><span class="s1">options</span><span class="s3">.</span><span class="s1">license</span><span class="s3">, </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">tmpresdir</span><span class="s3">, </span><span class="s4">&quot;License.txt&quot;</span><span class="s3">))</span>
+
+        <span class="s1">package_id </span><span class="s3">= </span><span class="s4">'org.panda3d.pkg.runtime' </span><span class="s0">#TODO: maybe more customizable?</span>
+
+        <span class="s1">infoFilename </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">descriptionFilename </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">packagemaker </span><span class="s3">= </span><span class="s4">&quot;/Applications/Xcode.app/Contents/Applications/PackageMaker.app/Contents/MacOS/PackageMaker&quot;</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">packagemaker</span><span class="s3">):</span>
+            <span class="s1">packagemaker </span><span class="s3">= </span><span class="s4">&quot;/Developer/usr/bin/packagemaker&quot;</span>
+
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">packagemaker</span><span class="s3">):</span>
+            <span class="s0"># PackageMaker 3.0 or better, e.g. OSX 10.5.</span>
+            <span class="s1">CMD </span><span class="s3">= </span><span class="s1">packagemaker</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --id &quot;%s&quot;' </span><span class="s3">% </span><span class="s1">package_id</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --version &quot;%s&quot;' </span><span class="s3">% </span><span class="s1">options</span><span class="s3">.</span><span class="s1">version</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --title &quot;%s&quot;' </span><span class="s3">% </span><span class="s1">options</span><span class="s3">.</span><span class="s1">long_name</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --out &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">pkgname</span><span class="s3">)</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --target 10.5' </span><span class="s0"># The earliest version of OSX supported by Panda</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --domain system'</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --root &quot;%s&quot;' </span><span class="s3">% </span><span class="s1">tmproot</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --resources &quot;%s&quot;' </span><span class="s3">% </span><span class="s1">tmpresdir</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' --no-relocate'</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s0"># PackageMaker 2.0, e.g. OSX 10.4.</span>
+            <span class="s1">packagemaker </span><span class="s3">= </span><span class="s4">&quot;/Developer/Tools/packagemaker&quot;</span>
+            <span class="s1">infoFilename </span><span class="s3">= </span><span class="s4">'/tmp/Info_plist'</span>
+            <span class="s1">info </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">infoFilename</span><span class="s3">, </span><span class="s4">'w'</span><span class="s3">)</span>
+            <span class="s1">info</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">Info_plist </span><span class="s3">% {</span>
+                <span class="s4">'package_id' </span><span class="s3">: </span><span class="s1">package_id</span><span class="s3">,</span>
+                <span class="s4">'version' </span><span class="s3">: </span><span class="s1">options</span><span class="s3">.</span><span class="s1">version</span><span class="s3">,</span>
+                <span class="s3">})</span>
+            <span class="s1">info</span><span class="s3">.</span><span class="s1">close</span><span class="s3">()</span>
+            <span class="s1">descriptionFilename </span><span class="s3">= </span><span class="s4">'/tmp/Description_plist'</span>
+            <span class="s1">description </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">descriptionFilename</span><span class="s3">, </span><span class="s4">'w'</span><span class="s3">)</span>
+            <span class="s1">description</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">Description_plist </span><span class="s3">% {</span>
+                <span class="s4">'long_name' </span><span class="s3">: </span><span class="s1">options</span><span class="s3">.</span><span class="s1">long_name</span><span class="s3">,</span>
+                <span class="s4">'short_name' </span><span class="s3">: </span><span class="s1">options</span><span class="s3">.</span><span class="s1">short_name</span><span class="s3">,</span>
+                <span class="s3">})</span>
+            <span class="s1">description</span><span class="s3">.</span><span class="s1">close</span><span class="s3">()</span>
+            <span class="s1">CMD </span><span class="s3">= </span><span class="s1">packagemaker</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' -build'</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' -f &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">tmproot</span><span class="s3">)</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' -r &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">tmpresdir</span><span class="s3">)</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' -p &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">pkgname</span><span class="s3">)</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' -i &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">infoFilename</span><span class="s3">)</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">' -d &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">descriptionFilename</span><span class="s3">)</span>
+
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;&quot;</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">)</span>
+
+        <span class="s0"># Don't check the exit status of packagemaker; it's not always</span>
+        <span class="s0"># reliable.</span>
+        <span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">, </span><span class="s1">shell </span><span class="s3">= </span><span class="s2">True</span><span class="s3">)</span>
+        <span class="s1">shutil</span><span class="s3">.</span><span class="s1">rmtree</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">infoFilename</span><span class="s3">:</span>
+            <span class="s1">os</span><span class="s3">.</span><span class="s1">unlink</span><span class="s3">(</span><span class="s1">infoFilename</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">descriptionFilename</span><span class="s3">:</span>
+            <span class="s1">os</span><span class="s3">.</span><span class="s1">unlink</span><span class="s3">(</span><span class="s1">descriptionFilename</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">tmpresdir</span><span class="s3">):</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">rmtree</span><span class="s3">(</span><span class="s1">tmpresdir</span><span class="s3">)</span>
+
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">):</span>
+            <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;Unable to create %s.&quot; </span><span class="s3">% (</span><span class="s1">pkgname</span><span class="s3">))</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s5">1</span><span class="s3">)</span>
+
+        <span class="s0"># Pack the .pkg into a .dmg</span>
+        <span class="s2">if not </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">): </span><span class="s1">os</span><span class="s3">.</span><span class="s1">makedirs</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">isdir</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">):</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">copytree</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">, </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">, </span><span class="s1">pkgname</span><span class="s3">))</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">shutil</span><span class="s3">.</span><span class="s1">copyfile</span><span class="s3">(</span><span class="s1">pkgname</span><span class="s3">, </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">, </span><span class="s1">pkgname</span><span class="s3">))</span>
+
+        <span class="s1">tmpdmg </span><span class="s3">= </span><span class="s1">tempfile</span><span class="s3">.</span><span class="s1">mktemp</span><span class="s3">(</span><span class="s4">''</span><span class="s3">, </span><span class="s4">'p3d-setup'</span><span class="s3">) + </span><span class="s4">&quot;.dmg&quot;</span>
+        <span class="s1">CMD </span><span class="s3">= </span><span class="s4">'hdiutil create &quot;%s&quot; -srcfolder &quot;%s&quot;' </span><span class="s3">% (</span><span class="s1">tmpdmg</span><span class="s3">, </span><span class="s1">tmproot</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;&quot;</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">)</span>
+        <span class="s1">result </span><span class="s3">= </span><span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">, </span><span class="s1">shell </span><span class="s3">= </span><span class="s2">True</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">result</span><span class="s3">:</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s1">result</span><span class="s3">)</span>
+        <span class="s1">shutil</span><span class="s3">.</span><span class="s1">rmtree</span><span class="s3">(</span><span class="s1">tmproot</span><span class="s3">)</span>
+
+        <span class="s0"># Compress the .dmg (and make it read-only)</span>
+        <span class="s2">if </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">(</span><span class="s4">&quot;p3d-setup.dmg&quot;</span><span class="s3">):</span>
+            <span class="s1">os</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s4">&quot;p3d-setup.dmg&quot;</span><span class="s3">)</span>
+        <span class="s1">CMD </span><span class="s3">= </span><span class="s4">'hdiutil convert &quot;%s&quot; -format UDBZ -o &quot;p3d-setup.dmg&quot;' </span><span class="s3">% </span><span class="s1">tmpdmg</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;&quot;</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">)</span>
+        <span class="s1">result </span><span class="s3">= </span><span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">, </span><span class="s1">shell </span><span class="s3">= </span><span class="s2">True</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">result</span><span class="s3">:</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s1">result</span><span class="s3">)</span>
+
+    <span class="s2">elif </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">platform </span><span class="s3">== </span><span class="s4">'win32'</span><span class="s3">:</span>
+        <span class="s0"># Now build the NSIS command.</span>
+        <span class="s1">CMD </span><span class="s3">= </span><span class="s4">&quot;</span><span class="s2">\&quot;</span><span class="s4">&quot; </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">nsis </span><span class="s3">+ </span><span class="s4">&quot;</span><span class="s2">\&quot; </span><span class="s4">/V3 &quot;</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPRODUCT_NAME=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">long_name </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPRODUCT_NAME_SHORT=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">short_name </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPRODUCT_PUBLISHER=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">publisher </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPRODUCT_WEB_SITE=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">website </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPRODUCT_VERSION=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">version </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DINSTALL_DIR=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">install_dir </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DLICENSE_FILE=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">license </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DOCX=&quot;' </span><span class="s3">+ </span><span class="s1">ocx </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DOCX_PATH=&quot;' </span><span class="s3">+ </span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">ocx</span><span class="s3">] + </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DNPAPI=&quot;' </span><span class="s3">+ </span><span class="s1">npapi </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DNPAPI_PATH=&quot;' </span><span class="s3">+ </span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">npapi</span><span class="s3">] + </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPANDA3D=&quot;' </span><span class="s3">+ </span><span class="s1">panda3d </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPANDA3D_PATH=&quot;' </span><span class="s3">+ </span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">panda3d</span><span class="s3">] + </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPANDA3DW=&quot;' </span><span class="s3">+ </span><span class="s1">panda3dw </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DPANDA3DW_PATH=&quot;' </span><span class="s3">+ </span><span class="s1">pluginFiles</span><span class="s3">[</span><span class="s1">panda3dw</span><span class="s3">] + </span><span class="s4">'&quot; '</span>
+
+        <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">regview</span><span class="s3">:</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DREGVIEW=%s ' </span><span class="s3">% (</span><span class="s1">options</span><span class="s3">.</span><span class="s1">regview</span><span class="s3">)</span>
+
+        <span class="s2">for </span><span class="s1">i</span><span class="s3">, </span><span class="s1">dep </span><span class="s2">in </span><span class="s1">enumerate</span><span class="s3">(</span><span class="s1">dependentFiles</span><span class="s3">.</span><span class="s1">items</span><span class="s3">()):</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DDEP%s=&quot;%s&quot; ' </span><span class="s3">% (</span><span class="s1">i</span><span class="s3">, </span><span class="s1">dep</span><span class="s3">[</span><span class="s5">0</span><span class="s3">])</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DDEP%sP=&quot;%s&quot; ' </span><span class="s3">% (</span><span class="s1">i</span><span class="s3">, </span><span class="s1">dep</span><span class="s3">[</span><span class="s5">1</span><span class="s3">])</span>
+
+        <span class="s2">for </span><span class="s1">i</span><span class="s3">, </span><span class="s1">dep </span><span class="s2">in </span><span class="s1">enumerate</span><span class="s3">(</span><span class="s1">pluginDependencies</span><span class="s3">[</span><span class="s1">npapi</span><span class="s3">]):</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DNPAPI_DEP%s=&quot;%s&quot; ' </span><span class="s3">% (</span><span class="s1">i</span><span class="s3">, </span><span class="s1">dep</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">start</span><span class="s3">:</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DADD_START_MENU '</span>
+
+        <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">welcome_image</span><span class="s3">:</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DMUI_WELCOMEFINISHPAGE_BITMAP=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">welcome_image </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DMUI_UNWELCOMEFINISHPAGE_BITMAP=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">welcome_image </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+        <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">install_icon</span><span class="s3">:</span>
+            <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'/DINSTALL_ICON=&quot;' </span><span class="s3">+ </span><span class="s1">options</span><span class="s3">.</span><span class="s1">install_icon </span><span class="s3">+ </span><span class="s4">'&quot; '</span>
+
+        <span class="s1">CMD </span><span class="s3">+= </span><span class="s4">'&quot;' </span><span class="s3">+ </span><span class="s1">this_dir </span><span class="s3">+ </span><span class="s4">'</span><span class="s2">\\</span><span class="s4">p3d_installer.nsi&quot;'</span>
+
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;&quot;</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">)</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;packing...&quot;</span><span class="s3">)</span>
+        <span class="s1">result </span><span class="s3">= </span><span class="s1">subprocess</span><span class="s3">.</span><span class="s1">call</span><span class="s3">(</span><span class="s1">CMD</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">result</span><span class="s3">:</span>
+            <span class="s1">sys</span><span class="s3">.</span><span class="s1">exit</span><span class="s3">(</span><span class="s1">result</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">options</span><span class="s3">.</span><span class="s1">cab</span><span class="s3">:</span>
+            <span class="s0"># Generate a CAB file and optionally sign it.</span>
+            <span class="s1">makeCabFile</span><span class="s3">(</span><span class="s1">ocx</span><span class="s3">, </span><span class="s1">pluginDependencies</span><span class="s3">)</span>
+
+<span class="s1">makeInstaller</span><span class="s3">()</span>
+</pre>
+</body>
+</html>

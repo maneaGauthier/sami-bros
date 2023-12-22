@@ -1,0 +1,123 @@
+<html>
+<head>
+<title>FindCtaPaths.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FindCtaPaths.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This module is used only by the VR Studio programmers who are using 
+the ctattach tools.  It is imported before any other package, and its 
+job is to figure out the correct paths to each of the packages. 
+ 
+This module is not needed if you are not using ctattach; in this case 
+all of the Panda packages will be collected under a common directory, 
+which you will presumably have already on your PYTHONPATH. &quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'deCygwinify'</span><span class="s2">, </span><span class="s3">'getPaths'</span><span class="s2">]</span>
+
+<span class="s4">import </span><span class="s1">os</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">def </span><span class="s1">deCygwinify</span><span class="s2">(</span><span class="s1">path</span><span class="s2">):</span>
+    <span class="s4">if </span><span class="s1">os</span><span class="s2">.</span><span class="s1">name </span><span class="s4">in </span><span class="s2">[</span><span class="s3">'nt'</span><span class="s2">] </span><span class="s4">and </span><span class="s1">path</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] == </span><span class="s3">'/'</span><span class="s2">:</span>
+        <span class="s6"># On Windows, we may need to convert from a Cygwin-style path</span>
+        <span class="s6"># to a native Windows path.</span>
+
+        <span class="s6"># Check for a case like /i/ or /p/: this converts</span>
+        <span class="s6"># to i:\ or p:\.</span>
+
+        <span class="s1">dirs </span><span class="s2">= </span><span class="s1">path</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">dirs</span><span class="s2">) &gt; </span><span class="s5">2 </span><span class="s4">and </span><span class="s1">len</span><span class="s2">(</span><span class="s1">dirs</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]) == </span><span class="s5">1</span><span class="s2">:</span>
+            <span class="s1">path </span><span class="s2">= </span><span class="s3">'%s:</span><span class="s4">\\</span><span class="s3">%s' </span><span class="s2">% (</span><span class="s1">dirs</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s3">'</span><span class="s4">\\</span><span class="s3">'</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">dirs</span><span class="s2">[</span><span class="s5">2</span><span class="s2">:]))</span>
+
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s6"># Otherwise, prepend $PANDA_ROOT and flip the slashes.</span>
+            <span class="s1">pandaRoot </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">getenv</span><span class="s2">(</span><span class="s3">'PANDA_ROOT'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">pandaRoot</span><span class="s2">:</span>
+                <span class="s1">path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">normpath</span><span class="s2">(</span><span class="s1">pandaRoot </span><span class="s2">+ </span><span class="s1">path</span><span class="s2">)</span>
+
+    <span class="s4">return </span><span class="s1">path</span>
+
+<span class="s4">def </span><span class="s1">getPaths</span><span class="s2">():</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Add to sys.path the appropriate director(ies) to search for the 
+    various Panda projects.  Typically, these will all be in the same 
+    directory (which is presumably already on sys.path), but if the VR 
+    Studio ctattach tools are in use they could be scattered around in 
+    several places. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">ctprojs </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">getenv</span><span class="s2">(</span><span class="s3">&quot;CTPROJS&quot;</span><span class="s2">)</span>
+    <span class="s4">if </span><span class="s1">ctprojs</span><span class="s2">:</span>
+        <span class="s6"># The CTPROJS environment variable is defined.  We must be</span>
+        <span class="s6"># using the ctattach tools.  In this case, we need to figure</span>
+        <span class="s6"># out the location of each of the separate trees, and put the</span>
+        <span class="s6"># parent directory of each one on sys.path.  In many cases,</span>
+        <span class="s6"># these will all be siblings, so we filter out duplicate</span>
+        <span class="s6"># parent directories.</span>
+
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'Appending to sys.path based on $CTPROJS:'</span><span class="s2">)</span>
+
+        <span class="s6"># First, get the list of packages, then reverse the list to</span>
+        <span class="s6"># put it in ctattach order.  (The reversal may not matter too</span>
+        <span class="s6"># much these days, but let's be as correct as we can be.)</span>
+        <span class="s1">packages </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">proj </span><span class="s4">in </span><span class="s1">ctprojs</span><span class="s2">.</span><span class="s1">split</span><span class="s2">():</span>
+            <span class="s1">projName </span><span class="s2">= </span><span class="s1">proj</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">':'</span><span class="s2">)[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s1">packages</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">projName</span><span class="s2">)</span>
+        <span class="s1">packages</span><span class="s2">.</span><span class="s1">reverse</span><span class="s2">()</span>
+
+        <span class="s6"># Now walk through the packages and figure out the parent of</span>
+        <span class="s6"># each referenced directory.</span>
+
+        <span class="s1">parents </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">package </span><span class="s4">in </span><span class="s1">packages</span><span class="s2">:</span>
+            <span class="s1">tree </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">getenv</span><span class="s2">(</span><span class="s1">package</span><span class="s2">)</span>
+            <span class="s4">if not </span><span class="s1">tree</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;  CTPROJS contains %s, but $%s is not defined.&quot; </span><span class="s2">% (</span><span class="s1">package</span><span class="s2">, </span><span class="s1">package</span><span class="s2">))</span>
+                <span class="s1">sys</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+
+            <span class="s1">tree </span><span class="s2">= </span><span class="s1">deCygwinify</span><span class="s2">(</span><span class="s1">tree</span><span class="s2">)</span>
+
+            <span class="s1">parent</span><span class="s2">, </span><span class="s1">base </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s1">tree</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">base </span><span class="s2">!= </span><span class="s1">package</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">():</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;  Warning: $%s refers to a directory named %s (instead of %s)&quot; </span><span class="s2">% (</span><span class="s1">package</span><span class="s2">, </span><span class="s1">base</span><span class="s2">, </span><span class="s1">package</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">()))</span>
+
+            <span class="s4">if </span><span class="s1">parent </span><span class="s4">not in </span><span class="s1">parents</span><span class="s2">:</span>
+                <span class="s1">parents</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+
+
+            <span class="s6"># We also put tree/built/lib on sys.path by hand, because we</span>
+            <span class="s6"># will need to load up the generated C++ modules that got</span>
+            <span class="s6"># put there.  Also, we will find the output of genPyCode</span>
+            <span class="s6"># in $DIRECT/built/lib/pandac.</span>
+            <span class="s1">libdir </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">tree</span><span class="s2">, </span><span class="s3">'built'</span><span class="s2">, </span><span class="s3">'lib'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">isdir</span><span class="s2">(</span><span class="s1">libdir</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">libdir </span><span class="s4">not in </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">:</span>
+                    <span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">libdir</span><span class="s2">)</span>
+
+
+        <span class="s6"># Now the result goes onto sys.path.</span>
+        <span class="s4">for </span><span class="s1">parent </span><span class="s4">in </span><span class="s1">parents</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;  %s&quot; </span><span class="s2">% (</span><span class="s1">parent</span><span class="s2">))</span>
+            <span class="s4">if </span><span class="s1">parent </span><span class="s4">not in </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">:</span>
+                <span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+
+
+<span class="s1">getPaths</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

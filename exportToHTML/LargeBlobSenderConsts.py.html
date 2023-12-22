@@ -1,0 +1,35 @@
+<html>
+<head>
+<title>LargeBlobSenderConsts.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+.s5 { color: #cf8e6d;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+LargeBlobSenderConsts.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;LargeBlobSenderConsts module&quot;&quot;&quot;</span>
+
+<span class="s1">USE_DISK  </span><span class="s2">= </span><span class="s3">0x01</span>
+
+<span class="s1">ChunkSize </span><span class="s2">= </span><span class="s3">100</span>
+
+<span class="s1">FilePattern </span><span class="s2">= </span><span class="s4">'largeBlob.%s'</span>
+
+<span class="s5">def </span><span class="s1">getLargeBlobPath</span><span class="s2">():</span>
+    <span class="s6"># this folder needs to be accessible by everyone that is going to level edit</span>
+    <span class="s6"># an area as a group</span>
+    <span class="s5">return </span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetString</span><span class="s2">(</span><span class="s4">'large-blob-path'</span><span class="s2">, </span><span class="s4">'i:</span><span class="s5">\\</span><span class="s4">toontown_in_game_editor_temp'</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

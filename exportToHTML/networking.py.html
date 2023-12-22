@@ -1,0 +1,916 @@
+<html>
+<head>
+<title>networking.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+networking.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">vec2 </span><span class="s0">import </span><span class="s1">Vec2</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">vec3 </span><span class="s0">import </span><span class="s1">Vec3</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">vec4 </span><span class="s0">import </span><span class="s1">Vec4</span>
+
+<span class="s0">import </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">as </span><span class="s1">p3d</span>
+
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">PyDatagram </span><span class="s0">import </span><span class="s1">PyDatagram</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">PyDatagramIterator </span><span class="s0">import </span><span class="s1">PyDatagramIterator</span>
+
+<span class="s0">from </span><span class="s1">enum </span><span class="s0">import </span><span class="s1">Enum</span><span class="s2">, </span><span class="s1">auto</span>
+
+<span class="s0">from </span><span class="s1">collections </span><span class="s0">import </span><span class="s1">deque</span>
+
+<span class="s0">import </span><span class="s1">uuid</span>
+<span class="s0">import </span><span class="s1">hashlib</span>
+
+<span class="s0">import </span><span class="s1">types</span>
+<span class="s0">import </span><span class="s1">typing</span>
+<span class="s0">import </span><span class="s1">inspect</span>
+
+<span class="s0">import </span><span class="s1">socket</span>
+<span class="s0">import </span><span class="s1">ssl</span>
+<span class="s0">import </span><span class="s1">select</span>
+<span class="s0">import </span><span class="s1">errno</span>
+
+<span class="s0">import </span><span class="s1">struct</span>
+
+<span class="s0">import </span><span class="s1">time</span>
+
+<span class="s0">import </span><span class="s1">atexit</span>
+<span class="s0">import </span><span class="s1">signal</span>
+
+<span class="s0">import </span><span class="s1">threading</span>
+<span class="s0">import </span><span class="s1">asyncio</span>
+
+<span class="s3"># This class represents and single connection.</span>
+<span class="s3"># It can be hashed and compared so that it may be used as a dictionary key.</span>
+<span class="s3"># This is useful for mapping from a connection to player data.</span>
+<span class="s0">class </span><span class="s1">Connection</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">peer</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">, </span><span class="s1">address</span><span class="s2">, </span><span class="s1">connection_timeout</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer </span><span class="s2">= </span><span class="s1">peer</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">socket </span><span class="s2">= </span><span class="s1">socket</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">address </span><span class="s2">= </span><span class="s1">address</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">connection_timeout </span><span class="s2">= </span><span class="s1">connection_timeout</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">connected </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">timed_out </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s4">&quot;l&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">length_byte_count </span><span class="s2">= </span><span class="s5">2</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">expected_byte_count </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">length_byte_count</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bytes_received </span><span class="s2">= </span><span class="s1">bytearray</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">uid </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">uuid</span><span class="s2">.</span><span class="s1">uuid4</span><span class="s2">())</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">async_task </span><span class="s2">= </span><span class="s0">None</span>
+
+    <span class="s0">def </span><span class="s1">__hash__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">hash</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">uid</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__eq__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uid </span><span class="s2">== </span><span class="s1">other</span><span class="s2">.</span><span class="s1">uid</span>
+
+    <span class="s0">def </span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">data</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">data</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">disconnect</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">disconnect</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">is_timed_out</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">timed_out</span>
+
+    <span class="s0">def </span><span class="s1">is_connected</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">connected</span>
+
+
+<span class="s3"># Used internally by Peer.</span>
+<span class="s0">class </span><span class="s1">PeerEvent</span><span class="s2">(</span><span class="s1">Enum</span><span class="s2">):</span>
+    <span class="s1">ERROR </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+    <span class="s1">CONNECT </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+    <span class="s1">DISCONNECT </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+    <span class="s1">DATA </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+
+
+<span class="s3"># Used internally by Peer.</span>
+<span class="s0">class </span><span class="s1">PeerInput</span><span class="s2">(</span><span class="s1">Enum</span><span class="s2">):</span>
+    <span class="s1">ERROR </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+    <span class="s1">SEND </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+    <span class="s1">DISCONNECT </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+    <span class="s1">DISCONNECT_ALL </span><span class="s2">= </span><span class="s1">auto</span><span class="s2">()</span>
+
+
+<span class="s3"># -- Description --</span>
+<span class="s3"># The main driving class of the networking module.</span>
+<span class="s3"># This is either a server or a client depending on if it's hosting or not.</span>
+<span class="s3"># -- Callbacks --</span>
+<span class="s3"># The arguments starting with &quot;on&quot; are callback functions for network events.</span>
+<span class="s3"># Their arguments are generally (connection, data, time).</span>
+<span class="s3"># The connect and disconnect functions don't have the data argument.</span>
+<span class="s3"># See the networking samples or update function definition for more.</span>
+<span class="s3"># -- TLS / secure networking --</span>
+<span class="s3"># TLS support can be enabled with `use_tls=True`.</span>
+<span class="s3"># The host requires the path to the certificate chain, and the private key.</span>
+<span class="s3"># The client can make use of a given path to a certificate authority bundle for testing / development / self signed.</span>
+<span class="s3"># -- Address family --</span>
+<span class="s3"># The socket address family can be either &quot;INET&quot; (ipv4) or &quot;INET6&quot; (ipv6).</span>
+<span class="s3"># -- Notes --</span>
+<span class="s3"># Keep in mind that the networking in running on its own thread and you must therefore check if it's running (is_running).</span>
+<span class="s0">class </span><span class="s1">Peer</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">on_connect</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">on_disconnect</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">on_data</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">on_raw_data</span><span class="s2">=</span><span class="s0">None</span><span class="s2">,</span>
+                 <span class="s1">connection_timeout</span><span class="s2">=</span><span class="s0">None</span><span class="s2">,</span>
+                 <span class="s1">use_tls</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+                 <span class="s1">path_to_certchain</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">path_to_private_key</span><span class="s2">=</span><span class="s0">None</span><span class="s2">,</span>
+                 <span class="s1">path_to_cabundle</span><span class="s2">=</span><span class="s0">None</span><span class="s2">,</span>
+                 <span class="s1">socket_address_family</span><span class="s2">=</span><span class="s4">&quot;INET&quot;</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_connect </span><span class="s2">= </span><span class="s1">on_connect</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_disconnect </span><span class="s2">= </span><span class="s1">on_disconnect</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_data </span><span class="s2">= </span><span class="s1">on_data</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_raw_data </span><span class="s2">= </span><span class="s1">on_raw_data</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">connection_timeout </span><span class="s2">= </span><span class="s1">connection_timeout</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls </span><span class="s2">= </span><span class="s1">use_tls</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_certchain </span><span class="s2">= </span><span class="s1">path_to_certchain</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_private_key </span><span class="s2">= </span><span class="s1">path_to_private_key</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_cabundle </span><span class="s2">= </span><span class="s1">path_to_cabundle</span>
+        <span class="s0">if </span><span class="s1">socket_address_family </span><span class="s2">== </span><span class="s4">&quot;INET&quot;</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">socket_address_family </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">AF_INET</span>
+        <span class="s0">elif </span><span class="s1">socket_address_family </span><span class="s2">== </span><span class="s4">&quot;INET6&quot;</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">socket_address_family </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">AF_INET6</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">&quot;Invalid/unsupported socket address family '{socket_address_family}'.&quot;</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">connections </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue </span><span class="s2">= </span><span class="s1">deque</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue </span><span class="s2">= </span><span class="s1">deque</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">socket </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">host_name </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tls_host_name </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">port </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backlog </span><span class="s2">= </span><span class="s5">100</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">is_host </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">main_thread </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">running_lock </span><span class="s2">= </span><span class="s1">threading</span><span class="s2">.</span><span class="s1">Lock</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_lock </span><span class="s2">= </span><span class="s1">threading</span><span class="s2">.</span><span class="s1">Lock</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_lock </span><span class="s2">= </span><span class="s1">threading</span><span class="s2">.</span><span class="s1">Lock</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">listen_task </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">main_thread_sleep_time </span><span class="s2">= </span><span class="s5">0.001</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_handshake_sleep_time </span><span class="s2">= </span><span class="s5">0.0001</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">recv_ssl_sleep_time </span><span class="s2">= </span><span class="s5">0.0001</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">recv_unavailable_sleep_time </span><span class="s2">= </span><span class="s5">0.0001</span>
+
+        <span class="s0">def </span><span class="s1">on_application_exit</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+        <span class="s1">atexit</span><span class="s2">.</span><span class="s1">register</span><span class="s2">(</span><span class="s1">on_application_exit</span><span class="s2">)</span>
+
+        <span class="s1">prev_signal_handler </span><span class="s2">= </span><span class="s1">signal</span><span class="s2">.</span><span class="s1">getsignal</span><span class="s2">(</span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIGINT</span><span class="s2">)</span>
+
+        <span class="s0">def </span><span class="s1">on_keyboard_interrupt</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">prev_signal_handler </span><span class="s0">is not None</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">prev_signal_handler </span><span class="s2">!= </span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIG_DFL</span><span class="s2">:</span>
+                    <span class="s1">prev_signal_handler</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">)</span>
+
+        <span class="s1">signal</span><span class="s2">.</span><span class="s1">signal</span><span class="s2">(</span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIGINT</span><span class="s2">, </span><span class="s1">on_keyboard_interrupt</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">is_using_tls</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls</span>
+
+    <span class="s0">def </span><span class="s1">start</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">port</span><span class="s2">, </span><span class="s1">is_host</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">backlog</span><span class="s2">=</span><span class="s5">100</span><span class="s2">, </span><span class="s1">tls_host_name</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">socket_address_family</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">socket_address_family </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">socket_address_family </span><span class="s2">== </span><span class="s4">&quot;INET&quot;</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket_address_family </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">AF_INET</span>
+            <span class="s0">elif </span><span class="s1">socket_address_family </span><span class="s2">== </span><span class="s4">&quot;INET6&quot;</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket_address_family </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">AF_INET6</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Invalid/unsupported socket address family '</span><span class="s0">{</span><span class="s1">socket_address_family</span><span class="s0">}</span><span class="s4">'.&quot;</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">is_host</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context </span><span class="s2">= </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">SSLContext</span><span class="s2">(</span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">PROTOCOL_TLS_SERVER</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context</span><span class="s2">.</span><span class="s1">load_cert_chain</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_certchain</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_private_key</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_cabundle </span><span class="s0">is not None</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context </span><span class="s2">= </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">SSLContext</span><span class="s2">(</span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">PROTOCOL_TLS_CLIENT</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context</span><span class="s2">.</span><span class="s1">load_verify_locations</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">path_to_cabundle</span><span class="s2">)</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context </span><span class="s2">= </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">create_default_context</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">host_name </span><span class="s2">= </span><span class="s1">host_name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tls_host_name </span><span class="s2">= </span><span class="s1">tls_host_name</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tls_host_name </span><span class="s0">is None and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">tls_host_name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host_name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">port </span><span class="s2">= </span><span class="s1">port</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backlog </span><span class="s2">= </span><span class="s1">backlog</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">is_host </span><span class="s2">= </span><span class="s1">is_host</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">main_thread </span><span class="s2">= </span><span class="s1">threading</span><span class="s2">.</span><span class="s1">Thread</span><span class="s2">(</span><span class="s1">target</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_start</span><span class="s2">, </span><span class="s1">daemon</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">main_thread</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">stop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running_lock</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">main_thread</span><span class="s2">.</span><span class="s1">join</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">max_events</span><span class="s2">=</span><span class="s5">100</span><span class="s2">):</span>
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_lock</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">max_events</span><span class="s2">):</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue</span><span class="s2">) == </span><span class="s5">0</span><span class="s2">:</span>
+                    <span class="s0">break</span>
+                <span class="s1">next_event </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue</span><span class="s2">.</span><span class="s1">popleft</span><span class="s2">()</span>
+                <span class="s1">event_type </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+                <span class="s1">conn </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+                <span class="s1">d </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]</span>
+                <span class="s1">t </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]</span>
+                <span class="s0">if </span><span class="s1">event_type </span><span class="s2">== </span><span class="s1">PeerEvent</span><span class="s2">.</span><span class="s1">CONNECT</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">on_connect </span><span class="s0">is not None</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_connect</span><span class="s2">(</span><span class="s1">conn</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+                <span class="s0">elif </span><span class="s1">event_type </span><span class="s2">== </span><span class="s1">PeerEvent</span><span class="s2">.</span><span class="s1">DISCONNECT</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">on_disconnect </span><span class="s0">is not None</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_disconnect</span><span class="s2">(</span><span class="s1">conn</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+                <span class="s0">elif </span><span class="s1">event_type </span><span class="s2">== </span><span class="s1">PeerEvent</span><span class="s2">.</span><span class="s1">DATA</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">on_raw_data </span><span class="s0">is not None</span><span class="s2">:</span>
+                        <span class="s1">d </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">on_raw_data</span><span class="s2">(</span><span class="s1">conn</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">on_data </span><span class="s0">is not None</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">on_data</span><span class="s2">(</span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">d</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s1">data</span><span class="s2">):</span>
+        <span class="s1">b </span><span class="s2">= </span><span class="s1">bytearray</span><span class="s2">()</span>
+        <span class="s1">b </span><span class="s2">+= </span><span class="s1">struct</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s4">&quot;&gt;H&quot;</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">data</span><span class="s2">))</span>
+        <span class="s1">b </span><span class="s2">+= </span><span class="s1">data</span>
+
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_lock</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">PeerInput</span><span class="s2">.</span><span class="s1">SEND</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s1">b</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">disconnect</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">):</span>
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_lock</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">PeerInput</span><span class="s2">.</span><span class="s1">DISCONNECT</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s0">None</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">disconnect_all</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_lock</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">PeerInput</span><span class="s2">.</span><span class="s1">DISCONNECT_ALL</span><span class="s2">, </span><span class="s0">None</span><span class="s2">, </span><span class="s0">None</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">is_running</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span>
+
+    <span class="s0">def </span><span class="s1">is_hosting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">is_host</span>
+
+    <span class="s0">def </span><span class="s1">connection_count</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">connections</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">get_connections</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">connections</span>
+
+    <span class="s0">def </span><span class="s1">_start</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">asyncio</span><span class="s2">.</span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_run</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">_add_connection</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">, </span><span class="s1">address</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">):</span>
+        <span class="s1">connection </span><span class="s2">= </span><span class="s1">Connection</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">, </span><span class="s1">address</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">connection_timeout</span><span class="s2">)</span>
+        <span class="s1">connection_task </span><span class="s2">= </span><span class="s1">async_loop</span><span class="s2">.</span><span class="s1">create_task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_receive</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">))</span>
+        <span class="s1">connection</span><span class="s2">.</span><span class="s1">async_task </span><span class="s2">= </span><span class="s1">connection_task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">connections</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">)</span>
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_lock</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">PeerEvent</span><span class="s2">.</span><span class="s1">CONNECT</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s0">None</span><span class="s2">, </span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">()))</span>
+
+    <span class="s0">async def </span><span class="s1">_run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">async_loop </span><span class="s2">= </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">get_event_loop</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">is_host</span><span class="s2">:</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">socket_address_family</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">SOCK_STREAM</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">setsockopt</span><span class="s2">(</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">SOL_SOCKET</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">SO_REUSEADDR</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">port</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">listen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">backlog</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">setblocking</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+                <span class="s0">raise</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">listen_task </span><span class="s2">= </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">create_task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_listen</span><span class="s2">(</span><span class="s1">async_loop</span><span class="s2">))</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">client_socket </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls</span><span class="s2">:</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">socket </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">socket_address_family</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">SOCK_STREAM</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+                    <span class="s1">client_socket </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context</span><span class="s2">.</span><span class="s1">wrap_socket</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">, </span><span class="s1">server_hostname</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">tls_host_name</span><span class="s2">)</span>
+                    <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">connect</span><span class="s2">((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">port</span><span class="s2">))</span>
+                <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+                    <span class="s0">return</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s1">client_socket </span><span class="s2">= </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">create_connection</span><span class="s2">((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">port</span><span class="s2">))</span>
+                <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+                    <span class="s0">return</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">setblocking</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+                <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">setsockopt</span><span class="s2">(</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">IPPROTO_TCP</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">TCP_NODELAY</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_add_connection</span><span class="s2">(</span><span class="s1">client_socket</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">port</span><span class="s2">), </span><span class="s1">async_loop</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+                <span class="s0">return</span>
+
+        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running_lock</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s0">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span><span class="s2">:</span>
+            <span class="s1">to_be_removed </span><span class="s2">= []</span>
+            <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_lock</span><span class="s2">:</span>
+                <span class="s0">while </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue</span><span class="s2">) &gt; </span><span class="s5">0</span><span class="s2">:</span>
+                    <span class="s1">next_event </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_event_queue</span><span class="s2">.</span><span class="s1">popleft</span><span class="s2">()</span>
+                    <span class="s1">event </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+                    <span class="s1">connection </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+                    <span class="s1">data </span><span class="s2">= </span><span class="s1">next_event</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]</span>
+                    <span class="s0">if </span><span class="s1">event </span><span class="s2">== </span><span class="s1">PeerInput</span><span class="s2">.</span><span class="s1">SEND</span><span class="s2">:</span>
+                        <span class="s0">try</span><span class="s2">:</span>
+                            <span class="s1">connection</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">sendall</span><span class="s2">(</span><span class="s1">data</span><span class="s2">)</span>
+                        <span class="s0">except</span><span class="s2">:</span>
+                            <span class="s1">to_be_removed</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">)</span>
+                    <span class="s0">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">PeerInput</span><span class="s2">.</span><span class="s1">DISCONNECT</span><span class="s2">:</span>
+                        <span class="s1">to_be_removed</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">)</span>
+                    <span class="s0">elif </span><span class="s1">event </span><span class="s2">== </span><span class="s1">PeerInput</span><span class="s2">.</span><span class="s1">DISCONNECT_ALL</span><span class="s2">:</span>
+                        <span class="s0">for </span><span class="s1">connection </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">connections</span><span class="s2">:</span>
+                            <span class="s1">to_be_removed</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">)</span>
+            <span class="s0">for </span><span class="s1">connection </span><span class="s0">in </span><span class="s1">to_be_removed</span><span class="s2">:</span>
+                <span class="s1">connection</span><span class="s2">.</span><span class="s1">async_task</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">()</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s0">await </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">async_task</span>
+                <span class="s0">except</span><span class="s2">:</span>
+                    <span class="s0">pass</span>
+            <span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">sleep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">main_thread_sleep_time</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">connection </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">connections</span><span class="s2">:</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">async_task</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">()</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s0">await </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">async_task</span>
+            <span class="s0">except</span><span class="s2">:</span>
+                <span class="s0">pass</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">is_host</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">listen_task</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">()</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s0">await </span><span class="s1">self</span><span class="s2">.</span><span class="s1">listen_task</span>
+            <span class="s0">except</span><span class="s2">:</span>
+                <span class="s0">pass</span>
+
+    <span class="s0">async def </span><span class="s1">_listen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">while True</span><span class="s2">:</span>
+                <span class="s1">client_socket</span><span class="s2">, </span><span class="s1">client_address </span><span class="s2">= </span><span class="s0">await </span><span class="s1">async_loop</span><span class="s2">.</span><span class="s1">sock_accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">use_tls</span><span class="s2">:</span>
+                    <span class="s1">socket_wrap_failed </span><span class="s2">= </span><span class="s0">True</span>
+                    <span class="s0">try</span><span class="s2">:</span>
+                        <span class="s1">client_socket </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_context</span><span class="s2">.</span><span class="s1">wrap_socket</span><span class="s2">(</span><span class="s1">client_socket</span><span class="s2">, </span><span class="s1">server_side</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">do_handshake_on_connect</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+                        <span class="s1">socket_wrap_failed </span><span class="s2">= </span><span class="s0">False</span>
+                    <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                        <span class="s0">pass</span>
+                    <span class="s0">if </span><span class="s1">socket_wrap_failed</span><span class="s2">:</span>
+                        <span class="s0">try</span><span class="s2">:</span>
+                            <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+                        <span class="s0">except</span><span class="s2">:</span>
+                            <span class="s0">pass</span>
+                        <span class="s0">continue</span>
+                    <span class="s1">handshake_failed </span><span class="s2">= </span><span class="s0">True</span>
+                    <span class="s0">while True</span><span class="s2">:</span>
+                        <span class="s0">try</span><span class="s2">:</span>
+                            <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">do_handshake</span><span class="s2">()</span>
+                            <span class="s1">handshake_failed </span><span class="s2">= </span><span class="s0">False</span>
+                            <span class="s0">break</span>
+                        <span class="s0">except </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">SSLWantReadError </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                            <span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">sleep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_handshake_sleep_time</span><span class="s2">)</span>
+                        <span class="s0">except </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">SSLWantWriteError </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                            <span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">sleep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ssl_handshake_sleep_time</span><span class="s2">)</span>
+                        <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                            <span class="s0">break</span>
+                    <span class="s0">if </span><span class="s1">handshake_failed</span><span class="s2">:</span>
+                        <span class="s0">try</span><span class="s2">:</span>
+                            <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+                        <span class="s0">except</span><span class="s2">:</span>
+                            <span class="s0">pass</span>
+                        <span class="s0">continue</span>
+                <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">setblocking</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+                <span class="s1">client_socket</span><span class="s2">.</span><span class="s1">setsockopt</span><span class="s2">(</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">IPPROTO_TCP</span><span class="s2">, </span><span class="s1">socket</span><span class="s2">.</span><span class="s1">TCP_NODELAY</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_add_connection</span><span class="s2">(</span><span class="s1">client_socket</span><span class="s2">, </span><span class="s1">client_address</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">)</span>
+        <span class="s0">except </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">CancelledError</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+        <span class="s0">finally</span><span class="s2">:</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s0">except</span><span class="s2">:</span>
+                <span class="s0">pass</span>
+
+    <span class="s0">async def </span><span class="s1">_recv</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">):</span>
+        <span class="s1">data </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s0">while True</span><span class="s2">:</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">data </span><span class="s2">= </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">recv</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">.</span><span class="s1">expected_byte_count</span><span class="s2">)</span>
+                <span class="s0">break</span>
+            <span class="s0">except </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">SSLWantReadError</span><span class="s2">:</span>
+                <span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">sleep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">recv_ssl_sleep_time</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">ssl</span><span class="s2">.</span><span class="s1">SSLWantWriteError</span><span class="s2">:</span>
+                <span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">sleep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">recv_ssl_sleep_time</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">BlockingIOError</span><span class="s2">:</span>
+                <span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">sleep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">recv_unavailable_sleep_time</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                <span class="s0">raise</span>
+        <span class="s0">return </span><span class="s1">data</span>
+
+    <span class="s0">async def </span><span class="s1">_receive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">while True</span><span class="s2">:</span>
+                <span class="s1">data </span><span class="s2">= </span><span class="s0">None</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">connection_timeout </span><span class="s0">is None</span><span class="s2">:</span>
+                        <span class="s1">data </span><span class="s2">= </span><span class="s0">await </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_recv</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">)</span>
+                    <span class="s0">else</span><span class="s2">:</span>
+                        <span class="s1">data </span><span class="s2">= </span><span class="s0">await </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">wait_for</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_recv</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">async_loop</span><span class="s2">), </span><span class="s1">timeout</span><span class="s2">=</span><span class="s1">connection</span><span class="s2">.</span><span class="s1">connection_timeout</span><span class="s2">)</span>
+                <span class="s0">except </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">exceptions</span><span class="s2">.</span><span class="s1">TimeoutError</span><span class="s2">:</span>
+                    <span class="s1">connection</span><span class="s2">.</span><span class="s1">timed_out </span><span class="s2">= </span><span class="s0">True</span>
+                    <span class="s0">raise</span>
+                <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+                    <span class="s0">raise</span>
+                <span class="s0">if </span><span class="s1">data </span><span class="s0">is None</span><span class="s2">:</span>
+                    <span class="s0">break</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">data</span><span class="s2">) == </span><span class="s5">0</span><span class="s2">:</span>
+                    <span class="s0">break</span>
+                <span class="s1">connection</span><span class="s2">.</span><span class="s1">bytes_received </span><span class="s2">+= </span><span class="s1">data</span>
+                <span class="s1">connection</span><span class="s2">.</span><span class="s1">expected_byte_count </span><span class="s2">-= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">data</span><span class="s2">)</span>
+
+                <span class="s0">if </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">expected_byte_count </span><span class="s2">== </span><span class="s5">0</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s4">&quot;l&quot;</span><span class="s2">:</span>
+                        <span class="s1">l </span><span class="s2">= </span><span class="s1">struct</span><span class="s2">.</span><span class="s1">unpack</span><span class="s2">(</span><span class="s4">&quot;&gt;H&quot;</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">bytes_received</span><span class="s2">)[</span><span class="s5">0</span><span class="s2">]</span>
+                        <span class="s1">connection</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s4">&quot;c&quot;</span>
+                        <span class="s1">connection</span><span class="s2">.</span><span class="s1">expected_byte_count </span><span class="s2">= </span><span class="s1">l</span>
+                        <span class="s1">connection</span><span class="s2">.</span><span class="s1">bytes_received</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+                    <span class="s0">elif </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s4">&quot;c&quot;</span><span class="s2">:</span>
+                        <span class="s1">d </span><span class="s2">= </span><span class="s1">bytes</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">.</span><span class="s1">bytes_received</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">())</span>
+                        <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_lock</span><span class="s2">:</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">PeerEvent</span><span class="s2">.</span><span class="s1">DATA</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">()))</span>
+                        <span class="s1">connection</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s4">&quot;l&quot;</span>
+                        <span class="s1">connection</span><span class="s2">.</span><span class="s1">expected_byte_count </span><span class="s2">= </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">length_byte_count</span>
+                        <span class="s1">connection</span><span class="s2">.</span><span class="s1">bytes_received</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+        <span class="s0">except </span><span class="s1">asyncio</span><span class="s2">.</span><span class="s1">CancelledError</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+        <span class="s0">finally</span><span class="s2">:</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">connection</span><span class="s2">.</span><span class="s1">socket</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s0">except</span><span class="s2">:</span>
+                <span class="s0">pass</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s4">&quot;l&quot;</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">bytes_received</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">expected_byte_count </span><span class="s2">= </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">length_byte_count</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">connected </span><span class="s2">= </span><span class="s0">False</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">connections</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">)</span>
+            <span class="s0">with </span><span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_lock</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">output_event_queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">PeerEvent</span><span class="s2">.</span><span class="s1">DISCONNECT</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s0">None</span><span class="s2">, </span><span class="s0">None</span><span class="s2">))</span>
+            <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">is_host</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s0">False</span>
+
+
+<span class="s3"># -- Description --</span>
+<span class="s3"># Main serialization class used by the networking module.</span>
+<span class="s0">class </span><span class="s1">DatagramWriter</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram </span><span class="s2">= </span><span class="s1">PyDatagram</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">type_functions </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">register_type</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">the_type</span><span class="s2">, </span><span class="s1">write_func</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">type_functions</span><span class="s2">[</span><span class="s1">the_type</span><span class="s2">] = </span><span class="s1">write_func</span>
+
+    <span class="s0">def </span><span class="s1">clear</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram </span><span class="s2">= </span><span class="s1">PyDatagram</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">get_datagram</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span>
+
+    <span class="s0">def </span><span class="s1">write</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">converter_func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">type_functions</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">value</span><span class="s2">))</span>
+        <span class="s0">if </span><span class="s1">converter_func </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">converter_func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">bool</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_bool</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">int</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_int64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">float</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">str</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_string32</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">Vec2</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">Vec3</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">Vec4</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s5">3</span><span class="s2">])</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">tuple</span><span class="s2">):</span>
+                <span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">value</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">v</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">list</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_int16</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">value</span><span class="s2">))</span>
+                <span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">value</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">v</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">bytes</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">write_blob</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Unsupported value type for DatagramWriter: </span><span class="s0">{</span><span class="s1">type</span><span class="s2">(</span><span class="s1">value</span><span class="s2">).</span><span class="s1">__name__</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_string</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addString</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_string32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addString32</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_bool</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBool</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_int8</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addInt8</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_int16</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBeInt16</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_int32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBeInt32</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_int64</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBeInt64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_float32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBeFloat32</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_float64</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBeFloat64</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_blob</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBlob</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">write_blob32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">.</span><span class="s1">addBlob32</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+
+<span class="s3"># Used internally by networking module.</span>
+<span class="s0">class </span><span class="s1">ExceedsListLimitException</span><span class="s2">(</span><span class="s1">Exception</span><span class="s2">):</span>
+    <span class="s0">pass</span>
+
+
+<span class="s3"># -- Description --</span>
+<span class="s3"># Main deserialization class used by the networking module.</span>
+<span class="s0">class </span><span class="s1">DatagramReader</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">iter </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">read_functions </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">register_type</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">the_type</span><span class="s2">, </span><span class="s1">read_func</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">read_functions</span><span class="s2">[</span><span class="s1">the_type</span><span class="s2">] = </span><span class="s1">read_func</span>
+
+    <span class="s0">def </span><span class="s1">set_datagram</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">datagram</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">datagram </span><span class="s2">= </span><span class="s1">datagram</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">iter </span><span class="s2">= </span><span class="s1">PyDatagramIterator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">get_datagram</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">datagram</span>
+
+    <span class="s0">def </span><span class="s1">set_datagram_from_blob</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">blob</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set_datagram</span><span class="s2">(</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">Datagram</span><span class="s2">(</span><span class="s1">blob</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">read</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value_type</span><span class="s2">, </span><span class="s1">max_list_length</span><span class="s2">=</span><span class="s5">1000</span><span class="s2">):</span>
+        <span class="s1">converter_func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_functions</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">value_type</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">converter_func </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">converter_func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">bool</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_bool</span><span class="s2">()</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">int</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_int64</span><span class="s2">()</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">float</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">()</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">str</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_string32</span><span class="s2">()</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">Vec2</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">())</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">Vec3</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">())</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">Vec4</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_float64</span><span class="s2">())</span>
+            <span class="s0">elif </span><span class="s1">type</span><span class="s2">(</span><span class="s1">value_type</span><span class="s2">) </span><span class="s0">is </span><span class="s1">tuple</span><span class="s2">:</span>
+                <span class="s1">origin_type </span><span class="s2">= </span><span class="s1">value_type</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+                <span class="s0">if </span><span class="s1">origin_type </span><span class="s0">is </span><span class="s1">tuple</span><span class="s2">:</span>
+                    <span class="s1">arg_types </span><span class="s2">= </span><span class="s1">value_type</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+                    <span class="s1">values </span><span class="s2">= []</span>
+                    <span class="s0">for </span><span class="s1">arg_type </span><span class="s0">in </span><span class="s1">arg_types</span><span class="s2">:</span>
+                        <span class="s1">values</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">read</span><span class="s2">(</span><span class="s1">arg_type</span><span class="s2">))</span>
+                    <span class="s0">return </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">values</span><span class="s2">)</span>
+                <span class="s0">elif </span><span class="s1">origin_type </span><span class="s0">is </span><span class="s1">list</span><span class="s2">:</span>
+                    <span class="s1">arg_type </span><span class="s2">= </span><span class="s1">value_type</span><span class="s2">[</span><span class="s5">1</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+                    <span class="s0">if </span><span class="s1">arg_type </span><span class="s0">is </span><span class="s1">list</span><span class="s2">:</span>
+                        <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">&quot;DatagramReader does not support lists of lists.&quot;</span><span class="s2">)</span>
+                    <span class="s1">l </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_int16</span><span class="s2">()</span>
+                    <span class="s0">if </span><span class="s1">l </span><span class="s2">&gt; </span><span class="s1">max_list_length</span><span class="s2">:</span>
+                        <span class="s0">raise </span><span class="s1">ExceedsListLimitException</span><span class="s2">(</span><span class="s4">&quot;Received list that exceeds the max list length allowed by the DatagramReader.&quot;</span><span class="s2">)</span>
+                    <span class="s1">values </span><span class="s2">= []</span>
+                    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">l</span><span class="s2">):</span>
+                        <span class="s1">values</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">read</span><span class="s2">(</span><span class="s1">arg_type</span><span class="s2">))</span>
+                    <span class="s0">return </span><span class="s1">values</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Unsupported value type for DatagramReader: </span><span class="s0">{</span><span class="s1">value_type</span><span class="s2">.</span><span class="s1">__name__</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s0">elif </span><span class="s1">value_type </span><span class="s0">is </span><span class="s1">bytes</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">read_blob</span><span class="s2">()</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Unsupported value type for DatagramReader: </span><span class="s0">{</span><span class="s1">value_type</span><span class="s2">.</span><span class="s1">__name__</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">read_string</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getString</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_string32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getString32</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_bool</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBool</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_int8</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getInt8</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_int16</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBeInt16</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_int32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBeInt32</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_int64</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBeInt64</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_float32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBeFloat32</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_float64</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBeFloat64</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_blob</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBlob</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">read_blob32</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iter</span><span class="s2">.</span><span class="s1">getBlob32</span><span class="s2">()</span>
+
+
+<span class="s3"># Gives a 32 bit hash value (shifted one right (31 bit)) that is the same across runs and devices.</span>
+<span class="s0">def </span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+    <span class="s1">h </span><span class="s2">= </span><span class="s1">hashlib</span><span class="s2">.</span><span class="s1">sha1</span><span class="s2">(</span><span class="s1">name</span><span class="s2">.</span><span class="s1">encode</span><span class="s2">(</span><span class="s4">&quot;utf-8&quot;</span><span class="s2">), </span><span class="s1">usedforsecurity</span><span class="s2">=</span><span class="s0">False</span><span class="s2">).</span><span class="s1">digest</span><span class="s2">()</span>
+    <span class="s0">return </span><span class="s1">int</span><span class="s2">.</span><span class="s1">from_bytes</span><span class="s2">(</span><span class="s1">h</span><span class="s2">[:</span><span class="s5">4</span><span class="s2">], </span><span class="s1">byteorder</span><span class="s2">=</span><span class="s4">&quot;big&quot;</span><span class="s2">) &gt;&gt; </span><span class="s5">1</span>
+
+
+<span class="s3"># -- Description --</span>
+<span class="s3"># Main remote procedure call class used by the networking module.</span>
+<span class="s3"># This class is likely the one you are looking for.</span>
+<span class="s3"># -- max list length --</span>
+<span class="s3"># Lists are supported for remote procedure calls, but to prevent attacks involving giant lists,</span>
+<span class="s3"># there is an upper limit on the length, this can be configured, the default is small on purpose.</span>
+<span class="s3"># -- kwargs --</span>
+<span class="s3"># The remaining keyword arguments are passed to Peer, see the Peer class for more information.</span>
+<span class="s3"># -- Notes --</span>
+<span class="s3"># The first two arguments passed to a remote procedure call are connection, and time_received.</span>
+<span class="s3"># You can disable the printing of messages on connect and disconnect via the</span>
+<span class="s3"># print_connect, and print_disconnect booleans.</span>
+<span class="s3"># See the networking samples on how to use this class.</span>
+<span class="s0">class </span><span class="s1">RPCPeer</span><span class="s2">:</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">max_list_length</span><span class="s2">=</span><span class="s5">16</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer </span><span class="s2">= </span><span class="s1">Peer</span><span class="s2">(**</span><span class="s1">kwargs</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">max_list_length </span><span class="s2">= </span><span class="s1">max_list_length</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">print_connect </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">print_disconnect </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s0">def </span><span class="s1">default_on_connect</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_connected</span><span class="s2">):</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">rpc_peer </span><span class="s2">= </span><span class="s1">self</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">print_connect</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;New connection:&quot;</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">address</span><span class="s2">)</span>
+            <span class="s1">on_connects </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s4">&quot;on_connect&quot;</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">on_connects </span><span class="s0">is not None</span><span class="s2">:</span>
+                <span class="s0">for </span><span class="s1">on_connect </span><span class="s0">in </span><span class="s1">reversed</span><span class="s2">(</span><span class="s1">on_connects</span><span class="s2">):</span>
+                    <span class="s1">host_only </span><span class="s2">= </span><span class="s1">on_connect</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]</span>
+                    <span class="s1">client_only </span><span class="s2">= </span><span class="s1">on_connect</span><span class="s2">[</span><span class="s5">4</span><span class="s2">]</span>
+                    <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">is_hosting</span><span class="s2">():</span>
+                        <span class="s0">if not </span><span class="s1">client_only</span><span class="s2">:</span>
+                            <span class="s1">on_connect</span><span class="s2">[</span><span class="s5">2</span><span class="s2">](</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_connected</span><span class="s2">)</span>
+                    <span class="s0">else</span><span class="s2">:</span>
+                        <span class="s0">if not </span><span class="s1">host_only</span><span class="s2">:</span>
+                            <span class="s1">on_connect</span><span class="s2">[</span><span class="s5">2</span><span class="s2">](</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_connected</span><span class="s2">)</span>
+
+        <span class="s0">def </span><span class="s1">default_on_disconnect</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_disconnected</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">print_disconnect</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;Disconnected:&quot;</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">.</span><span class="s1">address</span><span class="s2">)</span>
+            <span class="s1">on_disconnects </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s4">&quot;on_disconnect&quot;</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">on_disconnects </span><span class="s0">is not None</span><span class="s2">:</span>
+                <span class="s0">for </span><span class="s1">on_disconnect </span><span class="s0">in </span><span class="s1">reversed</span><span class="s2">(</span><span class="s1">on_disconnects</span><span class="s2">):</span>
+                    <span class="s1">host_only </span><span class="s2">= </span><span class="s1">on_disconnect</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]</span>
+                    <span class="s1">client_only </span><span class="s2">= </span><span class="s1">on_disconnect</span><span class="s2">[</span><span class="s5">4</span><span class="s2">]</span>
+                    <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">is_hosting</span><span class="s2">():</span>
+                        <span class="s0">if not </span><span class="s1">client_only</span><span class="s2">:</span>
+                            <span class="s1">on_disconnect</span><span class="s2">[</span><span class="s5">2</span><span class="s2">](</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_disconnected</span><span class="s2">)</span>
+                    <span class="s0">else</span><span class="s2">:</span>
+                        <span class="s0">if not </span><span class="s1">host_only</span><span class="s2">:</span>
+                            <span class="s1">on_disconnect</span><span class="s2">[</span><span class="s5">2</span><span class="s2">](</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_disconnected</span><span class="s2">)</span>
+
+        <span class="s0">def </span><span class="s1">on_data</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">data</span><span class="s2">, </span><span class="s1">time_received</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">rpc_on_data</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">data</span><span class="s2">, </span><span class="s1">time_received</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">on_connect </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">on_connect </span><span class="s2">= </span><span class="s1">default_on_connect</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">on_disconnect </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">on_disconnect </span><span class="s2">= </span><span class="s1">default_on_disconnect</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">on_data </span><span class="s2">= </span><span class="s1">on_data</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">procedures </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">[</span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s4">&quot;on_connect&quot;</span><span class="s2">)] = []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">[</span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s4">&quot;on_disconnect&quot;</span><span class="s2">)] = []</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">writer </span><span class="s2">= </span><span class="s1">DatagramWriter</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reader </span><span class="s2">= </span><span class="s1">DatagramReader</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">is_using_tls</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">is_using_tls</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">start</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">port</span><span class="s2">, </span><span class="s1">is_host</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">backlog</span><span class="s2">=</span><span class="s5">100</span><span class="s2">, </span><span class="s1">tls_host_name</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">socket_address_family</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">start</span><span class="s2">(</span><span class="s1">host_name</span><span class="s2">, </span><span class="s1">port</span><span class="s2">, </span><span class="s1">is_host</span><span class="s2">=</span><span class="s1">is_host</span><span class="s2">, </span><span class="s1">backlog</span><span class="s2">=</span><span class="s1">backlog</span><span class="s2">, </span><span class="s1">tls_host_name</span><span class="s2">=</span><span class="s1">tls_host_name</span><span class="s2">, </span><span class="s1">socket_address_family</span><span class="s2">=</span><span class="s1">socket_address_family</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">stop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">max_events</span><span class="s2">=</span><span class="s5">100</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">update</span><span class="s2">(</span><span class="s1">max_events</span><span class="s2">=</span><span class="s1">max_events</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">is_running</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">is_running</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">is_hosting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">is_hosting</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">disconnect_all</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">disconnect_all</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">connection_count</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">connection_count</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">get_connections</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">get_connections</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">register_type</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">the_type</span><span class="s2">, </span><span class="s1">write_func</span><span class="s2">, </span><span class="s1">read_func</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">writer</span><span class="s2">.</span><span class="s1">register_type</span><span class="s2">(</span><span class="s1">the_type</span><span class="s2">, </span><span class="s1">write_func</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reader</span><span class="s2">.</span><span class="s1">register_type</span><span class="s2">(</span><span class="s1">the_type</span><span class="s2">, </span><span class="s1">read_func</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">register_procedure</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">proc</span><span class="s2">, </span><span class="s1">host_only</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">client_only</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">prefix</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">func_spec </span><span class="s2">= </span><span class="s1">inspect</span><span class="s2">.</span><span class="s1">getfullargspec</span><span class="s2">(</span><span class="s1">proc</span><span class="s2">)</span>
+        <span class="s0">if not </span><span class="s1">len</span><span class="s2">(</span><span class="s1">func_spec</span><span class="s2">.</span><span class="s1">args</span><span class="s2">) &gt;= </span><span class="s5">2</span><span class="s2">:</span>
+            <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;</span><span class="s0">{</span><span class="s1">proc</span><span class="s2">.</span><span class="s1">__name__</span><span class="s0">} </span><span class="s4">must have at least two arguments, connection and time_received.&quot;</span><span class="s2">)</span>
+        <span class="s1">func_args </span><span class="s2">= </span><span class="s1">func_spec</span><span class="s2">.</span><span class="s1">args</span><span class="s2">[</span><span class="s5">2</span><span class="s2">:]</span>
+        <span class="s0">if </span><span class="s1">func_spec</span><span class="s2">.</span><span class="s1">args</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] == </span><span class="s4">&quot;self&quot;</span><span class="s2">:</span>
+            <span class="s1">func_args </span><span class="s2">= </span><span class="s1">func_args</span><span class="s2">[</span><span class="s5">1</span><span class="s2">:]</span>
+        <span class="s1">arg_types </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">func_arg </span><span class="s0">in </span><span class="s1">func_args</span><span class="s2">:</span>
+            <span class="s1">func_arg_type </span><span class="s2">= </span><span class="s1">func_spec</span><span class="s2">.</span><span class="s1">annotations</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">func_arg</span><span class="s2">)</span>
+            <span class="s0">if not </span><span class="s1">func_arg_type </span><span class="s0">is not None</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Failed to register the '</span><span class="s0">{</span><span class="s1">proc</span><span class="s2">.</span><span class="s1">__name__</span><span class="s0">}</span><span class="s4">' procedure, it's missing a type annotation for the '</span><span class="s0">{</span><span class="s1">func_arg</span><span class="s0">}</span><span class="s4">' argument.&quot;</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">func_arg_type</span><span class="s2">) </span><span class="s0">is </span><span class="s1">types</span><span class="s2">.</span><span class="s1">GenericAlias</span><span class="s2">:</span>
+                <span class="s1">arg_types</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">typing</span><span class="s2">.</span><span class="s1">get_origin</span><span class="s2">(</span><span class="s1">func_arg_type</span><span class="s2">), </span><span class="s1">typing</span><span class="s2">.</span><span class="s1">get_args</span><span class="s2">(</span><span class="s1">func_arg_type</span><span class="s2">)))</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">arg_types</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">func_arg_type</span><span class="s2">)</span>
+        <span class="s1">proc_name </span><span class="s2">= </span><span class="s1">proc</span><span class="s2">.</span><span class="s1">__name__</span>
+        <span class="s0">if </span><span class="s1">prefix </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">proc_name </span><span class="s2">= </span><span class="s1">prefix </span><span class="s2">+ </span><span class="s4">&quot;_&quot; </span><span class="s2">+ </span><span class="s1">proc_name</span>
+        <span class="s1">procedure_name_hash </span><span class="s2">= </span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s1">proc_name</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">proc</span><span class="s2">.</span><span class="s1">__name__ </span><span class="s0">in </span><span class="s2">(</span><span class="s4">&quot;on_connect&quot;</span><span class="s2">, </span><span class="s4">&quot;on_disconnect&quot;</span><span class="s2">):</span>
+            <span class="s1">p </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">procedure_name_hash</span><span class="s2">)</span>
+            <span class="s1">p</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">proc_name</span><span class="s2">, </span><span class="s1">arg_types</span><span class="s2">, </span><span class="s1">proc</span><span class="s2">, </span><span class="s1">host_only</span><span class="s2">, </span><span class="s1">client_only</span><span class="s2">))</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if not </span><span class="s1">procedure_name_hash </span><span class="s0">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;</span><span class="s0">{</span><span class="s1">proc_name</span><span class="s0">} </span><span class="s4">was already registered before.&quot;</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">[</span><span class="s1">procedure_name_hash</span><span class="s2">] = (</span><span class="s1">proc_name</span><span class="s2">, </span><span class="s1">arg_types</span><span class="s2">, </span><span class="s1">proc</span><span class="s2">, </span><span class="s1">host_only</span><span class="s2">, </span><span class="s1">client_only</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__getattr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s0">def </span><span class="s1">remote_procedure</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">):</span>
+            <span class="s0">if not </span><span class="s1">len</span><span class="s2">(</span><span class="s1">args</span><span class="s2">) &gt;= </span><span class="s5">1</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Remote procedure call '</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s4">' must have at least one argument, the connection.&quot;</span><span class="s2">)</span>
+            <span class="s0">if not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">args</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">Connection</span><span class="s2">):</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;First argument to the RPC '</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s4">' must be a 'Connection' type.&quot;</span><span class="s2">)</span>
+            <span class="s1">procedure_name_hash </span><span class="s2">= </span><span class="s1">procedure_hash</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">writer</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">writer</span><span class="s2">.</span><span class="s1">write_int32</span><span class="s2">(</span><span class="s1">procedure_name_hash</span><span class="s2">)</span>
+            <span class="s1">connection </span><span class="s2">= </span><span class="s1">args</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s0">for </span><span class="s1">arg </span><span class="s0">in </span><span class="s1">args</span><span class="s2">[</span><span class="s5">1</span><span class="s2">:]:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">writer</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">arg</span><span class="s2">)</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">writer</span><span class="s2">.</span><span class="s1">get_datagram</span><span class="s2">().</span><span class="s1">getMessage</span><span class="s2">())</span>
+
+        <span class="s0">return </span><span class="s1">remote_procedure</span>
+
+    <span class="s0">def </span><span class="s1">rpc_on_data</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">connection</span><span class="s2">, </span><span class="s1">data</span><span class="s2">, </span><span class="s1">time_received</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reader</span><span class="s2">.</span><span class="s1">set_datagram</span><span class="s2">(</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">Datagram</span><span class="s2">(</span><span class="s1">data</span><span class="s2">))</span>
+
+        <span class="s1">proc_name </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">proc_func </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">proc_arg_values </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">proc_arg_types </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">host_only </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">client_only </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">procedure_name_hash </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">reader</span><span class="s2">.</span><span class="s1">read_int32</span><span class="s2">()</span>
+            <span class="s1">proc </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">procedures</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">procedure_name_hash</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">proc </span><span class="s0">is None</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">&quot;Remote attempted to call a RPC that does not exist (maybe a name typo in the source code?).&quot;</span><span class="s2">)</span>
+            <span class="s1">proc_name </span><span class="s2">= </span><span class="s1">proc</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s1">proc_arg_types </span><span class="s2">= </span><span class="s1">proc</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+            <span class="s1">proc_func </span><span class="s2">= </span><span class="s1">proc</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]</span>
+            <span class="s1">host_only </span><span class="s2">= </span><span class="s1">proc</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]</span>
+            <span class="s1">client_only </span><span class="s2">= </span><span class="s1">proc</span><span class="s2">[</span><span class="s5">4</span><span class="s2">]</span>
+            <span class="s1">proc_arg_values </span><span class="s2">= []</span>
+            <span class="s1">arg_type </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">proc_arg_types</span><span class="s2">:</span>
+                    <span class="s1">arg_type </span><span class="s2">= </span><span class="s1">t</span>
+                    <span class="s1">v </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">reader</span><span class="s2">.</span><span class="s1">read</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s1">max_list_length</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">max_list_length</span><span class="s2">)</span>
+                    <span class="s1">proc_arg_values</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">v</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">ExceedsListLimitException</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Argument with type '</span><span class="s0">{</span><span class="s1">arg_type</span><span class="s0">}</span><span class="s4">' exceeds max list size limit for procedure '</span><span class="s0">{</span><span class="s1">proc_name</span><span class="s0">}</span><span class="s4">'.&quot;</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                <span class="s0">raise </span><span class="s1">Exception</span><span class="s2">(</span><span class="s4">f&quot;Received invalid or missing argument or list/tuple exceeding max length allowed for procedure '</span><span class="s0">{</span><span class="s1">proc_name</span><span class="s0">}</span><span class="s4">', expected a '</span><span class="s0">{</span><span class="s1">arg_type</span><span class="s0">}</span><span class="s4">'.</span><span class="s0">\n    {</span><span class="s1">str</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span><span class="s0">}</span><span class="s4">&quot;</span><span class="s2">)</span>
+        <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;WARNING: Received invalid remote procedure call, disconnecting...&quot;</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+            <span class="s1">connection</span><span class="s2">.</span><span class="s1">disconnect</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">proc_func </span><span class="s0">is not None and </span><span class="s1">proc_arg_types </span><span class="s0">is not None and </span><span class="s1">proc_arg_values </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">proc_arg_values</span><span class="s2">) != </span><span class="s1">len</span><span class="s2">(</span><span class="s1">proc_arg_types</span><span class="s2">):</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;WARNING: Received invalid remote procedure call, disconnecting...&quot;</span><span class="s2">)</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;Received an invalid number of arguments for procedure '{proc_name}'.&quot;</span><span class="s2">)</span>
+                <span class="s1">connection</span><span class="s2">.</span><span class="s1">disconnect</span><span class="s2">()</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">peer</span><span class="s2">.</span><span class="s1">is_hosting</span><span class="s2">():</span>
+                    <span class="s0">if not </span><span class="s1">client_only</span><span class="s2">:</span>
+                        <span class="s1">proc_func</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_received</span><span class="s2">, *</span><span class="s1">proc_arg_values</span><span class="s2">)</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s0">if not </span><span class="s1">host_only</span><span class="s2">:</span>
+                        <span class="s1">proc_func</span><span class="s2">(</span><span class="s1">connection</span><span class="s2">, </span><span class="s1">time_received</span><span class="s2">, *</span><span class="s1">proc_arg_values</span><span class="s2">)</span>
+
+
+<span class="s3"># Convenience attribute applied to functions to register them as remote procedure calls.</span>
+<span class="s3">#</span>
+<span class="s3"># @rpc(my_rpc_peer_object)</span>
+<span class="s3"># def foo(connection, time_received, x: int):</span>
+<span class="s3">#     print(x)</span>
+<span class="s0">def </span><span class="s1">rpc</span><span class="s2">(</span><span class="s1">peer</span><span class="s2">, </span><span class="s1">host_only</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">client_only</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">wrapper</span><span class="s2">(</span><span class="s1">f</span><span class="s2">):</span>
+        <span class="s1">peer</span><span class="s2">.</span><span class="s1">register_procedure</span><span class="s2">(</span><span class="s1">f</span><span class="s2">, </span><span class="s1">host_only</span><span class="s2">=</span><span class="s1">host_only</span><span class="s2">, </span><span class="s1">client_only</span><span class="s2">=</span><span class="s1">client_only</span><span class="s2">)</span>
+    <span class="s0">return </span><span class="s1">wrapper</span>
+
+
+<span class="s3"># Prevent error message spam from Panda3D network module.</span>
+<span class="s1">p3d</span><span class="s2">.</span><span class="s1">loadPrcFileData</span><span class="s2">(</span><span class="s4">&quot;&quot;</span><span class="s2">, </span><span class="s4">&quot;notify-level-net fatal&quot;</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

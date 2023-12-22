@@ -1,0 +1,785 @@
+<html>
+<head>
+<title>Valuator.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Valuator.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Undocumented Module&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Valuator'</span><span class="s2">, </span><span class="s3">'ValuatorGroup'</span><span class="s2">, </span><span class="s3">'ValuatorGroupPanel'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">TkGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">WidgetPropertiesDialog</span>
+<span class="s4">import </span><span class="s1">Pmw</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directtools</span><span class="s2">.</span><span class="s1">DirectUtil </span><span class="s4">import </span><span class="s1">getTkColorString</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s1">Vec4</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+    <span class="s4">from </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">colorchooser </span><span class="s4">import </span><span class="s1">askcolor</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s4">from </span><span class="s1">tkColorChooser </span><span class="s4">import </span><span class="s1">askcolor</span>
+
+<span class="s1">VALUATOR_MINI </span><span class="s2">= </span><span class="s3">'mini'</span>
+<span class="s1">VALUATOR_FULL </span><span class="s2">= </span><span class="s3">'full'</span>
+
+<span class="s4">class </span><span class="s1">Valuator</span><span class="s2">(</span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">):</span>
+    <span class="s1">sfBase </span><span class="s2">= </span><span class="s5">3.0</span>
+    <span class="s1">sfDist </span><span class="s2">= </span><span class="s5">7</span>
+    <span class="s1">deadband </span><span class="s2">= </span><span class="s5">5</span>
+    <span class="s3">&quot;&quot;&quot; Base class for widgets used to interactively adjust numeric values &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s6">#define the megawidget options</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'state'</span><span class="s2">,             </span><span class="s1">NORMAL</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setState</span><span class="s2">),</span>
+            <span class="s6"># Widget appearance</span>
+            <span class="s2">(</span><span class="s3">'relief'</span><span class="s2">,            </span><span class="s1">GROOVE</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderwidth'</span><span class="s2">,       </span><span class="s5">2</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'text'</span><span class="s2">,              </span><span class="s3">'Valuator'</span><span class="s2">,     </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setLabel</span><span class="s2">),</span>
+            <span class="s6"># Initial and reset values</span>
+            <span class="s2">(</span><span class="s3">'value'</span><span class="s2">,             </span><span class="s5">0.0</span><span class="s2">,            </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'resetValue'</span><span class="s2">,        </span><span class="s5">0.0</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Behavior</span>
+            <span class="s2">(</span><span class="s3">'min'</span><span class="s2">,               </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'max'</span><span class="s2">,               </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'resolution'</span><span class="s2">,        </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numDigits'</span><span class="s2">,         </span><span class="s5">2</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setEntryFormat</span><span class="s2">),</span>
+            <span class="s6"># Enable/disable popup menu</span>
+            <span class="s2">(</span><span class="s3">'fAdjustable'</span><span class="s2">,       </span><span class="s5">1</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Actions</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'commandData'</span><span class="s2">,       [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'fCommandOnInit'</span><span class="s2">,    </span><span class="s5">0</span><span class="s2">,              </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s6"># Callbacks to execute when updating widget's value</span>
+            <span class="s2">(</span><span class="s3">'preCallback'</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'postCallback'</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to callback function, needs to be a list</span>
+            <span class="s2">(</span><span class="s3">'callbackData'</span><span class="s2">,      [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the superclass</span>
+        <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Current adjusted (for min/max/resolution) value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">adjustedValue </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">]</span>
+
+        <span class="s6"># Create the components</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+        <span class="s1">interior</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">relief </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">], </span><span class="s1">bd </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderwidth'</span><span class="s2">])</span>
+
+        <span class="s6"># The Valuator</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createValuator</span><span class="s2">()</span>
+        <span class="s6"># Set valuator callbacks for mouse start/stop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_mouseDown</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_mouseUp</span>
+
+        <span class="s6"># The Label</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_label </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'label'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                               <span class="s1">Label</span><span class="s2">, (</span><span class="s1">interior</span><span class="s2">,),</span>
+                                               <span class="s1">text </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">],</span>
+                                               <span class="s1">font </span><span class="s2">= (</span><span class="s3">'MS Sans Serif'</span><span class="s2">, </span><span class="s5">12</span><span class="s2">),</span>
+                                               <span class="s1">anchor </span><span class="s2">= </span><span class="s1">CENTER</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_label </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s6"># The entry</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_entryVal </span><span class="s2">= </span><span class="s1">StringVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'entry'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                           <span class="s1">Entry</span><span class="s2">, (</span><span class="s1">interior</span><span class="s2">,),</span>
+                                           <span class="s1">justify </span><span class="s2">= </span><span class="s1">RIGHT</span><span class="s2">,</span>
+                                           <span class="s1">width </span><span class="s2">= </span><span class="s5">12</span><span class="s2">,</span>
+                                           <span class="s1">textvariable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_entryVal</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;Return&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">validateEntryInput</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_entryBackground </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">cget</span><span class="s2">(</span><span class="s3">'background'</span><span class="s2">)</span>
+
+        <span class="s6"># Pack Valuator Widget</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">packValuator</span><span class="s2">()</span>
+
+        <span class="s6"># Set reset value if none specified</span>
+        <span class="s4">if </span><span class="s3">'resetValue' </span><span class="s4">not in </span><span class="s1">kw</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">]</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fAdjustable'</span><span class="s2">]:</span>
+            <span class="s6"># The popup menu</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu </span><span class="s2">= </span><span class="s1">Menu</span><span class="s2">(</span><span class="s1">interior</span><span class="s2">, </span><span class="s1">tearoff </span><span class="s2">= </span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addValuatorMenuEntries</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset'</span><span class="s2">,</span>
+                                        <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Set to Zero'</span><span class="s2">,</span>
+                                        <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zero</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span>
+                <span class="s1">label </span><span class="s2">= </span><span class="s3">'Properties...'</span><span class="s2">,</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_popupPropertiesDialog</span><span class="s2">)</span>
+            <span class="s6"># Add key bindings</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span>
+                    <span class="s3">'&lt;ButtonPress-3&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_popupValuatorMenu</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span>
+                <span class="s3">'&lt;ButtonPress-3&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_popupValuatorMenu</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span>
+                <span class="s3">'&lt;ButtonPress-3&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_popupValuatorMenu</span><span class="s2">)</span>
+
+            <span class="s6"># A Dictionary of dictionaries for the popup property dialog</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict </span><span class="s2">= {</span>
+                <span class="s3">'state'</span><span class="s2">:</span>
+                <span class="s2">{</span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                 <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'string'</span><span class="s2">,</span>
+                 <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Enter state: normal or disabled.'</span>
+                 <span class="s2">},</span>
+
+                <span class="s3">'text'</span><span class="s2">:</span>
+                <span class="s2">{</span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                 <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'string'</span><span class="s2">,</span>
+                 <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Enter label text.'</span>
+                 <span class="s2">},</span>
+
+                <span class="s3">'min'</span><span class="s2">:</span>
+                <span class="s2">{ </span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                  <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'real'</span><span class="s2">,</span>
+                  <span class="s3">'fNone'</span><span class="s2">: </span><span class="s5">1</span><span class="s2">,</span>
+                  <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Minimum allowable value. Enter None for no minimum.'</span><span class="s2">},</span>
+                <span class="s3">'max'</span><span class="s2">:</span>
+                <span class="s2">{ </span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                  <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'real'</span><span class="s2">,</span>
+                  <span class="s3">'fNone'</span><span class="s2">: </span><span class="s5">1</span><span class="s2">,</span>
+                  <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Maximum allowable value. Enter None for no maximum.'</span><span class="s2">},</span>
+                <span class="s3">'numDigits'</span><span class="s2">:</span>
+                <span class="s2">{</span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                 <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'integer'</span><span class="s2">,</span>
+                 <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Number of digits after decimal point.'</span>
+                 <span class="s2">},</span>
+
+                <span class="s3">'resolution'</span><span class="s2">:</span>
+                <span class="s2">{</span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                 <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'real'</span><span class="s2">,</span>
+                 <span class="s3">'fNone'</span><span class="s2">: </span><span class="s5">1</span><span class="s2">,</span>
+                 <span class="s3">'help'</span><span class="s2">:</span><span class="s3">'Widget resolution. Enter None for no resolution .'</span>
+                 <span class="s2">},</span>
+
+                <span class="s3">'resetValue'</span><span class="s2">:</span>
+                <span class="s2">{ </span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">,</span>
+                  <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'real'</span><span class="s2">,</span>
+                  <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Enter value to set widget to on reset.'</span><span class="s2">}</span>
+                <span class="s2">}</span>
+            <span class="s6"># Property list defines the display order of the properties</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList </span><span class="s2">= [</span>
+                <span class="s3">'state'</span><span class="s2">, </span><span class="s3">'text'</span><span class="s2">, </span><span class="s3">'min'</span><span class="s2">, </span><span class="s3">'max'</span><span class="s2">, </span><span class="s3">'numDigits'</span><span class="s2">,</span>
+                <span class="s3">'resolution'</span><span class="s2">, </span><span class="s3">'resetValue'</span><span class="s2">]</span>
+            <span class="s6"># Add any valuator specific properties</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addValuatorPropertiesToDialog</span><span class="s2">()</span>
+
+        <span class="s6"># Make sure input variables processed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fInit </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fCommandOnInit'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Update widget's value by setting valuator, which will in 
+        turn update the entry.  fCommand flag (which is passed to the 
+        valuator as commandData, which is then passed in turn to 
+        self.setEntry) controls command execution. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s1">fCommand</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s6"># Restore commandData to 1 so that interaction via valuator widget</span>
+        <span class="s6"># will result in command being executed, otherwise a set with</span>
+        <span class="s6"># commandData == 0 will stick and commands will not be executed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s5">1</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Return current widget value &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">adjustedValue</span>
+
+    <span class="s4">def </span><span class="s1">setEntry</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Update value displayed in entry, fCommand flag controls 
+        command execution 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Clamp value</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'min'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">value </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'min'</span><span class="s2">]:</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'min'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'max'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">value </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'max'</span><span class="s2">]:</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'max'</span><span class="s2">]</span>
+        <span class="s6"># Round by resolution</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'resolution'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">round</span><span class="s2">(</span><span class="s1">value </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'resolution'</span><span class="s2">]) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'resolution'</span><span class="s2">]</span>
+        <span class="s6"># Format value and use it to set entry</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_entryVal</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">entryFormat </span><span class="s2">% </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s6"># Update indicator (if any) to reflect new adjusted value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">updateIndicator</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s6"># Execute command if required</span>
+        <span class="s4">if </span><span class="s1">fCommand </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fInit </span><span class="s4">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*[</span><span class="s1">value</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">])</span>
+        <span class="s6"># Record adjusted value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">adjustedValue </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s6"># Once initialization is finished, allow commands to execute</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fInit </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setEntryFormat</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Change the number of significant digits in entry 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Create new format string</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">entryFormat </span><span class="s2">= </span><span class="s3">&quot;%.&quot; </span><span class="s2">+ </span><span class="s3">&quot;%df&quot; </span><span class="s2">% </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]</span>
+        <span class="s6"># Update entry to reflect new format</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setEntry</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">get</span><span class="s2">())</span>
+        <span class="s6"># Pass info down to valuator to adjust valuator sensitivity</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">validateEntryInput</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Check validity of entry and if valid pass along to valuator &quot;&quot;&quot;</span>
+        <span class="s1">input </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_entryVal</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s6"># Reset background</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">background </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_entryBackground</span><span class="s2">)</span>
+            <span class="s6"># Get new value and check validity</span>
+            <span class="s1">newValue </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">input</span><span class="s2">)</span>
+            <span class="s6"># If OK, execute preCallback if one defined</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_preCallback</span><span class="s2">()</span>
+            <span class="s6"># Call set to update valuator</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">newValue</span><span class="s2">)</span>
+            <span class="s6"># Execute callback</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_postCallback</span><span class="s2">()</span>
+            <span class="s6"># Update valuator to reflect adjusted value</span>
+            <span class="s6"># Don't execute command</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">adjustedValue</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+            <span class="s6"># Invalid entry, flash background</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">background </span><span class="s2">= </span><span class="s3">'Pink'</span><span class="s2">)</span>
+
+    <span class="s6"># Callbacks executed on mouse down/up</span>
+    <span class="s4">def </span><span class="s1">_mouseDown</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Function to execute at start of mouse interaction &quot;&quot;&quot;</span>
+        <span class="s6"># Execute pre interaction callback</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_preCallback</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_mouseUp</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Function to execute at end of mouse interaction &quot;&quot;&quot;</span>
+        <span class="s6"># Execute post interaction callback</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_postCallback</span><span class="s2">()</span>
+        <span class="s6"># Update valuator to reflect adjusted value</span>
+        <span class="s6"># Don't execute command</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">adjustedValue</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+
+    <span class="s6"># Callback functions</span>
+    <span class="s4">def </span><span class="s1">_preCallback</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">_postCallback</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Exectute post callback if one defined</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Enable/disable widget &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] == </span><span class="s1">NORMAL</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s1">NORMAL</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_entryBackground</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s1">NORMAL</span>
+        <span class="s4">elif </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] == </span><span class="s1">DISABLED</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">] = </span><span class="s3">'grey75'</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s1">DISABLED</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s1">DISABLED</span>
+
+    <span class="s4">def </span><span class="s1">setLabel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Update label's text &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">zero</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self.zero() 
+        Set valuator to zero 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">reset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self.reset() 
+        Reset valuator to reset value 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">mouseReset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Reset valuator to resetValue 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># If not over any canvas item</span>
+        <span class="s6">#if not self._widget.find_withtag(CURRENT):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">()</span>
+
+    <span class="s6"># Popup dialog to adjust widget properties</span>
+    <span class="s4">def </span><span class="s1">_popupValuatorMenu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">post</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">winfo_pointerx</span><span class="s2">(),</span>
+                             <span class="s1">event</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">winfo_pointery</span><span class="s2">())</span>
+
+
+    <span class="s4">def </span><span class="s1">_popupPropertiesDialog</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">WidgetPropertiesDialog</span><span class="s2">.</span><span class="s1">WidgetPropertiesDialog</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict</span><span class="s2">,</span>
+            <span class="s1">propertyList </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList</span><span class="s2">,</span>
+            <span class="s1">title </span><span class="s2">= </span><span class="s3">'Widget Properties'</span><span class="s2">,</span>
+            <span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">addPropertyToDialog</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">property</span><span class="s2">, </span><span class="s1">pDict</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict</span><span class="s2">[</span><span class="s1">property</span><span class="s2">] = </span><span class="s1">pDict</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">property</span><span class="s2">)</span>
+
+    <span class="s6"># Virtual functions to be redefined by subclass</span>
+    <span class="s4">def </span><span class="s1">createValuator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Function used by subclass to create valuator geometry &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">packValuator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Function used by subclass to pack widget &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">addValuatorMenuEntries</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Function used by subclass to add menu entries to popup menu &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">addValuatorPropertiesToDialog</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Function used by subclass to add properties to property dialog &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+
+
+<span class="s1">FLOATER </span><span class="s2">= </span><span class="s3">'floater'</span>
+<span class="s1">DIAL </span><span class="s2">= </span><span class="s3">'dial'</span>
+<span class="s1">ANGLEDIAL </span><span class="s2">= </span><span class="s3">'angledial'</span>
+<span class="s1">SLIDER </span><span class="s2">= </span><span class="s3">'slider'</span>
+
+<span class="s4">class </span><span class="s1">ValuatorGroup</span><span class="s2">(</span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+
+        <span class="s6"># Default group size</span>
+        <span class="s1">DEFAULT_DIM </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s6"># Default value depends on *actual* group size, test for user input</span>
+        <span class="s1">DEFAULT_VALUE </span><span class="s2">= [</span><span class="s5">0.0</span><span class="s2">] * </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'dim'</span><span class="s2">, </span><span class="s1">DEFAULT_DIM</span><span class="s2">)</span>
+        <span class="s1">DEFAULT_LABELS </span><span class="s2">= [</span><span class="s3">'v[%d]' </span><span class="s2">% </span><span class="s1">x </span><span class="s4">for </span><span class="s1">x </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'dim'</span><span class="s2">, </span><span class="s1">DEFAULT_DIM</span><span class="s2">))]</span>
+
+        <span class="s6">#define the megawidget options</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'type'</span><span class="s2">,            </span><span class="s1">FLOATER</span><span class="s2">,                </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'dim'</span><span class="s2">,             </span><span class="s1">DEFAULT_DIM</span><span class="s2">,            </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'side'</span><span class="s2">,            </span><span class="s1">TOP</span><span class="s2">,                    </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s6"># A list of initial values, one for each valuator</span>
+            <span class="s2">(</span><span class="s3">'value'</span><span class="s2">,           </span><span class="s1">DEFAULT_VALUE</span><span class="s2">,          </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'min'</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'max'</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'resolution'</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numDigits'</span><span class="s2">,       </span><span class="s5">2</span><span class="s2">,                      </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setNumDigits</span><span class="s2">),</span>
+            <span class="s6"># A tuple of labels, one for each valuator</span>
+            <span class="s2">(</span><span class="s3">'labels'</span><span class="s2">,          </span><span class="s1">DEFAULT_LABELS</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_updateLabels</span><span class="s2">),</span>
+            <span class="s6"># The command to be executed when one of the valuators is updated</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">,                   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Callbacks to execute when updating widget's value</span>
+            <span class="s2">(</span><span class="s3">'preCallback'</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">,                 </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'postCallback'</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">,                 </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to callback function, needs to be a list</span>
+            <span class="s2">(</span><span class="s3">'callbackData'</span><span class="s2">,      [],                   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the toplevel widget</span>
+        <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Create the components</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+        <span class="s6"># Get a copy of the initial value (making sure its a list)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_value </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+
+        <span class="s6"># Create the valuators</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuatorList </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">index </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]):</span>
+            <span class="s6"># Add a group alias so you can configure the valuators via:</span>
+            <span class="s6">#   fg.configure(Valuator_XXX = YYY)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'type'</span><span class="s2">] == </span><span class="s1">DIAL</span><span class="s2">:</span>
+                <span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Dial</span>
+                <span class="s1">valuatorType </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">.</span><span class="s1">Dial</span>
+            <span class="s4">elif </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'type'</span><span class="s2">] == </span><span class="s1">ANGLEDIAL</span><span class="s2">:</span>
+                <span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Dial</span>
+                <span class="s1">valuatorType </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">.</span><span class="s1">AngleDial</span>
+            <span class="s4">elif </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'type'</span><span class="s2">] == </span><span class="s1">SLIDER</span><span class="s2">:</span>
+                <span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Slider</span>
+                <span class="s1">valuatorType </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Floater</span>
+                <span class="s1">valuatorType </span><span class="s2">= </span><span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span>
+            <span class="s1">f </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                <span class="s3">'valuator%d' </span><span class="s2">% </span><span class="s1">index</span><span class="s2">, (), </span><span class="s3">'valuator'</span><span class="s2">, </span><span class="s1">valuatorType</span><span class="s2">,</span>
+                <span class="s2">(</span><span class="s1">interior</span><span class="s2">,), </span><span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">index</span><span class="s2">],</span>
+                <span class="s1">min </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'min'</span><span class="s2">], </span><span class="s1">max </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'max'</span><span class="s2">],</span>
+                <span class="s1">resolution </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'resolution'</span><span class="s2">],</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">][</span><span class="s1">index</span><span class="s2">],</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">val</span><span class="s2">, </span><span class="s1">i </span><span class="s2">= </span><span class="s1">index</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_valuatorSetAt</span><span class="s2">(</span><span class="s1">i</span><span class="s2">, </span><span class="s1">val</span><span class="s2">),</span>
+                <span class="s1">preCallback </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_preCallback</span><span class="s2">,</span>
+                <span class="s1">postCallback </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_postCallback</span><span class="s2">,</span>
+                <span class="s1">callbackData </span><span class="s2">= [</span><span class="s1">self</span><span class="s2">],</span>
+                <span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'side'</span><span class="s2">], </span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuatorList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">f</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure valuators are initialized</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">], </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure input variables processed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">ValuatorGroup</span><span class="s2">)</span>
+
+    <span class="s6"># This is the command is used to set the groups value</span>
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">i</span><span class="s2">] = </span><span class="s1">value</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s6"># Update valuator, but don't execute its command</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuatorList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">set</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">fCommand </span><span class="s4">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setAt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s6"># Update valuator and execute its command</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuatorList</span><span class="s2">[</span><span class="s1">index</span><span class="s2">].</span><span class="s1">set</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s6"># This is the command used by the valuator</span>
+    <span class="s4">def </span><span class="s1">_valuatorSetAt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">index</span><span class="s2">] = </span><span class="s1">value</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span>
+
+    <span class="s4">def </span><span class="s1">getAt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">index</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setNumDigits</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'valuator_numDigits'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">formatString </span><span class="s2">= </span><span class="s3">'%0.' </span><span class="s2">+ </span><span class="s3">'%df' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_updateLabels</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">]:</span>
+            <span class="s4">for </span><span class="s1">index </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuatorList</span><span class="s2">[</span><span class="s1">index</span><span class="s2">][</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">][</span><span class="s1">index</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_preCallback</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">valGroup</span><span class="s2">):</span>
+        <span class="s6"># Execute pre callback</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">](*</span><span class="s1">valGroup</span><span class="s2">.</span><span class="s1">get</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">_postCallback</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">valGroup</span><span class="s2">):</span>
+        <span class="s6"># Execute post callback</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">](*</span><span class="s1">valGroup</span><span class="s2">.</span><span class="s1">get</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">__len__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s3">'[' </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">formatString </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">val </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">:]:</span>
+            <span class="s1">str </span><span class="s2">+= </span><span class="s3">', ' </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">formatString </span><span class="s2">% </span><span class="s1">val</span>
+        <span class="s1">str </span><span class="s2">+= </span><span class="s3">']'</span>
+        <span class="s4">return </span><span class="s1">str</span>
+
+
+
+<span class="s4">class </span><span class="s1">ValuatorGroupPanel</span><span class="s2">(</span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaToplevel</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+
+        <span class="s6"># Default group size</span>
+        <span class="s1">DEFAULT_DIM </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s6"># Default value depends on *actual* group size, test for user input</span>
+        <span class="s1">DEFAULT_VALUE </span><span class="s2">= [</span><span class="s5">0.0</span><span class="s2">] * </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'dim'</span><span class="s2">, </span><span class="s1">DEFAULT_DIM</span><span class="s2">)</span>
+        <span class="s1">DEFAULT_LABELS </span><span class="s2">= [</span><span class="s3">'v[%d]' </span><span class="s2">% </span><span class="s1">x </span><span class="s4">for </span><span class="s1">x </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'dim'</span><span class="s2">, </span><span class="s1">DEFAULT_DIM</span><span class="s2">))]</span>
+
+        <span class="s6">#define the megawidget options</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'type'</span><span class="s2">,            </span><span class="s1">FLOATER</span><span class="s2">,                </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'dim'</span><span class="s2">,             </span><span class="s1">DEFAULT_DIM</span><span class="s2">,            </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'side'</span><span class="s2">,            </span><span class="s1">TOP</span><span class="s2">,                    </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'title'</span><span class="s2">,           </span><span class="s3">'Valuator Group'</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># A list of initial values, one for each floater</span>
+            <span class="s2">(</span><span class="s3">'value'</span><span class="s2">,           </span><span class="s1">DEFAULT_VALUE</span><span class="s2">,          </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'min'</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'max'</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'resolution'</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s6"># A tuple of labels, one for each floater</span>
+            <span class="s2">(</span><span class="s3">'labels'</span><span class="s2">,          </span><span class="s1">DEFAULT_LABELS</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_updateLabels</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numDigits'</span><span class="s2">,       </span><span class="s5">2</span><span class="s2">,                      </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setNumDigits</span><span class="s2">),</span>
+            <span class="s6"># The command to be executed when one of the floaters is updated</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">,                   </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setCommand</span><span class="s2">),</span>
+            <span class="s6"># Callbacks to execute when updating widget's value</span>
+            <span class="s2">(</span><span class="s3">'preCallback'</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">,                 </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setPreCallback</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'postCallback'</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">,                 </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setPostCallback</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to callback function, needs to be a list</span>
+            <span class="s2">(</span><span class="s3">'callbackData'</span><span class="s2">,      [],                   </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setCallbackData</span><span class="s2">),</span>
+            <span class="s6"># Destroy or withdraw</span>
+            <span class="s2">(</span><span class="s3">'fDestroy'</span><span class="s2">,        </span><span class="s5">0</span><span class="s2">,                      </span><span class="s1">INITOPT</span><span class="s2">)</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the toplevel widget</span>
+        <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaToplevel</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Create the components</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+
+        <span class="s6"># The Menu Bar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">balloon </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">Balloon</span><span class="s2">()</span>
+        <span class="s1">menubar </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'menubar'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                       <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MenuBar</span><span class="s2">, (</span><span class="s1">interior</span><span class="s2">,),</span>
+                                       <span class="s1">balloon </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">balloon</span><span class="s2">)</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill</span><span class="s2">=</span><span class="s1">X</span><span class="s2">)</span>
+
+        <span class="s6"># ValuatorGroup Menu</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenu</span><span class="s2">(</span><span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'Valuator Group Operations'</span><span class="s2">)</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">, </span><span class="s3">'Reset the Valuator Group panel'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">s </span><span class="s2">= </span><span class="s1">self</span><span class="s2">: </span><span class="s1">s</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">())</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fDestroy'</span><span class="s2">]:</span>
+            <span class="s1">dismissCommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">destroy</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">dismissCommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">withdraw</span>
+
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">, </span><span class="s3">'Dismiss Valuator Group panel'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Dismiss'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">dismissCommand</span><span class="s2">)</span>
+
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenu</span><span class="s2">(</span><span class="s3">'Help'</span><span class="s2">, </span><span class="s3">'Valuator Group Help Operations'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar </span><span class="s2">= </span><span class="s1">IntVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'Help'</span><span class="s2">, </span><span class="s3">'checkbutton'</span><span class="s2">,</span>
+                            <span class="s3">'Toggle balloon help'</span><span class="s2">,</span>
+                            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Balloon Help'</span><span class="s2">,</span>
+                            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloon</span><span class="s2">)</span>
+
+        <span class="s6"># Create the valuator group</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">'valuatorGroup'</span><span class="s2">,</span>
+            <span class="s2">((</span><span class="s3">'valuator'</span><span class="s2">, </span><span class="s3">'valuatorGroup_valuator'</span><span class="s2">),),</span>
+            <span class="s4">None</span><span class="s2">, </span><span class="s1">ValuatorGroup</span><span class="s2">,</span>
+            <span class="s2">(</span><span class="s1">interior</span><span class="s2">,),</span>
+            <span class="s1">type </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'type'</span><span class="s2">],</span>
+            <span class="s1">dim </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">],</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">],</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'min'</span><span class="s2">],</span>
+            <span class="s1">max </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'max'</span><span class="s2">],</span>
+            <span class="s1">resolution </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'resolution'</span><span class="s2">],</span>
+            <span class="s1">labels </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">],</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure input variables processed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">ValuatorGroupPanel</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">toggleBalloon</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">balloon</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'balloon'</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">balloon</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'none'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">_updateLabels</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setNumDigits</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setCommand</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setPreCallback</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setPostCallback</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setCallbackData</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">valuatorGroup</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">reset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+
+<span class="s1">Pmw</span><span class="s2">.</span><span class="s1">forwardmethods</span><span class="s2">(</span><span class="s1">ValuatorGroupPanel</span><span class="s2">, </span><span class="s1">ValuatorGroup</span><span class="s2">, </span><span class="s3">'valuatorGroup'</span><span class="s2">)</span>
+
+
+<span class="s4">def </span><span class="s1">rgbPanel</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">callback </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s3">'mini'</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">onRelease</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">a</span><span class="s2">, </span><span class="s1">nodePath </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s3">'RGBPanel_setColor'</span><span class="s2">, [</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">a</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">popupColorPicker</span><span class="s2">():</span>
+        <span class="s6"># Can pass in current color with: color = (255, 0, 0)</span>
+        <span class="s1">color </span><span class="s2">= </span><span class="s1">askcolor</span><span class="s2">(</span>
+            <span class="s1">parent </span><span class="s2">= </span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(),</span>
+            <span class="s6"># Initialize it to current color</span>
+            <span class="s1">initialcolor </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()[:</span><span class="s5">3</span><span class="s2">]))[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">color</span><span class="s2">:</span>
+            <span class="s1">vgp</span><span class="s2">.</span><span class="s1">set</span><span class="s2">((</span><span class="s1">color</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">2</span><span class="s2">], </span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">getAt</span><span class="s2">(</span><span class="s5">3</span><span class="s2">)))</span>
+
+    <span class="s4">def </span><span class="s1">printToLog</span><span class="s2">():</span>
+        <span class="s1">c</span><span class="s2">=</span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Vec4(%.3f, %.3f, %.3f, %.3f)&quot;</span><span class="s2">%(</span><span class="s1">c</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">c</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">c</span><span class="s2">[</span><span class="s5">2</span><span class="s2">], </span><span class="s1">c</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]))</span>
+
+    <span class="s6"># Check init color</span>
+    <span class="s4">if </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">hasColor</span><span class="s2">():</span>
+        <span class="s1">initColor </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">() * </span><span class="s5">255.0</span>
+    <span class="s4">else</span><span class="s2">:</span>
+        <span class="s1">initColor </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s5">255</span><span class="s2">)</span>
+    <span class="s6"># Create entry scale group</span>
+    <span class="s1">vgp </span><span class="s2">= </span><span class="s1">ValuatorGroupPanel</span><span class="s2">(</span><span class="s1">title </span><span class="s2">= </span><span class="s3">'RGBA Panel: ' </span><span class="s2">+ </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+                             <span class="s1">dim </span><span class="s2">= </span><span class="s5">4</span><span class="s2">,</span>
+                             <span class="s1">labels </span><span class="s2">= [</span><span class="s3">'R'</span><span class="s2">,</span><span class="s3">'G'</span><span class="s2">,</span><span class="s3">'B'</span><span class="s2">,</span><span class="s3">'A'</span><span class="s2">],</span>
+                             <span class="s1">value </span><span class="s2">= [</span><span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]),</span>
+                                      <span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]),</span>
+                                      <span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]),</span>
+                                      <span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">3</span><span class="s2">])],</span>
+                             <span class="s1">type </span><span class="s2">= </span><span class="s3">'slider'</span><span class="s2">,</span>
+                             <span class="s1">valuator_style </span><span class="s2">= </span><span class="s1">style</span><span class="s2">,</span>
+                             <span class="s1">valuator_min </span><span class="s2">= </span><span class="s5">0</span><span class="s2">,</span>
+                             <span class="s1">valuator_max </span><span class="s2">= </span><span class="s5">255</span><span class="s2">,</span>
+                             <span class="s1">valuator_resolution </span><span class="s2">= </span><span class="s5">1</span><span class="s2">,</span>
+                             <span class="s6"># Destroy not withdraw panel on dismiss</span>
+                             <span class="s1">fDestroy </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+    <span class="s6"># Update menu button</span>
+    <span class="s1">vgp</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'menubar'</span><span class="s2">).</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'Valuator Group-button'</span><span class="s2">)[</span><span class="s3">'text'</span><span class="s2">] = (</span>
+        <span class="s3">'RGBA Panel'</span><span class="s2">)</span>
+
+    <span class="s6"># Set callback</span>
+    <span class="s1">vgp</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">onRelease</span>
+
+    <span class="s6"># Add a print button which will also serve as a color tile</span>
+    <span class="s1">pButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(), </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Print to Log'</span><span class="s2">,</span>
+                     <span class="s1">bg </span><span class="s2">= </span><span class="s1">getTkColorString</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">),</span>
+                     <span class="s1">command </span><span class="s2">= </span><span class="s1">printToLog</span><span class="s2">)</span>
+    <span class="s1">pButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+    <span class="s6"># Update menu</span>
+    <span class="s1">menubar </span><span class="s2">= </span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'menubar'</span><span class="s2">)</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">deletemenuitems</span><span class="s2">(</span><span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s6"># Some helper functions</span>
+    <span class="s6"># Clear color</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Clear Color'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s4">lambda</span><span class="s2">: </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">clearColor</span><span class="s2">())</span>
+    <span class="s6"># Set Clear Transparency</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Set Transparency'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s4">lambda</span><span class="s2">: </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s5">1</span><span class="s2">))</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Clear Transparency'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s4">lambda</span><span class="s2">: </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">clearTransparency</span><span class="s2">())</span>
+
+
+    <span class="s6"># System color picker</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Popup Color Picker'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">popupColorPicker</span><span class="s2">)</span>
+
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Print to log'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">printToLog</span><span class="s2">)</span>
+
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">, </span><span class="s3">'Dismiss Valuator Group panel'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Dismiss'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setNodePathColor</span><span class="s2">(</span><span class="s1">color</span><span class="s2">):</span>
+        <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">color</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">, </span><span class="s1">color</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">,</span>
+                          <span class="s1">color</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">, </span><span class="s1">color</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">)</span>
+        <span class="s6"># Update color chip button</span>
+        <span class="s1">pButton</span><span class="s2">[</span><span class="s3">'bg'</span><span class="s2">] = </span><span class="s1">getTkColorString</span><span class="s2">(</span><span class="s1">color</span><span class="s2">)</span>
+        <span class="s6"># Execute callback to pass along color info</span>
+        <span class="s4">if </span><span class="s1">callback</span><span class="s2">:</span>
+            <span class="s1">callback</span><span class="s2">(</span><span class="s1">color</span><span class="s2">)</span>
+    <span class="s1">vgp</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">setNodePathColor</span>
+
+    <span class="s4">return </span><span class="s1">vgp</span>
+
+
+<span class="s4">def </span><span class="s1">lightRGBPanel</span><span class="s2">(</span><span class="s1">light</span><span class="s2">, </span><span class="s1">style </span><span class="s2">= </span><span class="s3">'mini'</span><span class="s2">):</span>
+    <span class="s6"># Color picker for lights</span>
+    <span class="s4">def </span><span class="s1">popupColorPicker</span><span class="s2">():</span>
+        <span class="s6"># Can pass in current color with: color = (255, 0, 0)</span>
+        <span class="s1">color </span><span class="s2">= </span><span class="s1">askcolor</span><span class="s2">(</span>
+            <span class="s1">parent </span><span class="s2">= </span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(),</span>
+            <span class="s6"># Initialize it to current color</span>
+            <span class="s1">initialcolor </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()[:</span><span class="s5">3</span><span class="s2">]))[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">color</span><span class="s2">:</span>
+            <span class="s1">vgp</span><span class="s2">.</span><span class="s1">set</span><span class="s2">((</span><span class="s1">color</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">2</span><span class="s2">], </span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">getAt</span><span class="s2">(</span><span class="s5">3</span><span class="s2">)))</span>
+    <span class="s4">def </span><span class="s1">printToLog</span><span class="s2">():</span>
+        <span class="s1">n </span><span class="s2">= </span><span class="s1">light</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+        <span class="s1">c</span><span class="s2">=</span><span class="s1">light</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">n </span><span class="s2">+ (</span><span class="s3">&quot;.setColor(Vec4(%.3f, %.3f, %.3f, %.3f))&quot; </span><span class="s2">%</span>
+                   <span class="s2">(</span><span class="s1">c</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">c</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">c</span><span class="s2">[</span><span class="s5">2</span><span class="s2">], </span><span class="s1">c</span><span class="s2">[</span><span class="s5">3</span><span class="s2">])))</span>
+    <span class="s6"># Check init color</span>
+    <span class="s1">initColor </span><span class="s2">= </span><span class="s1">light</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">() * </span><span class="s5">255.0</span>
+    <span class="s6"># Create entry scale group</span>
+    <span class="s1">vgp </span><span class="s2">= </span><span class="s1">ValuatorGroupPanel</span><span class="s2">(</span><span class="s1">title </span><span class="s2">= </span><span class="s3">'RGBA Panel: ' </span><span class="s2">+ </span><span class="s1">light</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+                             <span class="s1">dim </span><span class="s2">= </span><span class="s5">4</span><span class="s2">,</span>
+                             <span class="s1">labels </span><span class="s2">= [</span><span class="s3">'R'</span><span class="s2">,</span><span class="s3">'G'</span><span class="s2">,</span><span class="s3">'B'</span><span class="s2">,</span><span class="s3">'A'</span><span class="s2">],</span>
+                             <span class="s1">value </span><span class="s2">= [</span><span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]),</span>
+                                      <span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]),</span>
+                                      <span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]),</span>
+                                      <span class="s1">int</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">[</span><span class="s5">3</span><span class="s2">])],</span>
+                             <span class="s1">type </span><span class="s2">= </span><span class="s3">'slider'</span><span class="s2">,</span>
+                             <span class="s1">valuator_style </span><span class="s2">= </span><span class="s1">style</span><span class="s2">,</span>
+                             <span class="s1">valuator_min </span><span class="s2">= </span><span class="s5">0</span><span class="s2">,</span>
+                             <span class="s1">valuator_max </span><span class="s2">= </span><span class="s5">255</span><span class="s2">,</span>
+                             <span class="s1">valuator_resolution </span><span class="s2">= </span><span class="s5">1</span><span class="s2">,</span>
+                             <span class="s6"># Destroy not withdraw panel on dismiss</span>
+                             <span class="s1">fDestroy </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+    <span class="s6"># Update menu button</span>
+    <span class="s1">vgp</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'menubar'</span><span class="s2">).</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'Valuator Group-button'</span><span class="s2">)[</span><span class="s3">'text'</span><span class="s2">] = (</span>
+        <span class="s3">'Light Control Panel'</span><span class="s2">)</span>
+
+    <span class="s6"># Add a print button which will also serve as a color tile</span>
+    <span class="s1">pButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(), </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Print to Log'</span><span class="s2">,</span>
+                     <span class="s1">bg </span><span class="s2">= </span><span class="s1">getTkColorString</span><span class="s2">(</span><span class="s1">initColor</span><span class="s2">),</span>
+                     <span class="s1">command </span><span class="s2">= </span><span class="s1">printToLog</span><span class="s2">)</span>
+    <span class="s1">pButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+    <span class="s6"># Update menu</span>
+    <span class="s1">menubar </span><span class="s2">= </span><span class="s1">vgp</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'menubar'</span><span class="s2">)</span>
+    <span class="s6"># System color picker</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Popup Color Picker'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">popupColorPicker</span><span class="s2">)</span>
+    <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+        <span class="s3">'Valuator Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+        <span class="s1">label</span><span class="s2">=</span><span class="s3">'Print to log'</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">printToLog</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setLightColor</span><span class="s2">(</span><span class="s1">color</span><span class="s2">):</span>
+        <span class="s1">light</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">Vec4</span><span class="s2">(</span><span class="s1">color</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">, </span><span class="s1">color</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">,</span>
+                            <span class="s1">color</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">, </span><span class="s1">color</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]/</span><span class="s5">255.0</span><span class="s2">))</span>
+        <span class="s6"># Update color chip button</span>
+        <span class="s1">pButton</span><span class="s2">[</span><span class="s3">'bg'</span><span class="s2">] = </span><span class="s1">getTkColorString</span><span class="s2">(</span><span class="s1">color</span><span class="s2">)</span>
+    <span class="s1">vgp</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">setLightColor</span>
+    <span class="s4">return </span><span class="s1">vgp</span>
+
+</pre>
+</body>
+</html>

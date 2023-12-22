@@ -1,0 +1,398 @@
+<html>
+<head>
+<title>ProfileSession.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #7a7e85;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ProfileSession.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">__future__ </span><span class="s0">import </span><span class="s1">print_function</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">TrueClock</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s0">import </span><span class="s2">(</span>
+    <span class="s1">StdoutCapture</span><span class="s2">, </span><span class="s1">_installProfileCustomFuncs</span><span class="s2">,</span><span class="s1">_removeProfileCustomFuncs</span><span class="s2">,</span>
+    <span class="s1">_getProfileResultFileInfo</span><span class="s2">, </span><span class="s1">_setProfileResultsFileInfo</span><span class="s2">)</span>
+<span class="s0">import </span><span class="s1">profile</span>
+<span class="s0">import </span><span class="s1">pstats</span>
+<span class="s0">import </span><span class="s1">sys</span>
+
+<span class="s0">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s3">3</span><span class="s2">, </span><span class="s3">0</span><span class="s2">):</span>
+    <span class="s0">import </span><span class="s1">builtins</span>
+<span class="s0">else</span><span class="s2">:</span>
+    <span class="s0">import </span><span class="s1">__builtin__ </span><span class="s0">as </span><span class="s1">builtins</span>
+
+
+<span class="s0">class </span><span class="s1">PercentStats</span><span class="s2">(</span><span class="s1">pstats</span><span class="s2">.</span><span class="s1">Stats</span><span class="s2">):</span>
+    <span class="s4"># prints more useful output when sampled durations are shorter than a millisecond</span>
+    <span class="s4"># lots of this is copied from Python's pstats.py</span>
+    <span class="s0">def </span><span class="s1">setTotalTime</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tt</span><span class="s2">):</span>
+        <span class="s4"># use this to set 'total time' to base time percentages on</span>
+        <span class="s4"># allows profiles to show timing based on percentages of duration of another profile</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">= </span><span class="s1">tt</span>
+
+    <span class="s0">def </span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kArgs</span><span class="s2">):</span>
+        <span class="s1">pstats</span><span class="s2">.</span><span class="s1">Stats</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kArgs</span><span class="s2">)</span>
+        <span class="s4"># DCR -- don't need to record filenames</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">files </span><span class="s2">= []</span>
+
+    <span class="s0">def </span><span class="s1">print_stats</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">amount</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">filename </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">files</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">files</span><span class="s2">: </span><span class="s1">print</span><span class="s2">()</span>
+        <span class="s1">indent </span><span class="s2">= </span><span class="s5">' ' </span><span class="s2">* </span><span class="s3">8</span>
+        <span class="s0">for </span><span class="s1">func </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">top_level</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">indent</span><span class="s2">, </span><span class="s1">func_get_function_name</span><span class="s2">(</span><span class="s1">func</span><span class="s2">))</span>
+
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">indent</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_calls</span><span class="s2">, </span><span class="s5">&quot;function calls&quot;</span><span class="s2">, </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_calls </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">prim_calls</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;(%d primitive calls)&quot; </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">prim_calls</span><span class="s2">, </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s4"># DCR</span>
+        <span class="s4">#print &quot;in %.3f CPU seconds&quot; % self.total_tt</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;in %s CPU milliseconds&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_tt </span><span class="s2">* </span><span class="s3">1000.</span><span class="s2">))</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">total_tt</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">indent</span><span class="s2">, </span><span class="s5">'percentages are of %s CPU milliseconds' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">* </span><span class="s3">1000</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">()</span>
+        <span class="s1">width</span><span class="s2">, </span><span class="s1">list </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">get_print_list</span><span class="s2">(</span><span class="s1">amount</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">list</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">print_title</span><span class="s2">()</span>
+            <span class="s0">for </span><span class="s1">func </span><span class="s0">in </span><span class="s1">list</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">print_line</span><span class="s2">(</span><span class="s1">func</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">()</span>
+            <span class="s4"># DCR</span>
+            <span class="s4">#print</span>
+        <span class="s0">return </span><span class="s1">self</span>
+
+    <span class="s0">def </span><span class="s1">f8</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">== </span><span class="s3">0.</span><span class="s2">:</span>
+            <span class="s4"># profiling was too quick for clock resolution...</span>
+            <span class="s0">return </span><span class="s5">'    Inf%'</span>
+        <span class="s0">return </span><span class="s5">&quot;%7.2f%%&quot; </span><span class="s2">% ((</span><span class="s1">x</span><span class="s2">*</span><span class="s3">100.</span><span class="s2">) / </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime</span><span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s1">staticmethod</span>
+    <span class="s0">def </span><span class="s1">func_std_string</span><span class="s2">(</span><span class="s1">func_name</span><span class="s2">): </span><span class="s4"># match what old profile produced</span>
+        <span class="s0">return </span><span class="s5">&quot;%s:%d(%s)&quot; </span><span class="s2">% </span><span class="s1">func_name</span>
+
+    <span class="s0">def </span><span class="s1">print_line</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">func</span><span class="s2">):</span>
+        <span class="s1">cc</span><span class="s2">, </span><span class="s1">nc</span><span class="s2">, </span><span class="s1">tt</span><span class="s2">, </span><span class="s1">ct</span><span class="s2">, </span><span class="s1">callers </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stats</span><span class="s2">[</span><span class="s1">func</span><span class="s2">]</span>
+        <span class="s1">c </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">nc</span><span class="s2">)</span>
+        <span class="s4"># DCR</span>
+        <span class="s1">f8 </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">f8</span>
+        <span class="s0">if </span><span class="s1">nc </span><span class="s2">!= </span><span class="s1">cc</span><span class="s2">:</span>
+            <span class="s1">c </span><span class="s2">= </span><span class="s1">c </span><span class="s2">+ </span><span class="s5">'/' </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">cc</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">c</span><span class="s2">.</span><span class="s1">rjust</span><span class="s2">(</span><span class="s3">9</span><span class="s2">), </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">f8</span><span class="s2">(</span><span class="s1">tt</span><span class="s2">), </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">nc </span><span class="s2">== </span><span class="s3">0</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s5">' '</span><span class="s2">*</span><span class="s3">8</span><span class="s2">, </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">f8</span><span class="s2">(</span><span class="s1">tt</span><span class="s2">/</span><span class="s1">nc</span><span class="s2">), </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">f8</span><span class="s2">(</span><span class="s1">ct</span><span class="s2">), </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">cc </span><span class="s2">== </span><span class="s3">0</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s5">' '</span><span class="s2">*</span><span class="s3">8</span><span class="s2">, </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">f8</span><span class="s2">(</span><span class="s1">ct</span><span class="s2">/</span><span class="s1">cc</span><span class="s2">), </span><span class="s1">end</span><span class="s2">=</span><span class="s5">' '</span><span class="s2">)</span>
+        <span class="s4"># DCR</span>
+        <span class="s4">#print func_std_string(func)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">PercentStats</span><span class="s2">.</span><span class="s1">func_std_string</span><span class="s2">(</span><span class="s1">func</span><span class="s2">))</span>
+
+<span class="s0">class </span><span class="s1">ProfileSession</span><span class="s2">:</span>
+    <span class="s4"># class that encapsulates a profile of a single callable using Python's standard</span>
+    <span class="s4"># 'profile' module</span>
+    <span class="s4">#</span>
+    <span class="s4"># defers formatting of profile results until they are requested</span>
+    <span class="s4">#</span>
+    <span class="s4"># implementation sidesteps memory leak in Python profile module,</span>
+    <span class="s4"># and redirects file output to RAM file for efficiency</span>
+    <span class="s1">TrueClock </span><span class="s2">= </span><span class="s1">TrueClock</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s5">&quot;ProfileSession&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">func</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">logAfterProfile</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_func </span><span class="s2">= </span><span class="s1">func</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_logAfterProfile </span><span class="s2">= </span><span class="s1">logAfterProfile</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameBase </span><span class="s2">= </span><span class="s5">'profileData-%s-%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">id</span><span class="s2">(</span><span class="s1">self</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_refCount </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s4"># if true, accumulate profile results every time we run</span>
+        <span class="s4"># if false, throw out old results every time we run</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_aggregate </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_lines </span><span class="s2">= </span><span class="s3">500</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_sorts </span><span class="s2">= [</span><span class="s5">'cumulative'</span><span class="s2">, </span><span class="s5">'time'</span><span class="s2">, </span><span class="s5">'calls'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_callInfo </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_reset</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">getReference</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># call this when you want to store a new reference to this session that will</span>
+        <span class="s4"># manage its acquire/release reference count independently of an existing reference</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s0">return </span><span class="s1">self</span>
+
+    <span class="s0">def </span><span class="s1">acquire</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_refCount </span><span class="s2">+= </span><span class="s3">1</span>
+    <span class="s0">def </span><span class="s1">release</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_refCount </span><span class="s2">-= </span><span class="s3">1</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_refCount</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_destroy</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">_destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_func</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameBase</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameCounter</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_duration</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filename2ramFile</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_resultCache</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_successfulProfiles</span>
+
+    <span class="s0">def </span><span class="s1">_reset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameCounter </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames </span><span class="s2">= []</span>
+        <span class="s4"># index of next file to be added to stats object</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_statFileCounter </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_successfulProfiles </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_duration </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_filename2ramFile </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_stats </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_resultCache </span><span class="s2">= {}</span>
+
+    <span class="s0">def </span><span class="s1">_getNextFilename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">filename </span><span class="s2">= </span><span class="s5">'%s-%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameBase</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameCounter</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_filenameCounter </span><span class="s2">+= </span><span class="s3">1</span>
+        <span class="s0">return </span><span class="s1">filename</span>
+
+    <span class="s0">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># make sure this instance doesn't get destroyed inside self._func</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_aggregate</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_reset</span><span class="s2">()</span>
+
+        <span class="s4"># if we're already profiling, just run the func and don't profile</span>
+        <span class="s0">if </span><span class="s5">'globalProfileSessionFunc' </span><span class="s0">in </span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s5">'could not profile %s' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_func</span><span class="s2">)</span>
+            <span class="s1">result </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_func</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_duration </span><span class="s0">is None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_duration </span><span class="s2">= </span><span class="s3">0.</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s4"># put the function in the global namespace so that profile can find it</span>
+            <span class="s0">assert </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_func</span><span class="s2">, </span><span class="s5">'__call__'</span><span class="s2">)</span>
+            <span class="s1">builtins</span><span class="s2">.</span><span class="s1">globalProfileSessionFunc </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_func</span>
+            <span class="s1">builtins</span><span class="s2">.</span><span class="s1">globalProfileSessionResult </span><span class="s2">= [</span><span class="s0">None</span><span class="s2">]</span>
+
+            <span class="s4"># set up the RAM file</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getNextFilename</span><span class="s2">())</span>
+            <span class="s1">filename </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">[-</span><span class="s3">1</span><span class="s2">]</span>
+            <span class="s1">_installProfileCustomFuncs</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+            <span class="s4"># do the profiling</span>
+            <span class="s1">Profile </span><span class="s2">= </span><span class="s1">profile</span><span class="s2">.</span><span class="s1">Profile</span>
+            <span class="s1">statement </span><span class="s2">= </span><span class="s5">'globalProfileSessionResult[0]=globalProfileSessionFunc()'</span>
+            <span class="s1">sort </span><span class="s2">= -</span><span class="s3">1</span>
+            <span class="s1">retVal </span><span class="s2">= </span><span class="s0">None</span>
+
+            <span class="s4"># this is based on profile.run, the code is replicated here to allow us to</span>
+            <span class="s4"># eliminate a memory leak</span>
+            <span class="s1">prof </span><span class="s2">= </span><span class="s1">Profile</span><span class="s2">()</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">prof </span><span class="s2">= </span><span class="s1">prof</span><span class="s2">.</span><span class="s1">run</span><span class="s2">(</span><span class="s1">statement</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">SystemExit</span><span class="s2">:</span>
+                <span class="s0">pass</span>
+            <span class="s4"># this has to be run immediately after profiling for the timings to be accurate</span>
+            <span class="s4"># tell the Profile object to generate output to the RAM file</span>
+            <span class="s1">prof</span><span class="s2">.</span><span class="s1">dump_stats</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+            <span class="s4"># eliminate the memory leak</span>
+            <span class="s0">del </span><span class="s1">prof</span><span class="s2">.</span><span class="s1">dispatcher</span>
+
+            <span class="s4"># store the RAM file for later</span>
+            <span class="s1">profData </span><span class="s2">= </span><span class="s1">_getProfileResultFileInfo</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_filename2ramFile</span><span class="s2">[</span><span class="s1">filename</span><span class="s2">] = </span><span class="s1">profData</span>
+            <span class="s4"># calculate the duration (this is dependent on the internal Python profile data format.</span>
+            <span class="s4"># see profile.py and pstats.py, this was copied from pstats.Stats.strip_dirs)</span>
+            <span class="s1">maxTime </span><span class="s2">= </span><span class="s3">0.</span>
+            <span class="s0">for </span><span class="s1">cc</span><span class="s2">, </span><span class="s1">nc</span><span class="s2">, </span><span class="s1">tt</span><span class="s2">, </span><span class="s1">ct</span><span class="s2">, </span><span class="s1">callers </span><span class="s0">in </span><span class="s1">profData</span><span class="s2">[</span><span class="s3">1</span><span class="s2">].</span><span class="s1">values</span><span class="s2">():</span>
+                <span class="s0">if </span><span class="s1">ct </span><span class="s2">&gt; </span><span class="s1">maxTime</span><span class="s2">:</span>
+                    <span class="s1">maxTime </span><span class="s2">= </span><span class="s1">ct</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_duration </span><span class="s2">= </span><span class="s1">maxTime</span>
+            <span class="s4"># clean up the RAM file support</span>
+            <span class="s1">_removeProfileCustomFuncs</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+            <span class="s4"># clean up the globals</span>
+            <span class="s1">result </span><span class="s2">= </span><span class="s1">globalProfileSessionResult</span><span class="s2">[</span><span class="s3">0</span><span class="s2">]</span>
+            <span class="s0">del </span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">[</span><span class="s5">'globalProfileSessionFunc'</span><span class="s2">]</span>
+            <span class="s0">del </span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">[</span><span class="s5">'globalProfileSessionResult'</span><span class="s2">]</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_successfulProfiles </span><span class="s2">+= </span><span class="s3">1</span>
+
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_logAfterProfile</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getResults</span><span class="s2">())</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+        <span class="s0">return </span><span class="s1">result</span>
+
+    <span class="s0">def </span><span class="s1">getDuration</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_duration</span>
+
+    <span class="s0">def </span><span class="s1">profileSucceeded</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_successfulProfiles </span><span class="s2">&gt; </span><span class="s3">0</span>
+
+    <span class="s0">def </span><span class="s1">_restoreRamFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">filename</span><span class="s2">):</span>
+        <span class="s4"># set up the RAM file</span>
+        <span class="s1">_installProfileCustomFuncs</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s4"># install the stored RAM file from self.run()</span>
+        <span class="s1">_setProfileResultsFileInfo</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filename2ramFile</span><span class="s2">[</span><span class="s1">filename</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">_discardRamFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">filename</span><span class="s2">):</span>
+        <span class="s4"># take down the RAM file</span>
+        <span class="s1">_removeProfileCustomFuncs</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s4"># and discard it</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filename2ramFile</span><span class="s2">[</span><span class="s1">filename</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">setName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_name </span><span class="s2">= </span><span class="s1">name</span>
+    <span class="s0">def </span><span class="s1">getName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span>
+
+    <span class="s0">def </span><span class="s1">setFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">func</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_func </span><span class="s2">= </span><span class="s1">func</span>
+    <span class="s0">def </span><span class="s1">getFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_func</span>
+
+    <span class="s0">def </span><span class="s1">setAggregate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aggregate</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_aggregate </span><span class="s2">= </span><span class="s1">aggregate</span>
+    <span class="s0">def </span><span class="s1">getAggregate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_aggregate</span>
+
+    <span class="s0">def </span><span class="s1">setLogAfterProfile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">logAfterProfile</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_logAfterProfile </span><span class="s2">= </span><span class="s1">logAfterProfile</span>
+    <span class="s0">def </span><span class="s1">getLogAfterProfile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_logAfterProfile</span>
+
+    <span class="s0">def </span><span class="s1">setLines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">lines</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_lines </span><span class="s2">= </span><span class="s1">lines</span>
+    <span class="s0">def </span><span class="s1">getLines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_lines</span>
+
+    <span class="s0">def </span><span class="s1">setSorts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sorts</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_sorts </span><span class="s2">= </span><span class="s1">sorts</span>
+    <span class="s0">def </span><span class="s1">getSorts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_sorts</span>
+
+    <span class="s0">def </span><span class="s1">setShowCallInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">showCallInfo</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_showCallInfo </span><span class="s2">= </span><span class="s1">showCallInfo</span>
+    <span class="s0">def </span><span class="s1">getShowCallInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_showCallInfo</span>
+
+    <span class="s0">def </span><span class="s1">setTotalTime</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">totalTime</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">= </span><span class="s1">totalTime</span>
+    <span class="s0">def </span><span class="s1">resetTotalTime</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime </span><span class="s2">= </span><span class="s0">None</span>
+    <span class="s0">def </span><span class="s1">getTotalTime</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime</span>
+
+    <span class="s0">def </span><span class="s1">aggregate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+        <span class="s4"># pull in stats from another ProfileSession</span>
+        <span class="s1">other</span><span class="s2">.</span><span class="s1">_compileStats</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_compileStats</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_stats</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">other</span><span class="s2">.</span><span class="s1">_stats</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">_compileStats</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># make sure our stats object exists and is up-to-date</span>
+        <span class="s1">statsChanged </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_statFileCounter </span><span class="s2">&lt; </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">))</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_stats </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">filename </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_restoreRamFile</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_stats </span><span class="s2">= </span><span class="s1">PercentStats</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_statFileCounter </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">)</span>
+            <span class="s0">for </span><span class="s1">filename </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_discardRamFile</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_statFileCounter </span><span class="s2">&lt; </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">):</span>
+                <span class="s1">filename </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filenames</span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_statFileCounter</span><span class="s2">]</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_restoreRamFile</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_stats</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_discardRamFile</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">statsChanged</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_stats</span><span class="s2">.</span><span class="s1">strip_dirs</span><span class="s2">()</span>
+            <span class="s4"># throw out any cached result strings</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_resultCache </span><span class="s2">= {}</span>
+
+        <span class="s0">return </span><span class="s1">statsChanged</span>
+
+    <span class="s0">def </span><span class="s1">getResults</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span>
+                   <span class="s1">lines</span><span class="s2">=</span><span class="s1">Default</span><span class="s2">,</span>
+                   <span class="s1">sorts</span><span class="s2">=</span><span class="s1">Default</span><span class="s2">,</span>
+                   <span class="s1">callInfo</span><span class="s2">=</span><span class="s1">Default</span><span class="s2">,</span>
+                   <span class="s1">totalTime</span><span class="s2">=</span><span class="s1">Default</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">profileSucceeded</span><span class="s2">():</span>
+            <span class="s1">output </span><span class="s2">= </span><span class="s5">'%s: profiler already running, could not profile' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">lines </span><span class="s0">is </span><span class="s1">Default</span><span class="s2">:</span>
+                <span class="s1">lines </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_lines</span>
+            <span class="s0">if </span><span class="s1">sorts </span><span class="s0">is </span><span class="s1">Default</span><span class="s2">:</span>
+                <span class="s1">sorts </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_sorts</span>
+            <span class="s0">if </span><span class="s1">callInfo </span><span class="s0">is </span><span class="s1">Default</span><span class="s2">:</span>
+                <span class="s1">callInfo </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_callInfo</span>
+            <span class="s0">if </span><span class="s1">totalTime </span><span class="s0">is </span><span class="s1">Default</span><span class="s2">:</span>
+                <span class="s1">totalTime </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_totalTime</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_compileStats</span><span class="s2">()</span>
+
+            <span class="s0">if </span><span class="s1">totalTime </span><span class="s0">is None</span><span class="s2">:</span>
+                <span class="s1">totalTime </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_stats</span><span class="s2">.</span><span class="s1">total_tt</span>
+
+            <span class="s4"># make sure the arguments will hash efficiently if callers provide different types</span>
+            <span class="s1">lines </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">lines</span><span class="s2">)</span>
+            <span class="s1">sorts </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">sorts</span><span class="s2">)</span>
+            <span class="s1">callInfo </span><span class="s2">= </span><span class="s1">bool</span><span class="s2">(</span><span class="s1">callInfo</span><span class="s2">)</span>
+            <span class="s1">totalTime </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">totalTime</span><span class="s2">)</span>
+            <span class="s1">k </span><span class="s2">= </span><span class="s1">str</span><span class="s2">((</span><span class="s1">lines</span><span class="s2">, </span><span class="s1">sorts</span><span class="s2">, </span><span class="s1">callInfo</span><span class="s2">, </span><span class="s1">totalTime</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">k </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_resultCache</span><span class="s2">:</span>
+                <span class="s4"># we've already created this output string, get it from the cache</span>
+                <span class="s1">output </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_resultCache</span><span class="s2">[</span><span class="s1">k</span><span class="s2">]</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s4"># now get human-readable output from the profile stats</span>
+
+                <span class="s4"># capture print output to a string</span>
+                <span class="s1">sc </span><span class="s2">= </span><span class="s1">StdoutCapture</span><span class="s2">()</span>
+
+                <span class="s4"># print the info to stdout</span>
+                <span class="s1">s </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_stats</span>
+                <span class="s4"># make sure our percentages are relative to the correct total time</span>
+                <span class="s1">s</span><span class="s2">.</span><span class="s1">setTotalTime</span><span class="s2">(</span><span class="s1">totalTime</span><span class="s2">)</span>
+                <span class="s0">for </span><span class="s1">sort </span><span class="s0">in </span><span class="s1">sorts</span><span class="s2">:</span>
+                    <span class="s1">s</span><span class="s2">.</span><span class="s1">sort_stats</span><span class="s2">(</span><span class="s1">sort</span><span class="s2">)</span>
+                    <span class="s1">s</span><span class="s2">.</span><span class="s1">print_stats</span><span class="s2">(</span><span class="s1">lines</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">callInfo</span><span class="s2">:</span>
+                        <span class="s1">s</span><span class="s2">.</span><span class="s1">print_callees</span><span class="s2">(</span><span class="s1">lines</span><span class="s2">)</span>
+                        <span class="s1">s</span><span class="s2">.</span><span class="s1">print_callers</span><span class="s2">(</span><span class="s1">lines</span><span class="s2">)</span>
+
+                <span class="s4"># make a copy of the print output</span>
+                <span class="s1">output </span><span class="s2">= </span><span class="s1">sc</span><span class="s2">.</span><span class="s1">getString</span><span class="s2">()</span>
+
+                <span class="s4"># restore stdout to what it was before</span>
+                <span class="s1">sc</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+
+                <span class="s4"># cache this result</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_resultCache</span><span class="s2">[</span><span class="s1">k</span><span class="s2">] = </span><span class="s1">output</span>
+
+        <span class="s0">return </span><span class="s1">output</span>
+
+</pre>
+</body>
+</html>

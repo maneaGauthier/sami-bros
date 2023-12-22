@@ -1,0 +1,452 @@
+<html>
+<head>
+<title>DirectDialog.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectDialog.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This module defines various dialog windows for the DirectGUI system. 
+ 
+See the :ref:`directdialog` page in the programming manual for a more 
+in-depth explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span>
+    <span class="s3">'findDialog'</span><span class="s2">, </span><span class="s3">'cleanupDialog'</span><span class="s2">, </span><span class="s3">'DirectDialog'</span><span class="s2">, </span><span class="s3">'OkDialog'</span><span class="s2">,</span>
+    <span class="s3">'OkCancelDialog'</span><span class="s2">, </span><span class="s3">'YesNoDialog'</span><span class="s2">, </span><span class="s3">'YesNoCancelDialog'</span><span class="s2">, </span><span class="s3">'RetryCancelDialog'</span><span class="s2">,</span>
+<span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">ShowBaseGlobal</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectFrame </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectButton </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">import </span><span class="s1">types</span>
+
+
+<span class="s4">def </span><span class="s1">findDialog</span><span class="s2">(</span><span class="s1">uniqueName</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Returns the panel whose uniqueName is given.  This is mainly 
+    useful for debugging, to get a pointer to the current onscreen 
+    panel of a particular type. 
+    &quot;&quot;&quot;</span>
+    <span class="s4">if </span><span class="s1">uniqueName </span><span class="s4">in </span><span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">:</span>
+        <span class="s4">return </span><span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">[</span><span class="s1">uniqueName</span><span class="s2">]</span>
+    <span class="s4">return None</span>
+
+
+<span class="s4">def </span><span class="s1">cleanupDialog</span><span class="s2">(</span><span class="s1">uniqueName</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;cleanupPanel(string uniqueName) 
+ 
+    Cleans up (removes) the panel with the given uniqueName.  This 
+    may be useful when some panels know about each other and know 
+    that opening panel A should automatically close panel B, for 
+    instance. 
+    &quot;&quot;&quot;</span>
+    <span class="s4">if </span><span class="s1">uniqueName </span><span class="s4">in </span><span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">:</span>
+        <span class="s5"># calling cleanup() will remove it out of the AllDialogs dict</span>
+        <span class="s5"># This way it will get removed from the dict even it we did</span>
+        <span class="s5"># not clean it up using this interface (ie somebody called</span>
+        <span class="s5"># self.cleanup() directly</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">[</span><span class="s1">uniqueName</span><span class="s2">].</span><span class="s1">cleanup</span><span class="s2">()</span>
+
+
+<span class="s4">class </span><span class="s1">DirectDialog</span><span class="s2">(</span><span class="s1">DirectFrame</span><span class="s2">):</span>
+
+    <span class="s1">AllDialogs </span><span class="s2">= {}</span>
+    <span class="s1">PanelIndex </span><span class="s2">= </span><span class="s6">0</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Creates a popup dialog to alert and/or interact with user. 
+        Some of the main keywords that can be used to customize the dialog: 
+ 
+        Parameters: 
+            text (str): Text message/query displayed to user 
+            geom: Geometry to be displayed in dialog 
+            buttonTextList: List of text to show on each button 
+            buttonGeomList: List of geometry to show on each button 
+            buttonImageList: List of images to show on each button 
+            buttonValueList: List of values sent to dialog command for 
+                each button.  If value is [] then the ordinal rank of 
+                the button is used as its value. 
+            buttonHotKeyList: List of hotkeys to bind to each button. 
+                Typing the hotkey is equivalent to pressing the 
+                corresponding button. 
+            suppressKeys: Set to true if you wish to suppress keys 
+                (i.e. Dialog eats key event), false if you wish Dialog 
+                to pass along key event. 
+            buttonSize: 4-tuple used to specify custom size for each 
+                button (to make bigger then geom/text for example) 
+            pad: Space between border and interior graphics 
+            topPad: Extra space added above text/geom/image 
+            midPad: Extra space added between text/buttons 
+            sidePad: Extra space added to either side of text/buttons 
+            buttonPadSF: Scale factor used to expand/contract button 
+                horizontal spacing 
+            command: Callback command used when a button is pressed. 
+                Value supplied to command depends on values in 
+                buttonValueList. 
+ 
+        Note: 
+            The number of buttons on the dialog depends on the maximum 
+            length of any button[Text|Geom|Image|Value]List specified. 
+            Values of None are substituted for lists that are shorter 
+            than the max length 
+         &quot;&quot;&quot;</span>
+
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'dialogName'</span><span class="s2">,        </span><span class="s3">'DirectDialog_' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">PanelIndex</span><span class="s2">),  </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s5"># Default position is slightly forward in Y, so as not to</span>
+            <span class="s5"># intersect the near plane, which is incorrectly set to 0</span>
+            <span class="s5"># in DX for some reason.</span>
+            <span class="s2">(</span><span class="s3">'pos'</span><span class="s2">,               (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0.1</span><span class="s2">, </span><span class="s6">0</span><span class="s2">),   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'pad'</span><span class="s2">,               (</span><span class="s6">0.1</span><span class="s2">, </span><span class="s6">0.1</span><span class="s2">),    </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'text'</span><span class="s2">,              </span><span class="s3">''</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'text_align'</span><span class="s2">,        </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ALeft</span><span class="s2">,   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'text_scale'</span><span class="s2">,        </span><span class="s6">0.06</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'image'</span><span class="s2">,             </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultDialogGeom</span><span class="s2">(), </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'relief'</span><span class="s2">,            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultDialogRelief</span><span class="s2">(), </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderWidth'</span><span class="s2">,       (</span><span class="s6">0.01</span><span class="s2">, </span><span class="s6">0.01</span><span class="s2">),  </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonTextList'</span><span class="s2">,    [],            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonGeomList'</span><span class="s2">,    [],            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonImageList'</span><span class="s2">,   [],            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonValueList'</span><span class="s2">,   [],            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonHotKeyList'</span><span class="s2">,  [],            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'button_borderWidth'</span><span class="s2">, (</span><span class="s6">.01</span><span class="s2">, </span><span class="s6">.01</span><span class="s2">),   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'button_pad'</span><span class="s2">,        (</span><span class="s6">.01</span><span class="s2">, </span><span class="s6">.01</span><span class="s2">),    </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'button_relief'</span><span class="s2">,     </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RAISED</span><span class="s2">,    </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'button_text_scale'</span><span class="s2">, </span><span class="s6">0.06</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonSize'</span><span class="s2">,        </span><span class="s4">None</span><span class="s2">,          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'topPad'</span><span class="s2">,            </span><span class="s6">0.06</span><span class="s2">,          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'midPad'</span><span class="s2">,            </span><span class="s6">0.12</span><span class="s2">,          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'sidePad'</span><span class="s2">,           </span><span class="s6">0.</span><span class="s2">,            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonPadSF'</span><span class="s2">,       </span><span class="s6">1.1</span><span class="s2">,           </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s5"># Alpha of fade screen behind dialog</span>
+            <span class="s2">(</span><span class="s3">'fadeScreen'</span><span class="s2">,        </span><span class="s6">0</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'extraArgs'</span><span class="s2">,         [],            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'sortOrder'</span><span class="s2">,    </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NO_FADE_SORT_INDEX</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">, </span><span class="s1">dynamicGroups </span><span class="s2">= (</span><span class="s3">&quot;button&quot;</span><span class="s2">,))</span>
+
+        <span class="s5"># Initialize superclasses</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s5">#if not self['dialogName']:</span>
+        <span class="s5">#    self['dialogName'] = 'DirectDialog_' + repr(DirectDialog.PanelIndex)</span>
+
+        <span class="s5"># Clean up any previously existing panel with the same unique</span>
+        <span class="s5"># name.  We don't allow any two panels with the same name to</span>
+        <span class="s5"># coexist.</span>
+        <span class="s1">cleanupDialog</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dialogName'</span><span class="s2">])</span>
+        <span class="s5"># Store this panel in our map of all open panels.</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">[</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dialogName'</span><span class="s2">]] = </span><span class="s1">self</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">PanelIndex </span><span class="s2">+= </span><span class="s6">1</span>
+
+        <span class="s5"># Determine number of buttons</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">numButtons </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonTextList'</span><span class="s2">]),</span>
+                              <span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonGeomList'</span><span class="s2">]),</span>
+                              <span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonImageList'</span><span class="s2">]),</span>
+                              <span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonValueList'</span><span class="s2">]))</span>
+        <span class="s5"># Create buttons</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList </span><span class="s2">= []</span>
+        <span class="s1">index </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">numButtons</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'Button' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonTextList'</span><span class="s2">][</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">geom </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonGeomList'</span><span class="s2">][</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">geom </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonImageList'</span><span class="s2">][</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonValueList'</span><span class="s2">][</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s1">i</span>
+                <span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonValueList'</span><span class="s2">].</span><span class="s1">append</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">hotKey </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonHotKeyList'</span><span class="s2">][</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">except </span><span class="s1">IndexError</span><span class="s2">:</span>
+                <span class="s1">hotKey </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">button </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                <span class="s1">name</span><span class="s2">, (), </span><span class="s3">&quot;button&quot;</span><span class="s2">,</span>
+                <span class="s1">DirectButton</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">,),</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">text</span><span class="s2">,</span>
+                <span class="s1">geom </span><span class="s2">= </span><span class="s1">geom</span><span class="s2">,</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">image</span><span class="s2">,</span>
+                <span class="s1">suppressKeys </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'suppressKeys'</span><span class="s2">],</span>
+                <span class="s1">frameSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonSize'</span><span class="s2">],</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">s </span><span class="s2">= </span><span class="s1">self</span><span class="s2">, </span><span class="s1">v </span><span class="s2">= </span><span class="s1">value</span><span class="s2">: </span><span class="s1">s</span><span class="s2">.</span><span class="s1">buttonCommand</span><span class="s2">(</span><span class="s1">v</span><span class="s2">)</span>
+                <span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">button</span><span class="s2">)</span>
+
+        <span class="s5"># Update dialog when everything has been initialised</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">postInitialiseFuncList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">configureDialog</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">configureDialog</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Set up hot key bindings</span>
+        <span class="s1">bindList </span><span class="s2">= </span><span class="s1">zip</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonHotKeyList'</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonValueList'</span><span class="s2">])</span>
+        <span class="s4">for </span><span class="s1">button</span><span class="s2">, </span><span class="s1">hotKey</span><span class="s2">, </span><span class="s1">value </span><span class="s4">in </span><span class="s1">bindList</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s2">((</span><span class="s1">type</span><span class="s2">(</span><span class="s1">hotKey</span><span class="s2">) == </span><span class="s1">list</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">hotKey</span><span class="s2">) == </span><span class="s1">tuple</span><span class="s2">)):</span>
+                <span class="s4">for </span><span class="s1">key </span><span class="s4">in </span><span class="s1">hotKey</span><span class="s2">:</span>
+                    <span class="s1">button</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'press-' </span><span class="s2">+ </span><span class="s1">key </span><span class="s2">+ </span><span class="s3">'-'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonCommand</span><span class="s2">,</span>
+                                <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">value</span><span class="s2">])</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'press-' </span><span class="s2">+ </span><span class="s1">key </span><span class="s2">+ </span><span class="s3">'-'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonCommand</span><span class="s2">,</span>
+                              <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">value</span><span class="s2">])</span>
+
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">button</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'press-' </span><span class="s2">+ </span><span class="s1">hotKey </span><span class="s2">+ </span><span class="s3">'-'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonCommand</span><span class="s2">,</span>
+                            <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">value</span><span class="s2">])</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'press-' </span><span class="s2">+ </span><span class="s1">hotKey </span><span class="s2">+ </span><span class="s3">'-'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonCommand</span><span class="s2">,</span>
+                          <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">value</span><span class="s2">])</span>
+        <span class="s5"># Position buttons and text</span>
+        <span class="s1">pad </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pad'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hascomponent</span><span class="s2">(</span><span class="s3">'image0'</span><span class="s2">):</span>
+            <span class="s1">image </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'image0'</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">image </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s5"># Get size of text/geom without image (for state 0)</span>
+        <span class="s4">if </span><span class="s1">image</span><span class="s2">:</span>
+            <span class="s1">image</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">hidden</span><span class="s2">)</span>
+        <span class="s1">bounds </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s6">0</span><span class="s2">].</span><span class="s1">getTightBounds</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">image</span><span class="s2">:</span>
+            <span class="s1">image</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">bounds </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">l </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">b </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">l </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">][</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">][</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s1">b </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">][</span><span class="s6">2</span><span class="s2">]</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">][</span><span class="s6">2</span><span class="s2">]</span>
+        <span class="s5"># Center text and geom around origin</span>
+        <span class="s5"># How far is center of text from origin?</span>
+        <span class="s1">xOffset </span><span class="s2">= -(</span><span class="s1">l</span><span class="s2">+</span><span class="s1">r</span><span class="s2">)*</span><span class="s6">0.5</span>
+        <span class="s1">zOffset </span><span class="s2">= -(</span><span class="s1">b</span><span class="s2">+</span><span class="s1">t</span><span class="s2">)*</span><span class="s6">0.5</span>
+        <span class="s5"># Update bounds to reflect text movement</span>
+        <span class="s1">l </span><span class="s2">+= </span><span class="s1">xOffset</span>
+        <span class="s1">r </span><span class="s2">+= </span><span class="s1">xOffset</span>
+        <span class="s1">b </span><span class="s2">+= </span><span class="s1">zOffset</span>
+        <span class="s1">t </span><span class="s2">+= </span><span class="s1">zOffset</span>
+        <span class="s5"># Offset text and geom to center</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'text_pos'</span><span class="s2">] = (</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'text_pos'</span><span class="s2">][</span><span class="s6">0</span><span class="s2">] + </span><span class="s1">xOffset</span><span class="s2">,</span>
+                                <span class="s1">self</span><span class="s2">[</span><span class="s3">'text_pos'</span><span class="s2">][</span><span class="s6">1</span><span class="s2">] + </span><span class="s1">zOffset</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'geom'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'geom_pos'</span><span class="s2">] = </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'geom_pos'</span><span class="s2">][</span><span class="s6">0</span><span class="s2">] + </span><span class="s1">xOffset</span><span class="s2">,</span>
+                                      <span class="s1">self</span><span class="s2">[</span><span class="s3">'geom_pos'</span><span class="s2">][</span><span class="s6">1</span><span class="s2">],</span>
+                                      <span class="s1">self</span><span class="s2">[</span><span class="s3">'geom_pos'</span><span class="s2">][</span><span class="s6">2</span><span class="s2">] + </span><span class="s1">zOffset</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">numButtons </span><span class="s2">!= </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">bpad </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'button_pad'</span><span class="s2">]</span>
+            <span class="s5"># Get button size</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonSize'</span><span class="s2">]:</span>
+                <span class="s5"># Either use given size</span>
+                <span class="s1">buttonSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonSize'</span><span class="s2">]</span>
+                <span class="s1">bl </span><span class="s2">= </span><span class="s1">buttonSize</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s1">br </span><span class="s2">= </span><span class="s1">buttonSize</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s1">bb </span><span class="s2">= </span><span class="s1">buttonSize</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+                <span class="s1">bt </span><span class="s2">= </span><span class="s1">buttonSize</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Or get bounds of union of buttons</span>
+                <span class="s1">bl </span><span class="s2">= </span><span class="s1">br </span><span class="s2">= </span><span class="s1">bb </span><span class="s2">= </span><span class="s1">bt </span><span class="s2">= </span><span class="s6">0</span>
+                <span class="s4">for </span><span class="s1">button </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList</span><span class="s2">:</span>
+                    <span class="s1">bounds </span><span class="s2">= </span><span class="s1">button</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s6">0</span><span class="s2">].</span><span class="s1">getTightBounds</span><span class="s2">()</span>
+                    <span class="s4">if </span><span class="s1">bounds </span><span class="s4">is None</span><span class="s2">:</span>
+                        <span class="s1">bl </span><span class="s2">= </span><span class="s6">0</span>
+                        <span class="s1">br </span><span class="s2">= </span><span class="s6">0</span>
+                        <span class="s1">bb </span><span class="s2">= </span><span class="s6">0</span>
+                        <span class="s1">bt </span><span class="s2">= </span><span class="s6">0</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">bl </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">bl</span><span class="s2">, </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">][</span><span class="s6">0</span><span class="s2">])</span>
+                        <span class="s1">br </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">br</span><span class="s2">, </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">][</span><span class="s6">0</span><span class="s2">])</span>
+                        <span class="s1">bb </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">bb</span><span class="s2">, </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">][</span><span class="s6">2</span><span class="s2">])</span>
+                        <span class="s1">bt </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">bt</span><span class="s2">, </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">][</span><span class="s6">2</span><span class="s2">])</span>
+                <span class="s1">bl </span><span class="s2">-= </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s1">br </span><span class="s2">+= </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s1">bb </span><span class="s2">-= </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s1">bt </span><span class="s2">+= </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s5"># Now resize buttons to match largest</span>
+                <span class="s4">for </span><span class="s1">button </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList</span><span class="s2">:</span>
+                    <span class="s1">button</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s1">bl</span><span class="s2">, </span><span class="s1">br</span><span class="s2">, </span><span class="s1">bb</span><span class="s2">, </span><span class="s1">bt</span><span class="s2">)</span>
+            <span class="s5"># Must compensate for scale</span>
+            <span class="s1">scale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'button_scale'</span><span class="s2">]</span>
+            <span class="s5"># Can either be a Vec3 or a tuple of 3 values</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">, </span><span class="s1">Vec3</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">) == </span><span class="s1">list</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">) == </span><span class="s1">tuple</span><span class="s2">)):</span>
+                <span class="s1">sx </span><span class="s2">= </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s1">sz </span><span class="s2">= </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+            <span class="s4">elif </span><span class="s2">((</span><span class="s1">type</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">) == </span><span class="s1">int</span><span class="s2">) </span><span class="s4">or</span>
+                  <span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">) == </span><span class="s1">float</span><span class="s2">)):</span>
+                <span class="s1">sx </span><span class="s2">= </span><span class="s1">sz </span><span class="s2">= </span><span class="s1">scale</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">sx </span><span class="s2">= </span><span class="s1">sz </span><span class="s2">= </span><span class="s6">1</span>
+            <span class="s1">bl </span><span class="s2">*= </span><span class="s1">sx</span>
+            <span class="s1">br </span><span class="s2">*= </span><span class="s1">sx</span>
+            <span class="s1">bb </span><span class="s2">*= </span><span class="s1">sz</span>
+            <span class="s1">bt </span><span class="s2">*= </span><span class="s1">sz</span>
+            <span class="s5"># Position buttons</span>
+            <span class="s5"># Calc button width and height</span>
+            <span class="s1">bHeight </span><span class="s2">= </span><span class="s1">bt </span><span class="s2">- </span><span class="s1">bb</span>
+            <span class="s1">bWidth </span><span class="s2">= </span><span class="s1">br </span><span class="s2">- </span><span class="s1">bl</span>
+            <span class="s5"># Add pad between buttons</span>
+            <span class="s1">bSpacing </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'buttonPadSF'</span><span class="s2">] * </span><span class="s1">bWidth</span>
+            <span class="s1">bPos </span><span class="s2">= -</span><span class="s1">bSpacing </span><span class="s2">* (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">numButtons </span><span class="s2">- </span><span class="s6">1</span><span class="s2">)*</span><span class="s6">0.5</span>
+            <span class="s1">index </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s4">for </span><span class="s1">button </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList</span><span class="s2">:</span>
+                <span class="s1">button</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">bPos </span><span class="s2">+ </span><span class="s1">index </span><span class="s2">* </span><span class="s1">bSpacing</span><span class="s2">, </span><span class="s6">0</span><span class="s2">,</span>
+                              <span class="s1">b </span><span class="s2">- </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'midPad'</span><span class="s2">] - </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] - </span><span class="s1">bt</span><span class="s2">)</span>
+                <span class="s1">index </span><span class="s2">+= </span><span class="s6">1</span>
+            <span class="s1">bMax </span><span class="s2">= </span><span class="s1">bPos </span><span class="s2">+ </span><span class="s1">bSpacing </span><span class="s2">* (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">numButtons </span><span class="s2">- </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">bpad </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">bl </span><span class="s2">= </span><span class="s1">br </span><span class="s2">= </span><span class="s1">bb </span><span class="s2">= </span><span class="s1">bt </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">bPos </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">bMax </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">bpad </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">bHeight </span><span class="s2">= </span><span class="s1">bWidth </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s5"># Resize frame to fit text and buttons</span>
+        <span class="s1">l </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">bPos </span><span class="s2">+ </span><span class="s1">bl</span><span class="s2">, </span><span class="s1">l</span><span class="s2">) - </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">r </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">bMax </span><span class="s2">+ </span><span class="s1">br</span><span class="s2">, </span><span class="s1">r</span><span class="s2">) + </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">sidePad </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'sidePad'</span><span class="s2">]</span>
+        <span class="s1">l </span><span class="s2">-= </span><span class="s1">sidePad</span>
+        <span class="s1">r </span><span class="s2">+= </span><span class="s1">sidePad</span>
+        <span class="s5"># reduce bottom by pad, button height and 2*button pad</span>
+        <span class="s1">b </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">b </span><span class="s2">- </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'midPad'</span><span class="s2">] - </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] - </span><span class="s1">bHeight </span><span class="s2">- </span><span class="s1">bpad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">b</span><span class="s2">) - </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">t </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'topPad'</span><span class="s2">] + </span><span class="s1">pad</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s1">l</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'image_scale'</span><span class="s2">] = (</span><span class="s1">r </span><span class="s2">- </span><span class="s1">l</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s1">t </span><span class="s2">- </span><span class="s1">b</span><span class="s2">)</span>
+        <span class="s5"># Center frame about text and buttons</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'image_pos'</span><span class="s2">] = ((</span><span class="s1">l</span><span class="s2">+</span><span class="s1">r</span><span class="s2">)*</span><span class="s6">0.5</span><span class="s2">, </span><span class="s6">0.0</span><span class="s2">, (</span><span class="s1">b</span><span class="s2">+</span><span class="s1">t</span><span class="s2">)*</span><span class="s6">0.5</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">resetFrameSize</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">show</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fadeScreen'</span><span class="s2">]:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">transitions</span><span class="s2">.</span><span class="s1">fadeScreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fadeScreen'</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'gui-popup'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">NodePath</span><span class="s2">.</span><span class="s1">show</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">hide</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fadeScreen'</span><span class="s2">]:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">transitions</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s1">NodePath</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">buttonCommand</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](</span><span class="s1">value</span><span class="s2">, *</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'extraArgs'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setMessage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">message</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">message</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">configureDialog</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">cleanup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Remove this panel out of the AllDialogs list</span>
+        <span class="s1">uniqueName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dialogName'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">uniqueName </span><span class="s4">in </span><span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">:</span>
+            <span class="s4">del </span><span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">AllDialogs</span><span class="s2">[</span><span class="s1">uniqueName</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fadeScreen'</span><span class="s2">]:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">transitions</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">button </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttonList</span><span class="s2">:</span>
+            <span class="s1">button</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">OkDialog</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'buttonTextList'</span><span class="s2">,  [</span><span class="s3">'OK'</span><span class="s2">],       </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonValueList'</span><span class="s2">, [</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_OK</span><span class="s2">],          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">OkDialog</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">OkCancelDialog</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'buttonTextList'</span><span class="s2">,  [</span><span class="s3">'OK'</span><span class="s2">,</span><span class="s3">'Cancel'</span><span class="s2">],       </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonValueList'</span><span class="s2">, [</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_OK</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_CANCEL</span><span class="s2">], </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">OkCancelDialog</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">YesNoDialog</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'buttonTextList'</span><span class="s2">,  [</span><span class="s3">'Yes'</span><span class="s2">, </span><span class="s3">'No'</span><span class="s2">],       </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonValueList'</span><span class="s2">, [</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_YES</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_NO</span><span class="s2">], </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">YesNoDialog</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">YesNoCancelDialog</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'buttonTextList'</span><span class="s2">,  [</span><span class="s3">'Yes'</span><span class="s2">, </span><span class="s3">'No'</span><span class="s2">, </span><span class="s3">'Cancel'</span><span class="s2">],  </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonValueList'</span><span class="s2">, [</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_YES</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_NO</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_CANCEL</span><span class="s2">],</span>
+             <span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">YesNoCancelDialog</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">RetryCancelDialog</span><span class="s2">(</span><span class="s1">DirectDialog</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'buttonTextList'</span><span class="s2">,  [</span><span class="s3">'Retry'</span><span class="s2">,</span><span class="s3">'Cancel'</span><span class="s2">],   </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'buttonValueList'</span><span class="s2">, [</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_RETRY</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DIALOG_CANCEL</span><span class="s2">], </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s1">DirectDialog</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">RetryCancelDialog</span><span class="s2">)</span>
+
+</pre>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<html>
+<head>
+<title>DeltaProfiler.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DeltaProfiler.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">time </span><span class="s1">import </span><span class="s0">time</span>
+
+<span class="s1">class </span><span class="s0">DeltaProfiler</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This is a Python specific ProfileTimer.cxx. 
+    It's not related directly to the ProfileTimer code, it just 
+    shares some concepts. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">name</span><span class="s2">=</span><span class="s4">&quot;&quot;</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">name</span><span class="s2">=</span><span class="s0">name</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">priorLabel </span><span class="s2">= </span><span class="s4">&quot;&quot;</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">priorTime </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">active</span><span class="s2">=</span><span class="s5">0</span>
+
+    <span class="s1">def </span><span class="s0">printDeltaTime</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">label</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">active</span><span class="s2">:</span>
+            <span class="s0">deltaTime</span><span class="s2">=</span><span class="s0">time</span><span class="s2">()-</span><span class="s0">self</span><span class="s2">.</span><span class="s0">priorTime</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s4">&quot;%s DeltaTime %-25s to %-25s: %3.5f&quot;</span><span class="s2">%(</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">name</span><span class="s2">,</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">priorLabel</span><span class="s2">,</span>
+                <span class="s0">label</span><span class="s2">,</span>
+                <span class="s0">deltaTime</span><span class="s2">))</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">priorLabel</span><span class="s2">=</span><span class="s0">label</span>
+            <span class="s6"># The printing time is not included in the timing.</span>
+            <span class="s6"># This is intentional.</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">priorTime</span><span class="s2">=</span><span class="s0">time</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

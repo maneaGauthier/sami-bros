@@ -1,0 +1,538 @@
+<html>
+<head>
+<title>DirectJoybox.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectJoybox.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; Class used to create and control joybox device &quot;&quot;&quot;</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">DirectObject </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">DirectDeviceManager </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directtools</span><span class="s3">.</span><span class="s1">DirectUtil </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">gui </span><span class="s2">import </span><span class="s1">OnscreenText</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">task </span><span class="s2">import </span><span class="s1">Task</span>
+<span class="s2">import </span><span class="s1">math</span>
+
+<span class="s4">&quot;&quot;&quot; 
+TODO: 
+Handle interaction between widget, followSelectedTask and updateTask 
+&quot;&quot;&quot;</span>
+
+<span class="s5"># BUTTONS</span>
+<span class="s1">L_STICK </span><span class="s3">= </span><span class="s6">0</span>
+<span class="s1">L_UPPER </span><span class="s3">= </span><span class="s6">1</span>
+<span class="s1">L_LOWER </span><span class="s3">= </span><span class="s6">2</span>
+<span class="s1">R_STICK </span><span class="s3">= </span><span class="s6">3</span>
+<span class="s1">R_UPPER </span><span class="s3">= </span><span class="s6">4</span>
+<span class="s1">R_LOWER </span><span class="s3">= </span><span class="s6">5</span>
+<span class="s5"># ANALOGS</span>
+<span class="s1">NULL_AXIS </span><span class="s3">= -</span><span class="s6">1</span>
+<span class="s1">L_LEFT_RIGHT </span><span class="s3">= </span><span class="s6">0</span>
+<span class="s1">L_FWD_BACK </span><span class="s3">= </span><span class="s6">1</span>
+<span class="s1">L_TWIST </span><span class="s3">= </span><span class="s6">2</span>
+<span class="s1">L_SLIDE </span><span class="s3">= </span><span class="s6">3</span>
+<span class="s1">R_LEFT_RIGHT </span><span class="s3">= </span><span class="s6">4</span>
+<span class="s1">R_FWD_BACK </span><span class="s3">= </span><span class="s6">5</span>
+<span class="s1">R_TWIST </span><span class="s3">= </span><span class="s6">6</span>
+<span class="s1">R_SLIDE </span><span class="s3">= </span><span class="s6">7</span>
+
+<span class="s1">JOYBOX_MIN </span><span class="s3">= </span><span class="s1">ANALOG_MIN </span><span class="s3">+ </span><span class="s1">ANALOG_DEADBAND</span>
+<span class="s1">JOYBOX_MAX </span><span class="s3">= </span><span class="s1">ANALOG_MAX </span><span class="s3">- </span><span class="s1">ANALOG_DEADBAND</span>
+<span class="s1">JOYBOX_RANGE </span><span class="s3">= </span><span class="s1">JOYBOX_MAX </span><span class="s3">- </span><span class="s1">JOYBOX_MIN</span>
+
+<span class="s1">JOYBOX_TREAD_SEPERATION </span><span class="s3">= </span><span class="s6">1.0</span>
+
+<span class="s2">class </span><span class="s1">DirectJoybox</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">joyboxCount </span><span class="s3">= </span><span class="s6">0</span>
+    <span class="s1">xyzMultiplier </span><span class="s3">= </span><span class="s6">1.0</span>
+    <span class="s1">hprMultiplier </span><span class="s3">= </span><span class="s6">1.0</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device </span><span class="s3">= </span><span class="s4">'CerealBox'</span><span class="s3">, </span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">camera</span><span class="s3">,</span>
+                 <span class="s1">headingNP </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">camera</span><span class="s3">):</span>
+        <span class="s5"># See if device manager has been initialized</span>
+        <span class="s2">if </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager </span><span class="s3">= </span><span class="s1">DirectDeviceManager</span><span class="s3">()</span>
+        <span class="s5"># Set name</span>
+        <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">joyboxCount </span><span class="s3">+= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= </span><span class="s4">'Joybox-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">joyboxCount</span><span class="s3">)</span>
+        <span class="s5"># Get buttons and analogs</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">device </span><span class="s3">= </span><span class="s1">device</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">analogs </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager</span><span class="s3">.</span><span class="s1">createAnalogs</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">buttons </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deviceManager</span><span class="s3">.</span><span class="s1">createButtons</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">aList </span><span class="s3">= [</span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">bList </span><span class="s3">= [</span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s5"># For joybox fly mode</span>
+        <span class="s5"># Default is joe mode</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">,</span>
+                        <span class="s1">R_TWIST</span><span class="s3">, </span><span class="s1">L_TWIST</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s5"># Initialize time</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lastTime </span><span class="s3">= </span><span class="s1">globalClock</span><span class="s3">.</span><span class="s1">getFrameTime</span><span class="s3">()</span>
+        <span class="s5"># Record node path</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">nodePath</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">headingNP </span><span class="s3">= </span><span class="s1">headingNP</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">useHeadingNP </span><span class="s3">= </span><span class="s2">False</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rotateInPlace </span><span class="s3">= </span><span class="s2">False</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">floatingNP </span><span class="s3">= </span><span class="s1">NodePath</span><span class="s3">(</span><span class="s4">&quot;floating&quot;</span><span class="s3">)</span>
+        <span class="s5"># Ref CS for orbit mode</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">refCS </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">cameraControl</span><span class="s3">.</span><span class="s1">coaMarker</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">group</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s4">'JoyboxTempCS'</span><span class="s3">)</span>
+        <span class="s5"># Text object to display current mode</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">readout </span><span class="s3">= </span><span class="s1">OnscreenText</span><span class="s3">.</span><span class="s1">OnscreenText</span><span class="s3">(</span>
+            <span class="s1">pos </span><span class="s3">= (-</span><span class="s6">0.9</span><span class="s3">, </span><span class="s6">0.95</span><span class="s3">),</span>
+            <span class="s1">font </span><span class="s3">= </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">font</span><span class="s3">,</span>
+            <span class="s1">mayChange </span><span class="s3">= </span><span class="s6">1</span><span class="s3">)</span>
+        <span class="s5"># List of functions to cycle through</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modeList </span><span class="s3">= [</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joeMode</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">driveMode</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">orbitMode</span><span class="s3">]</span>
+        <span class="s5"># Pick initial mode</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">updateFunc </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modeName </span><span class="s3">= </span><span class="s4">'Joe Mode'</span>
+        <span class="s5"># Auxiliary data</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">auxData </span><span class="s3">= []</span>
+        <span class="s5"># Button registry</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">addButtonEvents</span><span class="s3">()</span>
+        <span class="s5"># Spawn update task</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">enable</span><span class="s3">()</span>
+
+
+    <span class="s2">def </span><span class="s1">setHeadingNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">,</span><span class="s1">np</span><span class="s3">):</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">headingNP </span><span class="s3">= </span><span class="s1">np</span>
+
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Kill existing task</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">disable</span><span class="s3">()</span>
+        <span class="s5"># Accept button events</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">acceptSwitchModeEvent</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">acceptUprightCameraEvent</span><span class="s3">()</span>
+        <span class="s5"># Update task</span>
+        <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">updateTask</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-updateTask'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-updateTask'</span><span class="s3">)</span>
+        <span class="s5"># Ignore button events</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ignoreSwitchModeEvent</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ignoreUprightCameraEvent</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">disable</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">addButtonEvents</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">breg </span><span class="s3">= </span><span class="s1">ButtonRegistry</span><span class="s3">.</span><span class="s1">ptr</span><span class="s3">()</span>
+        <span class="s5"># MRM: Hard coded!</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s6">8</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">buttons</span><span class="s3">.</span><span class="s1">setButtonMap</span><span class="s3">(</span>
+                <span class="s1">i</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">breg</span><span class="s3">.</span><span class="s1">getButton</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getEventName</span><span class="s3">(</span><span class="s1">i</span><span class="s3">)))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">eventThrower </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">buttons</span><span class="s3">.</span><span class="s1">getNodePath</span><span class="s3">().</span><span class="s1">attachNewNode</span><span class="s3">(</span>
+            <span class="s1">ButtonThrower</span><span class="s3">(</span><span class="s4">'JB Button Thrower'</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">setNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">nodePath</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">nodePath</span>
+
+    <span class="s2">def </span><span class="s1">getNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span>
+    <span class="s2">def </span><span class="s1">setRefCS</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">refCS</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">refCS </span><span class="s3">= </span><span class="s1">refCS</span>
+    <span class="s2">def </span><span class="s1">getRefCS</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">refCS</span>
+    <span class="s2">def </span><span class="s1">getEventName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">index</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-button-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">index</span><span class="s3">)</span>
+    <span class="s2">def </span><span class="s1">setXyzMultiplier</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">multiplier</span><span class="s3">):</span>
+        <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier </span><span class="s3">= </span><span class="s1">multiplier</span>
+    <span class="s2">def </span><span class="s1">getXyzMultiplier</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span>
+    <span class="s2">def </span><span class="s1">setHprMultiplier</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">multiplier</span><span class="s3">):</span>
+        <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">hprMultiplier </span><span class="s3">= </span><span class="s1">multiplier</span>
+    <span class="s2">def </span><span class="s1">getHprMultiplier</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">hprMultiplier</span>
+
+    <span class="s2">def </span><span class="s1">updateTask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">state</span><span class="s3">):</span>
+        <span class="s5"># old optimization</span>
+        <span class="s5">#self.updateValsUnrolled()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">updateVals</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">updateFunc</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">updateVals</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Update delta time</span>
+        <span class="s1">cTime </span><span class="s3">= </span><span class="s1">globalClock</span><span class="s3">.</span><span class="s1">getFrameTime</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime </span><span class="s3">= </span><span class="s1">cTime </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lastTime</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lastTime </span><span class="s3">= </span><span class="s1">cTime</span>
+        <span class="s5"># Update analogs</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">)):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] = </span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">i</span><span class="s3">)</span>
+        <span class="s5"># Update buttons</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">buttons</span><span class="s3">)):</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">bList</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] = </span><span class="s1">self</span><span class="s3">.</span><span class="s1">buttons</span><span class="s3">[</span><span class="s1">i</span><span class="s3">]</span>
+            <span class="s2">except </span><span class="s1">IndexError</span><span class="s3">:</span>
+                <span class="s5"># That channel may not have been updated yet</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">bList</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] = </span><span class="s6">0</span>
+
+    <span class="s2">def </span><span class="s1">updateValsUnrolled</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Update delta time</span>
+        <span class="s1">cTime </span><span class="s3">= </span><span class="s1">globalClock</span><span class="s3">.</span><span class="s1">getFrameTime</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime </span><span class="s3">= </span><span class="s1">cTime </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lastTime</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lastTime </span><span class="s3">= </span><span class="s1">cTime</span>
+        <span class="s5"># Update analogs</span>
+        <span class="s2">for </span><span class="s1">chan </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">)):</span>
+            <span class="s1">val </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">.</span><span class="s1">getControlState</span><span class="s3">(</span><span class="s1">chan</span><span class="s3">)</span>
+            <span class="s5"># Zero out values in deadband</span>
+            <span class="s2">if </span><span class="s3">(</span><span class="s1">val </span><span class="s3">&lt; </span><span class="s6">0</span><span class="s3">):</span>
+                <span class="s1">val </span><span class="s3">= </span><span class="s1">min</span><span class="s3">(</span><span class="s1">val </span><span class="s3">+ </span><span class="s1">ANALOG_DEADBAND</span><span class="s3">, </span><span class="s6">0.0</span><span class="s3">)</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">val </span><span class="s3">= </span><span class="s1">max</span><span class="s3">(</span><span class="s1">val </span><span class="s3">- </span><span class="s1">ANALOG_DEADBAND</span><span class="s3">, </span><span class="s6">0.0</span><span class="s3">)</span>
+            <span class="s5"># Scale up rotating knob values</span>
+            <span class="s2">if </span><span class="s3">(</span><span class="s1">chan </span><span class="s3">== </span><span class="s1">L_TWIST</span><span class="s3">) </span><span class="s2">or </span><span class="s3">(</span><span class="s1">chan </span><span class="s3">== </span><span class="s1">R_TWIST</span><span class="s3">):</span>
+                <span class="s1">val </span><span class="s3">*= </span><span class="s6">3.0</span>
+            <span class="s5"># Now clamp value between minVal and maxVal</span>
+            <span class="s1">val </span><span class="s3">= </span><span class="s1">CLAMP</span><span class="s3">(</span><span class="s1">val</span><span class="s3">, </span><span class="s1">JOYBOX_MIN</span><span class="s3">, </span><span class="s1">JOYBOX_MAX</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">chan</span><span class="s3">] = </span><span class="s6">2.0</span><span class="s3">*((</span><span class="s1">val </span><span class="s3">- </span><span class="s1">JOYBOX_MIN</span><span class="s3">)/</span><span class="s1">JOYBOX_RANGE</span><span class="s3">) - </span><span class="s6">1</span>
+        <span class="s5"># Update buttons</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">buttons</span><span class="s3">)):</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">bList</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] = </span><span class="s1">self</span><span class="s3">.</span><span class="s1">buttons</span><span class="s3">.</span><span class="s1">getButtonState</span><span class="s3">(</span><span class="s1">i</span><span class="s3">)</span>
+            <span class="s2">except </span><span class="s1">IndexError</span><span class="s3">:</span>
+                <span class="s5"># That channel may not have been updated yet</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">bList</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] = </span><span class="s6">0</span>
+
+    <span class="s2">def </span><span class="s1">acceptSwitchModeEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">button </span><span class="s3">= </span><span class="s1">R_UPPER</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getEventName</span><span class="s3">(</span><span class="s1">button</span><span class="s3">), </span><span class="s1">self</span><span class="s3">.</span><span class="s1">switchMode</span><span class="s3">)</span>
+    <span class="s2">def </span><span class="s1">ignoreSwitchModeEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">button </span><span class="s3">= </span><span class="s1">R_UPPER</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ignore</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getEventName</span><span class="s3">(</span><span class="s1">button</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">switchMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s5"># Get current mode</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">modeFunc </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modeList</span><span class="s3">[</span><span class="s6">0</span><span class="s3">]</span>
+            <span class="s5"># Rotate mode list</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">modeList </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modeList</span><span class="s3">[</span><span class="s6">1</span><span class="s3">:] + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modeList</span><span class="s3">[:</span><span class="s6">1</span><span class="s3">]</span>
+            <span class="s5"># Call new mode</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">modeFunc</span><span class="s3">()</span>
+        <span class="s2">except </span><span class="s1">IndexError</span><span class="s3">:</span>
+            <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">showMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">modeText</span><span class="s3">):</span>
+        <span class="s2">def </span><span class="s1">hideText</span><span class="s3">(</span><span class="s1">state</span><span class="s3">, </span><span class="s1">s </span><span class="s3">= </span><span class="s1">self</span><span class="s3">):</span>
+            <span class="s1">s</span><span class="s3">.</span><span class="s1">readout</span><span class="s3">.</span><span class="s1">setText</span><span class="s3">(</span><span class="s4">''</span><span class="s3">)</span>
+            <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">done</span>
+        <span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-showMode'</span><span class="s3">)</span>
+        <span class="s5"># Update display</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">readout</span><span class="s3">.</span><span class="s1">setText</span><span class="s3">(</span><span class="s1">modeText</span><span class="s3">)</span>
+        <span class="s1">t </span><span class="s3">= </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">doMethodLater</span><span class="s3">(</span><span class="s6">3.0</span><span class="s3">, </span><span class="s1">hideText</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s4">'-showMode'</span><span class="s3">)</span>
+        <span class="s1">t</span><span class="s3">.</span><span class="s1">setUponDeath</span><span class="s3">(</span><span class="s1">hideText</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">acceptUprightCameraEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">button </span><span class="s3">= </span><span class="s1">L_UPPER</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">accept</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getEventName</span><span class="s3">(</span><span class="s1">button</span><span class="s3">),</span>
+                    <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">cameraControl</span><span class="s3">.</span><span class="s1">orbitUprightCam</span><span class="s3">)</span>
+    <span class="s2">def </span><span class="s1">ignoreUprightCameraEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">button </span><span class="s3">= </span><span class="s1">L_UPPER</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ignore</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getEventName</span><span class="s3">(</span><span class="s1">button</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">func</span><span class="s3">, </span><span class="s1">name</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">disable</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">updateFunc </span><span class="s3">= </span><span class="s1">func</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modeName </span><span class="s3">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">showMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">modeName</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">enable</span><span class="s3">()</span>
+
+
+    <span class="s2">def </span><span class="s1">setUseHeadingNP</span><span class="s3">(</span><span class="s1">self</span><span class="s3">,</span><span class="s1">enabled</span><span class="s3">):</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">useHeadingNP </span><span class="s3">= </span><span class="s1">enabled</span>
+
+    <span class="s2">def </span><span class="s1">setRotateInPlace</span><span class="s3">(</span><span class="s1">self</span><span class="s3">,</span><span class="s1">enabled</span><span class="s3">):</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rotateInPlace </span><span class="s3">= </span><span class="s1">enabled</span>
+
+    <span class="s2">def </span><span class="s1">joyboxFly</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Do nothing if no nodePath selected</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s2">return</span>
+        <span class="s1">hprScale </span><span class="s3">= ((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_SLIDE</span><span class="s3">] + </span><span class="s6">1.0</span><span class="s3">) *</span>
+                    <span class="s6">50.0 </span><span class="s3">* </span><span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">hprMultiplier</span><span class="s3">)</span>
+        <span class="s1">posScale </span><span class="s3">= ((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_SLIDE</span><span class="s3">] + </span><span class="s6">1.0</span><span class="s3">) *</span>
+                    <span class="s6">50.0 </span><span class="s3">* </span><span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span><span class="s3">)</span>
+        <span class="s2">def </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s1">index</span><span class="s3">, </span><span class="s1">s </span><span class="s3">= </span><span class="s1">self</span><span class="s3">):</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s2">return </span><span class="s1">s</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">s</span><span class="s3">.</span><span class="s1">mapping</span><span class="s3">[</span><span class="s1">index</span><span class="s3">]]</span>
+            <span class="s2">except </span><span class="s1">IndexError</span><span class="s3">:</span>
+                <span class="s5"># If it is a null axis return 0</span>
+                <span class="s2">return </span><span class="s6">0.0</span>
+        <span class="s1">x </span><span class="s3">= </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s6">0</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modifier</span><span class="s3">[</span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">y </span><span class="s3">= </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s6">1</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modifier</span><span class="s3">[</span><span class="s6">1</span><span class="s3">]</span>
+        <span class="s1">z </span><span class="s3">= </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s6">2</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modifier</span><span class="s3">[</span><span class="s6">2</span><span class="s3">]</span>
+        <span class="s1">pos </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">z</span><span class="s3">) * (</span><span class="s1">posScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span><span class="s3">)</span>
+
+        <span class="s1">h </span><span class="s3">= </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s6">3</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modifier</span><span class="s3">[</span><span class="s6">3</span><span class="s3">]</span>
+        <span class="s1">p </span><span class="s3">= </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s6">4</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modifier</span><span class="s3">[</span><span class="s6">4</span><span class="s3">]</span>
+        <span class="s1">r </span><span class="s3">= </span><span class="s1">getAxisVal</span><span class="s3">(</span><span class="s6">5</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">modifier</span><span class="s3">[</span><span class="s6">5</span><span class="s3">]</span>
+        <span class="s1">hpr </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">h</span><span class="s3">, </span><span class="s1">p</span><span class="s3">, </span><span class="s1">r</span><span class="s3">) * (</span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span><span class="s3">)</span>
+        <span class="s5"># if we are using a heading nodepath, we want</span>
+        <span class="s5"># to drive in the direction we are facing,</span>
+        <span class="s5"># however, we don't want the z component to change</span>
+        <span class="s2">if </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">useHeadingNP </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">headingNP </span><span class="s3">!= </span><span class="s2">None</span><span class="s3">):</span>
+            <span class="s1">oldZ </span><span class="s3">= </span><span class="s1">pos</span><span class="s3">.</span><span class="s1">getZ</span><span class="s3">()</span>
+            <span class="s1">pos </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">getRelativeVector</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">headingNP</span><span class="s3">,</span>
+                                                  <span class="s1">pos</span><span class="s3">)</span>
+            <span class="s1">pos</span><span class="s3">.</span><span class="s1">setZ</span><span class="s3">(</span><span class="s1">oldZ</span><span class="s3">)</span>
+            <span class="s5"># if we are using a heading NP we might want to rotate</span>
+            <span class="s5"># in place around that NP</span>
+            <span class="s2">if </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotateInPlace</span><span class="s3">):</span>
+                <span class="s1">parent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">getParent</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">floatingNP</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">floatingNP</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">headingNP</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">floatingNP</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">wrtReparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">floatingNP</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">floatingNP</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">hpr</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">wrtReparentTo</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+                <span class="s1">hpr </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">)</span>
+
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setPosHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">pos</span><span class="s3">, </span><span class="s1">hpr</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">joeMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">,</span>
+                        <span class="s1">R_TWIST</span><span class="s3">, </span><span class="s1">L_TWIST</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Joe Mode'</span><span class="s3">)</span>
+
+
+    <span class="s2">def </span><span class="s1">basicMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">NULL_AXIS</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">,</span>
+                        <span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">0</span><span class="s3">,</span><span class="s6">1</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,-</span><span class="s6">1</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">,</span><span class="s4">'Basic Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">fpsMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">L_LEFT_RIGHT</span><span class="s3">,</span><span class="s1">R_FWD_BACK</span><span class="s3">,</span><span class="s1">L_FWD_BACK</span><span class="s3">,</span>
+                        <span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">,</span><span class="s6">1</span><span class="s3">,</span><span class="s6">1</span><span class="s3">,-</span><span class="s6">1</span><span class="s3">,</span><span class="s6">0</span><span class="s3">,</span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">,</span><span class="s4">'FPS Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">tankMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tankFly</span><span class="s3">,</span><span class="s4">'Tank Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">nullMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nullFly</span><span class="s3">,</span><span class="s4">'Null Mode'</span><span class="s3">)</span>
+
+
+    <span class="s2">def </span><span class="s1">lucMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">,</span>
+                        <span class="s1">R_TWIST</span><span class="s3">, </span><span class="s1">L_TWIST</span><span class="s3">, </span><span class="s1">L_LEFT_RIGHT</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Luc Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">driveMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">L_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">R_TWIST</span><span class="s3">,</span>
+                        <span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Drive Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">lookAtMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_TWIST</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">,</span>
+                        <span class="s1">L_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Look At Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">lookAroundMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">NULL_AXIS</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">,</span>
+                        <span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Lookaround Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">demoMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">,</span>
+                        <span class="s1">R_TWIST</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">, </span><span class="s1">NULL_AXIS</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Demo Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">hprXyzMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">R_TWIST</span><span class="s3">,</span>
+                        <span class="s1">L_TWIST</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">, </span><span class="s1">L_LEFT_RIGHT</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'HprXyz Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">mopathMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">R_TWIST</span><span class="s3">,</span>
+                        <span class="s1">L_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">, </span><span class="s1">L_LEFT_RIGHT</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, </span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Mopath Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">walkthruMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mapping </span><span class="s3">= [</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">, </span><span class="s1">R_FWD_BACK</span><span class="s3">, </span><span class="s1">L_TWIST</span><span class="s3">,</span>
+                        <span class="s1">R_TWIST</span><span class="s3">, </span><span class="s1">L_FWD_BACK</span><span class="s3">, </span><span class="s1">L_LEFT_RIGHT</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">modifier </span><span class="s3">= [</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, -</span><span class="s6">1</span><span class="s3">, </span><span class="s6">1</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">joyboxFly</span><span class="s3">, </span><span class="s4">'Walkthru Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">spaceMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">spaceFly</span><span class="s3">, </span><span class="s4">'Space Mode'</span><span class="s3">)</span>
+
+
+    <span class="s2">def </span><span class="s1">nullFly</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return</span>
+
+    <span class="s2">def </span><span class="s1">tankFly</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+
+        <span class="s1">leftTreadSpeed  </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">L_SLIDE</span><span class="s3">,</span><span class="s6">.1</span><span class="s3">,</span><span class="s6">100</span><span class="s3">) *</span>
+                           <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_FWD_BACK</span><span class="s3">]</span>
+        <span class="s1">rightTreadSpeed </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">R_SLIDE</span><span class="s3">,</span><span class="s6">.1</span><span class="s3">,</span><span class="s6">100</span><span class="s3">) *</span>
+                           <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span><span class="s3">) * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_FWD_BACK</span><span class="s3">]</span>
+
+        <span class="s1">forwardSpeed </span><span class="s3">= (</span><span class="s1">leftTreadSpeed </span><span class="s3">+ </span><span class="s1">rightTreadSpeed</span><span class="s3">)*</span><span class="s6">.5</span>
+        <span class="s1">headingSpeed </span><span class="s3">= </span><span class="s1">math</span><span class="s3">.</span><span class="s1">atan2</span><span class="s3">(</span><span class="s1">leftTreadSpeed </span><span class="s3">- </span><span class="s1">rightTreadSpeed</span><span class="s3">,</span>
+                                  <span class="s1">JOYBOX_TREAD_SEPERATION</span><span class="s3">)</span>
+        <span class="s1">headingSpeed </span><span class="s3">= </span><span class="s6">180</span><span class="s3">/</span><span class="s6">3.14159 </span><span class="s3">* </span><span class="s1">headingSpeed</span>
+
+        <span class="s1">dh </span><span class="s3">= -</span><span class="s6">1.0</span><span class="s3">*</span><span class="s1">headingSpeed </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span><span class="s3">*</span><span class="s6">.3</span>
+        <span class="s1">dy </span><span class="s3">= </span><span class="s1">forwardSpeed </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setH</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">,</span><span class="s1">dh</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setY</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">,</span><span class="s1">dy</span><span class="s3">)</span>
+
+
+
+
+
+    <span class="s2">def </span><span class="s1">spaceFly</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Do nothing if no nodePath selected</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s2">return</span>
+        <span class="s1">hprScale </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">L_SLIDE</span><span class="s3">, </span><span class="s6">0.1</span><span class="s3">, </span><span class="s6">100</span><span class="s3">) *</span>
+                    <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">hprMultiplier</span><span class="s3">)</span>
+        <span class="s1">posScale </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">R_SLIDE</span><span class="s3">, </span><span class="s6">0.1</span><span class="s3">, </span><span class="s6">100</span><span class="s3">) *</span>
+                    <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span><span class="s3">)</span>
+        <span class="s1">dr </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_TWIST</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">dp </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_FWD_BACK</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">dh </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">dh</span><span class="s3">, </span><span class="s1">dp</span><span class="s3">, </span><span class="s1">dr</span><span class="s3">)</span>
+        <span class="s1">dy </span><span class="s3">= </span><span class="s1">posScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_FWD_BACK</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setY</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">dy</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">planetMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">auxData </span><span class="s3">= []):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">auxData </span><span class="s3">= </span><span class="s1">auxData</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">planetFly</span><span class="s3">, </span><span class="s4">'Space Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">planetFly</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Do nothing if no nodePath selected</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s2">return</span>
+        <span class="s1">hprScale </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">L_SLIDE</span><span class="s3">, </span><span class="s6">0.1</span><span class="s3">, </span><span class="s6">100</span><span class="s3">) *</span>
+                    <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">hprMultiplier</span><span class="s3">)</span>
+        <span class="s1">posScale </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">R_SLIDE</span><span class="s3">, </span><span class="s6">0.1</span><span class="s3">, </span><span class="s6">100</span><span class="s3">) *</span>
+                    <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span><span class="s3">)</span>
+        <span class="s1">dr </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_TWIST</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">dp </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_FWD_BACK</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">dh </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">dh</span><span class="s3">, </span><span class="s1">dp</span><span class="s3">, </span><span class="s1">dr</span><span class="s3">)</span>
+        <span class="s1">dy </span><span class="s3">= </span><span class="s1">posScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_FWD_BACK</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">dPos </span><span class="s3">= </span><span class="s1">VBase3</span><span class="s3">(</span><span class="s6">0</span><span class="s3">, </span><span class="s1">dy</span><span class="s3">, </span><span class="s6">0</span><span class="s3">)</span>
+        <span class="s2">for </span><span class="s1">planet</span><span class="s3">, </span><span class="s1">radius </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">auxData</span><span class="s3">:</span>
+            <span class="s5"># Are we within min radius?</span>
+            <span class="s5"># How far above planet are we?</span>
+            <span class="s1">np2planet </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">(</span><span class="s1">planet</span><span class="s3">))</span>
+            <span class="s5"># Compute dist</span>
+            <span class="s1">offsetDist </span><span class="s3">= </span><span class="s1">np2planet</span><span class="s3">.</span><span class="s1">length</span><span class="s3">()</span>
+            <span class="s5"># Above threshold, leave velocity vec as is</span>
+            <span class="s2">if </span><span class="s1">offsetDist </span><span class="s3">&gt; (</span><span class="s6">1.2 </span><span class="s3">* </span><span class="s1">radius</span><span class="s3">):</span>
+                <span class="s2">pass</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s5"># Getting close, slow things down</span>
+                <span class="s5"># Compute normal vector through node Path</span>
+                <span class="s1">oNorm </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">()</span>
+                <span class="s1">oNorm</span><span class="s3">.</span><span class="s1">assign</span><span class="s3">(</span><span class="s1">np2planet</span><span class="s3">)</span>
+                <span class="s1">oNorm</span><span class="s3">.</span><span class="s1">normalize</span><span class="s3">()</span>
+                <span class="s5"># Xform fly vec to planet space</span>
+                <span class="s1">dPlanet </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">getMat</span><span class="s3">(</span><span class="s1">planet</span><span class="s3">).</span><span class="s1">xformVec</span><span class="s3">(</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s6">0</span><span class="s3">, </span><span class="s1">dy</span><span class="s3">, </span><span class="s6">0</span><span class="s3">))</span>
+                <span class="s5"># Compute radial component of fly vec</span>
+                <span class="s1">dotProd </span><span class="s3">= </span><span class="s1">oNorm</span><span class="s3">.</span><span class="s1">dot</span><span class="s3">(</span><span class="s1">dPlanet</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">dotProd </span><span class="s3">&lt; </span><span class="s6">0</span><span class="s3">:</span>
+                    <span class="s5"># Trying to fly below radius, compute radial component</span>
+                    <span class="s1">radialComponent </span><span class="s3">= </span><span class="s1">oNorm </span><span class="s3">* </span><span class="s1">dotProd</span>
+                    <span class="s5"># How far above?</span>
+                    <span class="s1">above </span><span class="s3">= </span><span class="s1">offsetDist </span><span class="s3">- </span><span class="s1">radius</span>
+                    <span class="s5"># Set sf accordingly</span>
+                    <span class="s1">sf </span><span class="s3">= </span><span class="s1">max</span><span class="s3">(</span><span class="s6">1.0 </span><span class="s3">- (</span><span class="s1">max</span><span class="s3">(</span><span class="s1">above</span><span class="s3">, </span><span class="s6">0.0</span><span class="s3">)/(</span><span class="s6">0.2 </span><span class="s3">* </span><span class="s1">radius</span><span class="s3">)), </span><span class="s6">0.0</span><span class="s3">)</span>
+                    <span class="s5"># Subtract scaled radial component</span>
+                    <span class="s1">dPlanet </span><span class="s3">-= </span><span class="s1">radialComponent </span><span class="s3">* (</span><span class="s1">sf </span><span class="s3">* </span><span class="s1">sf</span><span class="s3">)</span>
+                    <span class="s5">#dPlanet -= radialComponent</span>
+                    <span class="s5"># Convert back to node path space</span>
+                    <span class="s1">dPos</span><span class="s3">.</span><span class="s1">assign</span><span class="s3">(</span><span class="s1">planet</span><span class="s3">.</span><span class="s1">getMat</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">).</span><span class="s1">xformVec</span><span class="s3">(</span><span class="s1">dPlanet</span><span class="s3">))</span>
+        <span class="s5"># Set pos accordingly</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">dPos</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">orbitMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">orbitFly</span><span class="s3">, </span><span class="s4">'Orbit Mode'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">orbitFly</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Do nothing if no nodePath selected</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s2">return</span>
+        <span class="s1">hprScale </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">L_SLIDE</span><span class="s3">, </span><span class="s6">0.1</span><span class="s3">, </span><span class="s6">100</span><span class="s3">) *</span>
+                    <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">hprMultiplier</span><span class="s3">)</span>
+        <span class="s1">posScale </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">R_SLIDE</span><span class="s3">, </span><span class="s6">0.1</span><span class="s3">, </span><span class="s6">100</span><span class="s3">) *</span>
+                    <span class="s1">DirectJoybox</span><span class="s3">.</span><span class="s1">xyzMultiplier</span><span class="s3">)</span>
+        <span class="s1">r </span><span class="s3">= -</span><span class="s6">0.01 </span><span class="s3">* </span><span class="s1">posScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_TWIST</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">rx </span><span class="s3">= </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_LEFT_RIGHT</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">ry </span><span class="s3">= -</span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">R_FWD_BACK</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">x </span><span class="s3">= </span><span class="s1">posScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_LEFT_RIGHT</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">z </span><span class="s3">= </span><span class="s1">posScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_FWD_BACK</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s1">h </span><span class="s3">= -</span><span class="s6">1 </span><span class="s3">* </span><span class="s1">hprScale </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">aList</span><span class="s3">[</span><span class="s1">L_TWIST</span><span class="s3">] * </span><span class="s1">self</span><span class="s3">.</span><span class="s1">deltaTime</span>
+        <span class="s5"># Move dcs</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setX</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">x</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setZ</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">z</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setH</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s1">h</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">orbitNode</span><span class="s3">(</span><span class="s1">rx</span><span class="s3">, </span><span class="s1">ry</span><span class="s3">, </span><span class="s6">0</span><span class="s3">)</span>
+        <span class="s1">pos </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">refCS</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">pos</span><span class="s3">).</span><span class="s1">length</span><span class="s3">() &lt; </span><span class="s6">0.005</span><span class="s3">:</span>
+            <span class="s1">pos</span><span class="s3">.</span><span class="s1">set</span><span class="s3">(</span><span class="s6">0</span><span class="s3">, -</span><span class="s6">0.01</span><span class="s3">, </span><span class="s6">0</span><span class="s3">)</span>
+        <span class="s5"># Now move on out</span>
+        <span class="s1">pos</span><span class="s3">.</span><span class="s1">assign</span><span class="s3">(</span><span class="s1">pos </span><span class="s3">* (</span><span class="s6">1 </span><span class="s3">+ </span><span class="s1">r</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">refCS</span><span class="s3">, </span><span class="s1">pos</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">orbitNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">h</span><span class="s3">, </span><span class="s1">p</span><span class="s3">, </span><span class="s1">r</span><span class="s3">):</span>
+        <span class="s5"># Position the temp node path at the ref CS</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">refCS</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">)</span>
+        <span class="s5"># Orient the temp node path to align with the orbiting node path</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">)</span>
+        <span class="s5"># Record the position of the orbiter wrt the helper</span>
+        <span class="s1">pos </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">)</span>
+        <span class="s5"># Turn the temp node path</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">, </span><span class="s1">h</span><span class="s3">, </span><span class="s1">p</span><span class="s3">, </span><span class="s1">r</span><span class="s3">)</span>
+        <span class="s5"># Position the orbiter &quot;back&quot; to its position wrt the helper</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">, </span><span class="s1">pos</span><span class="s3">)</span>
+        <span class="s5"># Restore the original hpr of the orbiter</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">setHpr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tempCS</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">, </span><span class="s6">0</span><span class="s3">)</span>
+
+
+    <span class="s5"># We need to override the DirectAnalog normalizeChannel to</span>
+    <span class="s5"># correct the ranges of the two twist axes of the joybox.</span>
+    <span class="s2">def </span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">chan</span><span class="s3">, </span><span class="s1">minVal </span><span class="s3">= -</span><span class="s6">1</span><span class="s3">, </span><span class="s1">maxVal </span><span class="s3">= </span><span class="s6">1</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s3">(</span><span class="s1">chan </span><span class="s3">== </span><span class="s1">L_TWIST</span><span class="s3">) </span><span class="s2">or </span><span class="s3">(</span><span class="s1">chan </span><span class="s3">== </span><span class="s1">R_TWIST</span><span class="s3">):</span>
+                <span class="s5"># These channels have reduced range</span>
+                <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">.</span><span class="s1">normalize</span><span class="s3">(</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">.</span><span class="s1">getControlState</span><span class="s3">(</span><span class="s1">chan</span><span class="s3">), </span><span class="s1">minVal</span><span class="s3">, </span><span class="s1">maxVal</span><span class="s3">, </span><span class="s6">3.0</span><span class="s3">)</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">.</span><span class="s1">normalize</span><span class="s3">(</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">analogs</span><span class="s3">.</span><span class="s1">getControlState</span><span class="s3">(</span><span class="s1">chan</span><span class="s3">), </span><span class="s1">minVal</span><span class="s3">, </span><span class="s1">maxVal</span><span class="s3">)</span>
+        <span class="s2">except </span><span class="s1">IndexError</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s6">0.0</span>
+
+
+</pre>
+</body>
+</html>

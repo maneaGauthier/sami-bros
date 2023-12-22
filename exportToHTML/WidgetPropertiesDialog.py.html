@@ -1,0 +1,258 @@
+<html>
+<head>
+<title>WidgetPropertiesDialog.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+WidgetPropertiesDialog.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the WidgetPropertiesDialog class.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'WidgetPropertiesDialog'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">TkGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">import </span><span class="s1">Pmw</span><span class="s2">, </span><span class="s1">sys</span>
+
+<span class="s3">&quot;&quot;&quot; 
+TODO: 
+  Checkboxes for None? 
+  Floaters to adjust float values 
+  OK and Cancel to allow changes to be delayed 
+  Something other than Return to accept a new value 
+&quot;&quot;&quot;</span>
+
+<span class="s4">class </span><span class="s1">WidgetPropertiesDialog</span><span class="s2">(</span><span class="s1">Toplevel</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;Class to open dialogs to adjust widget properties.&quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">propertyDict</span><span class="s2">, </span><span class="s1">propertyList </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">title </span><span class="s2">= </span><span class="s3">'Widget Properties'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Initialize a dialog. 
+        Arguments: 
+            propertyDict -- a dictionary of properties to be edited 
+            parent -- a parent window (the application window) 
+            title -- the dialog title 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Record property list</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict </span><span class="s2">= </span><span class="s1">propertyDict</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList </span><span class="s2">= </span><span class="s1">propertyList</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s5"># Use default parent if none specified</span>
+        <span class="s4">if not </span><span class="s1">parent</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+                <span class="s4">import </span><span class="s1">tkinter</span>
+                <span class="s1">parent </span><span class="s2">= </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">_default_root</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">import </span><span class="s1">Tkinter</span>
+                <span class="s1">parent </span><span class="s2">= </span><span class="s1">Tkinter</span><span class="s2">.</span><span class="s1">_default_root</span>
+        <span class="s5"># Create toplevel window</span>
+        <span class="s1">Toplevel</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">transient</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s5"># Set title</span>
+        <span class="s4">if </span><span class="s1">title</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">title</span><span class="s2">(</span><span class="s1">title</span><span class="s2">)</span>
+        <span class="s5"># Record parent</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parent </span><span class="s2">= </span><span class="s1">parent</span>
+        <span class="s5"># Initialize modifications</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modifiedDict </span><span class="s2">= {}</span>
+        <span class="s5"># Create body</span>
+        <span class="s1">body </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initial_focus </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">body</span><span class="s2">(</span><span class="s1">body</span><span class="s2">)</span>
+        <span class="s1">body</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">padx</span><span class="s2">=</span><span class="s6">5</span><span class="s2">, </span><span class="s1">pady</span><span class="s2">=</span><span class="s6">5</span><span class="s2">)</span>
+        <span class="s5"># Create OK Cancel button</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonbox</span><span class="s2">()</span>
+        <span class="s5"># Initialize window state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">grab_set</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">protocol</span><span class="s2">(</span><span class="s3">&quot;WM_DELETE_WINDOW&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">geometry</span><span class="s2">(</span><span class="s3">&quot;+%d+%d&quot; </span><span class="s2">% (</span><span class="s1">parent</span><span class="s2">.</span><span class="s1">winfo_rootx</span><span class="s2">()+</span><span class="s6">50</span><span class="s2">,</span>
+                                  <span class="s1">parent</span><span class="s2">.</span><span class="s1">winfo_rooty</span><span class="s2">()+</span><span class="s6">50</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initial_focus</span><span class="s2">.</span><span class="s1">focus_set</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">wait_window</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Destroy the window&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initial_focus </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s5"># Clean up balloons!</span>
+        <span class="s4">for </span><span class="s1">balloon </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">balloonList</span><span class="s2">:</span>
+            <span class="s1">balloon</span><span class="s2">.</span><span class="s1">withdraw</span><span class="s2">()</span>
+        <span class="s1">Toplevel</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s5">#</span>
+    <span class="s5"># construction hooks</span>
+    <span class="s4">def </span><span class="s1">body</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">master</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;create dialog body. 
+        return entry that should have initial focus. 
+        This method should be overridden, and is called 
+        by the __init__ method. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">count </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">entryList </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">balloonList </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">property </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">propertyList</span><span class="s2">:</span>
+            <span class="s1">propertySet </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">propertyDict</span><span class="s2">[</span><span class="s1">property</span><span class="s2">]</span>
+            <span class="s5"># Widget</span>
+            <span class="s1">widget </span><span class="s2">= </span><span class="s1">propertySet</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'widget'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s5"># Get initial value</span>
+            <span class="s1">initialvalue </span><span class="s2">= </span><span class="s1">widget</span><span class="s2">[</span><span class="s1">property</span><span class="s2">]</span>
+            <span class="s5"># Type of entry</span>
+            <span class="s1">entryType </span><span class="s2">= </span><span class="s1">propertySet</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'type'</span><span class="s2">, </span><span class="s3">'real'</span><span class="s2">)</span>
+            <span class="s5"># Is None an allowable value?</span>
+            <span class="s1">fAllowNone </span><span class="s2">= </span><span class="s1">propertySet</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'fNone'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5"># Help string specified?</span>
+            <span class="s1">helpString </span><span class="s2">= </span><span class="s1">propertySet</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'help'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s5"># Create label</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s1">Label</span><span class="s2">(</span><span class="s1">master</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s1">property</span><span class="s2">, </span><span class="s1">justify</span><span class="s2">=</span><span class="s1">LEFT</span><span class="s2">)</span>
+            <span class="s1">label</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s1">count</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s6">0</span><span class="s2">, </span><span class="s1">padx</span><span class="s2">=</span><span class="s6">5</span><span class="s2">, </span><span class="s1">sticky</span><span class="s2">=</span><span class="s1">W</span><span class="s2">)</span>
+
+            <span class="s5"># Create entry</span>
+            <span class="s1">entry </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">EntryField</span><span class="s2">(</span><span class="s1">master</span><span class="s2">, </span><span class="s1">entry_justify </span><span class="s2">= </span><span class="s3">'right'</span><span class="s2">)</span>
+            <span class="s1">entry</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s1">count</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">padx</span><span class="s2">=</span><span class="s6">5</span><span class="s2">, </span><span class="s1">sticky</span><span class="s2">=</span><span class="s1">W</span><span class="s2">+</span><span class="s1">E</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">initialvalue </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">entry</span><span class="s2">.</span><span class="s1">insert</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s3">'None'</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">entry</span><span class="s2">.</span><span class="s1">insert</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s1">initialvalue</span><span class="s2">)</span>
+
+            <span class="s5"># Create balloon for help</span>
+            <span class="s1">balloon </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">Balloon</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'balloon'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">balloonList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">balloon</span><span class="s2">)</span>
+            <span class="s5"># extra info if None is allowed value</span>
+            <span class="s4">if </span><span class="s1">helpString </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">fAllowNone</span><span class="s2">:</span>
+                    <span class="s1">extra </span><span class="s2">= </span><span class="s3">' or None'</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">extra </span><span class="s2">= </span><span class="s3">''</span>
+            <span class="s5"># Set up help string and validator based upon type</span>
+            <span class="s4">if </span><span class="s1">entryType </span><span class="s2">== </span><span class="s3">'real'</span><span class="s2">:</span>
+                <span class="s5"># Only allow real numbers</span>
+                <span class="s4">if </span><span class="s1">fAllowNone</span><span class="s2">:</span>
+                    <span class="s1">entry</span><span class="s2">[</span><span class="s3">'validate'</span><span class="s2">] = { </span><span class="s3">'validator'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">realOrNone </span><span class="s2">}</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">entry</span><span class="s2">[</span><span class="s3">'validate'</span><span class="s2">] = { </span><span class="s3">'validator'</span><span class="s2">: </span><span class="s3">'real' </span><span class="s2">}</span>
+                <span class="s4">if </span><span class="s1">helpString </span><span class="s4">is None</span><span class="s2">:</span>
+                    <span class="s1">helpString </span><span class="s2">= </span><span class="s3">'Enter a floating point number' </span><span class="s2">+ </span><span class="s1">extra </span><span class="s2">+ </span><span class="s3">'.'</span>
+            <span class="s4">elif </span><span class="s1">entryType </span><span class="s2">== </span><span class="s3">'integer'</span><span class="s2">:</span>
+                <span class="s5"># Only allow integer values</span>
+                <span class="s4">if </span><span class="s1">fAllowNone</span><span class="s2">:</span>
+                    <span class="s1">entry</span><span class="s2">[</span><span class="s3">'validate'</span><span class="s2">] = { </span><span class="s3">'validator'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">intOrNone </span><span class="s2">}</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">entry</span><span class="s2">[</span><span class="s3">'validate'</span><span class="s2">] = { </span><span class="s3">'validator'</span><span class="s2">: </span><span class="s3">'integer' </span><span class="s2">}</span>
+                <span class="s4">if </span><span class="s1">helpString </span><span class="s4">is None</span><span class="s2">:</span>
+                    <span class="s1">helpString </span><span class="s2">= </span><span class="s3">'Enter an integer' </span><span class="s2">+ </span><span class="s1">extra </span><span class="s2">+ </span><span class="s3">'.'</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Anything goes with a string widget</span>
+                <span class="s4">if </span><span class="s1">helpString </span><span class="s4">is None</span><span class="s2">:</span>
+                    <span class="s1">helpString </span><span class="s2">= </span><span class="s3">'Enter a string' </span><span class="s2">+ </span><span class="s1">extra </span><span class="s2">+ </span><span class="s3">'.'</span>
+            <span class="s5"># Bind balloon with help string to entry</span>
+            <span class="s1">balloon</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">entry</span><span class="s2">, </span><span class="s1">helpString</span><span class="s2">)</span>
+            <span class="s5"># Create callback to execute whenever a value is changed</span>
+            <span class="s1">modifiedCallback </span><span class="s2">= (</span><span class="s4">lambda </span><span class="s1">f</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">modified</span><span class="s2">, </span><span class="s1">w</span><span class="s2">=</span><span class="s1">widget</span><span class="s2">, </span><span class="s1">e</span><span class="s2">=</span><span class="s1">entry</span><span class="s2">,</span>
+                                <span class="s1">p</span><span class="s2">=</span><span class="s1">property</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s1">entryType</span><span class="s2">, </span><span class="s1">fn</span><span class="s2">=</span><span class="s1">fAllowNone</span><span class="s2">:</span>
+                                <span class="s1">f</span><span class="s2">(</span><span class="s1">w</span><span class="s2">, </span><span class="s1">e</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">t</span><span class="s2">, </span><span class="s1">fn</span><span class="s2">))</span>
+            <span class="s1">entry</span><span class="s2">[</span><span class="s3">'modifiedcommand'</span><span class="s2">] = </span><span class="s1">modifiedCallback</span>
+            <span class="s5"># Keep track of the entrys</span>
+            <span class="s1">entryList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">entry</span><span class="s2">)</span>
+            <span class="s1">count </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Set initial focus</span>
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">entryList</span><span class="s2">) &gt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">entry </span><span class="s2">= </span><span class="s1">entryList</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s1">entry</span><span class="s2">.</span><span class="s1">select_range</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s1">END</span><span class="s2">)</span>
+            <span class="s5"># Set initial focus to first entry in the list</span>
+            <span class="s4">return </span><span class="s1">entryList</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Just set initial focus to self</span>
+            <span class="s4">return </span><span class="s1">self</span>
+
+    <span class="s4">def </span><span class="s1">modified</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">widget</span><span class="s2">, </span><span class="s1">entry</span><span class="s2">, </span><span class="s1">property</span><span class="s2">, </span><span class="s1">type</span><span class="s2">, </span><span class="s1">fNone</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">modifiedDict</span><span class="s2">[</span><span class="s1">property</span><span class="s2">] = (</span><span class="s1">widget</span><span class="s2">, </span><span class="s1">entry</span><span class="s2">, </span><span class="s1">type</span><span class="s2">, </span><span class="s1">fNone</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">buttonbox</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;add standard button box buttons. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">box </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s5"># Create buttons</span>
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">box</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s3">&quot;OK&quot;</span><span class="s2">, </span><span class="s1">width</span><span class="s2">=</span><span class="s6">10</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ok</span><span class="s2">)</span>
+        <span class="s1">w</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side</span><span class="s2">=</span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">padx</span><span class="s2">=</span><span class="s6">5</span><span class="s2">, </span><span class="s1">pady</span><span class="s2">=</span><span class="s6">5</span><span class="s2">)</span>
+        <span class="s5"># Create buttons</span>
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">box</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s3">&quot;Cancel&quot;</span><span class="s2">, </span><span class="s1">width</span><span class="s2">=</span><span class="s6">10</span><span class="s2">, </span><span class="s1">command</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">)</span>
+        <span class="s1">w</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side</span><span class="s2">=</span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">padx</span><span class="s2">=</span><span class="s6">5</span><span class="s2">, </span><span class="s1">pady</span><span class="s2">=</span><span class="s6">5</span><span class="s2">)</span>
+        <span class="s5"># Bind commands</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">&quot;&lt;Return&gt;&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ok</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">&quot;&lt;Escape&gt;&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">)</span>
+        <span class="s5"># Pack</span>
+        <span class="s1">box</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">realOrNone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">val</span><span class="s2">):</span>
+        <span class="s1">val </span><span class="s2">= </span><span class="s1">val</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s3">'none'</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s1">val</span><span class="s2">) != -</span><span class="s6">1</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">val </span><span class="s2">== </span><span class="s3">'none'</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">OK</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">PARTIAL</span>
+        <span class="s4">return </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">realvalidator</span><span class="s2">(</span><span class="s1">val</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">intOrNone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">val</span><span class="s2">):</span>
+        <span class="s1">val </span><span class="s2">= </span><span class="s1">val</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s3">'none'</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s1">val</span><span class="s2">) != -</span><span class="s6">1</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">val </span><span class="s2">== </span><span class="s3">'none'</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">OK</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">PARTIAL</span>
+        <span class="s4">return </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">integervalidator</span><span class="s2">(</span><span class="s1">val</span><span class="s2">)</span>
+
+    <span class="s5">#</span>
+    <span class="s5"># standard button semantics</span>
+    <span class="s4">def </span><span class="s1">ok</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">withdraw</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">update_idletasks</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">validateChanges</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">apply</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">cancel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s5"># put focus back to the parent window</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parent</span><span class="s2">.</span><span class="s1">focus_set</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">validateChanges</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">property </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">modifiedDict</span><span class="s2">:</span>
+            <span class="s1">tuple </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">modifiedDict</span><span class="s2">[</span><span class="s1">property</span><span class="s2">]</span>
+            <span class="s1">widget </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s1">entry </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+            <span class="s1">type </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+            <span class="s1">fNone </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">entry</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+            <span class="s1">lValue </span><span class="s2">= </span><span class="s1">value</span><span class="s2">.</span><span class="s1">lower</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s3">'none'</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s1">lValue</span><span class="s2">) != -</span><span class="s6">1</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">fNone </span><span class="s4">and </span><span class="s2">(</span><span class="s1">lValue </span><span class="s2">== </span><span class="s3">'none'</span><span class="s2">):</span>
+                    <span class="s1">widget</span><span class="s2">[</span><span class="s1">property</span><span class="s2">] = </span><span class="s4">None</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">type </span><span class="s2">== </span><span class="s3">'real'</span><span class="s2">:</span>
+                    <span class="s1">value </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s4">elif </span><span class="s1">type </span><span class="s2">== </span><span class="s3">'integer'</span><span class="s2">:</span>
+                    <span class="s1">value </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s1">widget</span><span class="s2">[</span><span class="s1">property</span><span class="s2">] = </span><span class="s1">value</span>
+
+    <span class="s4">def </span><span class="s1">apply</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;process the data 
+ 
+        This method is called automatically to process the data, *after* 
+        the dialog is destroyed. By default, it does nothing. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">pass </span><span class="s5"># override</span>
+
+</pre>
+</body>
+</html>

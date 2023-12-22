@@ -1,0 +1,690 @@
+<html>
+<head>
+<title>Messenger.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Messenger.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This defines the Messenger class, which is responsible for most of the 
+:ref:`event handling &lt;event-handlers&gt;` that happens on the Python side. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Messenger'</span><span class="s2">]</span>
+
+
+<span class="s4">from </span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s4">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s4">import </span><span class="s1">types</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">stdpy</span><span class="s2">.</span><span class="s1">threading </span><span class="s4">import </span><span class="s1">Lock</span>
+
+
+<span class="s4">class </span><span class="s1">Messenger</span><span class="s2">:</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;Messenger&quot;</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        One is keyed off the event name. It has the following structure:: 
+ 
+            {event1: {object1: [method, extraArgs, persistent], 
+                       object2: [method, extraArgs, persistent]}, 
+             event2: {object1: [method, extraArgs, persistent], 
+                       object2: [method, extraArgs, persistent]}} 
+ 
+        This dictionary allows for efficient callbacks when the 
+        messenger hears an event. 
+ 
+        A second dictionary remembers which objects are accepting which 
+        events. This allows for efficient ignoreAll commands. 
+ 
+        Or, for an example with more real data:: 
+ 
+            {'mouseDown': {avatar: [avatar.jump, [2.0], 1]}} 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># eventName-&gt;objMsgrId-&gt;callbackInfo</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks </span><span class="s2">= {}</span>
+        <span class="s5"># objMsgrId-&gt;set(eventName)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_messengerIdGen </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s5"># objMsgrId-&gt;listenerObject</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object </span><span class="s2">= {}</span>
+
+        <span class="s5"># A mapping of taskChain -&gt; eventList, used for sending events</span>
+        <span class="s5"># across task chains (and therefore across threads).</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_eventQueuesByTaskChain </span><span class="s2">= {}</span>
+
+        <span class="s5"># This protects the data structures within this object from</span>
+        <span class="s5"># multithreaded access.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock </span><span class="s2">= </span><span class="s1">Lock</span><span class="s2">()</span>
+
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__isWatching</span><span class="s2">=</span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__watching</span><span class="s2">={}</span>
+        <span class="s5"># I'd like this to be in the __debug__, but I fear that someone will</span>
+        <span class="s5"># want this in a release build.  If you're sure that that will not be</span>
+        <span class="s5"># then please remove this comment and put the quiet/verbose stuff</span>
+        <span class="s5"># under __debug__.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">={</span><span class="s3">&quot;NewFrame&quot;</span><span class="s2">:</span><span class="s6">1</span><span class="s2">,</span>
+                       <span class="s3">&quot;avatarMoving&quot;</span><span class="s2">:</span><span class="s6">1</span><span class="s2">,</span>
+                       <span class="s3">&quot;event-loop-done&quot;</span><span class="s2">:</span><span class="s6">1</span><span class="s2">,</span>
+                       <span class="s3">'collisionLoopFinished'</span><span class="s2">:</span><span class="s6">1</span><span class="s2">,</span>
+                       <span class="s2">} </span><span class="s5"># see def quiet()</span>
+
+    <span class="s4">def </span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s5"># TODO: allocate this id in DirectObject.__init__ and get derived</span>
+        <span class="s5"># classes to call down (speed optimization, assuming objects</span>
+        <span class="s5"># accept/ignore more than once over their lifetime)</span>
+        <span class="s5"># get unique messenger id for this object</span>
+        <span class="s5"># assumes lock is held.</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">object</span><span class="s2">, </span><span class="s3">'_MSGRmessengerId'</span><span class="s2">):</span>
+            <span class="s1">object</span><span class="s2">.</span><span class="s1">_MSGRmessengerId </span><span class="s2">= (</span><span class="s1">object</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_messengerIdGen</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_messengerIdGen </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s4">return </span><span class="s1">object</span><span class="s2">.</span><span class="s1">_MSGRmessengerId</span>
+
+    <span class="s4">def </span><span class="s1">_storeObject</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s5"># store reference-counted reference to object in case we need to</span>
+        <span class="s5"># retrieve it later.  assumes lock is held.</span>
+        <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">id </span><span class="s4">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">[</span><span class="s1">id</span><span class="s2">] = [</span><span class="s6">1</span><span class="s2">, </span><span class="s1">object</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">[</span><span class="s1">id</span><span class="s2">][</span><span class="s6">0</span><span class="s2">] += </span><span class="s6">1</span>
+
+    <span class="s4">def </span><span class="s1">_getObject</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">id</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">[</span><span class="s1">id</span><span class="s2">][</span><span class="s6">1</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_getObjects</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">objs </span><span class="s2">= []</span>
+            <span class="s4">for </span><span class="s1">refCount</span><span class="s2">, </span><span class="s1">obj </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+                <span class="s1">objs</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">objs</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_getNumListeners</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, {}))</span>
+
+    <span class="s4">def </span><span class="s1">_getEvents</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">_releaseObject</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s5"># assumes lock is held.</span>
+        <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">id </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">:</span>
+            <span class="s1">record </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+            <span class="s1">record</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] -= </span><span class="s6">1</span>
+            <span class="s4">if </span><span class="s1">record</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] &lt;= </span><span class="s6">0</span><span class="s2">:</span>
+                <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">future</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns a future that is triggered by the given event name.  This 
+        will function only once. &quot;&quot;&quot;</span>
+
+        <span class="s4">return </span><span class="s1">eventMgr</span><span class="s2">.</span><span class="s1">eventHandler</span><span class="s2">.</span><span class="s1">get_future</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">object</span><span class="s2">, </span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">=[], </span><span class="s1">persistent</span><span class="s2">=</span><span class="s6">1</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; accept(self, string, DirectObject, Function, List, Boolean) 
+ 
+        Make this object accept this event. When the event is 
+        sent (using Messenger.send or from C++), method will be executed, 
+        optionally passing in extraArgs. 
+ 
+        If the persistent flag is set, it will continue to respond 
+        to this event, otherwise it will respond only once. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">notifyDebug </span><span class="s2">= </span><span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">getDebug</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">notifyDebug</span><span class="s2">:</span>
+            <span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                <span class="s3">&quot;object: %s (%s)</span><span class="s4">\n </span><span class="s3">accepting: %s</span><span class="s4">\n </span><span class="s3">method: %s</span><span class="s4">\n </span><span class="s3">extraArgs: %s</span><span class="s4">\n </span><span class="s3">persistent: %s&quot; </span><span class="s2">%</span>
+                <span class="s2">(</span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">object</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">), </span><span class="s1">event</span><span class="s2">, </span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">),</span>
+                 <span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">), </span><span class="s1">persistent</span><span class="s2">))</span>
+
+        <span class="s5"># Make sure that the method is callable</span>
+        <span class="s4">assert </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">, </span><span class="s3">'__call__'</span><span class="s2">), (</span>
+            <span class="s3">&quot;method not callable in accept (ignoring): %s %s&quot;</span><span class="s2">%</span>
+            <span class="s2">(</span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">), </span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">)))</span>
+
+        <span class="s5"># Make sure extraArgs is a list or tuple</span>
+        <span class="s4">if not </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">list</span><span class="s2">) </span><span class="s4">or </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">tuple</span><span class="s2">) </span><span class="s4">or </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">set</span><span class="s2">)):</span>
+            <span class="s4">raise </span><span class="s1">TypeError</span><span class="s2">(</span><span class="s3">&quot;A list is required as extraArgs argument&quot;</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, {})</span>
+
+            <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+
+            <span class="s5"># Make sure we are not inadvertently overwriting an existing event</span>
+            <span class="s5"># on this particular object.</span>
+            <span class="s4">if </span><span class="s1">id </span><span class="s4">in </span><span class="s1">acceptorDict</span><span class="s2">:</span>
+                <span class="s5"># TODO: we're replacing the existing callback. should this be an error?</span>
+                <span class="s4">if </span><span class="s1">notifyDebug</span><span class="s2">:</span>
+                    <span class="s1">oldMethod </span><span class="s2">= </span><span class="s1">acceptorDict</span><span class="s2">[</span><span class="s1">id</span><span class="s2">][</span><span class="s6">0</span><span class="s2">]</span>
+                    <span class="s4">if </span><span class="s1">oldMethod </span><span class="s2">== </span><span class="s1">method</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                            <span class="s3">&quot;object: %s was already accepting: </span><span class="s4">\&quot;</span><span class="s3">%s</span><span class="s4">\&quot; </span><span class="s3">with same callback: %s()&quot; </span><span class="s2">%</span>
+                            <span class="s2">(</span><span class="s1">object</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">), </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">))</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                            <span class="s3">&quot;object: %s accept: </span><span class="s4">\&quot;</span><span class="s3">%s</span><span class="s4">\&quot; </span><span class="s3">new callback: %s() supplanting old callback: %s()&quot; </span><span class="s2">%</span>
+                            <span class="s2">(</span><span class="s1">object</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">), </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">oldMethod</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">))</span>
+
+            <span class="s1">acceptorDict</span><span class="s2">[</span><span class="s1">id</span><span class="s2">] = [</span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">persistent</span><span class="s2">]</span>
+
+            <span class="s5"># Remember that this object is listening for this event</span>
+            <span class="s1">eventDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">id</span><span class="s2">, {})</span>
+            <span class="s4">if </span><span class="s1">event </span><span class="s4">not in </span><span class="s1">eventDict</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_storeObject</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+                <span class="s1">eventDict</span><span class="s2">[</span><span class="s1">event</span><span class="s2">] = </span><span class="s4">None</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; ignore(self, string, DirectObject) 
+        Make this object no longer respond to this event. 
+        It is safe to call even if it was not already accepting 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">getDebug</span><span class="s2">():</span>
+            <span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                <span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">object</span><span class="s2">) + </span><span class="s3">' (%s)</span><span class="s4">\n </span><span class="s3">now ignoring: ' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">), ) + </span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+
+            <span class="s5"># Find the dictionary of all the objects accepting this event</span>
+            <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+            <span class="s5"># If this object is there, delete it from the dictionary</span>
+            <span class="s4">if </span><span class="s1">acceptorDict </span><span class="s4">and </span><span class="s1">id </span><span class="s4">in </span><span class="s1">acceptorDict</span><span class="s2">:</span>
+                <span class="s4">del </span><span class="s1">acceptorDict</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+                <span class="s5"># If this dictionary is now empty, remove the event</span>
+                <span class="s5"># entry from the Messenger alltogether</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">acceptorDict</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">):</span>
+                    <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+
+            <span class="s5"># This object is no longer listening for this event</span>
+            <span class="s1">eventDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">id</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">eventDict </span><span class="s4">and </span><span class="s1">event </span><span class="s4">in </span><span class="s1">eventDict</span><span class="s2">:</span>
+                <span class="s4">del </span><span class="s1">eventDict</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">eventDict</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">):</span>
+                    <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_releaseObject</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">ignoreAll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Make this object no longer respond to any events it was accepting 
+        Useful for cleanup 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">getDebug</span><span class="s2">():</span>
+            <span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                <span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">object</span><span class="s2">) + </span><span class="s3">' (%s)</span><span class="s4">\n </span><span class="s3">now ignoring all events' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">), ))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+            <span class="s5"># Get the list of events this object is listening to</span>
+            <span class="s1">eventDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">id</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">eventDict</span><span class="s2">:</span>
+                <span class="s4">for </span><span class="s1">event </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">eventDict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()):</span>
+                    <span class="s5"># Find the dictionary of all the objects accepting this event</span>
+                    <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+                    <span class="s5"># If this object is there, delete it from the dictionary</span>
+                    <span class="s4">if </span><span class="s1">acceptorDict </span><span class="s4">and </span><span class="s1">id </span><span class="s4">in </span><span class="s1">acceptorDict</span><span class="s2">:</span>
+                        <span class="s4">del </span><span class="s1">acceptorDict</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+                        <span class="s5"># If this dictionary is now empty, remove the event</span>
+                        <span class="s5"># entry from the Messenger alltogether</span>
+                        <span class="s4">if </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">acceptorDict</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">):</span>
+                            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_releaseObject</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+                <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getAllAccepting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Returns the list of all events accepted by the indicated object. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+
+            <span class="s5"># Get the list of events this object is listening to</span>
+            <span class="s1">eventDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">id</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">eventDict</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">list</span><span class="s2">(</span><span class="s1">eventDict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+            <span class="s4">return </span><span class="s2">[]</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">isAccepting</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; isAccepting(self, string, DirectOject) 
+        Is this object accepting this event? 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+            <span class="s1">id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getMessengerId</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">acceptorDict </span><span class="s4">and </span><span class="s1">id </span><span class="s4">in </span><span class="s1">acceptorDict</span><span class="s2">:</span>
+                <span class="s5"># Found it, return true</span>
+                <span class="s4">return </span><span class="s6">1</span>
+            <span class="s5"># If we looked in both dictionaries and made it here</span>
+            <span class="s5"># that object must not be accepting that event.</span>
+            <span class="s4">return </span><span class="s6">0</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">whoAccepts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return objects accepting the given event 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">isIgnoring</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">object</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; isIgnorning(self, string, DirectObject) 
+        Is this object ignoring this event? 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s4">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isAccepting</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">object</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">=[], </span><span class="s1">taskChain</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Send this event, optionally passing in arguments. 
+ 
+        Args: 
+            event (str): The name of the event. 
+            sentArgs (list): A list of arguments to be passed along to the 
+                handlers listening to this event. 
+            taskChain (str, optional): If not None, the name of the task chain 
+                which should receive the event.  If None, then the event is 
+                handled immediately. Setting a non-None taskChain will defer 
+                the event (possibly till next frame or even later) and create a 
+                new, temporary task within the named taskChain, but this is the 
+                only way to send an event across threads. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">getDebug</span><span class="s2">() </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">):</span>
+            <span class="s4">assert </span><span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                <span class="s3">'sent event: %s sentArgs = %s, taskChain = %s' </span><span class="s2">% (</span>
+                <span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">, </span><span class="s1">taskChain</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">foundWatch</span><span class="s2">=</span><span class="s6">0</span>
+            <span class="s4">if __debug__</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__isWatching</span><span class="s2">:</span>
+                    <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__watching</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">():</span>
+                        <span class="s4">if </span><span class="s1">str</span><span class="s2">(</span><span class="s1">event</span><span class="s2">).</span><span class="s1">find</span><span class="s2">(</span><span class="s1">i</span><span class="s2">) &gt;= </span><span class="s6">0</span><span class="s2">:</span>
+                            <span class="s1">foundWatch</span><span class="s2">=</span><span class="s6">1</span>
+                            <span class="s4">break</span>
+            <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+            <span class="s4">if not </span><span class="s1">acceptorDict</span><span class="s2">:</span>
+                <span class="s4">if __debug__</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">foundWatch</span><span class="s2">:</span>
+                        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Messenger: </span><span class="s4">\&quot;</span><span class="s3">%s</span><span class="s4">\&quot; </span><span class="s3">was sent, but no function in Python listened.&quot;</span><span class="s2">%(</span><span class="s1">event</span><span class="s2">,))</span>
+                <span class="s4">return</span>
+
+            <span class="s4">if </span><span class="s1">taskChain</span><span class="s2">:</span>
+                <span class="s5"># Queue the event onto the indicated task chain.</span>
+                <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s4">import </span><span class="s1">taskMgr</span>
+                <span class="s1">queue </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_eventQueuesByTaskChain</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">taskChain</span><span class="s2">, [])</span>
+                <span class="s1">queue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">acceptorDict</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">, </span><span class="s1">foundWatch</span><span class="s2">))</span>
+                <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">queue</span><span class="s2">) == </span><span class="s6">1</span><span class="s2">:</span>
+                    <span class="s5"># If this is the first (only) item on the queue,</span>
+                    <span class="s5"># spawn the task to empty it.</span>
+                    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__taskChainDispatch</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s3">'Messenger-%s' </span><span class="s2">% (</span><span class="s1">taskChain</span><span class="s2">),</span>
+                                <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">taskChain</span><span class="s2">], </span><span class="s1">taskChain </span><span class="s2">= </span><span class="s1">taskChain</span><span class="s2">,</span>
+                                <span class="s1">appendTask </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Handle the event immediately.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__dispatch</span><span class="s2">(</span><span class="s1">acceptorDict</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">, </span><span class="s1">foundWatch</span><span class="s2">)</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__taskChainDispatch</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskChain</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; This task is spawned each time an event is sent across 
+        task chains.  Its job is to empty the task events on the queue 
+        for this particular task chain.  This guarantees that events 
+        are still delivered in the same order they were sent. &quot;&quot;&quot;</span>
+
+        <span class="s4">while True</span><span class="s2">:</span>
+            <span class="s1">eventTuple </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">queue </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_eventQueuesByTaskChain</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">taskChain</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">queue</span><span class="s2">:</span>
+                    <span class="s1">eventTuple </span><span class="s2">= </span><span class="s1">queue</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                    <span class="s4">del </span><span class="s1">queue</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s4">if not </span><span class="s1">queue</span><span class="s2">:</span>
+                    <span class="s5"># The queue is empty, we're done.</span>
+                    <span class="s4">if </span><span class="s1">queue </span><span class="s4">is not None</span><span class="s2">:</span>
+                        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_eventQueuesByTaskChain</span><span class="s2">[</span><span class="s1">taskChain</span><span class="s2">]</span>
+
+                <span class="s4">if not </span><span class="s1">eventTuple</span><span class="s2">:</span>
+                    <span class="s5"># No event; we're done.</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__dispatch</span><span class="s2">(*</span><span class="s1">eventTuple</span><span class="s2">)</span>
+            <span class="s4">finally</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+        <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+
+    <span class="s4">def </span><span class="s1">__dispatch</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">acceptorDict</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">, </span><span class="s1">foundWatch</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">id </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">acceptorDict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()):</span>
+            <span class="s5"># We have to make this apparently redundant check, because</span>
+            <span class="s5"># it is possible that one object removes its own hooks</span>
+            <span class="s5"># in response to a handler called by a previous object.</span>
+            <span class="s5">#</span>
+            <span class="s5"># NOTE: there is no danger of skipping over objects due to</span>
+            <span class="s5"># modifications to acceptorDict, since the for..in above</span>
+            <span class="s5"># iterates over a list of objects that is created once at</span>
+            <span class="s5"># the start</span>
+            <span class="s1">callInfo </span><span class="s2">= </span><span class="s1">acceptorDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">id</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">callInfo</span><span class="s2">:</span>
+                <span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">persistent </span><span class="s2">= </span><span class="s1">callInfo</span>
+                <span class="s5"># If this object was only accepting this event once,</span>
+                <span class="s5"># remove it from the dictionary</span>
+                <span class="s4">if not </span><span class="s1">persistent</span><span class="s2">:</span>
+                    <span class="s5"># This object is no longer listening for this event</span>
+                    <span class="s1">eventDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">id</span><span class="s2">)</span>
+                    <span class="s4">if </span><span class="s1">eventDict </span><span class="s4">and </span><span class="s1">event </span><span class="s4">in </span><span class="s1">eventDict</span><span class="s2">:</span>
+                        <span class="s4">del </span><span class="s1">eventDict</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+                        <span class="s4">if </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">eventDict</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">):</span>
+                            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">_releaseObject</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getObject</span><span class="s2">(</span><span class="s1">id</span><span class="s2">))</span>
+
+                    <span class="s4">del </span><span class="s1">acceptorDict</span><span class="s2">[</span><span class="s1">id</span><span class="s2">]</span>
+                    <span class="s5"># If the dictionary at this event is now empty, remove</span>
+                    <span class="s5"># the event entry from the Messenger altogether</span>
+                    <span class="s4">if </span><span class="s2">(</span><span class="s1">event </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks \</span>
+                            <span class="s4">and </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]) == </span><span class="s6">0</span><span class="s2">)):</span>
+                        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+
+                <span class="s4">if __debug__</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">foundWatch</span><span class="s2">:</span>
+                        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Messenger: </span><span class="s4">\&quot;</span><span class="s3">%s</span><span class="s4">\&quot; </span><span class="s3">--&gt; %s%s&quot;</span><span class="s2">%(</span>
+                            <span class="s1">event</span><span class="s2">,</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">__methodRepr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">),</span>
+                            <span class="s1">tuple</span><span class="s2">(</span><span class="s1">extraArgs </span><span class="s2">+ </span><span class="s1">sentArgs</span><span class="s2">)))</span>
+
+                <span class="s5">#print &quot;Messenger: \&quot;%s\&quot; --&gt; %s%s&quot;%(</span>
+                <span class="s5">#            event,</span>
+                <span class="s5">#            self.__methodRepr(method),</span>
+                <span class="s5">#            tuple(extraArgs + sentArgs))</span>
+
+                <span class="s5"># It is important to make the actual call here, after</span>
+                <span class="s5"># we have cleaned up the accept hook, because the</span>
+                <span class="s5"># method itself might call accept() or acceptOnce()</span>
+                <span class="s5"># again.</span>
+                <span class="s4">assert </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">, </span><span class="s3">'__call__'</span><span class="s2">)</span>
+
+                <span class="s5"># Release the lock temporarily while we call the method.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+                <span class="s4">try</span><span class="s2">:</span>
+                    <span class="s1">result </span><span class="s2">= </span><span class="s1">method </span><span class="s2">(*(</span><span class="s1">extraArgs </span><span class="s2">+ </span><span class="s1">sentArgs</span><span class="s2">))</span>
+                <span class="s4">finally</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+
+                <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">result</span><span class="s2">, </span><span class="s3">'cr_await'</span><span class="s2">):</span>
+                    <span class="s5"># It's a coroutine, so schedule it with the task manager.</span>
+                    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">result</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">clear</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Start fresh with a clear dict 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_id2object</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">isEmpty</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getEvents</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">oldMethod</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        This is only used by Finder.py - the module that lets 
+        you redefine functions with Control-c-Control-v 
+        &quot;&quot;&quot;</span>
+        <span class="s1">retFlag </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">for </span><span class="s1">entry </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+            <span class="s1">event</span><span class="s2">, </span><span class="s1">objectDict </span><span class="s2">= </span><span class="s1">entry</span>
+            <span class="s4">for </span><span class="s1">objectEntry </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">objectDict</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+                <span class="s1">object</span><span class="s2">, </span><span class="s1">params </span><span class="s2">= </span><span class="s1">objectEntry</span>
+                <span class="s1">method </span><span class="s2">= </span><span class="s1">params</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">method</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">):</span>
+                    <span class="s1">function </span><span class="s2">= </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__func__</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">function </span><span class="s2">= </span><span class="s1">method</span>
+                <span class="s5">#print ('function: ' + repr(function) + '\n' +</span>
+                <span class="s5">#       'method: ' + repr(method) + '\n' +</span>
+                <span class="s5">#       'oldMethod: ' + repr(oldMethod) + '\n' +</span>
+                <span class="s5">#       'newFunction: ' + repr(newFunction) + '\n')</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">function </span><span class="s2">== </span><span class="s1">oldMethod</span><span class="s2">):</span>
+                    <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+                        <span class="s1">newMethod </span><span class="s2">= </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">, </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">)</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">newMethod </span><span class="s2">= </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span>
+                            <span class="s1">newFunction</span><span class="s2">, </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">, </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">)</span>
+                    <span class="s1">params</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] = </span><span class="s1">newMethod</span>
+                    <span class="s5"># Found it retrun true</span>
+                    <span class="s1">retFlag </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># didn't find that method, return false</span>
+        <span class="s4">return </span><span class="s1">retFlag</span>
+
+    <span class="s4">def </span><span class="s1">toggleVerbose</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">isVerbose </span><span class="s2">= </span><span class="s6">1 </span><span class="s2">- </span><span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">getDebug</span><span class="s2">()</span>
+        <span class="s1">Messenger</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">setDebug</span><span class="s2">(</span><span class="s1">isVerbose</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">isVerbose</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Verbose mode true.  quiet list = %s&quot;</span><span class="s2">%(</span>
+                <span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()),))</span>
+
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s4">def </span><span class="s1">watch</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">needle</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; 
+            return a matching event (needle) if found (in haystack). 
+            This is primarily a debugging tool. 
+ 
+            This is intended for debugging use only. 
+            This function is not defined if python is ran with -O (optimize). 
+ 
+            See Also: `unwatch` 
+            &quot;&quot;&quot;</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__watching</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">needle</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__isWatching </span><span class="s2">+= </span><span class="s6">1</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__watching</span><span class="s2">[</span><span class="s1">needle</span><span class="s2">]=</span><span class="s6">1</span>
+
+        <span class="s4">def </span><span class="s1">unwatch</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">needle</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; 
+            return a matching event (needle) if found (in haystack). 
+            This is primarily a debugging tool. 
+ 
+            This is intended for debugging use only. 
+            This function is not defined if python is ran with -O (optimize). 
+ 
+            See Also: `watch` 
+            &quot;&quot;&quot;</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__watching</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">needle</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__isWatching </span><span class="s2">-= </span><span class="s6">1</span>
+                <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__watching</span><span class="s2">[</span><span class="s1">needle</span><span class="s2">]</span>
+
+        <span class="s4">def </span><span class="s1">quiet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">message</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; 
+            When verbose mode is on, don't spam the output with messages 
+            marked as quiet. 
+            This is primarily a debugging tool. 
+ 
+            This is intended for debugging use only. 
+            This function is not defined if python is ran with -O (optimize). 
+ 
+            See Also: `unquiet` 
+            &quot;&quot;&quot;</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">message</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">[</span><span class="s1">message</span><span class="s2">]=</span><span class="s6">1</span>
+
+        <span class="s4">def </span><span class="s1">unquiet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">message</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; 
+            Remove a message from the list of messages that are not reported 
+            in verbose mode. 
+            This is primarily a debugging tool. 
+ 
+            This is intended for debugging use only. 
+            This function is not defined if python is ran with -O (optimize). 
+ 
+            See Also: `quiet` 
+            &quot;&quot;&quot;</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">message</span><span class="s2">):</span>
+                <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">quieting</span><span class="s2">[</span><span class="s1">message</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">find</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">needle</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        return a matching event (needle) if found (in haystack). 
+        This is primarily a debugging tool. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">keys </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">keys</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">event </span><span class="s4">in </span><span class="s1">keys</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">).</span><span class="s1">find</span><span class="s2">(</span><span class="s1">needle</span><span class="s2">) &gt;= </span><span class="s6">0</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s2">{</span><span class="s1">event</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]}</span>
+
+    <span class="s4">def </span><span class="s1">findAll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">needle</span><span class="s2">, </span><span class="s1">limit</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        return a dict of events (needle) if found (in haystack). 
+        limit may be None or an integer (e.g. 1). 
+        This is primarily a debugging tool. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">matches </span><span class="s2">= {}</span>
+        <span class="s1">keys </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">keys</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">event </span><span class="s4">in </span><span class="s1">keys</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">).</span><span class="s1">find</span><span class="s2">(</span><span class="s1">needle</span><span class="s2">) &gt;= </span><span class="s6">0</span><span class="s2">:</span>
+                <span class="s1">matches</span><span class="s2">[</span><span class="s1">event</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+                <span class="s5"># if the limit is not None, decrement and</span>
+                <span class="s5"># check for break:</span>
+                <span class="s4">if </span><span class="s1">limit </span><span class="s2">&gt; </span><span class="s6">0</span><span class="s2">:</span>
+                    <span class="s1">limit </span><span class="s2">-= </span><span class="s6">1</span>
+                    <span class="s4">if </span><span class="s1">limit </span><span class="s2">== </span><span class="s6">0</span><span class="s2">:</span>
+                        <span class="s4">break</span>
+        <span class="s4">return </span><span class="s1">matches</span>
+
+    <span class="s4">def </span><span class="s1">__methodRepr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">method</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        return string version of class.method or method. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">method</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">):</span>
+            <span class="s1">functionName </span><span class="s2">= </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__ </span><span class="s2">+ </span><span class="s3">'.' </span><span class="s2">+ </span><span class="s1">\</span>
+                <span class="s1">method</span><span class="s2">.</span><span class="s1">__func__</span><span class="s2">.</span><span class="s1">__name__</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">, </span><span class="s3">&quot;__name__&quot;</span><span class="s2">):</span>
+                <span class="s1">functionName </span><span class="s2">= </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__name__</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s3">&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">functionName</span>
+
+    <span class="s4">def </span><span class="s1">__eventRepr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Compact version of event, acceptor pairs 
+        &quot;&quot;&quot;</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s1">event</span><span class="s2">.</span><span class="s1">ljust</span><span class="s2">(</span><span class="s6">32</span><span class="s2">) + </span><span class="s3">'</span><span class="s4">\t</span><span class="s3">'</span>
+        <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, (</span><span class="s1">method</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">persistent</span><span class="s2">) </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">acceptorDict</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+            <span class="s1">str </span><span class="s2">= </span><span class="s1">str </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__methodRepr</span><span class="s2">(</span><span class="s1">method</span><span class="s2">) + </span><span class="s3">' '</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span>
+        <span class="s4">return </span><span class="s1">str</span>
+
+    <span class="s4">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Compact version of event, acceptor pairs 
+        &quot;&quot;&quot;</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s3">&quot;The messenger is currently handling:</span><span class="s4">\n</span><span class="s3">&quot; </span><span class="s2">+ </span><span class="s3">&quot;=&quot;</span><span class="s2">*</span><span class="s6">64 </span><span class="s2">+ </span><span class="s3">&quot;</span><span class="s4">\n</span><span class="s3">&quot;</span>
+        <span class="s1">keys </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">keys</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">event </span><span class="s4">in </span><span class="s1">keys</span><span class="s2">:</span>
+            <span class="s1">str </span><span class="s2">+= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__eventRepr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+        <span class="s5"># Print out the object: event dictionary too</span>
+        <span class="s1">str </span><span class="s2">+= </span><span class="s3">&quot;=&quot;</span><span class="s2">*</span><span class="s6">64 </span><span class="s2">+ </span><span class="s3">&quot;</span><span class="s4">\n</span><span class="s3">&quot;</span>
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">eventDict </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__objectEvents</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+            <span class="s1">object </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getObject</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+            <span class="s1">str </span><span class="s2">+= </span><span class="s3">&quot;%s:</span><span class="s4">\n</span><span class="s3">&quot; </span><span class="s2">% </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+            <span class="s4">for </span><span class="s1">event </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">eventDict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()):</span>
+                <span class="s1">str </span><span class="s2">+= </span><span class="s3">&quot;     %s</span><span class="s4">\n</span><span class="s3">&quot; </span><span class="s2">% </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+
+        <span class="s1">str </span><span class="s2">+= </span><span class="s3">&quot;=&quot;</span><span class="s2">*</span><span class="s6">64 </span><span class="s2">+ </span><span class="s3">&quot;</span><span class="s4">\n</span><span class="s3">&quot; </span><span class="s2">+ </span><span class="s3">&quot;End of messenger info.</span><span class="s4">\n</span><span class="s3">&quot;</span>
+        <span class="s4">return </span><span class="s1">str</span>
+
+    <span class="s4">def </span><span class="s1">detailedRepr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Print out the table in a detailed readable format 
+        &quot;&quot;&quot;</span>
+        <span class="s4">import </span><span class="s1">types</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s3">'Messenger</span><span class="s4">\n</span><span class="s3">'</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'='</span><span class="s2">*</span><span class="s6">50 </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span>
+        <span class="s1">keys </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">keys</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">event </span><span class="s4">in </span><span class="s1">keys</span><span class="s2">:</span>
+            <span class="s1">acceptorDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callbacks</span><span class="s2">[</span><span class="s1">event</span><span class="s2">]</span>
+            <span class="s1">str </span><span class="s2">= </span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'Event: ' </span><span class="s2">+ </span><span class="s1">event </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span>
+            <span class="s4">for </span><span class="s1">key </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">acceptorDict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()):</span>
+                <span class="s1">function</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">persistent </span><span class="s2">= </span><span class="s1">acceptorDict</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+                <span class="s1">object </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getObject</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+                <span class="s1">objectClass </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">object</span><span class="s2">, </span><span class="s3">'__class__'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">objectClass</span><span class="s2">:</span>
+                    <span class="s1">className </span><span class="s2">= </span><span class="s1">objectClass</span><span class="s2">.</span><span class="s1">__name__</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">className </span><span class="s2">= </span><span class="s3">&quot;Not a class&quot;</span>
+                <span class="s1">functionName </span><span class="s2">= </span><span class="s1">function</span><span class="s2">.</span><span class="s1">__name__</span>
+                <span class="s1">str </span><span class="s2">= (</span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\t</span><span class="s3">' </span><span class="s2">+</span>
+                       <span class="s3">'Acceptor:     ' </span><span class="s2">+ </span><span class="s1">className </span><span class="s2">+ </span><span class="s3">' instance' </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\n\t</span><span class="s3">' </span><span class="s2">+</span>
+                       <span class="s3">'Function name:' </span><span class="s2">+ </span><span class="s1">functionName </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\n\t</span><span class="s3">' </span><span class="s2">+</span>
+                       <span class="s3">'Extra Args:   ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">) + </span><span class="s3">'</span><span class="s4">\n\t</span><span class="s3">' </span><span class="s2">+</span>
+                       <span class="s3">'Persistent:   ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">persistent</span><span class="s2">) + </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span><span class="s2">)</span>
+                <span class="s5"># If this is a class method, get its actual function</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">function</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">):</span>
+                    <span class="s1">str </span><span class="s2">= (</span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\t</span><span class="s3">' </span><span class="s2">+</span>
+                           <span class="s3">'Method:       ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">function</span><span class="s2">) + </span><span class="s3">'</span><span class="s4">\n\t</span><span class="s3">' </span><span class="s2">+</span>
+                           <span class="s3">'Function:     ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">function</span><span class="s2">.</span><span class="s1">__func__</span><span class="s2">) + </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">str </span><span class="s2">= (</span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\t</span><span class="s3">' </span><span class="s2">+</span>
+                           <span class="s3">'Function:     ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">function</span><span class="s2">) + </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s1">str </span><span class="s2">= </span><span class="s1">str </span><span class="s2">+ </span><span class="s3">'='</span><span class="s2">*</span><span class="s6">50 </span><span class="s2">+ </span><span class="s3">'</span><span class="s4">\n</span><span class="s3">'</span>
+        <span class="s4">return </span><span class="s1">str</span>
+
+    <span class="s5">#snake_case alias:</span>
+    <span class="s1">get_events </span><span class="s2">= </span><span class="s1">getEvents</span>
+    <span class="s1">is_ignoring </span><span class="s2">= </span><span class="s1">isIgnoring</span>
+    <span class="s1">who_accepts </span><span class="s2">= </span><span class="s1">whoAccepts</span>
+    <span class="s1">find_all </span><span class="s2">= </span><span class="s1">findAll</span>
+    <span class="s1">replace_method </span><span class="s2">= </span><span class="s1">replaceMethod</span>
+    <span class="s1">ignore_all </span><span class="s2">= </span><span class="s1">ignoreAll</span>
+    <span class="s1">is_accepting </span><span class="s2">= </span><span class="s1">isAccepting</span>
+    <span class="s1">is_empty </span><span class="s2">= </span><span class="s1">isEmpty</span>
+    <span class="s1">detailed_repr </span><span class="s2">= </span><span class="s1">detailedRepr</span>
+    <span class="s1">get_all_accepting </span><span class="s2">= </span><span class="s1">getAllAccepting</span>
+    <span class="s1">toggle_verbose </span><span class="s2">= </span><span class="s1">toggleVerbose</span>
+</pre>
+</body>
+</html>

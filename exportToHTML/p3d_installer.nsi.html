@@ -1,0 +1,317 @@
+<html>
+<head>
+<title>p3d_installer.nsi</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+p3d_installer.nsi</font>
+</center></td></tr></table>
+<pre><span class="s0">!include &quot;MUI.nsh&quot;</span>
+<span class="s0">!include LogicLib.nsh</span>
+
+<span class="s0">; Several variables are assumed to be pre-defined by the caller.  See</span>
+<span class="s0">; make_installer.py in this directory.</span>
+
+<span class="s0">!define UNINSTALL_SUCCESS &quot;$(^Name) was successfully removed from your computer.&quot;</span>
+<span class="s0">!define UNINSTALL_CONFIRM &quot;Are you sure you want to completely remove $(^Name) and all of its components?&quot;</span>
+<span class="s0">!define UNINSTALL_LINK_NAME &quot;Uninstall&quot;</span>
+<span class="s0">!define WEBSITE_LINK_NAME &quot;Website&quot;</span>
+<span class="s0">!define PLID &quot;@panda3d.org/Panda3D Runtime&quot;</span>
+
+<span class="s0">; HM NIS Edit Wizard helper defines</span>
+<span class="s0">!define APP_INTERNAL_NAME &quot;Panda3D&quot;</span>
+
+<span class="s0">!define PRODUCT_DIR_REGKEY_PANDA3D &quot;Software\Microsoft\Windows\CurrentVersion\App Paths\${PANDA3D}&quot;</span>
+<span class="s0">!define PRODUCT_DIR_REGKEY_PANDA3DW &quot;Software\Microsoft\Windows\CurrentVersion\App Paths\${PANDA3DW}&quot;</span>
+<span class="s0">!define PRODUCT_DIR_REGKEY_OCX &quot;Software\Microsoft\Windows\CurrentVersion\App Paths\${OCX}&quot;</span>
+<span class="s0">!define PRODUCT_UNINST_KEY &quot;Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}&quot;</span>
+<span class="s0">!define PRODUCT_UNINST_ROOT_KEY &quot;HKLM&quot;</span>
+<span class="s0">!define PROG_GROUPNAME &quot;${PRODUCT_NAME}&quot;</span>
+
+<span class="s0">SetCompressor lzma</span>
+
+<span class="s0">; MUI Settings</span>
+<span class="s0">!define MUI_ABORTWARNING</span>
+<span class="s0">!define MUI_ICON &quot;${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico&quot;</span>
+<span class="s0">!define MUI_UNICON &quot;${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico&quot;</span>
+
+<span class="s0">; Welcome page</span>
+<span class="s0">!define MUI_WELCOMEPAGE_TITLE_3LINES</span>
+<span class="s0">!insertmacro MUI_PAGE_WELCOME</span>
+<span class="s0">!insertmacro MUI_PAGE_LICENSE &quot;${LICENSE_FILE}&quot; ; EULA</span>
+<span class="s0">; Directory page</span>
+<span class="s0">!insertmacro MUI_PAGE_DIRECTORY</span>
+<span class="s0">; Instfiles page</span>
+<span class="s0">!insertmacro MUI_PAGE_INSTFILES</span>
+<span class="s0">; Finish page</span>
+<span class="s0">;!define MUI_FINISHPAGE_NOAUTOCLOSE ;un-comment to put a pause after the file installation screen</span>
+<span class="s0">!define MUI_FINISHPAGE_TITLE_3LINES</span>
+<span class="s0">!insertmacro MUI_PAGE_FINISH</span>
+
+<span class="s0">; Uninstaller pages</span>
+<span class="s0">!insertmacro MUI_UNPAGE_INSTFILES</span>
+
+<span class="s0">; Language files</span>
+<span class="s0">!insertmacro MUI_LANGUAGE &quot;English&quot;</span>
+
+<span class="s0">; Reserve files</span>
+<span class="s0">!insertmacro MUI_RESERVEFILE_INSTALLOPTIONS</span>
+
+<span class="s0">; MUI end ------</span>
+
+<span class="s0">Name &quot;${PRODUCT_NAME}&quot;</span>
+<span class="s0">OutFile p3d-setup.exe</span>
+<span class="s0">InstallDir &quot;${INSTALL_DIR}&quot;</span>
+<span class="s0">!ifdef INSTALL_ICON</span>
+  <span class="s0">Icon &quot;${INSTALL_ICON}&quot;</span>
+  <span class="s0">UninstallIcon &quot;${INSTALL_ICON}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">WindowIcon on</span>
+
+<span class="s0">ShowInstDetails show</span>
+<span class="s0">ShowUnInstDetails show</span>
+
+<span class="s0">Function .onInit</span>
+<span class="s0">!ifdef REGVIEW</span>
+  <span class="s0">SetRegView ${REGVIEW}</span>
+<span class="s0">!endif</span>
+
+  <span class="s0">ClearErrors</span>
+
+  <span class="s0">ReadRegStr $0 ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;InstallLocation&quot;</span>
+
+  <span class="s0">IfErrors +2 0</span>
+  <span class="s0">StrCpy $INSTDIR $0</span>
+
+<span class="s0">FunctionEnd</span>
+
+<span class="s0">Section &quot;MainSection&quot; SEC01</span>
+  <span class="s0">SetShellVarContext all</span>
+  <span class="s0">SetOutPath &quot;$INSTDIR&quot;</span>
+  <span class="s0">SetOverwrite ifdiff</span>
+
+<span class="s0">!ifdef OCX_PATH</span>
+  <span class="s0">File &quot;${OCX_PATH}&quot;</span>
+<span class="s0">!endif</span>
+  <span class="s0">File &quot;${NPAPI_PATH}&quot;</span>
+  <span class="s0">File &quot;${PANDA3D_PATH}&quot;</span>
+  <span class="s0">File &quot;${PANDA3DW_PATH}&quot;</span>
+
+<span class="s0">; Auto-detected dependencies on the above executables.  Python</span>
+<span class="s0">; computes these values for us.</span>
+<span class="s0">!ifdef DEP0P</span>
+  <span class="s0">File &quot;${DEP0P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP1P</span>
+  <span class="s0">File &quot;${DEP1P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP2P</span>
+  <span class="s0">File &quot;${DEP2P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP3P</span>
+  <span class="s0">File &quot;${DEP3P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP4P</span>
+  <span class="s0">File &quot;${DEP4P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP5P</span>
+  <span class="s0">File &quot;${DEP5P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP6P</span>
+  <span class="s0">File &quot;${DEP6P}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP7P</span>
+  <span class="s0">File &quot;${DEP7P}&quot;</span>
+<span class="s0">!endif</span>
+ 
+<span class="s0">!ifdef ADD_START_MENU</span>
+<span class="s0">; Start-&gt;Programs links</span>
+  <span class="s0">CreateDirectory &quot;$SMPROGRAMS\${PROG_GROUPNAME}&quot;</span>
+<span class="s0">;  CreateShortCut &quot;$SMPROGRAMS\${PROG_GROUPNAME}\${PRODUCT_NAME_SHORT}.lnk&quot; &quot;$INSTDIR\${LAUNCHER}&quot;</span>
+<span class="s0">!endif</span>
+
+<span class="s0">; Desktop Icon...commented out for now</span>
+<span class="s0">;  CreateShortCut &quot;$DESKTOP\${PRODUCT_NAME_SHORT}.lnk&quot; &quot;$INSTDIR\${OCX}&quot;</span>
+
+  <span class="s0"># Make the directory &quot;$INSTDIR&quot; read write accessible by all users</span>
+  <span class="s0">AccessControl::GrantOnFile &quot;$INSTDIR&quot; &quot;(BU)&quot; &quot;FullAccess&quot;</span>
+
+<span class="s0">;  File &quot;..\..\..\path\to\file\Example.file&quot;</span>
+<span class="s0">SectionEnd</span>
+
+<span class="s0">Section -AdditionalIcons</span>
+  <span class="s0">WriteIniStr &quot;$INSTDIR\${PRODUCT_NAME}.url&quot; &quot;InternetShortcut&quot; &quot;URL&quot; &quot;${PRODUCT_WEB_SITE}&quot;</span>
+<span class="s0">!ifdef ADD_START_MENU</span>
+  <span class="s0">CreateShortCut &quot;$SMPROGRAMS\${PROG_GROUPNAME}\${WEBSITE_LINK_NAME}.lnk&quot; &quot;$INSTDIR\${PRODUCT_NAME}.url&quot;</span>
+  <span class="s0">CreateShortCut &quot;$SMPROGRAMS\${PROG_GROUPNAME}\${UNINSTALL_LINK_NAME}.lnk&quot; &quot;$INSTDIR\uninst.exe&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">SectionEnd</span>
+
+<span class="s0">Section -Post</span>
+<span class="s0">!ifdef REGVIEW</span>
+  <span class="s0">SetRegView ${REGVIEW}</span>
+<span class="s0">!endif</span>
+
+  <span class="s0">WriteUninstaller &quot;$INSTDIR\uninst.exe&quot;</span>
+
+  <span class="s0">WriteRegStr HKCR &quot;.p3d&quot; &quot;&quot; &quot;Panda3D applet&quot;</span>
+  <span class="s0">WriteRegStr HKCR &quot;.p3d&quot; &quot;Content Type&quot; &quot;application/x-panda3d&quot;</span>
+  <span class="s0">WriteRegStr HKCR &quot;.p3d&quot; &quot;PerceivedType&quot; &quot;application&quot;</span>
+  <span class="s0">WriteRegStr HKCR &quot;Panda3D applet&quot; &quot;&quot; &quot;Panda3D applet&quot;</span>
+  <span class="s0">WriteRegStr HKCR &quot;Panda3D applet\DefaultIcon&quot; &quot;&quot; &quot;$INSTDIR\${PANDA3DW}&quot;</span>
+  <span class="s0">WriteRegStr HKCR &quot;Panda3D applet\shell&quot; &quot;&quot; &quot;open&quot;</span>
+  <span class="s0">WriteRegStr HKCR &quot;Panda3D applet\shell\open\command&quot; &quot;&quot; '&quot;$INSTDIR\${PANDA3DW}&quot; &quot;%1&quot;'</span>
+  <span class="s0">WriteRegExpandStr HKCR &quot;Panda3D applet\shell\open2&quot; &quot;&quot; &quot;Open &amp;with Command Prompt&quot;</span>
+  <span class="s0">;WriteRegExpandStr HKCR &quot;Panda3D applet\shell\open2&quot; &quot;MUIVerb&quot; &quot;@%SystemRoot%\System32\wshext.dll,-4511&quot;</span>
+  <span class="s0">WriteRegExpandStr HKCR &quot;Panda3D applet\shell\open2\command&quot; &quot;&quot; '&quot;$INSTDIR\${PANDA3D}&quot; &quot;%1&quot;'</span>
+
+  <span class="s0">WriteRegStr HKLM &quot;${PRODUCT_DIR_REGKEY_PANDA3D}&quot; &quot;&quot; &quot;$INSTDIR\${PANDA3D}&quot;</span>
+  <span class="s0">WriteRegStr HKLM &quot;${PRODUCT_DIR_REGKEY_PANDA3DW}&quot; &quot;&quot; &quot;$INSTDIR\${PANDA3DW}&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;DisplayName&quot; &quot;$(^Name)&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;UninstallString&quot; &quot;$INSTDIR\uninst.exe&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;DisplayIcon&quot; &quot;$INSTDIR\${PANDA3D}&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;DisplayVersion&quot; &quot;${PRODUCT_VERSION}&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;URLInfoAbout&quot; &quot;${PRODUCT_WEB_SITE}&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;Publisher&quot; &quot;${PRODUCT_PUBLISHER}&quot;</span>
+  <span class="s0">WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;InstallLocation&quot; &quot;$INSTDIR&quot;</span>
+  <span class="s0">WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;NoModify&quot; 1</span>
+  <span class="s0">WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;NoRepair&quot; 1</span>
+
+  <span class="s0">SectionGetSize SEC01 $0</span>
+  <span class="s0">WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot; &quot;EstimatedSize&quot; $0</span>
+
+  <span class="s0"># Delete keys we used in older versions</span>
+  <span class="s0">DeleteRegKey HKLM &quot;${PRODUCT_DIR_REGKEY_OCX}&quot;</span>
+  <span class="s0">DeleteRegKey HKCR &quot;Panda3D applet\shell\edit&quot;</span>
+<span class="s0">SectionEnd</span>
+
+
+<span class="s0">Function un.onUninstSuccess</span>
+  <span class="s0">HideWindow</span>
+  <span class="s0">MessageBox MB_ICONINFORMATION|MB_OK &quot;${UNINSTALL_SUCCESS}&quot;</span>
+<span class="s0">FunctionEnd</span>
+
+<span class="s0">Function un.onInit</span>
+  <span class="s0">MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 &quot;${UNINSTALL_CONFIRM}&quot; IDYES +2</span>
+  <span class="s0">Abort</span>
+<span class="s0">FunctionEnd</span>
+
+<span class="s0">Function .onInstSuccess</span>
+  <span class="s0"># Register ActiveX</span>
+  <span class="s0">ExecWait 'regsvr32 /s &quot;$INSTDIR/${OCX}&quot;'</span>
+
+<span class="s0">!ifdef REGVIEW</span>
+  <span class="s0">SetRegView ${REGVIEW}</span>
+<span class="s0">!endif</span>
+
+  <span class="s0"># Register Mozilla Plugin</span>
+  <span class="s0">WriteRegStr HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}&quot; &quot;Description&quot; &quot;Runs 3-D games and interactive applets&quot;</span>
+  <span class="s0">WriteRegStr HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}&quot; &quot;Path&quot; &quot;$INSTDIR\${NPAPI}&quot;</span>
+  <span class="s0">WriteRegStr HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}&quot; &quot;ProductName&quot; &quot;${PRODUCT_NAME_SHORT}&quot;</span>
+  <span class="s0">WriteRegStr HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}&quot; &quot;Vendor&quot; &quot;${PRODUCT_PUBLISHER}&quot;</span>
+  <span class="s0">WriteRegStr HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}&quot; &quot;Version&quot; &quot;${PRODUCT_VERSION}&quot;</span>
+  <span class="s0">WriteRegStr HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}\MimeTypes\application/x-panda3d&quot; &quot;Description&quot; &quot;Panda3D applet&quot;</span>
+
+  <span class="s0"># Remove old stuff</span>
+  <span class="s0">DeleteRegKey HKLM &quot;SOFTWARE\MozillaPlugins\${PLID},version=0.0&quot;</span>
+
+<span class="s0">FunctionEnd</span>
+
+<span class="s0">Section Uninstall</span>
+  <span class="s0">SetShellVarContext all</span>
+
+  <span class="s0">ExecWait 'regsvr32 /u /s &quot;$INSTDIR/${OCX}&quot;'</span>
+
+  <span class="s0">Delete &quot;$INSTDIR\${OCX}&quot;</span>
+  <span class="s0">Delete &quot;$INSTDIR\${NPAPI}&quot;</span>
+  <span class="s0">Delete &quot;$INSTDIR\${PANDA3D}&quot;</span>
+  <span class="s0">Delete &quot;$INSTDIR\${PANDA3DW}&quot;</span>
+<span class="s0">!ifdef DEP0</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP0}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP1</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP1}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP2</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP2}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP3</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP3}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP4</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP4}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP5</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP5}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP6</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP6}&quot;</span>
+<span class="s0">!endif</span>
+<span class="s0">!ifdef DEP7</span>
+  <span class="s0">Delete &quot;$INSTDIR\${DEP7}&quot;</span>
+<span class="s0">!endif</span>
+
+<span class="s0">!ifdef REGVIEW</span>
+  <span class="s0">SetRegView ${REGVIEW}</span>
+<span class="s0">!endif</span>
+
+<span class="s0"># The following loop uninstalls the plugin where it may have been</span>
+<span class="s0"># copied into one of the Mozilla Extensions dirs.  Older versions of</span>
+<span class="s0"># the installer would have done this, but now we just update the</span>
+<span class="s0"># registry to point to $INSTDIR.</span>
+<span class="s0">StrCpy $1 &quot;0&quot;</span>
+<span class="s0">Mozilla-Uninstall-Loop:</span>
+  <span class="s0">EnumRegKey $0 HKLM &quot;SOFTWARE\Mozilla&quot; &quot;$1&quot;</span>
+  <span class="s0">StrCmp $0 &quot;&quot; Mozilla-Uninstall-End</span>
+  <span class="s0">IntOp $1 $1 + 1</span>
+  <span class="s0">ReadRegStr $2 HKLM &quot;SOFTWARE\Mozilla\$0\Extensions&quot; &quot;Plugins&quot;</span>
+  <span class="s0">${If} $2 != &quot;&quot;</span>
+     <span class="s0">Delete &quot;$2\${NPAPI}&quot;</span>
+     <span class="s0"># We can't delete the dependency files, because who knows--maybe</span>
+     <span class="s0"># some other plugins are also using the same files.</span>
+  <span class="s0">${EndIf}</span>
+  <span class="s0">goto Mozilla-Uninstall-Loop</span>
+<span class="s0">Mozilla-Uninstall-End:</span>
+
+  <span class="s0">DeleteRegKey HKLM &quot;SOFTWARE\MozillaPlugins\${PLID}&quot;</span>
+  <span class="s0">DeleteRegKey HKLM &quot;SOFTWARE\MozillaPlugins\${PLID},version=0.0&quot;</span>
+
+  <span class="s0">DeleteRegKey HKCR &quot;.p3d&quot;</span>
+  <span class="s0">DeleteRegKey HKCR &quot;Panda3D applet&quot;</span>
+
+  <span class="s0"># Remove the user's &quot;Panda3D&quot; directory, where all of the downloaded</span>
+  <span class="s0"># contents are installed.  Too bad we can't do this for every system</span>
+  <span class="s0"># user, not just the current user.</span>
+
+  <span class="s0">RmDir /r &quot;$LOCALAPPDATALow\${APP_INTERNAL_NAME}&quot;</span>
+  <span class="s0">RmDir /r &quot;$LOCALAPPDATA\${APP_INTERNAL_NAME}&quot;</span>
+
+  <span class="s0">Delete &quot;$INSTDIR\uninst.exe&quot;</span>
+  <span class="s0">Delete &quot;$INSTDIR\${PRODUCT_NAME}.url&quot;</span>
+
+<span class="s0">!ifdef ADD_START_MENU</span>
+  <span class="s0">Delete &quot;$SMPROGRAMS\${PROG_GROUPNAME}\${UNINSTALL_LINK_NAME}.lnk&quot;</span>
+  <span class="s0">Delete &quot;$SMPROGRAMS\${PROG_GROUPNAME}\${WEBSITE_LINK_NAME}.lnk&quot;</span>
+<span class="s0">;  Delete &quot;$DESKTOP\${PRODUCT_NAME_SHORT}${PRODUCT_RELEASE}.lnk&quot;</span>
+<span class="s0">;  Delete &quot;$SMPROGRAMS\${PROG_GROUPNAME}\${PRODUCT_NAME_SHORT}.lnk&quot;</span>
+  <span class="s0">RMDir &quot;$SMPROGRAMS\${PROG_GROUPNAME}&quot;</span>
+<span class="s0">!endif</span>
+
+  <span class="s0">RMDir &quot;$INSTDIR&quot;</span>
+
+  <span class="s0">DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} &quot;${PRODUCT_UNINST_KEY}&quot;</span>
+  <span class="s0">DeleteRegKey HKLM &quot;${PRODUCT_DIR_REGKEY_PANDA3D}&quot;</span>
+  <span class="s0">DeleteRegKey HKLM &quot;${PRODUCT_DIR_REGKEY_PANDA3DW}&quot;</span>
+  <span class="s0">DeleteRegKey HKLM &quot;${PRODUCT_DIR_REGKEY_OCX}&quot;</span>
+  <span class="s0">SetAutoClose true</span>
+<span class="s0">SectionEnd</span>
+
+</pre>
+</body>
+</html>

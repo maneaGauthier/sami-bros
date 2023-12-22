@@ -1,0 +1,391 @@
+<html>
+<head>
+<title>Floater.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Floater.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Floater Class: Velocity style controller for floating point values with 
+                a label, entry (validated), and scale 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Floater'</span><span class="s2">, </span><span class="s3">'FloaterWidget'</span><span class="s2">, </span><span class="s3">'FloaterGroup'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">TkGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">Valuator </span><span class="s4">import </span><span class="s1">Valuator</span><span class="s2">, </span><span class="s1">VALUATOR_MINI</span><span class="s2">, </span><span class="s1">VALUATOR_FULL</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+<span class="s4">import </span><span class="s1">math</span><span class="s2">, </span><span class="s1">Pmw</span>
+
+<span class="s1">FLOATER_WIDTH </span><span class="s2">= </span><span class="s5">22</span>
+<span class="s1">FLOATER_HEIGHT </span><span class="s2">= </span><span class="s5">18</span>
+
+<span class="s4">class </span><span class="s1">Floater</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'style'</span><span class="s2">,  </span><span class="s1">VALUATOR_MINI</span><span class="s2">,   </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s6"># Initialize the superclass</span>
+        <span class="s1">Valuator</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">Floater</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">createValuator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'valuator'</span><span class="s2">,</span>
+                                              <span class="s2">((</span><span class="s3">'floater'</span><span class="s2">, </span><span class="s3">'valuator'</span><span class="s2">),),</span>
+                                              <span class="s4">None</span><span class="s2">,</span>
+                                              <span class="s1">FloaterWidget</span><span class="s2">,</span>
+                                              <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(),),</span>
+                                              <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setEntry</span><span class="s2">,</span>
+                                              <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;Double-ButtonPress-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseReset</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">packValuator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Position components</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">column</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">column</span><span class="s2">=</span><span class="s5">1</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">column</span><span class="s2">=</span><span class="s5">2</span><span class="s2">, </span><span class="s1">padx </span><span class="s2">= </span><span class="s5">2</span><span class="s2">, </span><span class="s1">pady </span><span class="s2">= </span><span class="s5">2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">().</span><span class="s1">columnconfigure</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">weight </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+
+
+<span class="s4">class </span><span class="s1">FloaterWidget</span><span class="s2">(</span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s6">#define the megawidget options</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s6"># Appearance</span>
+            <span class="s2">(</span><span class="s3">'width'</span><span class="s2">,           </span><span class="s1">FLOATER_WIDTH</span><span class="s2">,      </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'height'</span><span class="s2">,          </span><span class="s1">FLOATER_HEIGHT</span><span class="s2">,     </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'relief'</span><span class="s2">,          </span><span class="s1">RAISED</span><span class="s2">,             </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setRelief</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderwidth'</span><span class="s2">,     </span><span class="s5">2</span><span class="s2">,                  </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBorderwidth</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'background'</span><span class="s2">,      </span><span class="s3">'grey75'</span><span class="s2">,           </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBackground</span><span class="s2">),</span>
+            <span class="s6"># Behavior</span>
+            <span class="s6"># Initial value of floater, use self.set to change value</span>
+            <span class="s2">(</span><span class="s3">'value'</span><span class="s2">,           </span><span class="s5">0.0</span><span class="s2">,            </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numDigits'</span><span class="s2">,       </span><span class="s5">2</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setNumDigits</span><span class="s2">),</span>
+            <span class="s6"># Command to execute on floater updates</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to command function</span>
+            <span class="s2">(</span><span class="s3">'commandData'</span><span class="s2">,     [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Callback's to execute during mouse interaction</span>
+            <span class="s2">(</span><span class="s3">'preCallback'</span><span class="s2">,     </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'postCallback'</span><span class="s2">,    </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to callback function, needs to be a list</span>
+            <span class="s2">(</span><span class="s3">'callbackData'</span><span class="s2">,    [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the superclass</span>
+        <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Set up some local and instance variables</span>
+        <span class="s6"># Create the components</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+
+        <span class="s6"># Current value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">]</span>
+
+        <span class="s6"># The canvas</span>
+        <span class="s1">width </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'width'</span><span class="s2">]</span>
+        <span class="s1">height </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'height'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'canvas'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                            <span class="s1">Canvas</span><span class="s2">, (</span><span class="s1">interior</span><span class="s2">,),</span>
+                                            <span class="s1">width </span><span class="s2">= </span><span class="s1">width</span><span class="s2">,</span>
+                                            <span class="s1">height </span><span class="s2">= </span><span class="s1">height</span><span class="s2">,</span>
+                                            <span class="s1">background </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">],</span>
+                                            <span class="s1">highlightthickness </span><span class="s2">= </span><span class="s5">0</span><span class="s2">,</span>
+                                            <span class="s1">scrollregion </span><span class="s2">= (-</span><span class="s1">width</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                                            <span class="s2">-</span><span class="s1">height</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                                            <span class="s1">width</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                                            <span class="s1">height</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+        <span class="s6"># The floater icon</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">create_polygon</span><span class="s2">(-</span><span class="s1">width</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, -</span><span class="s5">2.0</span><span class="s2">, -</span><span class="s1">height</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                    <span class="s2">-</span><span class="s5">2.0</span><span class="s2">, </span><span class="s1">height</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                    <span class="s1">fill </span><span class="s2">= </span><span class="s3">'grey50'</span><span class="s2">,</span>
+                                    <span class="s1">tags </span><span class="s2">= (</span><span class="s3">'floater'</span><span class="s2">,))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">create_polygon</span><span class="s2">(</span><span class="s1">width</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">2.0</span><span class="s2">, </span><span class="s1">height</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                    <span class="s5">2.0</span><span class="s2">, -</span><span class="s1">height</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">,</span>
+                                    <span class="s1">fill </span><span class="s2">= </span><span class="s3">'grey50'</span><span class="s2">,</span>
+                                    <span class="s1">tags </span><span class="s2">= (</span><span class="s3">'floater'</span><span class="s2">,))</span>
+
+        <span class="s6"># Add event bindings</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;ButtonPress-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseDown</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;B1-Motion&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateFloaterSF</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;ButtonRelease-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseUp</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;Enter&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">highlightWidget</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;Leave&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restoreWidget</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure input variables processed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">FloaterWidget</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self.set(value, fCommand = 1) 
+        Set floater to new value, execute command if fCommand == 1 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Send command if any</span>
+        <span class="s4">if </span><span class="s1">fCommand </span><span class="s4">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] != </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*[</span><span class="s1">value</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">])</span>
+        <span class="s6"># Record value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">value </span><span class="s2">= </span><span class="s1">value</span>
+
+    <span class="s4">def </span><span class="s1">updateIndicator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s6"># Nothing visible to update on this type of widget</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self.get() 
+        Get current floater value 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">value</span>
+
+    <span class="s6">## Canvas callback functions</span>
+    <span class="s6"># Floater velocity controller</span>
+    <span class="s4">def </span><span class="s1">mouseDown</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Begin mouse interaction &quot;&quot;&quot;</span>
+        <span class="s6"># Exectute user redefinable callback function (if any)</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">] = </span><span class="s1">SUNKEN</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">velocitySF </span><span class="s2">= </span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTask </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateFloaterTask</span><span class="s2">,</span>
+                                        <span class="s3">'updateFloater'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTask</span><span class="s2">.</span><span class="s1">lastTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">updateFloaterTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Update floaterWidget value based on current scaleFactor 
+        Adjust for time to compensate for fluctuating frame rates 
+        &quot;&quot;&quot;</span>
+        <span class="s1">currT </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">dt </span><span class="s2">= </span><span class="s1">currT </span><span class="s2">- </span><span class="s1">state</span><span class="s2">.</span><span class="s1">lastTime</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">value </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">velocitySF </span><span class="s2">* </span><span class="s1">dt</span><span class="s2">)</span>
+        <span class="s1">state</span><span class="s2">.</span><span class="s1">lastTime </span><span class="s2">= </span><span class="s1">currT</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s4">def </span><span class="s1">updateFloaterSF</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Update velocity scale factor based of mouse distance from origin 
+        &quot;&quot;&quot;</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">canvasx</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">x</span><span class="s2">)</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">canvasy</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">y</span><span class="s2">)</span>
+        <span class="s1">offset </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">abs</span><span class="s2">(</span><span class="s1">x</span><span class="s2">) - </span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">deadband</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">offset </span><span class="s2">== </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s5">0</span>
+        <span class="s1">sf </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">pow</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">sfBase</span><span class="s2">,</span>
+                      <span class="s1">self</span><span class="s2">.</span><span class="s1">minExp </span><span class="s2">+ </span><span class="s1">offset</span><span class="s2">/</span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">sfDist</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">x </span><span class="s2">&gt; </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">velocitySF </span><span class="s2">= </span><span class="s1">sf</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">velocitySF </span><span class="s2">= -</span><span class="s1">sf</span>
+
+    <span class="s4">def </span><span class="s1">mouseUp</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateTask</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">velocitySF </span><span class="s2">= </span><span class="s5">0.0</span>
+        <span class="s6"># Execute user redefinable callback function (if any)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">] = </span><span class="s1">RAISED</span>
+
+    <span class="s4">def </span><span class="s1">setNumDigits</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Adjust minimum exponent to use in velocity task based 
+        upon the number of digits to be displayed in the result 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">minExp </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">floor</span><span class="s2">(-</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]/</span>
+                                 <span class="s1">math</span><span class="s2">.</span><span class="s1">log10</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">sfBase</span><span class="s2">))</span>
+
+    <span class="s6"># Methods to modify floater characteristics</span>
+    <span class="s4">def </span><span class="s1">setRelief</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()[</span><span class="s3">'relief'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">setBorderwidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()[</span><span class="s3">'borderwidth'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderwidth'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">setBackground</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">highlightWidget</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">itemconfigure</span><span class="s2">(</span><span class="s3">'floater'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'black'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">restoreWidget</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">itemconfigure</span><span class="s2">(</span><span class="s3">'floater'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'grey50'</span><span class="s2">)</span>
+
+
+<span class="s4">class </span><span class="s1">FloaterGroup</span><span class="s2">(</span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaToplevel</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+
+        <span class="s6"># Default group size</span>
+        <span class="s1">DEFAULT_DIM </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s6"># Default value depends on *actual* group size, test for user input</span>
+        <span class="s1">DEFAULT_VALUE </span><span class="s2">= [</span><span class="s5">0.0</span><span class="s2">] * </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'dim'</span><span class="s2">, </span><span class="s1">DEFAULT_DIM</span><span class="s2">)</span>
+        <span class="s1">DEFAULT_LABELS </span><span class="s2">= [</span><span class="s3">'v[%d]' </span><span class="s2">% </span><span class="s1">x </span><span class="s4">for </span><span class="s1">x </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'dim'</span><span class="s2">, </span><span class="s1">DEFAULT_DIM</span><span class="s2">))]</span>
+
+        <span class="s6">#define the megawidget options</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'dim'</span><span class="s2">,             </span><span class="s1">DEFAULT_DIM</span><span class="s2">,            </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'side'</span><span class="s2">,            </span><span class="s1">TOP</span><span class="s2">,                    </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'title'</span><span class="s2">,           </span><span class="s3">'Floater Group'</span><span class="s2">,        </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># A tuple of initial values, one for each floater</span>
+            <span class="s2">(</span><span class="s3">'value'</span><span class="s2">,    </span><span class="s1">DEFAULT_VALUE</span><span class="s2">,          </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s6"># The command to be executed any time one of the floaters is updated</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">,                   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># A tuple of labels, one for each floater</span>
+            <span class="s2">(</span><span class="s3">'labels'</span><span class="s2">,          </span><span class="s1">DEFAULT_LABELS</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_updateLabels</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the toplevel widget</span>
+        <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaToplevel</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Create the components</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+        <span class="s6"># Get a copy of the initial value (making sure its a list)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_value </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+
+        <span class="s6"># The Menu Bar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">balloon </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">Balloon</span><span class="s2">()</span>
+        <span class="s1">menubar </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'menubar'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                       <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MenuBar</span><span class="s2">, (</span><span class="s1">interior</span><span class="s2">,),</span>
+                                       <span class="s1">balloon </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">balloon</span><span class="s2">)</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill</span><span class="s2">=</span><span class="s1">X</span><span class="s2">)</span>
+
+        <span class="s6"># FloaterGroup Menu</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenu</span><span class="s2">(</span><span class="s3">'Floater Group'</span><span class="s2">, </span><span class="s3">'Floater Group Operations'</span><span class="s2">)</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'Floater Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">, </span><span class="s3">'Reset the Floater Group panel'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">s </span><span class="s2">= </span><span class="s1">self</span><span class="s2">: </span><span class="s1">s</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">())</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'Floater Group'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">, </span><span class="s3">'Dismiss Floater Group panel'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Dismiss'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">withdraw</span><span class="s2">)</span>
+
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenu</span><span class="s2">(</span><span class="s3">'Help'</span><span class="s2">, </span><span class="s3">'Floater Group Help Operations'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar </span><span class="s2">= </span><span class="s1">IntVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">menubar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'Help'</span><span class="s2">, </span><span class="s3">'checkbutton'</span><span class="s2">,</span>
+                            <span class="s3">'Toggle balloon help'</span><span class="s2">,</span>
+                            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Balloon Help'</span><span class="s2">,</span>
+                            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloon</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">floaterList </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">index </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]):</span>
+            <span class="s6"># Add a group alias so you can configure the floaters via:</span>
+            <span class="s6">#   fg.configure(Valuator_XXX = YYY)</span>
+            <span class="s1">f </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                <span class="s3">'floater%d' </span><span class="s2">% </span><span class="s1">index</span><span class="s2">, (), </span><span class="s3">'Valuator'</span><span class="s2">, </span><span class="s1">Floater</span><span class="s2">,</span>
+                <span class="s2">(</span><span class="s1">interior</span><span class="s2">,), </span><span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">index</span><span class="s2">],</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">][</span><span class="s1">index</span><span class="s2">])</span>
+            <span class="s6"># Do this separately so command doesn't get executed during construction</span>
+            <span class="s1">f</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s4">lambda </span><span class="s1">val</span><span class="s2">, </span><span class="s1">s</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">i</span><span class="s2">=</span><span class="s1">index</span><span class="s2">: </span><span class="s1">s</span><span class="s2">.</span><span class="s1">_floaterSetAt</span><span class="s2">(</span><span class="s1">i</span><span class="s2">, </span><span class="s1">val</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'side'</span><span class="s2">], </span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">floaterList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">f</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure floaters are initialized</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+
+        <span class="s6"># Make sure input variables processed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">FloaterGroup</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">_updateLabels</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">]:</span>
+            <span class="s4">for </span><span class="s1">index </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">floaterList</span><span class="s2">[</span><span class="s1">index</span><span class="s2">][</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'labels'</span><span class="s2">][</span><span class="s1">index</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">toggleBalloon</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBalloonVar</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">balloon</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'balloon'</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">balloon</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'none'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span>
+
+    <span class="s4">def </span><span class="s1">getAt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">index</span><span class="s2">]</span>
+
+    <span class="s6"># This is the command is used to set the groups value</span>
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'dim'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">i</span><span class="s2">] = </span><span class="s1">value</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s6"># Update floater, but don't execute its command</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">floaterList</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">set</span><span class="s2">(</span><span class="s1">value</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">fCommand </span><span class="s4">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setAt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s6"># Update floater and execute its command</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">floaterList</span><span class="s2">[</span><span class="s1">index</span><span class="s2">].</span><span class="s1">set</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s6"># This is the command used by the floater</span>
+    <span class="s4">def </span><span class="s1">_floaterSetAt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">[</span><span class="s1">index</span><span class="s2">] = </span><span class="s1">value</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_value</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">reset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+
+
+<span class="s6">## SAMPLE CODE</span>
+<span class="s4">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s6"># Initialise Tkinter and Pmw.</span>
+    <span class="s1">root </span><span class="s2">= </span><span class="s1">Toplevel</span><span class="s2">()</span>
+    <span class="s1">root</span><span class="s2">.</span><span class="s1">title</span><span class="s2">(</span><span class="s3">'Pmw Floater demonstration'</span><span class="s2">)</span>
+
+    <span class="s6"># Dummy command</span>
+    <span class="s4">def </span><span class="s1">printVal</span><span class="s2">(</span><span class="s1">val</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">val</span><span class="s2">)</span>
+
+    <span class="s6"># Create and pack a Floater megawidget.</span>
+    <span class="s1">mega1 </span><span class="s2">= </span><span class="s1">Floater</span><span class="s2">(</span><span class="s1">root</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">printVal</span><span class="s2">)</span>
+    <span class="s1">mega1</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'x'</span><span class="s2">)</span>
+
+    <span class="s3">&quot;&quot;&quot; 
+    # These are things you can set/configure 
+    # Starting value for floater 
+    mega1['value'] = 123.456 
+    mega1['text'] = 'Drive delta X' 
+    # To change the color of the label: 
+    mega1.label['foreground'] = 'Red' 
+    # Max change/update, default is 100 
+    # To have really fine control, for example 
+    # mega1['maxVelocity'] = 0.1 
+    # Number of digits to the right of the decimal point, default = 2 
+    # mega1['numDigits'] = 5 
+    &quot;&quot;&quot;</span>
+
+    <span class="s6"># To create a floater group to set an RGBA value:</span>
+    <span class="s1">group1 </span><span class="s2">= </span><span class="s1">FloaterGroup</span><span class="s2">(</span><span class="s1">root</span><span class="s2">, </span><span class="s1">dim </span><span class="s2">= </span><span class="s5">4</span><span class="s2">,</span>
+                          <span class="s1">title </span><span class="s2">= </span><span class="s3">'Simple RGBA Panel'</span><span class="s2">,</span>
+                          <span class="s1">labels </span><span class="s2">= (</span><span class="s3">'R'</span><span class="s2">, </span><span class="s3">'G'</span><span class="s2">, </span><span class="s3">'B'</span><span class="s2">, </span><span class="s3">'A'</span><span class="s2">),</span>
+                          <span class="s1">Valuator_min </span><span class="s2">= </span><span class="s5">0.0</span><span class="s2">,</span>
+                          <span class="s1">Valuator_max </span><span class="s2">= </span><span class="s5">255.0</span><span class="s2">,</span>
+                          <span class="s1">Valuator_resolution </span><span class="s2">= </span><span class="s5">1.0</span><span class="s2">,</span>
+                          <span class="s1">command </span><span class="s2">= </span><span class="s1">printVal</span><span class="s2">)</span>
+
+    <span class="s6"># Uncomment this if you aren't running in IDLE</span>
+    <span class="s6">#root.mainloop()</span>
+</pre>
+</body>
+</html>

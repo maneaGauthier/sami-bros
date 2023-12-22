@@ -1,0 +1,976 @@
+<html>
+<head>
+<title>libp3deadrec.in</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+libp3deadrec.in</font>
+</center></td></tr></table>
+<pre><span class="s0">1673266749</span>
+<span class="s0">3 3</span>
+<span class="s0">12 libp3deadrec 4 FP4V 14 panda3d.direct </span>
+<span class="s0">54</span>
+<span class="s0">59 11 SmoothMover 0 260 113 24 SmoothMover::SmoothMover 0 2 1 2 10</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">95</span>
+<span class="s0">SmoothMover::SmoothMover(void);</span>
+<span class="s0">inline SmoothMover::SmoothMover(SmoothMover const &amp;) = default;</span>
+
+<span class="s0">60 12 ~SmoothMover 0 516 113 25 SmoothMover::~SmoothMover 0 0 10</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">32</span>
+<span class="s0">SmoothMover::~SmoothMover(void);</span>
+
+<span class="s0">61 7 set_pos 0 4 113 20 SmoothMover::set_pos 0 2 3 4 1188</span>
+<span class="s0">// These methods are used to specify each position update.  Call the</span>
+<span class="s0">// appropriate set_* function(s), as needed, and then call mark_position().</span>
+<span class="s0">// The return value of each function is true if the parameter value has</span>
+<span class="s0">// changed, or false if it remains the same as last time.</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the position of the SmoothMover at a particular time in the past.</span>
+ <span class="s0">* When mark_position() is called, this will be recorded (along with hpr and</span>
+ <span class="s0">* timestamp) in a position report, which will then be used along with all</span>
+ <span class="s0">* other position reports to determine the smooth position at any particular</span>
+ <span class="s0">* instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos(), or false if they are the same.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the position of the SmoothMover at a particular time in the past.</span>
+ <span class="s0">* When mark_position() is called, this will be recorded (along with hpr and</span>
+ <span class="s0">* timestamp) in a position report, which will then be used along with all</span>
+ <span class="s0">* other position reports to determine the smooth position at any particular</span>
+ <span class="s0">* instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos(), or false if they are the same.</span>
+ <span class="s0">*/</span>
+<span class="s0">134</span>
+<span class="s0">inline bool SmoothMover::set_pos(LVecBase3 const &amp;pos);</span>
+<span class="s0">inline bool SmoothMover::set_pos(PN_stdfloat x, PN_stdfloat y, PN_stdfloat z);</span>
+
+<span class="s0">62 5 set_x 0 4 113 18 SmoothMover::set_x 0 1 5 52</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the X position only.  See set_pos().</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline bool SmoothMover::set_x(PN_stdfloat x);</span>
+
+<span class="s0">63 5 set_y 0 4 113 18 SmoothMover::set_y 0 1 6 52</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the Y position only.  See set_pos().</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline bool SmoothMover::set_y(PN_stdfloat y);</span>
+
+<span class="s0">64 5 set_z 0 4 113 18 SmoothMover::set_z 0 1 7 52</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the Z position only.  See set_pos().</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline bool SmoothMover::set_z(PN_stdfloat z);</span>
+
+<span class="s0">65 7 set_hpr 0 4 113 20 SmoothMover::set_hpr 0 2 8 9 920</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the orientation of the SmoothMover at a particular time in the</span>
+ <span class="s0">* past.  When mark_position() is called, this will be recorded (along with</span>
+ <span class="s0">* hpr and timestamp) in a position report, which will then be used along with</span>
+ <span class="s0">* all other position reports to determine the smooth position at any</span>
+ <span class="s0">* particular instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_hpr(), or false if they are the same.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the orientation of the SmoothMover at a particular time in the</span>
+ <span class="s0">* past.  When mark_position() is called, this will be recorded (along with</span>
+ <span class="s0">* hpr and timestamp) in a position report, which will then be used along with</span>
+ <span class="s0">* all other position reports to determine the smooth position at any</span>
+ <span class="s0">* particular instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_hpr(), or false if they are the same.</span>
+ <span class="s0">*/</span>
+<span class="s0">134</span>
+<span class="s0">inline bool SmoothMover::set_hpr(LVecBase3 const &amp;hpr);</span>
+<span class="s0">inline bool SmoothMover::set_hpr(PN_stdfloat h, PN_stdfloat p, PN_stdfloat r);</span>
+
+<span class="s0">66 5 set_h 0 4 113 18 SmoothMover::set_h 0 1 10 49</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the heading only.  See set_hpr().</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline bool SmoothMover::set_h(PN_stdfloat h);</span>
+
+<span class="s0">67 5 set_p 0 4 113 18 SmoothMover::set_p 0 1 11 47</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the pitch only.  See set_hpr().</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline bool SmoothMover::set_p(PN_stdfloat p);</span>
+
+<span class="s0">68 5 set_r 0 4 113 18 SmoothMover::set_r 0 1 12 46</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the roll only.  See set_hpr().</span>
+ <span class="s0">*/</span>
+<span class="s0">46</span>
+<span class="s0">inline bool SmoothMover::set_r(PN_stdfloat r);</span>
+
+<span class="s0">69 11 set_pos_hpr 0 4 113 24 SmoothMover::set_pos_hpr 0 2 13 14 921</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the position and orientation of the SmoothMover at a particular</span>
+ <span class="s0">* time in the past.  When mark_position() is called, this will be recorded</span>
+ <span class="s0">* (along with timestamp) in a position report, which will then be used along</span>
+ <span class="s0">* with all other position reports to determine the smooth position at any</span>
+ <span class="s0">* particular instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos_hpr(), or false if they are the same.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the position of the SmoothMover at a particular time in the past.</span>
+ <span class="s0">* When mark_position() is called, this will be recorded (along with</span>
+ <span class="s0">* timestamp) in a position report, which will then be used along with all</span>
+ <span class="s0">* other position reports to determine the smooth position at any particular</span>
+ <span class="s0">* instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos_hpr(), or false if they are the same.</span>
+ <span class="s0">*/</span>
+<span class="s0">209</span>
+<span class="s0">inline bool SmoothMover::set_pos_hpr(LVecBase3 const &amp;pos, LVecBase3 const &amp;hpr);</span>
+<span class="s0">inline bool SmoothMover::set_pos_hpr(PN_stdfloat x, PN_stdfloat y, PN_stdfloat z, PN_stdfloat h, PN_stdfloat p, PN_stdfloat r);</span>
+
+<span class="s0">70 14 get_sample_pos 0 4 113 27 SmoothMover::get_sample_pos 0 1 15 230</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the current position of the working sample point.  This position is</span>
+ <span class="s0">* updated periodically by set_x(), set_y(), etc., and its current value is</span>
+ <span class="s0">* copied to the sample point table when mark_position() is called.</span>
+ <span class="s0">*/</span>
+<span class="s0">62</span>
+<span class="s0">inline LPoint3 const &amp;SmoothMover::get_sample_pos(void) const;</span>
+
+<span class="s0">71 14 get_sample_hpr 0 4 113 27 SmoothMover::get_sample_hpr 0 1 16 239</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the current orientation of the working sample point.  This</span>
+ <span class="s0">* orientation is updated periodically by set_h(), set_p(), etc., and its</span>
+ <span class="s0">* current value is copied to the sample point table when mark_position() is</span>
+ <span class="s0">* called.</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">inline LVecBase3 const &amp;SmoothMover::get_sample_hpr(void) const;</span>
+
+<span class="s0">72 19 set_phony_timestamp 0 4 113 32 SmoothMover::set_phony_timestamp 0 1 17 191</span>
+<span class="s0">/**</span>
+ <span class="s0">* Lies and specifies that the current position report was received now.  This</span>
+ <span class="s0">* is usually used for very old position reports for which we're not sure of</span>
+ <span class="s0">* the actual receipt time.</span>
+ <span class="s0">*/</span>
+<span class="s0">97</span>
+<span class="s0">inline void SmoothMover::set_phony_timestamp(double timestamp = 0.0, bool period_adjust = false);</span>
+
+<span class="s0">73 13 set_timestamp 0 4 113 26 SmoothMover::set_timestamp 0 1 18 171</span>
+<span class="s0">/**</span>
+ <span class="s0">* Specifies the time that the current position report applies.  This should</span>
+ <span class="s0">* be called, along with set_pos() and set_hpr(), before a call to</span>
+ <span class="s0">* mark_position().</span>
+ <span class="s0">*/</span>
+<span class="s0">57</span>
+<span class="s0">inline void SmoothMover::set_timestamp(double timestamp);</span>
+
+<span class="s0">74 25 has_most_recent_timestamp 0 4 113 38 SmoothMover::has_most_recent_timestamp 0 1 19 67</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns true if we have most recently recorded timestamp</span>
+ <span class="s0">*/</span>
+<span class="s0">63</span>
+<span class="s0">inline bool SmoothMover::has_most_recent_timestamp(void) const;</span>
+
+<span class="s0">75 25 get_most_recent_timestamp 0 4 113 38 SmoothMover::get_most_recent_timestamp 0 1 20 51</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns most recently recorded timestamp</span>
+ <span class="s0">*/</span>
+<span class="s0">65</span>
+<span class="s0">inline double SmoothMover::get_most_recent_timestamp(void) const;</span>
+
+<span class="s0">76 13 mark_position 0 4 113 26 SmoothMover::mark_position 0 1 21 313</span>
+<span class="s0">/**</span>
+ <span class="s0">* Stores the position, orientation, and timestamp (if relevant) indicated by</span>
+ <span class="s0">* previous calls to set_pos(), set_hpr(), and set_timestamp() in a new</span>
+ <span class="s0">* position report.</span>
+ <span class="s0">*</span>
+ <span class="s0">* When compute_smooth_position() is called, it uses these stored position</span>
+ <span class="s0">* reports to base its computation of the known position.</span>
+ <span class="s0">*/</span>
+<span class="s0">38</span>
+<span class="s0">void SmoothMover::mark_position(void);</span>
+
+<span class="s0">77 15 clear_positions 0 4 113 28 SmoothMover::clear_positions 0 1 22 264</span>
+<span class="s0">/**</span>
+ <span class="s0">* Erases all the old position reports.  This should be done, for instance,</span>
+ <span class="s0">* prior to teleporting the avatar to a new position; otherwise, the smoother</span>
+ <span class="s0">* might try to lerp the avatar there.  If reset_velocity is true, the</span>
+ <span class="s0">* velocity is also reset to 0.</span>
+ <span class="s0">*/</span>
+<span class="s0">55</span>
+<span class="s0">void SmoothMover::clear_positions(bool reset_velocity);</span>
+
+<span class="s0">78 23 compute_smooth_position 0 4 113 36 SmoothMover::compute_smooth_position 0 2 23 24 782</span>
+<span class="s0">/**</span>
+ <span class="s0">* Computes the smoothed position (and orientation) of the mover at the</span>
+ <span class="s0">* indicated point in time, based on the previous position reports.  After</span>
+ <span class="s0">* this call has been made, get_smooth_pos() etc.  may be called to retrieve</span>
+ <span class="s0">* the smoothed position.</span>
+ <span class="s0">*</span>
+ <span class="s0">* With no parameter, the function uses ClockObject::get_frame_time() as the</span>
+ <span class="s0">* default time.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">/**</span>
+ <span class="s0">* Computes the smoothed position (and orientation) of the mover at the</span>
+ <span class="s0">* indicated point in time, based on the previous position reports.  After</span>
+ <span class="s0">* this call has been made, get_smooth_pos() etc.  may be called to retrieve</span>
+ <span class="s0">* the smoothed position.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if the value has changed (or might have changed)</span>
+ <span class="s0">* since the last call to compute_smooth_position(), or false if it remains</span>
+ <span class="s0">* the same.</span>
+ <span class="s0">*/</span>
+<span class="s0">116</span>
+<span class="s0">inline bool SmoothMover::compute_smooth_position(void);</span>
+<span class="s0">bool SmoothMover::compute_smooth_position(double timestamp);</span>
+
+<span class="s0">79 19 get_latest_position 0 4 113 32 SmoothMover::get_latest_position 0 1 25 257</span>
+<span class="s0">/**</span>
+ <span class="s0">* Updates the smooth_pos (and smooth_hpr, etc.) members to reflect the</span>
+ <span class="s0">* absolute latest position known for this avatar.  This may result in a pop</span>
+ <span class="s0">* to the most recent position.</span>
+ <span class="s0">*</span>
+ <span class="s0">* Returns true if the latest position is known, false otherwise.</span>
+ <span class="s0">*/</span>
+<span class="s0">44</span>
+<span class="s0">bool SmoothMover::get_latest_position(void);</span>
+
+<span class="s0">80 14 get_smooth_pos 0 4 113 27 SmoothMover::get_smooth_pos 0 1 26 104</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the smoothed position as computed by a previous call to</span>
+ <span class="s0">* compute_smooth_position().</span>
+ <span class="s0">*/</span>
+<span class="s0">62</span>
+<span class="s0">inline LPoint3 const &amp;SmoothMover::get_smooth_pos(void) const;</span>
+
+<span class="s0">81 14 get_smooth_hpr 0 4 113 27 SmoothMover::get_smooth_hpr 0 1 27 107</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the smoothed orientation as computed by a previous call to</span>
+ <span class="s0">* compute_smooth_position().</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">inline LVecBase3 const &amp;SmoothMover::get_smooth_hpr(void) const;</span>
+
+<span class="s0">82 16 apply_smooth_pos 0 4 113 29 SmoothMover::apply_smooth_pos 0 1 28 255</span>
+<span class="s0">/**</span>
+ <span class="s0">* Applies the smoothed position to the indicated NodePath.  This is</span>
+ <span class="s0">* equivalent to calling node.set_pos(smooth_mover-&gt;get_smooth_pos()).  It</span>
+ <span class="s0">* exists as an optimization only, to avoid the overhead of passing the return</span>
+ <span class="s0">* value through Python.</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">inline void SmoothMover::apply_smooth_pos(NodePath &amp;node) const;</span>
+
+<span class="s0">83 20 apply_smooth_pos_hpr 0 4 113 33 SmoothMover::apply_smooth_pos_hpr 0 1 29 309</span>
+<span class="s0">/**</span>
+ <span class="s0">* Applies the smoothed position and orientation to the indicated NodePath.</span>
+ <span class="s0">* This is equivalent to calling</span>
+ <span class="s0">* node.set_pos_hpr(smooth_mover-&gt;get_smooth_pos(),</span>
+ <span class="s0">* smooth_mover-&gt;get_smooth_hpr()).  It exists as an optimization only, to</span>
+ <span class="s0">* avoid the overhead of passing the return value through Python.</span>
+ <span class="s0">*/</span>
+<span class="s0">92</span>
+<span class="s0">inline void SmoothMover::apply_smooth_pos_hpr(NodePath &amp;pos_node, NodePath &amp;hpr_node) const;</span>
+
+<span class="s0">84 16 apply_smooth_hpr 0 4 113 29 SmoothMover::apply_smooth_hpr 0 1 30 258</span>
+<span class="s0">/**</span>
+ <span class="s0">* Applies the smoothed orientation to the indicated NodePath.  This is</span>
+ <span class="s0">* equivalent to calling node.set_hpr(smooth_mover-&gt;get_smooth_hpr()).  It</span>
+ <span class="s0">* exists as an optimization only, to avoid the overhead of passing the return</span>
+ <span class="s0">* value through Python.</span>
+ <span class="s0">*/</span>
+<span class="s0">64</span>
+<span class="s0">inline void SmoothMover::apply_smooth_hpr(NodePath &amp;node) const;</span>
+
+<span class="s0">85 28 compute_and_apply_smooth_pos 0 4 113 41 SmoothMover::compute_and_apply_smooth_pos 0 1 31 145</span>
+<span class="s0">/**</span>
+ <span class="s0">* A further optimization to reduce Python calls.  This computes the smooth</span>
+ <span class="s0">* position and applies it to the indicated node in one call.</span>
+ <span class="s0">*/</span>
+<span class="s0">70</span>
+<span class="s0">inline void SmoothMover::compute_and_apply_smooth_pos(NodePath &amp;node);</span>
+
+<span class="s0">86 32 compute_and_apply_smooth_pos_hpr 0 4 113 45 SmoothMover::compute_and_apply_smooth_pos_hpr 0 1 32 212</span>
+<span class="s0">/**</span>
+ <span class="s0">* A further optimization to reduce Python calls.  This computes the smooth</span>
+ <span class="s0">* position and applies it to the indicated node or nodes in one call.  The</span>
+ <span class="s0">* pos_node and hpr_node might be the same NodePath.</span>
+ <span class="s0">*/</span>
+<span class="s0">98</span>
+<span class="s0">inline void SmoothMover::compute_and_apply_smooth_pos_hpr(NodePath &amp;pos_node, NodePath &amp;hpr_node);</span>
+
+<span class="s0">87 28 compute_and_apply_smooth_hpr 0 4 113 41 SmoothMover::compute_and_apply_smooth_hpr 0 1 33 212</span>
+<span class="s0">/**</span>
+ <span class="s0">* A further optimization to reduce Python calls.  This computes the smooth</span>
+ <span class="s0">* position and applies it to the indicated node or nodes in one call.  The</span>
+ <span class="s0">* pos_node and hpr_node might be the same NodePath.</span>
+ <span class="s0">*/</span>
+<span class="s0">74</span>
+<span class="s0">inline void SmoothMover::compute_and_apply_smooth_hpr(NodePath &amp;hpr_node);</span>
+
+<span class="s0">88 27 get_smooth_forward_velocity 0 4 113 40 SmoothMover::get_smooth_forward_velocity 0 1 34 263</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the speed at which the avatar is moving, in feet per second, along</span>
+ <span class="s0">* its own forward axis (after applying the avatar's hpr).  This will be a</span>
+ <span class="s0">* positive number if the avatar is moving forward, and a negative number if</span>
+ <span class="s0">* it is moving backward.</span>
+ <span class="s0">*/</span>
+<span class="s0">72</span>
+<span class="s0">inline PN_stdfloat SmoothMover::get_smooth_forward_velocity(void) const;</span>
+
+<span class="s0">89 27 get_smooth_lateral_velocity 0 4 113 40 SmoothMover::get_smooth_lateral_velocity 0 1 35 257</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the speed at which the avatar is moving, in feet per second, along</span>
+ <span class="s0">* its own lateral axis (after applying the avatar's hpr).  This will be a</span>
+ <span class="s0">* positive number if the avatar is moving right, and a negative number if it</span>
+ <span class="s0">* is moving left.</span>
+ <span class="s0">*/</span>
+<span class="s0">72</span>
+<span class="s0">inline PN_stdfloat SmoothMover::get_smooth_lateral_velocity(void) const;</span>
+
+<span class="s0">90 30 get_smooth_rotational_velocity 0 4 113 43 SmoothMover::get_smooth_rotational_velocity 0 1 36 205</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the speed at which the avatar is rotating in the horizontal plane</span>
+ <span class="s0">* (i.e.  heading), in degrees per second.  This may be positive or negative,</span>
+ <span class="s0">* according to the direction of rotation.</span>
+ <span class="s0">*/</span>
+<span class="s0">75</span>
+<span class="s0">inline PN_stdfloat SmoothMover::get_smooth_rotational_velocity(void) const;</span>
+
+<span class="s0">91 16 get_forward_axis 0 4 113 29 SmoothMover::get_forward_axis 0 1 37 104</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the smoothed position as computed by a previous call to</span>
+ <span class="s0">* compute_smooth_position().</span>
+ <span class="s0">*/</span>
+<span class="s0">66</span>
+<span class="s0">inline LVecBase3 const &amp;SmoothMover::get_forward_axis(void) const;</span>
+
+<span class="s0">92 19 handle_wrt_reparent 0 4 113 32 SmoothMover::handle_wrt_reparent 0 1 38 97</span>
+<span class="s0">/**</span>
+ <span class="s0">* Node is being wrtReparented, update recorded sample positions to reflect</span>
+ <span class="s0">* new parent</span>
+ <span class="s0">*/</span>
+<span class="s0">82</span>
+<span class="s0">void SmoothMover::handle_wrt_reparent(NodePath &amp;old_parent, NodePath &amp;new_parent);</span>
+
+<span class="s0">93 15 set_smooth_mode 0 4 113 28 SmoothMover::set_smooth_mode 0 1 39 222</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the smoothing mode of all SmoothMovers in the world.  If this is</span>
+ <span class="s0">* SM_off, no smoothing or prediction will be performed, and get_smooth_pos()</span>
+ <span class="s0">* will simply return the position last set by mark_position().</span>
+ <span class="s0">*/</span>
+<span class="s0">71</span>
+<span class="s0">inline void SmoothMover::set_smooth_mode(SmoothMover::SmoothMode mode);</span>
+
+<span class="s0">94 15 get_smooth_mode 0 4 113 28 SmoothMover::get_smooth_mode 0 1 40 98</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the smoothing mode of all SmoothMovers in the world.  See</span>
+ <span class="s0">* set_smooth_mode().</span>
+ <span class="s0">*/</span>
+<span class="s0">66</span>
+<span class="s0">inline SmoothMover::SmoothMode SmoothMover::get_smooth_mode(void);</span>
+
+<span class="s0">95 19 set_prediction_mode 0 4 113 32 SmoothMover::set_prediction_mode 0 1 41 171</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the predictioning mode of all SmoothMovers in the world.  If this is</span>
+ <span class="s0">* PM_off, no prediction will be performed, but smoothing might still be</span>
+ <span class="s0">* performed.</span>
+ <span class="s0">*/</span>
+<span class="s0">79</span>
+<span class="s0">inline void SmoothMover::set_prediction_mode(SmoothMover::PredictionMode mode);</span>
+
+<span class="s0">96 19 get_prediction_mode 0 4 113 32 SmoothMover::get_prediction_mode 0 1 42 106</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the predictioning mode of all SmoothMovers in the world.  See</span>
+ <span class="s0">* set_prediction_mode().</span>
+ <span class="s0">*/</span>
+<span class="s0">74</span>
+<span class="s0">inline SmoothMover::PredictionMode SmoothMover::get_prediction_mode(void);</span>
+
+<span class="s0">97 9 set_delay 0 4 113 22 SmoothMover::set_delay 0 1 43 349</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the amount of time, in seconds, to delay the computed position of a</span>
+ <span class="s0">* SmoothMover.  This is particularly useful when the prediction mode is off,</span>
+ <span class="s0">* because it can allow the apparent motion of an avatar to appear smooth</span>
+ <span class="s0">* without relying on prediction, at the cost of introducing additional lag in</span>
+ <span class="s0">* the avatar's apparent position.</span>
+ <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">inline void SmoothMover::set_delay(double delay);</span>
+
+<span class="s0">98 9 get_delay 0 4 113 22 SmoothMover::get_delay 0 1 44 120</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the amount of time, in seconds, to delay the computed position of a</span>
+ <span class="s0">* SmoothMover.  See set_delay().</span>
+ <span class="s0">*/</span>
+<span class="s0">43</span>
+<span class="s0">inline double SmoothMover::get_delay(void);</span>
+
+<span class="s0">99 21 set_accept_clock_skew 0 4 113 34 SmoothMover::set_accept_clock_skew 0 1 45 585</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the 'accept clock skew' flag.  When this flag is true, clock skew from</span>
+ <span class="s0">* the other clients will be tolerated by delaying each smooth mover's</span>
+ <span class="s0">* position an additional amount, on top of that specified by set_delay(),</span>
+ <span class="s0">* based on the measured average latency for timestamp messages received by</span>
+ <span class="s0">* the client.</span>
+ <span class="s0">*</span>
+ <span class="s0">* In this way, if the other client has significant clock skew with respect to</span>
+ <span class="s0">* our clock, it will be evident as a large positive or negative average</span>
+ <span class="s0">* latency for timestamps.  By subtracting out this average latency, we</span>
+ <span class="s0">* compensate for poor clock sync.</span>
+ <span class="s0">*/</span>
+<span class="s0">58</span>
+<span class="s0">inline void SmoothMover::set_accept_clock_skew(bool flag);</span>
+
+<span class="s0">100 21 get_accept_clock_skew 0 4 113 34 SmoothMover::get_accept_clock_skew 0 1 46 102</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the current state of the 'accept clock skew' flag.  See</span>
+ <span class="s0">* set_accept_clock_skew().</span>
+ <span class="s0">*/</span>
+<span class="s0">53</span>
+<span class="s0">inline bool SmoothMover::get_accept_clock_skew(void);</span>
+
+<span class="s0">101 20 set_max_position_age 0 4 113 33 SmoothMover::set_max_position_age 0 1 47 153</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the maximum amount of time a position is allowed to remain unchanged</span>
+ <span class="s0">* before assuming it represents the avatar actually standing still.</span>
+ <span class="s0">*/</span>
+<span class="s0">58</span>
+<span class="s0">inline void SmoothMover::set_max_position_age(double age);</span>
+
+<span class="s0">102 20 get_max_position_age 0 4 113 33 SmoothMover::get_max_position_age 0 1 48 156</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the maximum amount of time a position is allowed to remain</span>
+ <span class="s0">* unchanged before assuming it represents the avatar actually standing still.</span>
+ <span class="s0">*/</span>
+<span class="s0">54</span>
+<span class="s0">inline double SmoothMover::get_max_position_age(void);</span>
+
+<span class="s0">103 29 set_expected_broadcast_period 0 4 113 42 SmoothMover::set_expected_broadcast_period 0 1 49 242</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the interval at which we expect the SmoothNodes to broadcast their</span>
+ <span class="s0">* position, in elapsed seconds.  This controls the length of time we assume</span>
+ <span class="s0">* the object has truly stopped, when we receive a long sequence of no</span>
+ <span class="s0">* updates.</span>
+ <span class="s0">*/</span>
+<span class="s0">70</span>
+<span class="s0">inline void SmoothMover::set_expected_broadcast_period(double period);</span>
+
+<span class="s0">104 29 get_expected_broadcast_period 0 4 113 42 SmoothMover::get_expected_broadcast_period 0 1 50 156</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the interval at which we expect the SmoothNodes to broadcast their</span>
+ <span class="s0">* position, in elapsed seconds.  See set_expected_broadcast_period().</span>
+ <span class="s0">*/</span>
+<span class="s0">63</span>
+<span class="s0">inline double SmoothMover::get_expected_broadcast_period(void);</span>
+
+<span class="s0">105 22 set_reset_velocity_age 0 4 113 35 SmoothMover::set_reset_velocity_age 0 1 51 302</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the amount of time that should elapse after the last position report</span>
+ <span class="s0">* before the velocity is reset to 0.  This is similar to max_position_age,</span>
+ <span class="s0">* but it is only used to determine the resetting of the reported velocity.</span>
+ <span class="s0">* It should always be greater than or equal to max_position_age.</span>
+ <span class="s0">*/</span>
+<span class="s0">60</span>
+<span class="s0">inline void SmoothMover::set_reset_velocity_age(double age);</span>
+
+<span class="s0">106 22 get_reset_velocity_age 0 4 113 35 SmoothMover::get_reset_velocity_age 0 1 52 156</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the amount of time that should elapse after the last position</span>
+ <span class="s0">* report before the velocity is reset to 0.  See set_reset_velocity_age().</span>
+ <span class="s0">*/</span>
+<span class="s0">56</span>
+<span class="s0">inline double SmoothMover::get_reset_velocity_age(void);</span>
+
+<span class="s0">107 24 set_directional_velocity 0 4 113 37 SmoothMover::set_directional_velocity 0 1 53 357</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the flag that indicates whether the avatar's direction is considered</span>
+ <span class="s0">* in computing the velocity.  When this is true, velocity is automatically</span>
+ <span class="s0">* decomposed into a forward and a lateral velocity (and both may be positive</span>
+ <span class="s0">* or negative); when it is false, all velocity is always returned as forward</span>
+ <span class="s0">* velocity (and it is always positive).</span>
+ <span class="s0">*/</span>
+<span class="s0">61</span>
+<span class="s0">inline void SmoothMover::set_directional_velocity(bool flag);</span>
+
+<span class="s0">108 24 get_directional_velocity 0 4 113 37 SmoothMover::get_directional_velocity 0 1 54 108</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the current state of the 'directional velocity' flag.  See</span>
+ <span class="s0">* set_directional_velocity().</span>
+ <span class="s0">*/</span>
+<span class="s0">56</span>
+<span class="s0">inline bool SmoothMover::get_directional_velocity(void);</span>
+
+<span class="s0">109 29 set_default_to_standing_still 0 4 113 42 SmoothMover::set_default_to_standing_still 0 1 55 295</span>
+<span class="s0">/**</span>
+ <span class="s0">* Sets the flag that indicates whether to assume that the node stopped moving</span>
+ <span class="s0">* during periods when we don't get enough position updates.  If true, the</span>
+ <span class="s0">* object will stand still momentarily.  If false, the object will</span>
+ <span class="s0">* continuously lerp between the position updates that we did get.</span>
+ <span class="s0">*/</span>
+<span class="s0">66</span>
+<span class="s0">inline void SmoothMover::set_default_to_standing_still(bool flag);</span>
+
+<span class="s0">110 29 get_default_to_standing_still 0 4 113 42 SmoothMover::get_default_to_standing_still 0 1 56 118</span>
+<span class="s0">/**</span>
+ <span class="s0">* Returns the current state of the 'default to standing still' flag.  See</span>
+ <span class="s0">* set_default_to_standing_still().</span>
+ <span class="s0">*/</span>
+<span class="s0">61</span>
+<span class="s0">inline bool SmoothMover::get_default_to_standing_still(void);</span>
+
+<span class="s0">111 6 output 0 4 113 19 SmoothMover::output 0 1 57 10</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">50</span>
+<span class="s0">void SmoothMover::output(std::ostream &amp;out) const;</span>
+
+<span class="s0">112 5 write 0 4 113 18 SmoothMover::write 0 1 58 10</span>
+<span class="s0">/**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/</span>
+<span class="s0">49</span>
+<span class="s0">void SmoothMover::write(std::ostream &amp;out) const;</span>
+
+<span class="s0">58</span>
+<span class="s0">1 0 0 7 2 116 60 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">2 0 0 15 2 116 60 0 0 1 6 param0 0 117  </span>
+<span class="s0">3 0 0 6 4 123 0 0 455 /**</span>
+ <span class="s0">* Specifies the position of the SmoothMover at a particular time in the past.</span>
+ <span class="s0">* When mark_position() is called, this will be recorded (along with hpr and</span>
+ <span class="s0">* timestamp) in a position report, which will then be used along with all</span>
+ <span class="s0">* other position reports to determine the smooth position at any particular</span>
+ <span class="s0">* instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos(), or false if they are the same.</span>
+ <span class="s0">*/ 2 4 this 3 116  3 pos 1 119  </span>
+<span class="s0">4 0 0 6 4 123 0 0 455 /**</span>
+ <span class="s0">* Specifies the position of the SmoothMover at a particular time in the past.</span>
+ <span class="s0">* When mark_position() is called, this will be recorded (along with hpr and</span>
+ <span class="s0">* timestamp) in a position report, which will then be used along with all</span>
+ <span class="s0">* other position reports to determine the smooth position at any particular</span>
+ <span class="s0">* instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos(), or false if they are the same.</span>
+ <span class="s0">*/ 4 4 this 3 116  1 x 1 124  1 y 1 124  1 z 1 124  </span>
+<span class="s0">5 0 0 6 5 123 0 0 52 /**</span>
+ <span class="s0">* Sets the X position only.  See set_pos().</span>
+ <span class="s0">*/ 2 4 this 3 116  1 x 1 124  </span>
+<span class="s0">6 0 0 6 6 123 0 0 52 /**</span>
+ <span class="s0">* Sets the Y position only.  See set_pos().</span>
+ <span class="s0">*/ 2 4 this 3 116  1 y 1 124  </span>
+<span class="s0">7 0 0 6 7 123 0 0 52 /**</span>
+ <span class="s0">* Sets the Z position only.  See set_pos().</span>
+ <span class="s0">*/ 2 4 this 3 116  1 z 1 124  </span>
+<span class="s0">8 0 0 6 8 123 0 0 459 /**</span>
+ <span class="s0">* Specifies the orientation of the SmoothMover at a particular time in the</span>
+ <span class="s0">* past.  When mark_position() is called, this will be recorded (along with</span>
+ <span class="s0">* hpr and timestamp) in a position report, which will then be used along with</span>
+ <span class="s0">* all other position reports to determine the smooth position at any</span>
+ <span class="s0">* particular instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_hpr(), or false if they are the same.</span>
+ <span class="s0">*/ 2 4 this 3 116  3 hpr 1 119  </span>
+<span class="s0">9 0 0 6 8 123 0 0 459 /**</span>
+ <span class="s0">* Specifies the orientation of the SmoothMover at a particular time in the</span>
+ <span class="s0">* past.  When mark_position() is called, this will be recorded (along with</span>
+ <span class="s0">* hpr and timestamp) in a position report, which will then be used along with</span>
+ <span class="s0">* all other position reports to determine the smooth position at any</span>
+ <span class="s0">* particular instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_hpr(), or false if they are the same.</span>
+ <span class="s0">*/ 4 4 this 3 116  1 h 1 124  1 p 1 124  1 r 1 124  </span>
+<span class="s0">10 0 0 6 9 123 0 0 49 /**</span>
+ <span class="s0">* Sets the heading only.  See set_hpr().</span>
+ <span class="s0">*/ 2 4 this 3 116  1 h 1 124  </span>
+<span class="s0">11 0 0 6 10 123 0 0 47 /**</span>
+ <span class="s0">* Sets the pitch only.  See set_hpr().</span>
+ <span class="s0">*/ 2 4 this 3 116  1 p 1 124  </span>
+<span class="s0">12 0 0 6 11 123 0 0 46 /**</span>
+ <span class="s0">* Sets the roll only.  See set_hpr().</span>
+ <span class="s0">*/ 2 4 this 3 116  1 r 1 124  </span>
+<span class="s0">13 0 0 6 12 123 0 0 468 /**</span>
+ <span class="s0">* Specifies the position and orientation of the SmoothMover at a particular</span>
+ <span class="s0">* time in the past.  When mark_position() is called, this will be recorded</span>
+ <span class="s0">* (along with timestamp) in a position report, which will then be used along</span>
+ <span class="s0">* with all other position reports to determine the smooth position at any</span>
+ <span class="s0">* particular instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos_hpr(), or false if they are the same.</span>
+ <span class="s0">*/ 3 4 this 3 116  3 pos 1 119  3 hpr 1 119  </span>
+<span class="s0">14 0 0 6 12 123 0 0 451 /**</span>
+ <span class="s0">* Specifies the position of the SmoothMover at a particular time in the past.</span>
+ <span class="s0">* When mark_position() is called, this will be recorded (along with</span>
+ <span class="s0">* timestamp) in a position report, which will then be used along with all</span>
+ <span class="s0">* other position reports to determine the smooth position at any particular</span>
+ <span class="s0">* instant.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if any parameter has changed since the last call</span>
+ <span class="s0">* to set_pos_hpr(), or false if they are the same.</span>
+ <span class="s0">*/ 7 4 this 3 116  1 x 1 124  1 y 1 124  1 z 1 124  1 h 1 124  1 p 1 124  1 r 1 124  </span>
+<span class="s0">15 0 0 6 13 126 0 0 230 /**</span>
+ <span class="s0">* Returns the current position of the working sample point.  This position is</span>
+ <span class="s0">* updated periodically by set_x(), set_y(), etc., and its current value is</span>
+ <span class="s0">* copied to the sample point table when mark_position() is called.</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">16 0 0 6 14 119 0 0 239 /**</span>
+ <span class="s0">* Returns the current orientation of the working sample point.  This</span>
+ <span class="s0">* orientation is updated periodically by set_h(), set_p(), etc., and its</span>
+ <span class="s0">* current value is copied to the sample point table when mark_position() is</span>
+ <span class="s0">* called.</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">17 0 0 4 15 131 0 0 191 /**</span>
+ <span class="s0">* Lies and specifies that the current position report was received now.  This</span>
+ <span class="s0">* is usually used for very old position reports for which we're not sure of</span>
+ <span class="s0">* the actual receipt time.</span>
+ <span class="s0">*/ 3 4 this 3 116  9 timestamp 5 130  13 period_adjust 5 123  </span>
+<span class="s0">18 0 0 4 16 131 0 0 171 /**</span>
+ <span class="s0">* Specifies the time that the current position report applies.  This should</span>
+ <span class="s0">* be called, along with set_pos() and set_hpr(), before a call to</span>
+ <span class="s0">* mark_position().</span>
+ <span class="s0">*/ 2 4 this 3 116  9 timestamp 1 130  </span>
+<span class="s0">19 0 0 6 17 123 0 0 67 /**</span>
+ <span class="s0">* Returns true if we have most recently recorded timestamp</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">20 0 0 6 18 130 0 0 51 /**</span>
+ <span class="s0">* Returns most recently recorded timestamp</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">21 0 0 4 19 131 0 0 313 /**</span>
+ <span class="s0">* Stores the position, orientation, and timestamp (if relevant) indicated by</span>
+ <span class="s0">* previous calls to set_pos(), set_hpr(), and set_timestamp() in a new</span>
+ <span class="s0">* position report.</span>
+ <span class="s0">*</span>
+ <span class="s0">* When compute_smooth_position() is called, it uses these stored position</span>
+ <span class="s0">* reports to base its computation of the known position.</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">22 0 0 4 20 131 0 0 264 /**</span>
+ <span class="s0">* Erases all the old position reports.  This should be done, for instance,</span>
+ <span class="s0">* prior to teleporting the avatar to a new position; otherwise, the smoother</span>
+ <span class="s0">* might try to lerp the avatar there.  If reset_velocity is true, the</span>
+ <span class="s0">* velocity is also reset to 0.</span>
+ <span class="s0">*/ 2 4 this 3 116  14 reset_velocity 1 123  </span>
+<span class="s0">23 0 0 6 21 123 0 0 354 /**</span>
+ <span class="s0">* Computes the smoothed position (and orientation) of the mover at the</span>
+ <span class="s0">* indicated point in time, based on the previous position reports.  After</span>
+ <span class="s0">* this call has been made, get_smooth_pos() etc.  may be called to retrieve</span>
+ <span class="s0">* the smoothed position.</span>
+ <span class="s0">*</span>
+ <span class="s0">* With no parameter, the function uses ClockObject::get_frame_time() as the</span>
+ <span class="s0">* default time.</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">24 0 0 6 21 123 0 0 426 /**</span>
+ <span class="s0">* Computes the smoothed position (and orientation) of the mover at the</span>
+ <span class="s0">* indicated point in time, based on the previous position reports.  After</span>
+ <span class="s0">* this call has been made, get_smooth_pos() etc.  may be called to retrieve</span>
+ <span class="s0">* the smoothed position.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The return value is true if the value has changed (or might have changed)</span>
+ <span class="s0">* since the last call to compute_smooth_position(), or false if it remains</span>
+ <span class="s0">* the same.</span>
+ <span class="s0">*/ 2 4 this 3 116  9 timestamp 1 130  </span>
+<span class="s0">25 0 0 6 22 123 0 0 257 /**</span>
+ <span class="s0">* Updates the smooth_pos (and smooth_hpr, etc.) members to reflect the</span>
+ <span class="s0">* absolute latest position known for this avatar.  This may result in a pop</span>
+ <span class="s0">* to the most recent position.</span>
+ <span class="s0">*</span>
+ <span class="s0">* Returns true if the latest position is known, false otherwise.</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">26 0 0 6 23 126 0 0 104 /**</span>
+ <span class="s0">* Returns the smoothed position as computed by a previous call to</span>
+ <span class="s0">* compute_smooth_position().</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">27 0 0 6 24 119 0 0 107 /**</span>
+ <span class="s0">* Returns the smoothed orientation as computed by a previous call to</span>
+ <span class="s0">* compute_smooth_position().</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">28 0 0 4 25 131 0 0 255 /**</span>
+ <span class="s0">* Applies the smoothed position to the indicated NodePath.  This is</span>
+ <span class="s0">* equivalent to calling node.set_pos(smooth_mover-&gt;get_smooth_pos()).  It</span>
+ <span class="s0">* exists as an optimization only, to avoid the overhead of passing the return</span>
+ <span class="s0">* value through Python.</span>
+ <span class="s0">*/ 2 4 this 3 117  4 node 1 132  </span>
+<span class="s0">29 0 0 4 26 131 0 0 309 /**</span>
+ <span class="s0">* Applies the smoothed position and orientation to the indicated NodePath.</span>
+ <span class="s0">* This is equivalent to calling</span>
+ <span class="s0">* node.set_pos_hpr(smooth_mover-&gt;get_smooth_pos(),</span>
+ <span class="s0">* smooth_mover-&gt;get_smooth_hpr()).  It exists as an optimization only, to</span>
+ <span class="s0">* avoid the overhead of passing the return value through Python.</span>
+ <span class="s0">*/ 3 4 this 3 117  8 pos_node 1 132  8 hpr_node 1 132  </span>
+<span class="s0">30 0 0 4 27 131 0 0 258 /**</span>
+ <span class="s0">* Applies the smoothed orientation to the indicated NodePath.  This is</span>
+ <span class="s0">* equivalent to calling node.set_hpr(smooth_mover-&gt;get_smooth_hpr()).  It</span>
+ <span class="s0">* exists as an optimization only, to avoid the overhead of passing the return</span>
+ <span class="s0">* value through Python.</span>
+ <span class="s0">*/ 2 4 this 3 117  4 node 1 132  </span>
+<span class="s0">31 0 0 4 28 131 0 0 145 /**</span>
+ <span class="s0">* A further optimization to reduce Python calls.  This computes the smooth</span>
+ <span class="s0">* position and applies it to the indicated node in one call.</span>
+ <span class="s0">*/ 2 4 this 3 116  4 node 1 132  </span>
+<span class="s0">32 0 0 4 29 131 0 0 212 /**</span>
+ <span class="s0">* A further optimization to reduce Python calls.  This computes the smooth</span>
+ <span class="s0">* position and applies it to the indicated node or nodes in one call.  The</span>
+ <span class="s0">* pos_node and hpr_node might be the same NodePath.</span>
+ <span class="s0">*/ 3 4 this 3 116  8 pos_node 1 132  8 hpr_node 1 132  </span>
+<span class="s0">33 0 0 4 30 131 0 0 212 /**</span>
+ <span class="s0">* A further optimization to reduce Python calls.  This computes the smooth</span>
+ <span class="s0">* position and applies it to the indicated node or nodes in one call.  The</span>
+ <span class="s0">* pos_node and hpr_node might be the same NodePath.</span>
+ <span class="s0">*/ 2 4 this 3 116  8 hpr_node 1 132  </span>
+<span class="s0">34 0 0 6 31 124 0 0 263 /**</span>
+ <span class="s0">* Returns the speed at which the avatar is moving, in feet per second, along</span>
+ <span class="s0">* its own forward axis (after applying the avatar's hpr).  This will be a</span>
+ <span class="s0">* positive number if the avatar is moving forward, and a negative number if</span>
+ <span class="s0">* it is moving backward.</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">35 0 0 6 32 124 0 0 257 /**</span>
+ <span class="s0">* Returns the speed at which the avatar is moving, in feet per second, along</span>
+ <span class="s0">* its own lateral axis (after applying the avatar's hpr).  This will be a</span>
+ <span class="s0">* positive number if the avatar is moving right, and a negative number if it</span>
+ <span class="s0">* is moving left.</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">36 0 0 6 33 124 0 0 205 /**</span>
+ <span class="s0">* Returns the speed at which the avatar is rotating in the horizontal plane</span>
+ <span class="s0">* (i.e.  heading), in degrees per second.  This may be positive or negative,</span>
+ <span class="s0">* according to the direction of rotation.</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">37 0 0 6 34 119 0 0 104 /**</span>
+ <span class="s0">* Returns the smoothed position as computed by a previous call to</span>
+ <span class="s0">* compute_smooth_position().</span>
+ <span class="s0">*/ 1 4 this 3 117  </span>
+<span class="s0">38 0 0 4 35 131 0 0 97 /**</span>
+ <span class="s0">* Node is being wrtReparented, update recorded sample positions to reflect</span>
+ <span class="s0">* new parent</span>
+ <span class="s0">*/ 3 4 this 3 116  10 old_parent 1 132  10 new_parent 1 132  </span>
+<span class="s0">39 0 0 4 38 131 0 0 222 /**</span>
+ <span class="s0">* Sets the smoothing mode of all SmoothMovers in the world.  If this is</span>
+ <span class="s0">* SM_off, no smoothing or prediction will be performed, and get_smooth_pos()</span>
+ <span class="s0">* will simply return the position last set by mark_position().</span>
+ <span class="s0">*/ 2 4 this 3 116  4 mode 1 114  </span>
+<span class="s0">40 0 0 6 39 114 0 0 98 /**</span>
+ <span class="s0">* Returns the smoothing mode of all SmoothMovers in the world.  See</span>
+ <span class="s0">* set_smooth_mode().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">41 0 0 4 40 131 0 0 171 /**</span>
+ <span class="s0">* Sets the predictioning mode of all SmoothMovers in the world.  If this is</span>
+ <span class="s0">* PM_off, no prediction will be performed, but smoothing might still be</span>
+ <span class="s0">* performed.</span>
+ <span class="s0">*/ 2 4 this 3 116  4 mode 1 115  </span>
+<span class="s0">42 0 0 6 41 115 0 0 106 /**</span>
+ <span class="s0">* Returns the predictioning mode of all SmoothMovers in the world.  See</span>
+ <span class="s0">* set_prediction_mode().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">43 0 0 4 42 131 0 0 349 /**</span>
+ <span class="s0">* Sets the amount of time, in seconds, to delay the computed position of a</span>
+ <span class="s0">* SmoothMover.  This is particularly useful when the prediction mode is off,</span>
+ <span class="s0">* because it can allow the apparent motion of an avatar to appear smooth</span>
+ <span class="s0">* without relying on prediction, at the cost of introducing additional lag in</span>
+ <span class="s0">* the avatar's apparent position.</span>
+ <span class="s0">*/ 2 4 this 3 116  5 delay 1 130  </span>
+<span class="s0">44 0 0 6 43 130 0 0 120 /**</span>
+ <span class="s0">* Returns the amount of time, in seconds, to delay the computed position of a</span>
+ <span class="s0">* SmoothMover.  See set_delay().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">45 0 0 4 44 131 0 0 585 /**</span>
+ <span class="s0">* Sets the 'accept clock skew' flag.  When this flag is true, clock skew from</span>
+ <span class="s0">* the other clients will be tolerated by delaying each smooth mover's</span>
+ <span class="s0">* position an additional amount, on top of that specified by set_delay(),</span>
+ <span class="s0">* based on the measured average latency for timestamp messages received by</span>
+ <span class="s0">* the client.</span>
+ <span class="s0">*</span>
+ <span class="s0">* In this way, if the other client has significant clock skew with respect to</span>
+ <span class="s0">* our clock, it will be evident as a large positive or negative average</span>
+ <span class="s0">* latency for timestamps.  By subtracting out this average latency, we</span>
+ <span class="s0">* compensate for poor clock sync.</span>
+ <span class="s0">*/ 2 4 this 3 116  4 flag 1 123  </span>
+<span class="s0">46 0 0 6 45 123 0 0 102 /**</span>
+ <span class="s0">* Returns the current state of the 'accept clock skew' flag.  See</span>
+ <span class="s0">* set_accept_clock_skew().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">47 0 0 4 46 131 0 0 153 /**</span>
+ <span class="s0">* Sets the maximum amount of time a position is allowed to remain unchanged</span>
+ <span class="s0">* before assuming it represents the avatar actually standing still.</span>
+ <span class="s0">*/ 2 4 this 3 116  3 age 1 130  </span>
+<span class="s0">48 0 0 6 47 130 0 0 156 /**</span>
+ <span class="s0">* Returns the maximum amount of time a position is allowed to remain</span>
+ <span class="s0">* unchanged before assuming it represents the avatar actually standing still.</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">49 0 0 4 48 131 0 0 242 /**</span>
+ <span class="s0">* Sets the interval at which we expect the SmoothNodes to broadcast their</span>
+ <span class="s0">* position, in elapsed seconds.  This controls the length of time we assume</span>
+ <span class="s0">* the object has truly stopped, when we receive a long sequence of no</span>
+ <span class="s0">* updates.</span>
+ <span class="s0">*/ 2 4 this 3 116  6 period 1 130  </span>
+<span class="s0">50 0 0 6 49 130 0 0 156 /**</span>
+ <span class="s0">* Returns the interval at which we expect the SmoothNodes to broadcast their</span>
+ <span class="s0">* position, in elapsed seconds.  See set_expected_broadcast_period().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">51 0 0 4 50 131 0 0 302 /**</span>
+ <span class="s0">* Sets the amount of time that should elapse after the last position report</span>
+ <span class="s0">* before the velocity is reset to 0.  This is similar to max_position_age,</span>
+ <span class="s0">* but it is only used to determine the resetting of the reported velocity.</span>
+ <span class="s0">* It should always be greater than or equal to max_position_age.</span>
+ <span class="s0">*/ 2 4 this 3 116  3 age 1 130  </span>
+<span class="s0">52 0 0 6 51 130 0 0 156 /**</span>
+ <span class="s0">* Returns the amount of time that should elapse after the last position</span>
+ <span class="s0">* report before the velocity is reset to 0.  See set_reset_velocity_age().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">53 0 0 4 52 131 0 0 357 /**</span>
+ <span class="s0">* Sets the flag that indicates whether the avatar's direction is considered</span>
+ <span class="s0">* in computing the velocity.  When this is true, velocity is automatically</span>
+ <span class="s0">* decomposed into a forward and a lateral velocity (and both may be positive</span>
+ <span class="s0">* or negative); when it is false, all velocity is always returned as forward</span>
+ <span class="s0">* velocity (and it is always positive).</span>
+ <span class="s0">*/ 2 4 this 3 116  4 flag 1 123  </span>
+<span class="s0">54 0 0 6 53 123 0 0 108 /**</span>
+ <span class="s0">* Returns the current state of the 'directional velocity' flag.  See</span>
+ <span class="s0">* set_directional_velocity().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">55 0 0 4 54 131 0 0 295 /**</span>
+ <span class="s0">* Sets the flag that indicates whether to assume that the node stopped moving</span>
+ <span class="s0">* during periods when we don't get enough position updates.  If true, the</span>
+ <span class="s0">* object will stand still momentarily.  If false, the object will</span>
+ <span class="s0">* continuously lerp between the position updates that we did get.</span>
+ <span class="s0">*/ 2 4 this 3 116  4 flag 1 123  </span>
+<span class="s0">56 0 0 6 55 123 0 0 118 /**</span>
+ <span class="s0">* Returns the current state of the 'default to standing still' flag.  See</span>
+ <span class="s0">* set_default_to_standing_still().</span>
+ <span class="s0">*/ 1 4 this 3 116  </span>
+<span class="s0">57 0 0 4 56 131 0 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 2 4 this 3 117  3 out 1 134  </span>
+<span class="s0">58 0 0 4 57 131 0 0 10 /**</span>
+ <span class="s0">*</span>
+ <span class="s0">*/ 2 4 this 3 117  3 out 1 134  </span>
+<span class="s0">23</span>
+<span class="s0">113 11 SmoothMover 0 26625 11 SmoothMover 11 SmoothMover 0 0 0 1 59 60 0 52 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 0 0 0 0 2 114 115 702</span>
+<span class="s0">/**</span>
+ <span class="s0">* This class handles smoothing of sampled motion points over time, e.g.  for</span>
+ <span class="s0">* smoothing the apparent movement of remote avatars, whose positions are sent</span>
+ <span class="s0">* via occasional telemetry updates.</span>
+ <span class="s0">*</span>
+ <span class="s0">* It can operate in any of three modes: off, in which it does not smooth any</span>
+ <span class="s0">* motion but provides the last position it was told; smoothing only, in which</span>
+ <span class="s0">* it smooths motion information but never tries to anticipate where the</span>
+ <span class="s0">* avatar might be going; or full prediction, in which it smooths motion as</span>
+ <span class="s0">* well as tries to predict the avatar's position in lead of the last position</span>
+ <span class="s0">* update.  The assumption is that all SmoothMovers in the world will be</span>
+ <span class="s0">* operating in the same mode together.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">114 10 SmoothMode 0 794624 23 SmoothMover::SmoothMode 23 SmoothMover::SmoothMode 113 0 0 0 0 0 0 0 0 0 2 6 SM_off 19 SmoothMover::SM_off 0</span>
+<span class="s0">0 5 SM_on 18 SmoothMover::SM_on 0</span>
+<span class="s0">1 0 0</span>
+
+<span class="s0">115 14 PredictionMode 0 794624 27 SmoothMover::PredictionMode 27 SmoothMover::PredictionMode 113 0 0 0 0 0 0 0 0 0 2 6 PM_off 19 SmoothMover::PM_off 0</span>
+<span class="s0">0 5 PM_on 18 SmoothMover::PM_on 0</span>
+<span class="s0">1 0 0</span>
+
+<span class="s0">116 13 SmoothMover * 0 8576 13 SmoothMover * 13 SmoothMover * 0 0 113 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">117 19 SmoothMover const * 0 8576 19 SmoothMover const * 19 SmoothMover const * 0 0 118 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">118 17 SmoothMover const 0 8832 17 SmoothMover const 17 SmoothMover const 0 0 113 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">119 17 LVecBase3 const * 0 8576 17 LVecBase3 const * 17 LVecBase3 const * 0 0 120 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">120 15 LVecBase3 const 0 8832 15 LVecBase3 const 15 LVecBase3 const 0 0 121 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">121 9 LVecBase3 0 2105344 9 LVecBase3 9 LVecBase3 0 0 122 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">122 10 LVecBase3f 0 2048 10 LVecBase3f 10 LVecBase3f 0 0 0 0 0 0 0 0 0 0 0 0 77</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is the base class for all three-component vectors and points.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">123 4 bool 0 8194 4 bool 4 bool 0 4 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">124 11 PN_stdfloat 0 2105344 11 PN_stdfloat 11 PN_stdfloat 0 0 125 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">125 5 float 0 8194 5 float 5 float 0 2 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">126 15 LPoint3 const * 0 8576 15 LPoint3 const * 15 LPoint3 const * 0 0 127 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">127 13 LPoint3 const 0 8832 13 LPoint3 const 13 LPoint3 const 0 0 128 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">128 7 LPoint3 0 2105344 7 LPoint3 7 LPoint3 0 0 129 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">129 8 LPoint3f 0 2048 8 LPoint3f 8 LPoint3f 0 0 0 0 0 0 0 0 0 0 0 0 337</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is a three-component point in space (as opposed to a three-component</span>
+ <span class="s0">* vector, which represents a direction and a distance).  Some of the methods</span>
+ <span class="s0">* are slightly different between LPoint3 and LVector3; in particular,</span>
+ <span class="s0">* subtraction of two points yields a vector, while addition of a vector and a</span>
+ <span class="s0">* point yields a point.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">130 6 double 0 8194 6 double 6 double 0 3 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">131 4 void 0 8194 4 void 4 void 0 6 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">132 10 NodePath * 0 8576 10 NodePath * 10 NodePath * 0 0 133 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">133 8 NodePath 0 2048 8 NodePath 8 NodePath 0 0 0 0 0 0 0 0 0 0 0 0 762</span>
+<span class="s0">/**</span>
+ <span class="s0">* NodePath is the fundamental system for disambiguating instances, and also</span>
+ <span class="s0">* provides a higher-level interface for manipulating the scene graph.</span>
+ <span class="s0">*</span>
+ <span class="s0">* A NodePath is a list of connected nodes from the root of the graph to any</span>
+ <span class="s0">* sub-node.  Each NodePath therefore uniquely describes one instance of a</span>
+ <span class="s0">* node.</span>
+ <span class="s0">*</span>
+ <span class="s0">* NodePaths themselves are lightweight objects that may easily be copied and</span>
+ <span class="s0">* passed by value.  Their data is stored as a series of NodePathComponents</span>
+ <span class="s0">* that are stored on the nodes.  Holding a NodePath will keep a reference</span>
+ <span class="s0">* count to all the nodes in the path.  However, if any node in the path is</span>
+ <span class="s0">* removed or reparented (perhaps through a different NodePath), the NodePath</span>
+ <span class="s0">* will automatically be updated to reflect the changes.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">134 9 ostream * 0 8576 14 std::ostream * 14 std::ostream * 0 0 135 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">135 7 ostream 0 2048 12 std::ostream 12 std::ostream 0 0 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">0</span>
+<span class="s0">0</span>
+<span class="s0">0</span>
+</pre>
+</body>
+</html>

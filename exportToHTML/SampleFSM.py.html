@@ -1,0 +1,218 @@
+<html>
+<head>
+<title>SampleFSM.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+SampleFSM.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Undocumented Module&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ClassicStyle'</span><span class="s2">, </span><span class="s3">'NewStyle'</span><span class="s2">, </span><span class="s3">'ToonEyes'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">FSM</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+
+
+<span class="s4">class </span><span class="s1">ClassicStyle</span><span class="s2">(</span><span class="s1">FSM</span><span class="s2">.</span><span class="s1">FSM</span><span class="s2">):</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">FSM</span><span class="s2">.</span><span class="s1">FSM</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defaultTransitions </span><span class="s2">= {</span>
+            <span class="s3">'Red'</span><span class="s2">: [</span><span class="s3">'Green'</span><span class="s2">],</span>
+            <span class="s3">'Yellow'</span><span class="s2">: [</span><span class="s3">'Red'</span><span class="s2">],</span>
+            <span class="s3">'Green'</span><span class="s2">: [</span><span class="s3">'Yellow'</span><span class="s2">],</span>
+            <span class="s2">}</span>
+
+    <span class="s4">def </span><span class="s1">enterRed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;enterRed(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">exitRed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exitRed(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">enterYellow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;enterYellow(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">exitYellow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exitYellow(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">enterGreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;enterGreen(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">exitGreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exitGreen(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+
+<span class="s4">class </span><span class="s1">NewStyle</span><span class="s2">(</span><span class="s1">FSM</span><span class="s2">.</span><span class="s1">FSM</span><span class="s2">):</span>
+
+    <span class="s4">def </span><span class="s1">enterRed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;enterRed(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">filterRed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;filterRed(self, '%s', %s)&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">))</span>
+        <span class="s4">if </span><span class="s1">request </span><span class="s2">== </span><span class="s3">'advance'</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s3">'Green'</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitRed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exitRed(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">enterYellow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;enterYellow(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">filterYellow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;filterYellow(self, '%s', %s)&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">))</span>
+        <span class="s4">if </span><span class="s1">request </span><span class="s2">== </span><span class="s3">'advance'</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s3">'Red'</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitYellow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exitYellow(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">enterGreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;enterGreen(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">filterGreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;filterGreen(self, '%s', %s)&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">))</span>
+        <span class="s4">if </span><span class="s1">request </span><span class="s2">== </span><span class="s3">'advance'</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s3">'Yellow'</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitGreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exitGreen(self, '%s', '%s')&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+
+
+<span class="s4">class </span><span class="s1">ToonEyes</span><span class="s2">(</span><span class="s1">FSM</span><span class="s2">.</span><span class="s1">FSM</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">FSM</span><span class="s2">.</span><span class="s1">FSM</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'eyes'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__unblinkName </span><span class="s2">= </span><span class="s3">&quot;unblink&quot;</span>
+
+        <span class="s5"># Eyes are initially open.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s3">'Open'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s5"># The default filter accepts any direct state request (these</span>
+        <span class="s5"># start with a capital letter).</span>
+        <span class="s4">if </span><span class="s1">request</span><span class="s2">[</span><span class="s6">0</span><span class="s2">].</span><span class="s1">isupper</span><span class="s2">():</span>
+            <span class="s4">return </span><span class="s1">request</span>
+
+        <span class="s5"># Unexpected command requests are quietly ignored.</span>
+        <span class="s4">return None</span>
+
+    <span class="s4">def </span><span class="s1">enterOpen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;swap in eyes open model&quot;</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">filterOpen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">request </span><span class="s2">== </span><span class="s3">'blink'</span><span class="s2">:</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__unblinkName</span><span class="s2">)</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s6">0.125</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__unblink</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__unblinkName</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s3">'Closed'</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__unblink</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s3">'unblink'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+
+    <span class="s4">def </span><span class="s1">enterClosed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;swap in eyes closed model&quot;</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">filterClosed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">request </span><span class="s2">== </span><span class="s3">'unblink'</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s3">'Open'</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">enterSurprised</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;swap in eyes surprised model&quot;</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">enterOff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__unblinkName</span><span class="s2">)</span>
+
+
+<span class="s5">####</span>
+<span class="s5">#### Example of using ClassicStyle:</span>
+<span class="s5">##</span>
+<span class="s5">## &gt;&gt;&gt; import SampleFSM</span>
+<span class="s5">## &gt;&gt;&gt; foo = SampleFSM.ClassicStyle('foo')</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('Red')</span>
+<span class="s5">## enterRed(self, 'Off', 'Red')</span>
+<span class="s5">## ('Red',)</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('Yellow')</span>
+<span class="s5">## Traceback (most recent call last):</span>
+<span class="s5">##   File &quot;&lt;stdin&gt;&quot;, line 1, in ?</span>
+<span class="s5">##   File &quot;/home/drose/player/direct/src/fsm/FSM.py&quot;, line 168, in request</span>
+<span class="s5">##     result = func(request, args)</span>
+<span class="s5">##   File &quot;/home/drose/player/direct/src/fsm/FSM.py&quot;, line 210, in defaultFilter</span>
+<span class="s5">##     self.notify.error(&quot;%s rejecting request %s from state %s.&quot; % (self.name, request, self.state))</span>
+<span class="s5">##   File &quot;/home/drose/player/direct/src/directnotify/Notifier.py&quot;, line 99, in error</span>
+<span class="s5">##     raise exception(errorString)</span>
+<span class="s5">## StandardError: foo rejecting request Yellow from state Red.</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('Green')</span>
+<span class="s5">## exitRed(self, 'Red', 'Green')</span>
+<span class="s5">## enterGreen(self, 'Red', 'Green')</span>
+<span class="s5">## ('Green',)</span>
+<span class="s5">## &gt;&gt;&gt;</span>
+
+<span class="s5">####</span>
+<span class="s5">#### Example of using NewStyle:</span>
+<span class="s5">##</span>
+<span class="s5">## &gt;&gt;&gt; import SampleFSM</span>
+<span class="s5">## &gt;&gt;&gt; foo = SampleFSM.NewStyle('foo')</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('Red')</span>
+<span class="s5">## enterRed(self, 'Off', 'Red')</span>
+<span class="s5">## ('Red',)</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('advance')</span>
+<span class="s5">## filterRed(self, 'advance', ())</span>
+<span class="s5">## exitRed(self, 'Red', 'Green')</span>
+<span class="s5">## enterGreen(self, 'Red', 'Green')</span>
+<span class="s5">## ('Green',)</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('advance')</span>
+<span class="s5">## filterGreen(self, 'advance', ())</span>
+<span class="s5">## exitGreen(self, 'Green', 'Yellow')</span>
+<span class="s5">## enterYellow(self, 'Green', 'Yellow')</span>
+<span class="s5">## ('Yellow',)</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('advance')</span>
+<span class="s5">## filterYellow(self, 'advance', ())</span>
+<span class="s5">## exitYellow(self, 'Yellow', 'Red')</span>
+<span class="s5">## enterRed(self, 'Yellow', 'Red')</span>
+<span class="s5">## ('Red',)</span>
+<span class="s5">## &gt;&gt;&gt; foo.request('advance')</span>
+<span class="s5">## filterRed(self, 'advance', ())</span>
+<span class="s5">## exitRed(self, 'Red', 'Green')</span>
+<span class="s5">## enterGreen(self, 'Red', 'Green')</span>
+<span class="s5">## ('Green',)</span>
+<span class="s5">## &gt;&gt;&gt;</span>
+
+<span class="s5">####</span>
+<span class="s5">#### Example of using ToonEyes:</span>
+<span class="s5">##</span>
+<span class="s5">## &gt;&gt;&gt; from ShowBaseGlobal import *</span>
+<span class="s5">## &gt;&gt;&gt; import SampleFSM</span>
+<span class="s5">## &gt;&gt;&gt; eyes = SampleFSM.ToonEyes()</span>
+<span class="s5">## swap in eyes open model</span>
+<span class="s5">## &gt;&gt;&gt; eyes.request('blink')</span>
+<span class="s5">## swap in eyes closed model</span>
+<span class="s5">## ('Closed',)</span>
+<span class="s5">## &gt;&gt;&gt; run()</span>
+<span class="s5">## swap in eyes open model</span>
+<span class="s5">## &gt;&gt;&gt; eyes.request('Surprised')</span>
+<span class="s5">## swap in eyes surprised model</span>
+<span class="s5">## ('Surprised',)</span>
+<span class="s5">## &gt;&gt;&gt; eyes.request('blink')</span>
+<span class="s5">## &gt;&gt;&gt;</span>
+</pre>
+</body>
+</html>

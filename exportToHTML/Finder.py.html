@@ -1,0 +1,233 @@
+<html>
+<head>
+<title>Finder.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Finder.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains various utility functions.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'findClass'</span><span class="s2">, </span><span class="s3">'rebindClass'</span><span class="s2">, </span><span class="s3">'copyFuncs'</span><span class="s2">, </span><span class="s3">'replaceMessengerFunc'</span><span class="s2">, </span><span class="s3">'replaceTaskMgrFunc'</span><span class="s2">, </span><span class="s3">'replaceStateFunc'</span><span class="s2">, </span><span class="s3">'replaceCRFunc'</span><span class="s2">, </span><span class="s3">'replaceAIRFunc'</span><span class="s2">, </span><span class="s3">'replaceIvalFunc'</span><span class="s2">]</span>
+
+<span class="s4">import </span><span class="s1">types</span>
+<span class="s4">import </span><span class="s1">os</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">def </span><span class="s1">findClass</span><span class="s2">(</span><span class="s1">className</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Look in sys.modules dictionary for a module that defines a class 
+    with this className. 
+    &quot;&quot;&quot;</span>
+    <span class="s4">for </span><span class="s1">moduleName</span><span class="s2">, </span><span class="s1">module </span><span class="s4">in </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">modules</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+        <span class="s5"># Some modules are None for some reason</span>
+        <span class="s4">if </span><span class="s1">module</span><span class="s2">:</span>
+            <span class="s5"># print &quot;Searching in &quot;, moduleName</span>
+            <span class="s1">classObj </span><span class="s2">= </span><span class="s1">module</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">className</span><span class="s2">)</span>
+            <span class="s5"># If this modules defines some object called classname and the</span>
+            <span class="s5"># object is a class or type definition and that class's module</span>
+            <span class="s5"># is the same as the module we are looking in, then we found</span>
+            <span class="s5"># the matching class and a good module namespace to redefine</span>
+            <span class="s5"># our class in.</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">classObj </span><span class="s4">and</span>
+                <span class="s2">((</span><span class="s1">type</span><span class="s2">(</span><span class="s1">classObj</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">ClassType</span><span class="s2">) </span><span class="s4">or</span>
+                 <span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">classObj</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">TypeType</span><span class="s2">)) </span><span class="s4">and</span>
+                <span class="s2">(</span><span class="s1">classObj</span><span class="s2">.</span><span class="s1">__module__ </span><span class="s2">== </span><span class="s1">moduleName</span><span class="s2">)):</span>
+                <span class="s4">return </span><span class="s2">[</span><span class="s1">classObj</span><span class="s2">, </span><span class="s1">module</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">]</span>
+    <span class="s4">return None</span>
+
+<span class="s4">def </span><span class="s1">rebindClass</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">):</span>
+    <span class="s1">file </span><span class="s2">= </span><span class="s1">open</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">, </span><span class="s3">'r'</span><span class="s2">)</span>
+    <span class="s1">lines </span><span class="s2">= </span><span class="s1">file</span><span class="s2">.</span><span class="s1">readlines</span><span class="s2">()</span>
+    <span class="s4">for </span><span class="s1">line </span><span class="s4">in </span><span class="s1">lines</span><span class="s2">:</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">line</span><span class="s2">[</span><span class="s6">0</span><span class="s2">:</span><span class="s6">6</span><span class="s2">] == </span><span class="s3">'class '</span><span class="s2">):</span>
+            <span class="s5"># Chop off the &quot;class &quot; syntax and strip extra whitespace</span>
+            <span class="s1">classHeader </span><span class="s2">= </span><span class="s1">line</span><span class="s2">[</span><span class="s6">6</span><span class="s2">:].</span><span class="s1">strip</span><span class="s2">()</span>
+            <span class="s5"># Look for a open paren if it does inherit</span>
+            <span class="s1">parenLoc </span><span class="s2">= </span><span class="s1">classHeader</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'('</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">parenLoc </span><span class="s2">&gt; </span><span class="s6">0</span><span class="s2">:</span>
+                <span class="s1">className </span><span class="s2">= </span><span class="s1">classHeader</span><span class="s2">[:</span><span class="s1">parenLoc</span><span class="s2">]</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Look for a colon if it does not inherit</span>
+                <span class="s1">colonLoc </span><span class="s2">= </span><span class="s1">classHeader</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">':'</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">colonLoc </span><span class="s2">&gt; </span><span class="s6">0</span><span class="s2">:</span>
+                    <span class="s1">className </span><span class="s2">= </span><span class="s1">classHeader</span><span class="s2">[:</span><span class="s1">colonLoc</span><span class="s2">]</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s3">'error: className not found'</span><span class="s2">)</span>
+                    <span class="s5"># Remove that temp file</span>
+                    <span class="s1">file</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+                    <span class="s1">os</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+                    <span class="s4">return</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'Rebinding class name: ' </span><span class="s2">+ </span><span class="s1">className</span><span class="s2">)</span>
+            <span class="s4">break</span>
+
+    <span class="s5"># Try to find the original class with this class name</span>
+    <span class="s1">res </span><span class="s2">= </span><span class="s1">findClass</span><span class="s2">(</span><span class="s1">className</span><span class="s2">)</span>
+
+    <span class="s4">if not </span><span class="s1">res</span><span class="s2">:</span>
+        <span class="s1">print </span><span class="s2">(</span><span class="s3">'Warning: Finder could not find class'</span><span class="s2">)</span>
+        <span class="s5"># Remove the temp file we made</span>
+        <span class="s1">file</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+        <span class="s1">os</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s4">return</span>
+
+    <span class="s5"># Store the original real class</span>
+    <span class="s1">realClass</span><span class="s2">, </span><span class="s1">realNameSpace </span><span class="s2">= </span><span class="s1">res</span>
+
+    <span class="s5"># Now execute that class def in this namespace</span>
+    <span class="s1">exec</span><span class="s2">(</span><span class="s1">compile</span><span class="s2">(</span><span class="s1">open</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">).</span><span class="s1">read</span><span class="s2">(), </span><span class="s1">filename</span><span class="s2">, </span><span class="s3">'exec'</span><span class="s2">), </span><span class="s1">realNameSpace</span><span class="s2">)</span>
+
+    <span class="s5"># That execfile should have created a new class obj in that namespace</span>
+    <span class="s1">tmpClass </span><span class="s2">= </span><span class="s1">realNameSpace</span><span class="s2">[</span><span class="s1">className</span><span class="s2">]</span>
+
+    <span class="s5"># Copy the functions that we just redefined into the real class</span>
+    <span class="s1">copyFuncs</span><span class="s2">(</span><span class="s1">tmpClass</span><span class="s2">, </span><span class="s1">realClass</span><span class="s2">)</span>
+
+    <span class="s5"># Now make sure the original class is in that namespace,</span>
+    <span class="s5"># not our temp one from the execfile. This will help us preserve</span>
+    <span class="s5"># class variables and other state on the original class.</span>
+    <span class="s1">realNameSpace</span><span class="s2">[</span><span class="s1">className</span><span class="s2">] = </span><span class="s1">realClass</span>
+
+    <span class="s5"># Remove the temp file we made</span>
+    <span class="s1">file</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+    <span class="s1">os</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+    <span class="s1">print </span><span class="s2">(</span><span class="s3">'    Finished rebind'</span><span class="s2">)</span>
+
+
+<span class="s4">def </span><span class="s1">copyFuncs</span><span class="s2">(</span><span class="s1">fromClass</span><span class="s2">, </span><span class="s1">toClass</span><span class="s2">):</span>
+    <span class="s1">replaceFuncList </span><span class="s2">= []</span>
+    <span class="s1">newFuncList </span><span class="s2">= []</span>
+
+    <span class="s5"># Copy the functions from fromClass into toClass dictionary</span>
+    <span class="s4">for </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">fromClass</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+        <span class="s5"># Filter out for functions</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">newFunc</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">FunctionType</span><span class="s2">):</span>
+            <span class="s5"># See if we already have a function with this name</span>
+            <span class="s1">oldFunc </span><span class="s2">= </span><span class="s1">toClass</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">funcName</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">oldFunc</span><span class="s2">:</span>
+
+                <span class="s3">&quot;&quot;&quot; 
+                # This code is nifty, but with nested functions, give an error: 
+                #   SystemError: cellobject.c:22: bad argument to internal function 
+                # Give the new function code the same filename as the old function 
+                # Perhaps there is a cleaner way to do this? This was my best idea. 
+                newCode = types.CodeType(newFunc.func_code.co_argcount, 
+                                         newFunc.func_code.co_nlocals, 
+                                         newFunc.func_code.co_stacksize, 
+                                         newFunc.func_code.co_flags, 
+                                         newFunc.func_code.co_code, 
+                                         newFunc.func_code.co_consts, 
+                                         newFunc.func_code.co_names, 
+                                         newFunc.func_code.co_varnames, 
+                                         # Use the oldFunc's filename here. Tricky! 
+                                         oldFunc.func_code.co_filename, 
+                                         newFunc.func_code.co_name, 
+                                         newFunc.func_code.co_firstlineno, 
+                                         newFunc.func_code.co_lnotab) 
+                newFunc = types.FunctionType(newCode, 
+                                             newFunc.func_globals, 
+                                             newFunc.func_name, 
+                                             newFunc.func_defaults, 
+                                             newFunc.func_closure) 
+                &quot;&quot;&quot;</span>
+                <span class="s1">replaceFuncList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">))</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># TODO: give these new functions a proper code filename</span>
+                <span class="s1">newFuncList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">))</span>
+
+    <span class="s5"># Look in the messenger, taskMgr, and other globals that store func</span>
+    <span class="s5"># pointers to see if this old function pointer is stored there, and</span>
+    <span class="s5"># update it to the new function pointer.</span>
+    <span class="s1">replaceMessengerFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">)</span>
+    <span class="s1">replaceTaskMgrFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">)</span>
+    <span class="s1">replaceStateFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">)</span>
+    <span class="s1">replaceCRFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">)</span>
+    <span class="s1">replaceAIRFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">)</span>
+    <span class="s1">replaceIvalFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">)</span>
+
+    <span class="s5"># Now that we've the globals funcs, actually swap the pointers in</span>
+    <span class="s5"># the new class to the new functions</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s5"># print &quot;replacing old func: &quot;, oldFunc, funcName, newFunc</span>
+        <span class="s1">setattr</span><span class="s2">(</span><span class="s1">toClass</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">)</span>
+    <span class="s5"># Add the brand new functions too</span>
+    <span class="s4">for </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">newFuncList</span><span class="s2">:</span>
+        <span class="s5"># print &quot;adding new func: &quot;, oldFunc, funcName, newFunc</span>
+        <span class="s1">setattr</span><span class="s2">(</span><span class="s1">toClass</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">)</span>
+
+<span class="s4">def </span><span class="s1">replaceMessengerFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">):</span>
+    <span class="s4">try</span><span class="s2">:</span>
+        <span class="s1">messenger</span>
+    <span class="s4">except</span><span class="s2">:</span>
+        <span class="s4">return</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s1">res </span><span class="s2">= </span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">res</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'replaced %s messenger function(s): %s' </span><span class="s2">% (</span><span class="s1">res</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">))</span>
+
+<span class="s4">def </span><span class="s1">replaceTaskMgrFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">):</span>
+    <span class="s4">try</span><span class="s2">:</span>
+        <span class="s1">taskMgr</span>
+    <span class="s4">except</span><span class="s2">:</span>
+        <span class="s4">return</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s4">if </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">):</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'replaced taskMgr function: %s' </span><span class="s2">% </span><span class="s1">funcName</span><span class="s2">)</span>
+
+<span class="s4">def </span><span class="s1">replaceStateFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">):</span>
+    <span class="s4">if not </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">modules</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'base.direct.fsm.State'</span><span class="s2">):</span>
+        <span class="s4">return</span>
+    <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">State </span><span class="s4">import </span><span class="s1">State</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s1">res </span><span class="s2">= </span><span class="s1">State</span><span class="s2">.</span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">res</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'replaced %s FSM transition function(s): %s' </span><span class="s2">% (</span><span class="s1">res</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">))</span>
+
+<span class="s4">def </span><span class="s1">replaceCRFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">):</span>
+    <span class="s4">try</span><span class="s2">:</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">cr</span>
+    <span class="s4">except</span><span class="s2">:</span>
+        <span class="s4">return</span>
+    <span class="s5"># masad: Gyedo's fake cr causes a crash in followingreplaceMethod on rebinding, so</span>
+    <span class="s5"># I throw in the isFake check. I still think the fake cr should be eliminated.</span>
+    <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">,</span><span class="s3">'isFake'</span><span class="s2">):</span>
+        <span class="s4">return</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s4">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">):</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'replaced DistributedObject function: %s' </span><span class="s2">% </span><span class="s1">funcName</span><span class="s2">)</span>
+
+<span class="s4">def </span><span class="s1">replaceAIRFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">):</span>
+    <span class="s4">try</span><span class="s2">:</span>
+        <span class="s1">simbase</span><span class="s2">.</span><span class="s1">air</span>
+    <span class="s4">except</span><span class="s2">:</span>
+        <span class="s4">return</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s4">if </span><span class="s1">simbase</span><span class="s2">.</span><span class="s1">air</span><span class="s2">.</span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">):</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'replaced DistributedObject function: %s' </span><span class="s2">% </span><span class="s1">funcName</span><span class="s2">)</span>
+
+<span class="s4">def </span><span class="s1">replaceIvalFunc</span><span class="s2">(</span><span class="s1">replaceFuncList</span><span class="s2">):</span>
+    <span class="s5"># Make sure we have imported IntervalManager and thus created</span>
+    <span class="s5"># a global ivalMgr.</span>
+    <span class="s4">if not </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">modules</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'base.direct.interval.IntervalManager'</span><span class="s2">):</span>
+        <span class="s4">return</span>
+    <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">interval</span><span class="s2">.</span><span class="s1">FunctionInterval </span><span class="s4">import </span><span class="s1">FunctionInterval</span>
+    <span class="s4">for </span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">, </span><span class="s1">newFunc </span><span class="s4">in </span><span class="s1">replaceFuncList</span><span class="s2">:</span>
+        <span class="s1">res </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">oldFunc</span><span class="s2">, </span><span class="s1">newFunc</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">res</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'replaced %s interval function(s): %s' </span><span class="s2">% (</span><span class="s1">res</span><span class="s2">, </span><span class="s1">funcName</span><span class="s2">))</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<html>
+<head>
+<title>libp3motiontrail.in</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+libp3motiontrail.in</font>
+</center></td></tr></table>
+<pre><span class="s0">1673266749</span>
+<span class="s0">3 3</span>
+<span class="s0">16 libp3motiontrail 4 HtUQ 14 panda3d.direct </span>
+<span class="s0">10</span>
+<span class="s0">12 12 CMotionTrail 0 260 22 26 CMotionTrail::CMotionTrail 0 2 1 2 22</span>
+<span class="s0">/**</span>
+ <span class="s0">* Constructor</span>
+ <span class="s0">*/</span>
+<span class="s0">100</span>
+<span class="s0">CMotionTrail::CMotionTrail(void);</span>
+<span class="s0">inline CMotionTrail::CMotionTrail(CMotionTrail const &amp;) = default;</span>
+
+<span class="s0">13 5 reset 0 4 22 19 CMotionTrail::reset 0 1 3 42</span>
+<span class="s0">/**</span>
+ <span class="s0">* Reset the frame sample history.</span>
+ <span class="s0">*/</span>
+<span class="s0">31</span>
+<span class="s0">void CMotionTrail::reset(void);</span>
+
+<span class="s0">14 17 reset_vertex_list 0 4 22 31 CMotionTrail::reset_vertex_list 0 1 4 33</span>
+<span class="s0">/**</span>
+ <span class="s0">* Reset the vertex list.</span>
+ <span class="s0">*/</span>
+<span class="s0">43</span>
+<span class="s0">void CMotionTrail::reset_vertex_list(void);</span>
+
+<span class="s0">15 6 enable 0 4 22 20 CMotionTrail::enable 0 1 5 43</span>
+<span class="s0">/**</span>
+ <span class="s0">* Enable/disable the motion trail.</span>
+ <span class="s0">*/</span>
+<span class="s0">39</span>
+<span class="s0">void CMotionTrail::enable(bool enable);</span>
+
+<span class="s0">16 13 set_geom_node 0 4 22 27 CMotionTrail::set_geom_node 0 1 6 28</span>
+<span class="s0">/**</span>
+ <span class="s0">* Set the GeomNode.</span>
+ <span class="s0">*/</span>
+<span class="s0">54</span>
+<span class="s0">void CMotionTrail::set_geom_node(GeomNode *geom_node);</span>
+
+<span class="s0">17 10 add_vertex 0 4 22 24 CMotionTrail::add_vertex 0 1 7 24</span>
+<span class="s0">/**</span>
+ <span class="s0">* Add a vertex.</span>
+ <span class="s0">*/</span>
+<span class="s0">107</span>
+<span class="s0">void CMotionTrail::add_vertex(LVector4 *vertex, LVector4 *start_color, LVector4 *end_color, PN_stdfloat v);</span>
+
+<span class="s0">18 14 set_parameters 0 4 22 28 CMotionTrail::set_parameters 0 1 8 622</span>
+<span class="s0">/**</span>
+ <span class="s0">* Set motion trail parameters.</span>
+ <span class="s0">*</span>
+ <span class="s0">* sampling_time = Can be used to specify a lower sampling rate than the frame</span>
+ <span class="s0">* rate.  Use 0.0 with nurbs.</span>
+ <span class="s0">*</span>
+ <span class="s0">* time_window = a component for the &quot;length&quot; of the motion trail.  The motion</span>
+ <span class="s0">* trail length = time_window * velocity of the object.</span>
+ <span class="s0">*</span>
+ <span class="s0">* use_texture = texture option on/off.</span>
+ <span class="s0">*</span>
+ <span class="s0">* calculate_relative_matrix = calculate relative matrix on/off.</span>
+ <span class="s0">*</span>
+ <span class="s0">* use_nurbs = nurbs option on/off</span>
+ <span class="s0">*</span>
+ <span class="s0">* resolution_distance = the distance used to determine the number of geometry</span>
+ <span class="s0">* samples.  samples = motion trail length / resolution_distance.  Applicable</span>
+ <span class="s0">* only if nurbs is on.</span>
+ <span class="s0">*/</span>
+<span class="s0">185</span>
+<span class="s0">void CMotionTrail::set_parameters(PN_stdfloat sampling_time, PN_stdfloat time_window, bool use_texture, bool calculate_relative_matrix, bool use_nurbs, PN_stdfloat resolution_distance);</span>
+
+<span class="s0">19 16 check_for_update 0 4 22 30 CMotionTrail::check_for_update 0 1 9 46</span>
+<span class="s0">/**</span>
+ <span class="s0">* Check if a sample can be submitted.</span>
+ <span class="s0">*/</span>
+<span class="s0">61</span>
+<span class="s0">int CMotionTrail::check_for_update(PN_stdfloat current_time);</span>
+
+<span class="s0">20 19 update_motion_trail 0 4 22 33 CMotionTrail::update_motion_trail 0 1 10 37</span>
+<span class="s0">/**</span>
+ <span class="s0">* See class header comments.</span>
+ <span class="s0">*/</span>
+<span class="s0">86</span>
+<span class="s0">void CMotionTrail::update_motion_trail(PN_stdfloat current_time, LMatrix4 *transform);</span>
+
+<span class="s0">21 14 get_class_type 0 4 22 28 CMotionTrail::get_class_type 0 1 11 0</span>
+<span class="s0">53</span>
+<span class="s0">static TypeHandle CMotionTrail::get_class_type(void);</span>
+
+<span class="s0">11</span>
+<span class="s0">1 0 0 7 3 24 0 0 22 /**</span>
+ <span class="s0">* Constructor</span>
+ <span class="s0">*/ 0 </span>
+<span class="s0">2 0 0 15 3 24 0 0 0 1 6 param0 0 25  </span>
+<span class="s0">3 0 0 4 4 27 0 0 42 /**</span>
+ <span class="s0">* Reset the frame sample history.</span>
+ <span class="s0">*/ 1 4 this 3 24  </span>
+<span class="s0">4 0 0 4 5 27 0 0 33 /**</span>
+ <span class="s0">* Reset the vertex list.</span>
+ <span class="s0">*/ 1 4 this 3 24  </span>
+<span class="s0">5 0 0 4 6 27 0 0 43 /**</span>
+ <span class="s0">* Enable/disable the motion trail.</span>
+ <span class="s0">*/ 2 4 this 3 24  6 enable 1 28  </span>
+<span class="s0">6 0 0 4 7 27 0 0 28 /**</span>
+ <span class="s0">* Set the GeomNode.</span>
+ <span class="s0">*/ 2 4 this 3 24  9 geom_node 1 29  </span>
+<span class="s0">7 0 0 4 8 27 0 0 24 /**</span>
+ <span class="s0">* Add a vertex.</span>
+ <span class="s0">*/ 5 4 this 3 24  6 vertex 1 31  11 start_color 1 31  9 end_color 1 31  1 v 1 34  </span>
+<span class="s0">8 0 0 4 9 27 0 0 622 /**</span>
+ <span class="s0">* Set motion trail parameters.</span>
+ <span class="s0">*</span>
+ <span class="s0">* sampling_time = Can be used to specify a lower sampling rate than the frame</span>
+ <span class="s0">* rate.  Use 0.0 with nurbs.</span>
+ <span class="s0">*</span>
+ <span class="s0">* time_window = a component for the &quot;length&quot; of the motion trail.  The motion</span>
+ <span class="s0">* trail length = time_window * velocity of the object.</span>
+ <span class="s0">*</span>
+ <span class="s0">* use_texture = texture option on/off.</span>
+ <span class="s0">*</span>
+ <span class="s0">* calculate_relative_matrix = calculate relative matrix on/off.</span>
+ <span class="s0">*</span>
+ <span class="s0">* use_nurbs = nurbs option on/off</span>
+ <span class="s0">*</span>
+ <span class="s0">* resolution_distance = the distance used to determine the number of geometry</span>
+ <span class="s0">* samples.  samples = motion trail length / resolution_distance.  Applicable</span>
+ <span class="s0">* only if nurbs is on.</span>
+ <span class="s0">*/ 7 4 this 3 24  13 sampling_time 1 34  11 time_window 1 34  11 use_texture 1 28  25 calculate_relative_matrix 1 28  9 use_nurbs 1 28  19 resolution_distance 1 34  </span>
+<span class="s0">9 0 0 6 10 36 0 0 46 /**</span>
+ <span class="s0">* Check if a sample can be submitted.</span>
+ <span class="s0">*/ 2 4 this 3 24  12 current_time 1 34  </span>
+<span class="s0">10 0 0 4 11 27 0 0 37 /**</span>
+ <span class="s0">* See class header comments.</span>
+ <span class="s0">*/ 3 4 this 3 24  12 current_time 1 34  9 transform 1 37  </span>
+<span class="s0">11 0 0 7 12 41 0 0 0 0 </span>
+<span class="s0">20</span>
+<span class="s0">22 12 CMotionTrail 0 75777 12 CMotionTrail 12 CMotionTrail 0 0 0 1 12 0 0 9 13 14 15 16 17 18 19 20 21 0 0 1 0 23 0 0 0 0 1527</span>
+<span class="s0">/**</span>
+ <span class="s0">* The method used in creating the motion trail is based on taking samples of</span>
+ <span class="s0">* time and transformations (the position and orientation matrix) in real-</span>
+ <span class="s0">* time.  The method also requires a number of vertices (positions) that</span>
+ <span class="s0">* determines &quot;shape&quot; of the motion trail (i.e.  the edge of a blade).  A</span>
+ <span class="s0">* start color and end color is also required for each vertex.  The color is</span>
+ <span class="s0">* interpolated as function of time.  The colors are typically used to fade</span>
+ <span class="s0">* the motion trail so the end color is typically black.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The vertices are submitted via the &quot;add_vertex&quot; function.  For each frame,</span>
+ <span class="s0">* a sample is submited via the &quot;update_motion_trail&quot; function.  During the</span>
+ <span class="s0">* &quot;update_motion_trail&quot; function, the motion trail geometry is created</span>
+ <span class="s0">* dynamically from the sample history and the vertices.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The user must specifiy a GeomNode via &quot;set_geom_node&quot;.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The duration of the sample history is specified by a time window.  A larger</span>
+ <span class="s0">* time window creates longer motion trails (given constant speed).  Samples</span>
+ <span class="s0">* that are no longer within the time window are automatically discarded.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The nurbs option can be used to create smooth interpolated curves from the</span>
+ <span class="s0">* samples.  The nurbs option is useful for animations that lack sampling to</span>
+ <span class="s0">* begin with, animations that move very quickly, or low frame rates.</span>
+ <span class="s0">*</span>
+ <span class="s0">* The texture option be used to create variation to the motion trail.  The u</span>
+ <span class="s0">* coordinate of the texture corresponds to time and the v coordinate</span>
+ <span class="s0">* corresponds to the &quot;shape&quot; of the motion trail.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">23 19 TypedReferenceCount 0 2048 19 TypedReferenceCount 19 TypedReferenceCount 0 0 0 0 0 0 0 0 0 0 0 0 410</span>
+<span class="s0">/**</span>
+ <span class="s0">* A base class for things which need to inherit from both TypedObject and</span>
+ <span class="s0">* from ReferenceCount.  It's convenient to define this intermediate base</span>
+ <span class="s0">* class instead of multiply inheriting from the two classes each time they</span>
+ <span class="s0">* are needed, so that we can sensibly pass around pointers to things which</span>
+ <span class="s0">* are both TypedObjects and ReferenceCounters.</span>
+ <span class="s0">*</span>
+ <span class="s0">* See also TypedObject for detailed instructions.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">24 14 CMotionTrail * 0 8576 14 CMotionTrail * 14 CMotionTrail * 0 0 22 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">25 20 CMotionTrail const * 0 8576 20 CMotionTrail const * 20 CMotionTrail const * 0 0 26 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">26 18 CMotionTrail const 0 8832 18 CMotionTrail const 18 CMotionTrail const 0 0 22 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">27 4 void 0 8194 4 void 4 void 0 6 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">28 4 bool 0 8194 4 bool 4 bool 0 4 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">29 10 GeomNode * 0 8576 10 GeomNode * 10 GeomNode * 0 0 30 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">30 8 GeomNode 0 2048 8 GeomNode 8 GeomNode 0 0 0 0 0 0 0 0 0 0 0 0 208</span>
+<span class="s0">/**</span>
+ <span class="s0">* A node that holds Geom objects, renderable pieces of geometry.  This is the</span>
+ <span class="s0">* primary kind of leaf node in the scene graph; almost all visible objects</span>
+ <span class="s0">* will be contained in a GeomNode somewhere.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">31 10 LVector4 * 0 8576 10 LVector4 * 10 LVector4 * 0 0 32 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">32 8 LVector4 0 2105344 8 LVector4 8 LVector4 0 0 33 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">33 9 LVector4f 0 2048 9 LVector4f 9 LVector4f 0 0 0 0 0 0 0 0 0 0 0 0 52</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is a four-component vector distance.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">34 11 PN_stdfloat 0 2105344 11 PN_stdfloat 11 PN_stdfloat 0 0 35 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">35 5 float 0 8194 5 float 5 float 0 2 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">36 3 int 0 8194 3 int 3 int 0 1 0 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">37 10 LMatrix4 * 0 8576 10 LMatrix4 * 10 LMatrix4 * 0 0 38 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">38 8 LMatrix4 0 2105344 8 LMatrix4 8 LMatrix4 0 0 39 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">39 9 LMatrix4f 0 2048 9 LMatrix4f 9 LMatrix4f 0 0 0 0 0 0 0 0 0 0 0 0 45</span>
+<span class="s0">/**</span>
+ <span class="s0">* This is a 4-by-4 transform matrix.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">40 10 TypeHandle 0 16779264 10 TypeHandle 10 TypeHandle 0 0 0 0 0 0 0 0 0 0 0 0 732</span>
+<span class="s0">/**</span>
+ <span class="s0">* TypeHandle is the identifier used to differentiate C++ class types.  Any</span>
+ <span class="s0">* C++ classes that inherit from some base class, and must be differentiated</span>
+ <span class="s0">* at run time, should store a static TypeHandle object that can be queried</span>
+ <span class="s0">* through a static member function named get_class_type().  Most of the time,</span>
+ <span class="s0">* it is also desirable to inherit from TypedObject, which provides some</span>
+ <span class="s0">* virtual functions to return the TypeHandle for a particular instance.</span>
+ <span class="s0">*</span>
+ <span class="s0">* At its essence, a TypeHandle is simply a unique identifier that is assigned</span>
+ <span class="s0">* by the TypeRegistry.  The TypeRegistry stores a tree of TypeHandles, so</span>
+ <span class="s0">* that ancestry of a particular type may be queried, and the type name may be</span>
+ <span class="s0">* retrieved for run-time display.</span>
+ <span class="s0">*/</span>
+
+<span class="s0">41 12 TypeHandle * 0 8576 12 TypeHandle * 12 TypeHandle * 0 0 40 0 0 0 0 0 0 0 0 0 0</span>
+
+<span class="s0">0</span>
+<span class="s0">0</span>
+<span class="s0">0</span>
+</pre>
+</body>
+</html>

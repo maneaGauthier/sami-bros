@@ -1,0 +1,142 @@
+<html>
+<head>
+<title>fxaa.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+fxaa.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s1">fxaa_shader </span><span class="s2">= </span><span class="s1">Shader</span><span class="s2">(</span><span class="s1">language</span><span class="s2">=</span><span class="s1">Shader</span><span class="s2">.</span><span class="s1">GLSL</span><span class="s2">,</span>
+<span class="s1">fragment</span><span class="s2">=</span><span class="s3">''' 
+//fragment shader, the interesting part! 
+#version 400 
+uniform sampler2D tex;  //the rendered framebuffer containing the color bound as sampler2D 
+uniform vec2 window_size;    //the size of the window/framebuffer 
+ 
+in vec2 uv; 
+ 
+layout( location = 0 ) out vec4 color; //the manipulated color output 
+ 
+////////////////////////////////////////////////////////////////////////////// 
+//FXAA 
+#ifndef FXAA_REDUCE_MIN 
+    #define FXAA_REDUCE_MIN   (1.0/ 128.0) 
+#endif 
+#ifndef FXAA_REDUCE_MUL 
+    #define FXAA_REDUCE_MUL   (1.0 / 8.0) 
+#endif 
+#ifndef FXAA_SPAN_MAX 
+    #define FXAA_SPAN_MAX     8.0 
+#endif 
+ 
+//optimized version for mobile, where dependent 
+//texture reads can be a bottleneck 
+vec4 fxaa(sampler2D tex, vec2 fragCoord, vec2 resolution) { 
+    vec4 color; 
+ 
+  vec2 inverseVP = 1.0 / resolution.xy; 
+ 
+  vec2 v_rgbNW = (fragCoord + vec2(-1.0, -1.0)) * inverseVP; 
+  vec2 v_rgbNE = (fragCoord + vec2(1.0, -1.0)) * inverseVP; 
+  vec2 v_rgbSW = (fragCoord + vec2(-1.0, 1.0)) * inverseVP; 
+  vec2 v_rgbSE = (fragCoord + vec2(1.0, 1.0)) * inverseVP; 
+  vec2 v_rgbM = vec2(fragCoord * inverseVP); 
+ 
+  vec3 rgbNW = texture2D(tex, v_rgbNW).xyz; 
+  vec3 rgbNE = texture2D(tex, v_rgbNE).xyz; 
+  vec3 rgbSW = texture2D(tex, v_rgbSW).xyz; 
+  vec3 rgbSE = texture2D(tex, v_rgbSE).xyz; 
+  vec4 texColor = texture2D(tex, v_rgbM); 
+  vec3 rgbM  = texColor.xyz; 
+  vec3 luma = vec3(0.299, 0.587, 0.114); 
+  float lumaNW = dot(rgbNW, luma); 
+  float lumaNE = dot(rgbNE, luma); 
+  float lumaSW = dot(rgbSW, luma); 
+  float lumaSE = dot(rgbSE, luma); 
+  float lumaM  = dot(rgbM,  luma); 
+  float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE))); 
+  float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE))); 
+ 
+  mediump vec2 dir; 
+  dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE)); 
+  dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE)); 
+ 
+  float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * 
+                        (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN); 
+ 
+  float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce); 
+  dir = min(vec2(FXAA_SPAN_MAX, FXAA_SPAN_MAX), 
+            max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX), 
+            dir * rcpDirMin)) * inverseVP; 
+ 
+  vec3 rgbA = 0.5 * ( 
+      texture2D(tex, fragCoord * inverseVP + dir * (1.0 / 3.0 - 0.5)).xyz + 
+      texture2D(tex, fragCoord * inverseVP + dir * (2.0 / 3.0 - 0.5)).xyz); 
+  vec3 rgbB = rgbA * 0.5 + 0.25 * ( 
+      texture2D(tex, fragCoord * inverseVP + dir * -0.5).xyz + 
+      texture2D(tex, fragCoord * inverseVP + dir * 0.5).xyz); 
+ 
+  float lumaB = dot(rgbB, luma); 
+  if ((lumaB &lt; lumaMin) || (lumaB &gt; lumaMax)) 
+      color = vec4(rgbA, texColor.a); 
+  else 
+      color = vec4(rgbB, texColor.a); 
+  return color; 
+} 
+//FXAA END 
+////////////////////////////////////////////////////////////////////////////// 
+ 
+void main () { 
+  //calculate smoothed color by applying fxaa (usually at sharp edges) 
+  color.rgb = fxaa(tex, gl_FragCoord.st, window_size).rgb; 
+  float r = mix(0, 1, gl_FragCoord.x/window_size.x); 
+  // color.rgb = vec3(0,r*.5,0); 
+  // color.rgb = texture(tex, uv).rgb; 
+  color.a = 1.0f; 
+} 
+'''</span><span class="s2">,</span>
+<span class="s1">default_input</span><span class="s2">={</span>
+    <span class="s3">'window_size'</span><span class="s2">: </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s4">1280</span><span class="s2">,</span><span class="s4">720</span><span class="s2">),</span>
+<span class="s2">}</span>
+<span class="s2">)</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s1">window</span><span class="s2">.</span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">black</span>
+
+    <span class="s5"># b = Entity(model='sphere')</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s3">'plane'</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">10</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=-</span><span class="s4">2</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'shore'</span><span class="s2">)</span>
+    <span class="s5"># Entity(model='quad', texture='circle', x=2)</span>
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s3">'quad'</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">red</span><span class="s2">, </span><span class="s1">double_sided</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s3">'quad'</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">green</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=-</span><span class="s4">.001</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">.5</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'circle'</span><span class="s2">)</span>
+    <span class="s5"># Button(scale=.25, model='circle')</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">shader </span><span class="s2">= </span><span class="s1">fxaa_shader</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">clip_plane_far</span><span class="s2">=</span><span class="s4">100</span>
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s3">'space'</span><span class="s2">:</span>
+            <span class="s0">if not </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">shader</span><span class="s2">:</span>
+                <span class="s1">camera</span><span class="s2">.</span><span class="s1">shader </span><span class="s2">= </span><span class="s1">fxaa_shader</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">camera</span><span class="s2">.</span><span class="s1">shader </span><span class="s2">= </span><span class="s0">None</span>
+
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

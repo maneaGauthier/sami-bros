@@ -1,0 +1,294 @@
+<html>
+<head>
+<title>FourStateAI.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FourStateAI.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the FourStateAI class.  See also :mod:`.FourState`.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'FourStateAI'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s4">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s5">#import DistributedObjectAI</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">ClassicFSM</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">State</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+
+
+<span class="s4">class </span><span class="s1">FourStateAI</span><span class="s2">:</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Generic four state ClassicFSM base class. 
+ 
+    This is a mix-in class that expects that your derived class 
+    is a DistributedObjectAI. 
+ 
+    Inherit from FourStateFSM and pass in your states.  Two of 
+    the states should be oposites of each other and the other 
+    two should be the transition states between the first two. 
+    E.g:: 
+ 
+                    +--------+ 
+                 --&gt;| closed | -- 
+                |   +--------+   | 
+                |                | 
+                |                v 
+          +---------+       +---------+ 
+          | closing |&lt;-----&gt;| opening | 
+          +---------+       +---------+ 
+                ^                | 
+                |                | 
+                |    +------+    | 
+                 ----| open |&lt;--- 
+                     +------+ 
+ 
+    There is a fifth off state, but that is an implementation 
+    detail (and that's why it's not called a five state ClassicFSM). 
+ 
+    I found that this pattern repeated in several things I was 
+    working on, so this base class was created. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'FourStateAI'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">names</span><span class="s2">, </span><span class="s1">durations </span><span class="s2">= [</span><span class="s6">0</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s4">None</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Names is a list of state names.  Some examples are:: 
+ 
+            ['off', 'opening', 'open', 'closing', 'closed',] 
+ 
+            ['off', 'locking', 'locked', 'unlocking', 'unlocked',] 
+ 
+            ['off', 'deactivating', 'deactive', 'activating', 'activated',] 
+ 
+        durations is a list of durations in seconds or None values. 
+        The list of duration values should be the same length 
+        as the list of state names and the lists correspond. 
+        For each state, after n seconds, the ClassicFSM will move to 
+        the next state.  That does not happen for any duration 
+        values of None. 
+ 
+        .. rubric:: More Details 
+ 
+        Here is a diagram showing the where the names from the list 
+        are used:: 
+ 
+            +---------+ 
+            | 0 (off) |----&gt; (any other state and vice versa). 
+            +---------+ 
+ 
+                       +--------+ 
+                    --&gt;| 4 (on) |--- 
+                   |   +--------+   | 
+                   |                | 
+                   |                v 
+             +---------+       +---------+ 
+             | 3 (off) |&lt;-----&gt;| 1 (off) | 
+             +---------+       +---------+ 
+                   ^                | 
+                   |                | 
+                   |  +---------+   | 
+                    --| 2 (off) |&lt;-- 
+                      +---------+ 
+ 
+        Each states also has an associated on or off value.  The only 
+        state that is 'on' is state 4.  So, the transition states 
+        between off and on (states 1 and 3) are also considered 
+        off (and so is state 2 which is oposite of state 4 and therefore 
+        oposite of 'on'). 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span>
+                <span class="s3">&quot;FourStateAI(names=%s, durations=%s)&quot;</span>
+                <span class="s2">%(</span><span class="s1">names</span><span class="s2">, </span><span class="s1">durations</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">names</span><span class="s2">) == </span><span class="s6">5</span>
+        <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">names</span><span class="s2">) == </span><span class="s1">len</span><span class="s2">(</span><span class="s1">durations</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">names </span><span class="s2">= </span><span class="s1">names</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">durations </span><span class="s2">= </span><span class="s1">durations</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">states </span><span class="s2">= {</span>
+            <span class="s6">0</span><span class="s2">: </span><span class="s1">State</span><span class="s2">.</span><span class="s1">State</span><span class="s2">(</span><span class="s1">names</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">enterState0</span><span class="s2">,</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">exitState0</span><span class="s2">,</span>
+                           <span class="s2">[</span><span class="s1">names</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                           <span class="s1">names</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                           <span class="s1">names</span><span class="s2">[</span><span class="s6">3</span><span class="s2">],</span>
+                           <span class="s1">names</span><span class="s2">[</span><span class="s6">4</span><span class="s2">]]),</span>
+            <span class="s6">1</span><span class="s2">: </span><span class="s1">State</span><span class="s2">.</span><span class="s1">State</span><span class="s2">(</span><span class="s1">names</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">enterState1</span><span class="s2">,</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">exitState1</span><span class="s2">,</span>
+                           <span class="s2">[</span><span class="s1">names</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">names</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]]),</span>
+            <span class="s6">2</span><span class="s2">: </span><span class="s1">State</span><span class="s2">.</span><span class="s1">State</span><span class="s2">(</span><span class="s1">names</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">enterState2</span><span class="s2">,</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">exitState2</span><span class="s2">,</span>
+                           <span class="s2">[</span><span class="s1">names</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]]),</span>
+            <span class="s6">3</span><span class="s2">: </span><span class="s1">State</span><span class="s2">.</span><span class="s1">State</span><span class="s2">(</span><span class="s1">names</span><span class="s2">[</span><span class="s6">3</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">enterState3</span><span class="s2">,</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">exitState3</span><span class="s2">,</span>
+                           <span class="s2">[</span><span class="s1">names</span><span class="s2">[</span><span class="s6">4</span><span class="s2">], </span><span class="s1">names</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]]),</span>
+            <span class="s6">4</span><span class="s2">: </span><span class="s1">State</span><span class="s2">.</span><span class="s1">State</span><span class="s2">(</span><span class="s1">names</span><span class="s2">[</span><span class="s6">4</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">enterState4</span><span class="s2">,</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">exitState4</span><span class="s2">,</span>
+                           <span class="s2">[</span><span class="s1">names</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]]),</span>
+            <span class="s2">}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsm </span><span class="s2">= </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">ClassicFSM</span><span class="s2">(</span><span class="s3">'FourState'</span><span class="s2">,</span>
+                           <span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">states</span><span class="s2">.</span><span class="s1">values</span><span class="s2">()),</span>
+                           <span class="s5"># Initial State</span>
+                           <span class="s1">names</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                           <span class="s5"># Final State</span>
+                           <span class="s1">names</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                          <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">enterInitialState</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;delete()&quot;</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">states</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fsm</span>
+
+    <span class="s4">def </span><span class="s1">getState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;getState() returning %s&quot;</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex</span><span class="s2">,))</span>
+        <span class="s4">return </span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">sendState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;sendState()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s3">'setState'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">setIsOn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">isOn</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;setIsOn(isOn=%s)&quot;</span><span class="s2">%(</span><span class="s1">isOn</span><span class="s2">,))</span>
+        <span class="s4">if </span><span class="s1">isOn</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex </span><span class="s2">!= </span><span class="s6">4</span><span class="s2">:</span>
+                <span class="s5"># ...if it's not On; request turning on:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">states</span><span class="s2">[</span><span class="s6">3</span><span class="s2">])</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex </span><span class="s2">!= </span><span class="s6">2</span><span class="s2">:</span>
+                <span class="s5"># ...if it's not Off; request turning off:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">states</span><span class="s2">[</span><span class="s6">1</span><span class="s2">])</span>
+        <span class="s5">#if isOn:</span>
+        <span class="s5">#    nextState = (4, 3, 3, 4, None)[self.stateIndex]</span>
+        <span class="s5">#else:</span>
+        <span class="s5">#    nextState = (2, 2, None, 1, 1)[self.stateIndex]</span>
+        <span class="s5">#if nextState is not None:</span>
+        <span class="s5">#    self.fsm.request(self.states[nextState])</span>
+
+    <span class="s4">def </span><span class="s1">isOn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;isOn() returning %s (stateIndex=%s)&quot;</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex</span><span class="s2">==</span><span class="s6">4</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex</span><span class="s2">==</span><span class="s6">4</span>
+
+    <span class="s4">def </span><span class="s1">changedOnState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">isOn</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Allow derived classes to overide this. 
+        The self.isOn value has toggled.  Call getIsOn() to 
+        get the current state. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;changedOnState(isOn=%s)&quot;</span><span class="s2">%(</span><span class="s1">isOn</span><span class="s2">,))</span>
+
+    <span class="s5">##### states #####</span>
+
+    <span class="s4">def </span><span class="s1">switchToNextStateTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;switchToNextStateTask()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">states</span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nextStateIndex</span><span class="s2">])</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+
+    <span class="s4">def </span><span class="s1">distributeStateChange</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        This function is intentionaly simple so that derived classes 
+        may easily alter the network message. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;distributeStateChange()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendState</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">enterStateN</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateIndex</span><span class="s2">, </span><span class="s1">nextStateIndex</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span>
+            <span class="s3">&quot;enterStateN(stateIndex=%s, nextStateIndex=%s)&quot;</span><span class="s2">%</span>
+            <span class="s2">(</span><span class="s1">stateIndex</span><span class="s2">, </span><span class="s1">nextStateIndex</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex </span><span class="s2">= </span><span class="s1">stateIndex</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nextStateIndex </span><span class="s2">= </span><span class="s1">nextStateIndex</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">distributeStateChange</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">durations</span><span class="s2">[</span><span class="s1">stateIndex</span><span class="s2">] </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask </span><span class="s4">is None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask</span><span class="s2">=</span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">durations</span><span class="s2">[</span><span class="s1">stateIndex</span><span class="s2">],</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">switchToNextStateTask</span><span class="s2">,</span>
+                <span class="s3">&quot;enterStateN-timer-%s&quot;</span><span class="s2">%</span><span class="s1">id</span><span class="s2">(</span><span class="s1">self</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">exitStateN</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;exitStateN()&quot;</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask</span><span class="s2">:</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doLaterTask</span><span class="s2">=</span><span class="s4">None</span>
+
+    <span class="s5">##### state 0 #####</span>
+
+    <span class="s4">def </span><span class="s1">enterState0</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;enter0()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enterStateN</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitState0</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;exit0()&quot;</span><span class="s2">)</span>
+
+    <span class="s5">##### state 1 #####</span>
+
+    <span class="s4">def </span><span class="s1">enterState1</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">#assert self.__debugPrint(&quot;enterState1()&quot;)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enterStateN</span><span class="s2">(</span><span class="s6">1</span><span class="s2">, </span><span class="s6">2</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitState1</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;exitState1()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exitStateN</span><span class="s2">()</span>
+
+    <span class="s5">##### state 2 #####</span>
+
+    <span class="s4">def </span><span class="s1">enterState2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">#assert self.__debugPrint(&quot;enterState2()&quot;)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enterStateN</span><span class="s2">(</span><span class="s6">2</span><span class="s2">, </span><span class="s6">3</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitState2</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;exitState2()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exitStateN</span><span class="s2">()</span>
+
+    <span class="s5">##### state 3 #####</span>
+
+    <span class="s4">def </span><span class="s1">enterState3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">#assert self.__debugPrint(&quot;enterState3()&quot;)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enterStateN</span><span class="s2">(</span><span class="s6">3</span><span class="s2">, </span><span class="s6">4</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitState3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;exitState3()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exitStateN</span><span class="s2">()</span>
+
+    <span class="s5">##### state 4 #####</span>
+
+    <span class="s4">def </span><span class="s1">enterState4</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;enterState4()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enterStateN</span><span class="s2">(</span><span class="s6">4</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">changedOnState</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">exitState4</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s3">&quot;exitState4()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exitStateN</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">changedOnState</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s4">def </span><span class="s1">__debugPrint</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">message</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot;for debugging&quot;&quot;&quot;</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%d (%d) %s&quot;</span><span class="s2">%(</span>
+                    <span class="s1">id</span><span class="s2">(</span><span class="s1">self</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateIndex</span><span class="s2">==</span><span class="s6">4</span><span class="s2">, </span><span class="s1">message</span><span class="s2">))</span>
+
+</pre>
+</body>
+</html>

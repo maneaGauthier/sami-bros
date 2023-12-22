@@ -1,0 +1,1038 @@
+<html>
+<head>
+<title>DirectSessionPanel.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #cf8e6d;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectSessionPanel.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; DIRECT Session Main panel &quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectSessionPanel'</span><span class="s2">]</span>
+
+<span class="s4"># Import Tkinter, Pmw, and the dial code</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">TkGlobal </span><span class="s5">import </span><span class="s2">*</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets</span><span class="s2">.</span><span class="s1">AppShell </span><span class="s5">import </span><span class="s2">*</span>
+<span class="s5">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s5">import </span><span class="s2">*</span>
+<span class="s5">import </span><span class="s1">Pmw</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">Dial</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">Floater</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">Slider</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">VectorWidgets</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">SceneGraphExplorer</span>
+<span class="s5">from </span><span class="s2">.</span><span class="s1">TaskManagerPanel </span><span class="s5">import </span><span class="s1">TaskManagerWidget</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">MemoryExplorer</span>
+
+<span class="s3">&quot;&quot;&quot; 
+Possible to add: 
+messenger.clear? 
+popup panels 
+taskMgr page 
+&quot;&quot;&quot;</span>
+
+<span class="s5">class </span><span class="s1">DirectSessionPanel</span><span class="s2">(</span><span class="s1">AppShell</span><span class="s2">):</span>
+    <span class="s4"># Override class variables here</span>
+    <span class="s1">appname </span><span class="s2">= </span><span class="s3">'Direct Session Panel'</span>
+    <span class="s1">frameWidth      </span><span class="s2">= </span><span class="s6">600</span>
+    <span class="s1">frameHeight     </span><span class="s2">= </span><span class="s6">365</span>
+    <span class="s1">usecommandarea </span><span class="s2">= </span><span class="s6">0</span>
+    <span class="s1">usestatusarea  </span><span class="s2">= </span><span class="s6">0</span>
+
+    <span class="s5">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s5">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'title'</span><span class="s2">,       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appname</span><span class="s2">,       </span><span class="s5">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s4"># Call superclass initialization function</span>
+        <span class="s1">AppShell</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s4"># Active light</span>
+        <span class="s5">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">) &gt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">getNameList</span><span class="s2">()[</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">selectLightNamed</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight </span><span class="s2">= </span><span class="s5">None</span>
+        <span class="s4"># Active display region</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">drMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'Display Region 0'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selectDisplayRegionNamed</span><span class="s2">(</span><span class="s3">'Display Region 0'</span><span class="s2">)</span>
+        <span class="s4"># Make sure we've got valid initial values</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateInfo</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectSessionPanel</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">appInit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Initialize state</span>
+        <span class="s4"># Dictionary keeping track of all node paths selected so far</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">[</span><span class="s3">'widget'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames </span><span class="s2">= [</span><span class="s3">'widget'</span><span class="s2">]</span>
+
+        <span class="s4"># Dictionary keeping track of all jb node paths selected so far</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathDict </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathDict</span><span class="s2">[</span><span class="s3">'none'</span><span class="s2">] = </span><span class="s3">'No Node Path'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathDict</span><span class="s2">[</span><span class="s3">'widget'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathDict</span><span class="s2">[</span><span class="s3">'camera'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathNames </span><span class="s2">= [</span><span class="s3">'camera'</span><span class="s2">, </span><span class="s3">'selected'</span><span class="s2">, </span><span class="s3">'none'</span><span class="s2">]</span>
+
+        <span class="s4"># Set up event hooks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">actionEvents </span><span class="s2">= [</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_undo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_pushUndo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pushUndoHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_undoListEmpty'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoListEmptyHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_redo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">redoHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_pushRedo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pushRedoHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_redoListEmpty'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">redoListEmptyHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_selectedNodePath'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectedNodePathHook</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'DIRECT_addLight'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">addLight</span><span class="s2">),</span>
+            <span class="s2">]</span>
+        <span class="s5">for </span><span class="s1">event</span><span class="s2">, </span><span class="s1">method </span><span class="s5">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actionEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">method</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">createInterface</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># The interior of the toplevel panel</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+        <span class="s4"># Add placer commands to menubar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenu</span><span class="s2">(</span><span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'Direct Session Panel Operations'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">directEnabled </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">directEnabled</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'checkbutton'</span><span class="s2">,</span>
+                                 <span class="s3">'DIRECT Enabled'</span><span class="s2">,</span>
+                                 <span class="s1">label </span><span class="s2">= </span><span class="s3">'Enable'</span><span class="s2">,</span>
+                                 <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directEnabled</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleDirect</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">directGridEnabled </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">directGridEnabled</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">isEnabled</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'checkbutton'</span><span class="s2">,</span>
+                                 <span class="s3">'DIRECT Grid Enabled'</span><span class="s2">,</span>
+                                 <span class="s1">label </span><span class="s2">= </span><span class="s3">'Enable Grid'</span><span class="s2">,</span>
+                                 <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directGridEnabled</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleDirectGrid</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+                                 <span class="s3">'Toggle Object Handles Visability'</span><span class="s2">,</span>
+                                 <span class="s1">label </span><span class="s2">= </span><span class="s3">'Toggle Widget Viz'</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">toggleWidgetVis</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+            <span class="s3">'Toggle Widget Move/COA Mode'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Toggle Widget Mode'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">toggleObjectHandlesMode</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">directWidgetOnTop </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">directWidgetOnTop</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'checkbutton'</span><span class="s2">,</span>
+                                 <span class="s3">'DIRECT Widget On Top'</span><span class="s2">,</span>
+                                 <span class="s1">label </span><span class="s2">= </span><span class="s3">'Widget On Top'</span><span class="s2">,</span>
+                                 <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directWidgetOnTop</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleWidgetOnTop</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'DIRECT'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+                                 <span class="s3">'Deselect All'</span><span class="s2">,</span>
+                                 <span class="s1">label </span><span class="s2">= </span><span class="s3">'Deselect All'</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">deselectAll</span><span class="s2">)</span>
+
+        <span class="s4"># Get a handle to the menu frame</span>
+        <span class="s1">menuFrame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuFrame</span>
+
+        <span class="s4"># Widget to select node paths (and display list of selected node paths)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+            <span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">labelpos </span><span class="s2">= </span><span class="s1">W</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'DIRECT Select:'</span><span class="s2">,</span>
+            <span class="s1">entry_width </span><span class="s2">= </span><span class="s6">20</span><span class="s2">,</span>
+            <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectNodePathNamed</span><span class="s2">,</span>
+            <span class="s1">scrolledlist_items </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'widget'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuEntry </span><span class="s2">= (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'entryfield_entry'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuBG </span><span class="s2">= (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s3">'background'</span><span class="s2">)[</span><span class="s6">3</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">, </span><span class="s3">'Select node path to manipulate'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Undo'</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">undo</span><span class="s2">)</span>
+        <span class="s5">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">undoList</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'normal'</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'disabled'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">, </span><span class="s3">'Undo last operation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Redo'</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">redo</span><span class="s2">)</span>
+        <span class="s5">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">redoList</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'normal'</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'disabled'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">, </span><span class="s3">'Redo last operation'</span><span class="s2">)</span>
+
+        <span class="s4"># The master frame for the dials</span>
+        <span class="s1">mainFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">interior</span><span class="s2">)</span>
+
+        <span class="s4"># Paned widget for dividing two halves</span>
+        <span class="s1">framePane </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">PanedWidget</span><span class="s2">(</span><span class="s1">mainFrame</span><span class="s2">, </span><span class="s1">orient </span><span class="s2">= </span><span class="s1">HORIZONTAL</span><span class="s2">)</span>
+        <span class="s1">sgeFrame </span><span class="s2">= </span><span class="s1">framePane</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">min </span><span class="s2">= </span><span class="s6">250</span><span class="s2">)</span>
+        <span class="s1">notebookFrame </span><span class="s2">= </span><span class="s1">framePane</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'right'</span><span class="s2">, </span><span class="s1">min </span><span class="s2">= </span><span class="s6">300</span><span class="s2">)</span>
+
+        <span class="s4"># Scene Graph Explorer</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">SGE </span><span class="s2">= </span><span class="s1">SceneGraphExplorer</span><span class="s2">.</span><span class="s1">SceneGraphExplorer</span><span class="s2">(</span>
+            <span class="s1">sgeFrame</span><span class="s2">, </span><span class="s1">nodePath </span><span class="s2">= </span><span class="s1">render</span><span class="s2">,</span>
+            <span class="s1">scrolledCanvas_hull_width </span><span class="s2">= </span><span class="s6">250</span><span class="s2">,</span>
+            <span class="s1">scrolledCanvas_hull_height </span><span class="s2">= </span><span class="s6">300</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">SGE</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">sgeFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'both'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s4"># Create the notebook pages</span>
+        <span class="s1">notebook </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">NoteBook</span><span class="s2">(</span><span class="s1">notebookFrame</span><span class="s2">)</span>
+        <span class="s1">notebook</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createEnvPage</span><span class="s2">(</span><span class="s1">notebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Environment'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createLightsPage</span><span class="s2">(</span><span class="s1">notebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Lights'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createGridPage</span><span class="s2">(</span><span class="s1">notebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Grid'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createDevicePage</span><span class="s2">(</span><span class="s1">notebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Devices'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createTasksPage</span><span class="s2">(</span><span class="s1">notebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Tasks'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">createMemPage</span><span class="s2">(</span><span class="s1">notebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Memory'</span><span class="s2">))</span>
+
+        <span class="s1">notebook</span><span class="s2">.</span><span class="s1">setnaturalsize</span><span class="s2">()</span>
+
+        <span class="s1">framePane</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+        <span class="s1">mainFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'both'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s4"># Put this here so it isn't called right away</span>
+        <span class="s1">notebook</span><span class="s2">[</span><span class="s3">'raisecommand'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateInfo</span>
+
+    <span class="s5">def </span><span class="s1">createEnvPage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">envPage</span><span class="s2">):</span>
+        <span class="s1">bkgrdFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">envPage</span><span class="s2">, </span><span class="s1">borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s3">'sunken'</span><span class="s2">)</span>
+
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">bkgrdFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Background'</span><span class="s2">,</span>
+              <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backgroundColor </span><span class="s2">= </span><span class="s1">VectorWidgets</span><span class="s2">.</span><span class="s1">ColorEntry</span><span class="s2">(</span>
+            <span class="s1">bkgrdFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Background Color'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backgroundColor</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBackgroundColorVec</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backgroundColor</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">backgroundColor</span><span class="s2">, </span><span class="s3">'Set background color'</span><span class="s2">)</span>
+        <span class="s1">bkgrdFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">drFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">envPage</span><span class="s2">, </span><span class="s1">borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s3">'sunken'</span><span class="s2">)</span>
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">drFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Display Region'</span><span class="s2">,</span>
+              <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">nameList </span><span class="s2">= [</span><span class="s3">'Display Region ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">x</span><span class="s2">) </span><span class="s5">for </span><span class="s1">x </span><span class="s5">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">drList</span><span class="s2">))]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">drMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+            <span class="s1">drFrame</span><span class="s2">, </span><span class="s1">labelpos </span><span class="s2">= </span><span class="s1">W</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'Display Region:'</span><span class="s2">,</span>
+            <span class="s1">entry_width </span><span class="s2">= </span><span class="s6">20</span><span class="s2">,</span>
+            <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectDisplayRegionNamed</span><span class="s2">,</span>
+            <span class="s1">scrolledlist_items </span><span class="s2">= </span><span class="s1">nameList</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">drMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">drMenu</span><span class="s2">, </span><span class="s3">'Select display region to configure'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nearPlane </span><span class="s2">= </span><span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">(</span>
+            <span class="s1">drFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Near Plane'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.01</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nearPlane</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setNear</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nearPlane</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nearPlane</span><span class="s2">, </span><span class="s3">'Set near plane distance'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">farPlane </span><span class="s2">= </span><span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">(</span>
+            <span class="s1">drFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Far Plane'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.01</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">farPlane</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setFar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">farPlane</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">farPlane</span><span class="s2">, </span><span class="s3">'Set far plane distance'</span><span class="s2">)</span>
+
+        <span class="s1">fovFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">drFrame</span><span class="s2">)</span>
+        <span class="s1">fovFloaterFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">fovFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hFov </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">fovFloaterFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Horizontal FOV'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.01</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">170.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hFov</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setHFov</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hFov</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">hFov</span><span class="s2">, </span><span class="s3">'Set horizontal field of view'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vFov </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">fovFloaterFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Vertical FOV'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.01</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">170.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vFov</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setVFov</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vFov</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">vFov</span><span class="s2">, </span><span class="s3">'Set vertical field of view'</span><span class="s2">)</span>
+        <span class="s1">fovFloaterFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s1">frame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">fovFrame</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFov </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFovButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">frame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Locked'</span><span class="s2">,</span>
+            <span class="s1">anchor </span><span class="s2">= </span><span class="s3">'w'</span><span class="s2">, </span><span class="s1">justify </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFov</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFovButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">resetFovButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">frame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Reset'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resetFov</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">resetFovButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">frame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">fovFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s1">drFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s4">## Render Style ##</span>
+        <span class="s1">toggleFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">envPage</span><span class="s2">, </span><span class="s1">borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s3">'sunken'</span><span class="s2">)</span>
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">toggleFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Toggle Render Style'</span><span class="s2">,</span>
+              <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBackfaceButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">toggleFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Backface'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">toggleBackface</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleBackfaceButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleLightsButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">toggleFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Lights'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">toggle</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleLightsButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleTextureButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">toggleFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Texture'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">toggleTexture</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleTextureButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleWireframeButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">toggleFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Wireframe'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">toggleWireframe</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">toggleWireframeButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">toggleFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">createLightsPage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">lightsPage</span><span class="s2">):</span>
+        <span class="s4"># Lights #</span>
+        <span class="s1">lightFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">lightsPage</span><span class="s2">, </span><span class="s1">borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s3">'sunken'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightsButton </span><span class="s2">= </span><span class="s1">Menubutton</span><span class="s2">(</span><span class="s1">lightFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Lights'</span><span class="s2">,</span>
+                                       <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">),</span>
+                                       <span class="s1">activebackground </span><span class="s2">= </span><span class="s3">'#909090'</span><span class="s2">)</span>
+        <span class="s1">lightsMenu </span><span class="s2">= </span><span class="s1">Menu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightsButton</span><span class="s2">)</span>
+        <span class="s1">lightsMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Add Ambient Light'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">addAmbient</span><span class="s2">)</span>
+        <span class="s1">lightsMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Add Directional Light'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">addDirectional</span><span class="s2">)</span>
+        <span class="s1">lightsMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Add Point Light'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">addPoint</span><span class="s2">)</span>
+        <span class="s1">lightsMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Add Spotlight'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">addSpot</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightsButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightsButton</span><span class="s2">[</span><span class="s3">'menu'</span><span class="s2">] = </span><span class="s1">lightsMenu</span>
+
+        <span class="s4"># Notebook pages for light specific controls</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">NoteBook</span><span class="s2">(</span><span class="s1">lightFrame</span><span class="s2">, </span><span class="s1">tabpos </span><span class="s2">= </span><span class="s5">None</span><span class="s2">,</span>
+                                          <span class="s1">borderwidth </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">ambientPage </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Ambient'</span><span class="s2">)</span>
+        <span class="s1">directionalPage </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Directional'</span><span class="s2">)</span>
+        <span class="s1">pointPage </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Point'</span><span class="s2">)</span>
+        <span class="s1">spotPage </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">'Spot'</span><span class="s2">)</span>
+        <span class="s4"># Put this here so it isn't called right away</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">[</span><span class="s3">'raisecommand'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateLightInfo</span>
+
+        <span class="s4"># Main light switch</span>
+        <span class="s1">mainSwitchFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">lightFrame</span><span class="s2">)</span>
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">mainSwitchFrame</span><span class="s2">,</span>
+              <span class="s1">text </span><span class="s2">= </span><span class="s3">'Lighting:'</span><span class="s2">).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableLights </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableLightsButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">mainSwitchFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Enabled/Disabled'</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enableLights</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleLights</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableLightsButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">mainSwitchFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s4"># Widget to select a light to configure</span>
+        <span class="s1">nameList </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">getNameList</span><span class="s2">()</span>
+        <span class="s1">lightMenuFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">lightFrame</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+            <span class="s1">lightMenuFrame</span><span class="s2">, </span><span class="s1">labelpos </span><span class="s2">= </span><span class="s1">W</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'Light:'</span><span class="s2">,</span>
+            <span class="s1">entry_width </span><span class="s2">= </span><span class="s6">20</span><span class="s2">,</span>
+            <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectLightNamed</span><span class="s2">,</span>
+            <span class="s1">scrolledlist_items </span><span class="s2">= </span><span class="s1">nameList</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">, </span><span class="s3">'Select light to configure'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightActive </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightActiveButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">lightMenuFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'On/Off'</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightActive</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleActiveLight</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightActiveButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s4"># Pack light menu</span>
+        <span class="s1">lightMenuFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">, </span><span class="s1">padx </span><span class="s2">= </span><span class="s6">2</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightColor </span><span class="s2">= </span><span class="s1">VectorWidgets</span><span class="s2">.</span><span class="s1">ColorEntry</span><span class="s2">(</span>
+            <span class="s1">lightFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Light Color'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightColor</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setLightColor</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightColor</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">, </span><span class="s1">padx </span><span class="s2">= </span><span class="s6">4</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightColor</span><span class="s2">, </span><span class="s3">'Set active light color'</span><span class="s2">)</span>
+
+        <span class="s4"># Directional light controls</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dSpecularColor </span><span class="s2">= </span><span class="s1">VectorWidgets</span><span class="s2">.</span><span class="s1">ColorEntry</span><span class="s2">(</span>
+            <span class="s1">directionalPage</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Specular Color'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dSpecularColor</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setSpecularColor</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dSpecularColor</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">dSpecularColor</span><span class="s2">,</span>
+                  <span class="s3">'Set directional light specular color'</span><span class="s2">)</span>
+
+        <span class="s4"># Point light controls</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pSpecularColor </span><span class="s2">= </span><span class="s1">VectorWidgets</span><span class="s2">.</span><span class="s1">ColorEntry</span><span class="s2">(</span>
+            <span class="s1">pointPage</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Specular Color'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pSpecularColor</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setSpecularColor</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pSpecularColor</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">pSpecularColor</span><span class="s2">,</span>
+                  <span class="s3">'Set point light specular color'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pConstantAttenuation </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">pointPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Constant Attenuation'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pConstantAttenuation</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setConstantAttenuation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pConstantAttenuation</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">pConstantAttenuation</span><span class="s2">,</span>
+                  <span class="s3">'Set point light constant attenuation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pLinearAttenuation </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">pointPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Linear Attenuation'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pLinearAttenuation</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setLinearAttenuation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pLinearAttenuation</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">pLinearAttenuation</span><span class="s2">,</span>
+                  <span class="s3">'Set point light linear attenuation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pQuadraticAttenuation </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">pointPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Quadratic Attenuation'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pQuadraticAttenuation</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setQuadraticAttenuation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pQuadraticAttenuation</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">pQuadraticAttenuation</span><span class="s2">,</span>
+                  <span class="s3">'Set point light quadratic attenuation'</span><span class="s2">)</span>
+
+        <span class="s4"># Spot light controls</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sSpecularColor </span><span class="s2">= </span><span class="s1">VectorWidgets</span><span class="s2">.</span><span class="s1">ColorEntry</span><span class="s2">(</span>
+            <span class="s1">spotPage</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Specular Color'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sSpecularColor</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setSpecularColor</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sSpecularColor</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sSpecularColor</span><span class="s2">,</span>
+                  <span class="s3">'Set spot light specular color'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sConstantAttenuation </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">spotPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Constant Attenuation'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sConstantAttenuation</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setConstantAttenuation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sConstantAttenuation</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sConstantAttenuation</span><span class="s2">,</span>
+                  <span class="s3">'Set spot light constant attenuation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sLinearAttenuation </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">spotPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Linear Attenuation'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sLinearAttenuation</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setLinearAttenuation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sLinearAttenuation</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sLinearAttenuation</span><span class="s2">,</span>
+                  <span class="s3">'Set spot light linear attenuation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sQuadraticAttenuation </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">spotPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Quadratic Attenuation'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sQuadraticAttenuation</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setQuadraticAttenuation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sQuadraticAttenuation</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sQuadraticAttenuation</span><span class="s2">,</span>
+                  <span class="s3">'Set spot light quadratic attenuation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sExponent </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+            <span class="s1">spotPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Exponent'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sExponent</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setExponent</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sExponent</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sExponent</span><span class="s2">,</span>
+                  <span class="s3">'Set spot light exponent'</span><span class="s2">)</span>
+
+        <span class="s4"># MRM: Add frustum controls</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">setnaturalsize</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+        <span class="s1">lightFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+
+    <span class="s5">def </span><span class="s1">createGridPage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">gridPage</span><span class="s2">):</span>
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">gridPage</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Grid'</span><span class="s2">,</span>
+              <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableGrid </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableGridButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">gridPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Enabled/Disabled'</span><span class="s2">,</span>
+            <span class="s1">anchor </span><span class="s2">= </span><span class="s3">'w'</span><span class="s2">, </span><span class="s1">justify </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enableGrid</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleGrid</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableGridButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xyzSnap </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xyzSnapButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">gridPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'XYZ Snap'</span><span class="s2">,</span>
+            <span class="s1">anchor </span><span class="s2">= </span><span class="s3">'w'</span><span class="s2">, </span><span class="s1">justify </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xyzSnap</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleXyzSnap</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xyzSnapButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprSnap </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprSnapButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">gridPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'HPR Snap'</span><span class="s2">,</span>
+            <span class="s1">anchor </span><span class="s2">= </span><span class="s3">'w'</span><span class="s2">, </span><span class="s1">justify </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hprSnap</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleHprSnap</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprSnapButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSpacing </span><span class="s2">= </span><span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">(</span>
+            <span class="s1">gridPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Grid Spacing'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">0.1</span><span class="s2">,</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getGridSpacing</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSpacing</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">setGridSpacing</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSpacing</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSize </span><span class="s2">= </span><span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">(</span>
+            <span class="s1">gridPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Grid Size'</span><span class="s2">,</span>
+            <span class="s1">min </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getGridSize</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSize</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">setGridSize</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSize</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSnapAngle </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">.</span><span class="s1">AngleDial</span><span class="s2">(</span>
+            <span class="s1">gridPage</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Snap Angle'</span><span class="s2">,</span>
+            <span class="s1">style </span><span class="s2">= </span><span class="s3">'mini'</span><span class="s2">,</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getSnapAngle</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSnapAngle</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">setSnapAngle</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSnapAngle</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">createDevicePage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">devicePage</span><span class="s2">):</span>
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">devicePage</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'DEVICES'</span><span class="s2">,</span>
+              <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s5">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">:</span>
+            <span class="s1">joyboxFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">devicePage</span><span class="s2">, </span><span class="s1">borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s3">'sunken'</span><span class="s2">)</span>
+            <span class="s1">Label</span><span class="s2">(</span><span class="s1">joyboxFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Joybox'</span><span class="s2">,</span>
+                  <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enableJoybox </span><span class="s2">= </span><span class="s1">BooleanVar</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enableJoybox</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enableJoyboxButton </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+                <span class="s1">joyboxFrame</span><span class="s2">,</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s3">'Enabled/Disabled'</span><span class="s2">,</span>
+                <span class="s1">anchor </span><span class="s2">= </span><span class="s3">'w'</span><span class="s2">, </span><span class="s1">justify </span><span class="s2">= </span><span class="s1">LEFT</span><span class="s2">,</span>
+                <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enableJoybox</span><span class="s2">,</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleJoybox</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enableJoyboxButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">joyboxFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbModeMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+                <span class="s1">joyboxFrame</span><span class="s2">, </span><span class="s1">labelpos </span><span class="s2">= </span><span class="s1">W</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'Joybox Mode:'</span><span class="s2">,</span>
+                <span class="s1">label_width </span><span class="s2">= </span><span class="s6">16</span><span class="s2">, </span><span class="s1">entry_width </span><span class="s2">= </span><span class="s6">20</span><span class="s2">,</span>
+                <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectJBModeNamed</span><span class="s2">,</span>
+                <span class="s1">scrolledlist_items </span><span class="s2">= [</span><span class="s3">'Joe Mode'</span><span class="s2">, </span><span class="s3">'Drive Mode'</span><span class="s2">, </span><span class="s3">'Orbit Mode'</span><span class="s2">,</span>
+                                      <span class="s3">'Look At Mode'</span><span class="s2">, </span><span class="s3">'Look Around Mode'</span><span class="s2">,</span>
+                                      <span class="s3">'Walkthru Mode'</span><span class="s2">, </span><span class="s3">'Demo Mode'</span><span class="s2">,</span>
+                                      <span class="s3">'HPRXYZ Mode'</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbModeMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'Joe Mode'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbModeMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+                <span class="s1">joyboxFrame</span><span class="s2">, </span><span class="s1">labelpos </span><span class="s2">= </span><span class="s1">W</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'Joybox Node Path:'</span><span class="s2">,</span>
+                <span class="s1">label_width </span><span class="s2">= </span><span class="s6">16</span><span class="s2">, </span><span class="s1">entry_width </span><span class="s2">= </span><span class="s6">20</span><span class="s2">,</span>
+                <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectJBNodePathNamed</span><span class="s2">,</span>
+                <span class="s1">scrolledlist_items </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathNames</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'camera'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenuEntry </span><span class="s2">= (</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'entryfield_entry'</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenuBG </span><span class="s2">= (</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s3">'background'</span><span class="s2">)[</span><span class="s6">3</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu</span><span class="s2">,</span>
+                      <span class="s3">'Select node path to manipulate using the joybox'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbXyzSF </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+                <span class="s1">joyboxFrame</span><span class="s2">,</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s3">'XYZ Scale Factor'</span><span class="s2">,</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                <span class="s1">hull_relief </span><span class="s2">= </span><span class="s1">RIDGE</span><span class="s2">, </span><span class="s1">hull_borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">,</span>
+                <span class="s1">min </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">100.0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbXyzSF</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = (</span>
+                <span class="s5">lambda </span><span class="s1">v</span><span class="s2">: </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">setXyzMultiplier</span><span class="s2">(</span><span class="s1">v</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbXyzSF</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbXyzSF</span><span class="s2">, </span><span class="s3">'Set joybox XYZ speed multiplier'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbHprSF </span><span class="s2">= </span><span class="s1">Slider</span><span class="s2">.</span><span class="s1">Slider</span><span class="s2">(</span>
+                <span class="s1">joyboxFrame</span><span class="s2">,</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s3">'HPR Scale Factor'</span><span class="s2">,</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                <span class="s1">hull_relief </span><span class="s2">= </span><span class="s1">RIDGE</span><span class="s2">, </span><span class="s1">hull_borderwidth </span><span class="s2">= </span><span class="s6">2</span><span class="s2">,</span>
+                <span class="s1">min </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s6">100.0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbHprSF</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = (</span>
+                <span class="s5">lambda </span><span class="s1">v</span><span class="s2">: </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">setHprMultiplier</span><span class="s2">(</span><span class="s1">v</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">jbHprSF</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbHprSF</span><span class="s2">, </span><span class="s3">'Set joybox HPR speed multiplier'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">createTasksPage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">tasksPage</span><span class="s2">):</span>
+        <span class="s1">Label</span><span class="s2">(</span><span class="s1">tasksPage</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'TASKS'</span><span class="s2">,</span>
+              <span class="s1">font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">)).</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrPanel </span><span class="s2">= </span><span class="s1">TaskManagerWidget</span><span class="s2">(</span><span class="s1">tasksPage</span><span class="s2">, </span><span class="s1">taskMgr</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrPanel</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">[</span><span class="s3">'listbox_height'</span><span class="s2">] = </span><span class="s6">10</span>
+
+    <span class="s5">def </span><span class="s1">createMemPage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">memPage</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">MemExp </span><span class="s2">= </span><span class="s1">MemoryExplorer</span><span class="s2">.</span><span class="s1">MemoryExplorer</span><span class="s2">(</span>
+            <span class="s1">memPage</span><span class="s2">, </span><span class="s1">nodePath </span><span class="s2">= </span><span class="s1">render</span><span class="s2">,</span>
+            <span class="s1">scrolledCanvas_hull_width </span><span class="s2">= </span><span class="s6">250</span><span class="s2">,</span>
+            <span class="s1">scrolledCanvas_hull_height </span><span class="s2">= </span><span class="s6">250</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">MemExp</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">toggleDirect</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directEnabled</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">toggleDirectGrid</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directGridEnabled</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">toggleWidgetOnTop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">directWidgetOnTop</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'gui-popup'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">setDepthTest</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">clearBin</span><span class="s2">()</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">setDepthTest</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">selectedNodePathHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s4"># Make sure node path is in nodePathDict</span>
+        <span class="s4"># MRM: Do we need to truncate list?</span>
+        <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">selectNodePathNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s4"># See if node path has already been selected</span>
+        <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s5">None</span><span class="s2">)</span>
+        <span class="s4"># If not, see if listbox evals into a node path</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">== </span><span class="s5">None</span><span class="s2">):</span>
+            <span class="s4"># See if this evaluates into a node path</span>
+            <span class="s5">try</span><span class="s2">:</span>
+                <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">eval</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+                <span class="s5">else</span><span class="s2">:</span>
+                    <span class="s4"># Good eval but not a node path, give up</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+            <span class="s5">except</span><span class="s2">:</span>
+                <span class="s4"># Bogus eval</span>
+                <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                <span class="s4"># Clear bogus entry from listbox</span>
+                <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+                <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames</span><span class="s2">)</span>
+        <span class="s4"># Did we finally get something?</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">):</span>
+            <span class="s4"># Yes, select it!</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">select</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePathToDict</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames</span><span class="s2">,</span>
+                               <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">selectJBModeNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Joe Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">joeMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Drive Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">driveMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Orbit Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">orbitMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Look At Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">lookAtMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Look Around Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">lookAroundMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Walkthru Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">walkthruMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'Demo Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">demoMode</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'HPRXYZ Mode'</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">hprXyzMode</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">selectJBNodePathNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'selected'</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">last</span>
+            <span class="s4"># Add Combo box entry for this selected object</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addJBNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s4"># See if node path has already been selected</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">== </span><span class="s5">None</span><span class="s2">):</span>
+                <span class="s4"># If not, see if listbox evals into a node path</span>
+                <span class="s5">try</span><span class="s2">:</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">eval</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                    <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">addJBNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+                    <span class="s5">else</span><span class="s2">:</span>
+                        <span class="s4"># Good eval but not a node path, give up</span>
+                        <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                <span class="s5">except</span><span class="s2">:</span>
+                    <span class="s4"># Bogus eval</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                    <span class="s4"># Clear bogus entry from listbox</span>
+                    <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+                    <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathNames</span><span class="s2">)</span>
+        <span class="s4"># Did we finally get something?</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">):</span>
+            <span class="s4"># Yes, select it!</span>
+            <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">== </span><span class="s3">'No Node Path'</span><span class="s2">):</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">setNodePath</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">setNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addJBNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePathToDict</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathNames</span><span class="s2">,</span>
+                               <span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathMenu</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">jbNodePathDict</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addNodePathToDict</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">names</span><span class="s2">, </span><span class="s1">menu</span><span class="s2">, </span><span class="s1">dict</span><span class="s2">):</span>
+        <span class="s5">if not </span><span class="s1">nodePath</span><span class="s2">:</span>
+            <span class="s5">return</span>
+        <span class="s4"># Get node path's name</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+        <span class="s5">if </span><span class="s1">name </span><span class="s5">in </span><span class="s2">[</span><span class="s3">'parent'</span><span class="s2">, </span><span class="s3">'render'</span><span class="s2">, </span><span class="s3">'camera'</span><span class="s2">]:</span>
+            <span class="s1">dictName </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s4"># Generate a unique name for the dict</span>
+            <span class="s1">dictName </span><span class="s2">= </span><span class="s1">name </span><span class="s2">+ </span><span class="s3">'-' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">hash</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">))</span>
+        <span class="s5">if </span><span class="s1">dictName </span><span class="s5">not in </span><span class="s1">dict</span><span class="s2">:</span>
+            <span class="s4"># Update combo box to include new item</span>
+            <span class="s1">names</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">dictName</span><span class="s2">)</span>
+            <span class="s1">listbox </span><span class="s2">= </span><span class="s1">menu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+            <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">names</span><span class="s2">)</span>
+            <span class="s4"># Add new item to dictionary</span>
+            <span class="s1">dict</span><span class="s2">[</span><span class="s1">dictName</span><span class="s2">] = </span><span class="s1">nodePath</span>
+        <span class="s1">menu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s1">dictName</span><span class="s2">)</span>
+
+    <span class="s4">## ENVIRONMENT CONTROLS ##</span>
+    <span class="s4"># Background #</span>
+    <span class="s5">def </span><span class="s1">setBackgroundColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setBackgroundColorVec</span><span class="s2">((</span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">))</span>
+    <span class="s5">def </span><span class="s1">setBackgroundColorVec</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">color</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">setBackgroundColor</span><span class="s2">(</span><span class="s1">color</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                <span class="s1">color</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                <span class="s1">color</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">selectDisplayRegionNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">name</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'Display Region '</span><span class="s2">) &gt;= </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">drIndex </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">name</span><span class="s2">[-</span><span class="s6">1</span><span class="s2">:])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">drList</span><span class="s2">[</span><span class="s1">drIndex</span><span class="s2">]</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion </span><span class="s2">= </span><span class="s5">None</span>
+        <span class="s4"># Make sure info is current</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateDisplayRegionInfo</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">setNear</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">near</span><span class="s2">):</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span>
+        <span class="s5">if </span><span class="s1">dr</span><span class="s2">:</span>
+            <span class="s1">dr</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">setNear</span><span class="s2">(</span><span class="s1">near</span><span class="s2">)</span>
+            <span class="s1">cluster</span><span class="s2">(</span><span class="s3">'base.camLens.setNear(%f)' </span><span class="s2">% </span><span class="s1">near</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setFar</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">far</span><span class="s2">):</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span>
+        <span class="s5">if </span><span class="s1">dr</span><span class="s2">:</span>
+            <span class="s1">dr</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">setFar</span><span class="s2">(</span><span class="s1">far</span><span class="s2">)</span>
+            <span class="s1">cluster</span><span class="s2">(</span><span class="s3">'base.camLens.setFar(%f)' </span><span class="s2">% </span><span class="s1">far</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setHFov</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hFov</span><span class="s2">):</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span>
+        <span class="s5">if </span><span class="s1">dr</span><span class="s2">:</span>
+            <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFov</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+                <span class="s1">sf </span><span class="s2">= </span><span class="s1">hFov</span><span class="s2">/</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">getHfov</span><span class="s2">()</span>
+                <span class="s1">vFov </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">getVfov</span><span class="s2">() * </span><span class="s1">sf</span><span class="s2">, </span><span class="s6">170.0</span><span class="s2">)</span>
+                <span class="s1">dr</span><span class="s2">.</span><span class="s1">setFov</span><span class="s2">(</span><span class="s1">hFov</span><span class="s2">, </span><span class="s1">vFov</span><span class="s2">)</span>
+                <span class="s4"># Update scale</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">vFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">vFov</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s4"># Just set horizontal</span>
+                <span class="s1">dr</span><span class="s2">.</span><span class="s1">setHfov</span><span class="s2">(</span><span class="s1">hFov</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setVFov</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">vFov</span><span class="s2">):</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span>
+        <span class="s5">if </span><span class="s1">dr</span><span class="s2">:</span>
+            <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockedFov</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+                <span class="s1">sf </span><span class="s2">= </span><span class="s1">vFov</span><span class="s2">/</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">getVfov</span><span class="s2">()</span>
+                <span class="s1">hFov </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">getHfov</span><span class="s2">() * </span><span class="s1">sf</span><span class="s2">, </span><span class="s6">170.0</span><span class="s2">)</span>
+                <span class="s1">dr</span><span class="s2">.</span><span class="s1">setFov</span><span class="s2">(</span><span class="s1">hFov</span><span class="s2">, </span><span class="s1">vFov</span><span class="s2">)</span>
+                <span class="s4"># Update scale</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">hFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">hFov</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s4"># Just set horizontal</span>
+                <span class="s1">dr</span><span class="s2">.</span><span class="s1">setVfov</span><span class="s2">(</span><span class="s1">vFov</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">resetFov</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span>
+        <span class="s5">if </span><span class="s1">dr</span><span class="s2">:</span>
+            <span class="s1">dr</span><span class="s2">.</span><span class="s1">setFov</span><span class="s2">(</span><span class="s6">45.0</span><span class="s2">, </span><span class="s6">33.75</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">45.0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">vFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">33.75</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4"># Lights #</span>
+    <span class="s5">def </span><span class="s1">selectLightNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s4"># See if light exists</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">[</span><span class="s1">name</span><span class="s2">]</span>
+        <span class="s4"># If not...create new one</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight </span><span class="s2">== </span><span class="s5">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">create</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s4"># Do we have a valid light at this point?</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">light </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">()</span>
+            <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">light</span><span class="s2">, </span><span class="s1">AmbientLight</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">selectpage</span><span class="s2">(</span><span class="s3">'Ambient'</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">light</span><span class="s2">, </span><span class="s1">DirectionalLight</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">selectpage</span><span class="s2">(</span><span class="s3">'Directional'</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">light</span><span class="s2">, </span><span class="s1">PointLight</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">selectpage</span><span class="s2">(</span><span class="s3">'Point'</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">light</span><span class="s2">, </span><span class="s1">Spotlight</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lightNotebook</span><span class="s2">.</span><span class="s1">selectpage</span><span class="s2">(</span><span class="s3">'Spot'</span><span class="s2">)</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s4"># Restore valid data</span>
+            <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+            <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">getNameList</span><span class="s2">())</span>
+            <span class="s5">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">) &gt; </span><span class="s6">0</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">getNameList</span><span class="s2">()[</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s4"># Make sure info is current</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateLightInfo</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">addAmbient</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">return </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">create</span><span class="s2">(</span><span class="s3">'ambient'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addDirectional</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">return </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">create</span><span class="s2">(</span><span class="s3">'directional'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addPoint</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">return </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">create</span><span class="s2">(</span><span class="s3">'point'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addSpot</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">return </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">create</span><span class="s2">(</span><span class="s3">'spot'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">light</span><span class="s2">):</span>
+        <span class="s4"># Make list reflect current list of lights</span>
+        <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+        <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">getNameList</span><span class="s2">())</span>
+        <span class="s4"># Select the newly added light</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s1">light</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+        <span class="s4"># And show corresponding page</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selectLightNamed</span><span class="s2">(</span><span class="s1">light</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+
+    <span class="s5">def </span><span class="s1">toggleLights</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enableLights</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">allOn</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">allOff</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">toggleActiveLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightActive</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">setOn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">lights</span><span class="s2">.</span><span class="s1">setOff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setLightColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">color</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">().</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">Vec4</span><span class="s2">(</span><span class="s1">color</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                                      <span class="s1">color</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                                      <span class="s1">color</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                                      <span class="s1">color</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">))</span>
+
+    <span class="s5">def </span><span class="s1">setSpecularColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">color</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">().</span><span class="s1">setSpecularColor</span><span class="s2">(</span><span class="s1">Vec4</span><span class="s2">(</span><span class="s1">color</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                                              <span class="s1">color</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                                              <span class="s1">color</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">,</span>
+                                                              <span class="s1">color</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]/</span><span class="s6">255.0</span><span class="s2">))</span>
+
+    <span class="s5">def </span><span class="s1">setConstantAttenuation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">().</span><span class="s1">setConstantAttenuation</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setLinearAttenuation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">().</span><span class="s1">setLinearAttenuation</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setQuadraticAttenuation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">().</span><span class="s1">setQuadraticAttenuation</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setExponent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">().</span><span class="s1">setExponent</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+    <span class="s4">## GRID CONTROLS ##</span>
+    <span class="s5">def </span><span class="s1">toggleGrid</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enableGrid</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">toggleXyzSnap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">setXyzSnap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">xyzSnap</span><span class="s2">.</span><span class="s1">get</span><span class="s2">())</span>
+
+    <span class="s5">def </span><span class="s1">toggleHprSnap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">setHprSnap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">hprSnap</span><span class="s2">.</span><span class="s1">get</span><span class="s2">())</span>
+
+    <span class="s4">## DEVICE CONTROLS</span>
+    <span class="s5">def </span><span class="s1">toggleJoybox</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enableJoybox</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">joybox</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">()</span>
+
+    <span class="s4">## UPDATE INFO ##</span>
+    <span class="s5">def </span><span class="s1">updateInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">page </span><span class="s2">= </span><span class="s3">'Environment'</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">page </span><span class="s2">== </span><span class="s3">'Environment'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateEnvironmentInfo</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">page </span><span class="s2">== </span><span class="s3">'Lights'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateLightInfo</span><span class="s2">()</span>
+        <span class="s5">elif </span><span class="s1">page </span><span class="s2">== </span><span class="s3">'Grid'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateGridInfo</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">updateEnvironmentInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">bkgrdColor </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">getBackgroundColor</span><span class="s2">() * </span><span class="s6">255.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">backgroundColor</span><span class="s2">.</span><span class="s1">set</span><span class="s2">([</span><span class="s1">bkgrdColor</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                                  <span class="s1">bkgrdColor</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                                  <span class="s1">bkgrdColor</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                                  <span class="s1">bkgrdColor</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]], </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateDisplayRegionInfo</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">updateDisplayRegionInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nearPlane</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span><span class="s2">.</span><span class="s1">near</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">farPlane</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span><span class="s2">.</span><span class="s1">far</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span><span class="s2">.</span><span class="s1">fovH</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">vFov</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeDisplayRegion</span><span class="s2">.</span><span class="s1">fovV</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">updateLightInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">page </span><span class="s2">= </span><span class="s5">None</span><span class="s2">):</span>
+        <span class="s4"># Set main lighting button</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableLights</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span>
+            <span class="s1">render</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">hasAttrib</span><span class="s2">(</span><span class="s1">LightAttrib</span><span class="s2">.</span><span class="s1">getClassType</span><span class="s2">()))</span>
+
+        <span class="s4"># Set light specific info</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">:</span>
+            <span class="s1">l </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">.</span><span class="s1">getLight</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lightActive</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">render</span><span class="s2">.</span><span class="s1">hasLight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeLight</span><span class="s2">))</span>
+            <span class="s1">lightColor </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">() * </span><span class="s6">255.0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lightColor</span><span class="s2">.</span><span class="s1">set</span><span class="s2">([</span><span class="s1">lightColor</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">lightColor</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                                 <span class="s1">lightColor</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">lightColor</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]], </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">DirectionalLight</span><span class="s2">):</span>
+                <span class="s1">specularColor </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">getSpecularColor</span><span class="s2">() * </span><span class="s6">255.0</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">dSpecularColor</span><span class="s2">.</span><span class="s1">set</span><span class="s2">([</span><span class="s1">specularColor</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]], </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">PointLight</span><span class="s2">):</span>
+                <span class="s1">specularColor </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">getSpecularColor</span><span class="s2">() * </span><span class="s6">255.0</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pSpecularColor</span><span class="s2">.</span><span class="s1">set</span><span class="s2">([</span><span class="s1">specularColor</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]], </span><span class="s6">0</span><span class="s2">)</span>
+                <span class="s1">att </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">getAttenuation</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pConstantAttenuation</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">att</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s6">0</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pLinearAttenuation</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">att</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s6">0</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pQuadraticAttenuation</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">att</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">Spotlight</span><span class="s2">):</span>
+                <span class="s1">specularColor </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">getSpecularColor</span><span class="s2">() * </span><span class="s6">255.0</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">sSpecularColor</span><span class="s2">.</span><span class="s1">set</span><span class="s2">([</span><span class="s1">specularColor</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                                         <span class="s1">specularColor</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]], </span><span class="s6">0</span><span class="s2">)</span>
+                <span class="s1">att </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">getAttenuation</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pConstantAttenuation</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">att</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s6">0</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pLinearAttenuation</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">att</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s6">0</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pQuadraticAttenuation</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">att</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">updateGridInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableGrid</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">isEnabled</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xyzSnap</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getXyzSnap</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprSnap</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getHprSnap</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSpacing</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getGridSpacing</span><span class="s2">(), </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSize</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getGridSize</span><span class="s2">(), </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gridSnapAngle</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getSnapAngle</span><span class="s2">(), </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4"># UNDO/REDO</span>
+    <span class="s5">def </span><span class="s1">pushUndo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fResetRedo </span><span class="s2">= </span><span class="s6">1</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]])</span>
+
+    <span class="s5">def </span><span class="s1">undoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePathList </span><span class="s2">= []):</span>
+        <span class="s5">pass</span>
+
+    <span class="s5">def </span><span class="s1">pushUndoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is reactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'normal'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">undoListEmptyHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is deactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'disabled'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">pushRedo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushRedo</span><span class="s2">([</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]])</span>
+
+    <span class="s5">def </span><span class="s1">redoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePathList </span><span class="s2">= []):</span>
+        <span class="s5">pass</span>
+
+    <span class="s5">def </span><span class="s1">pushRedoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is reactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'normal'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">redoListEmptyHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is deactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'disabled'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">onDestroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4"># Remove hooks</span>
+        <span class="s5">for </span><span class="s1">event</span><span class="s2">, </span><span class="s1">method </span><span class="s5">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actionEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+        <span class="s4"># Destroy SGE hierarchy</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">SGE</span><span class="s2">.</span><span class="s1">_node</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

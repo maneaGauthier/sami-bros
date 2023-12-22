@@ -1,0 +1,179 @@
+<html>
+<head>
+<title>MirrorDemo.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MirrorDemo.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This file demonstrates one way to create a mirror effect in Panda. 
+Call :func:`setupMirror()` to create a mirror in the world that reflects 
+everything in front of it. 
+ 
+The approach taken here is to create an offscreen buffer with its own 
+camera that renders its view into a texture, which is then applied to 
+the mirror geometry.  The mirror's camera is repositioned each frame 
+with a task to keep it always on the opposite side of the mirror from 
+the main camera. 
+ 
+This demonstrates the basic interface for offscreen 
+render-to-a-texture in Panda.  Similar approaches can be used for 
+related effects, such as a remote spy camera presenting its view onto 
+a closed-circuit television screen. 
+ 
+In this example the mirror itself is always perfectly flat--it's just 
+a single polygon, after all--but small distortions of the mirror 
+surface are possible, like a funhouse mirror.  However, the reflection 
+itself is always basically planar; for more accurate convex 
+reflections, you will need to use a sphere map or a cube map.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'setupMirror'</span><span class="s2">, </span><span class="s3">'showFrustum'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+
+<span class="s4">def </span><span class="s1">setupMirror</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">width</span><span class="s2">, </span><span class="s1">height</span><span class="s2">, </span><span class="s1">rootCamera </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                <span class="s1">bufferSize </span><span class="s2">= </span><span class="s5">256</span><span class="s2">, </span><span class="s1">clearColor </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+    <span class="s6"># The return value is a NodePath that contains a rectangle that</span>
+    <span class="s6"># reflects render.  You can reparent, reposition, and rotate it</span>
+    <span class="s6"># anywhere you like.</span>
+    <span class="s4">if </span><span class="s1">rootCamera </span><span class="s4">is None</span><span class="s2">:</span>
+        <span class="s1">rootCamera </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">camera</span>
+
+    <span class="s1">root </span><span class="s2">= </span><span class="s1">render</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s6"># Create a polygon to be the visible representation of the mirror.</span>
+    <span class="s1">cm </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s3">'mirror'</span><span class="s2">)</span>
+    <span class="s1">cm</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span><span class="s1">width </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, -</span><span class="s1">width </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, -</span><span class="s1">height </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, </span><span class="s1">height </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">)</span>
+    <span class="s1">cm</span><span class="s2">.</span><span class="s1">setHasUvs</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+    <span class="s1">card </span><span class="s2">= </span><span class="s1">root</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cm</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+
+    <span class="s6"># Create a PlaneNode to represent the mirror's position, for</span>
+    <span class="s6"># computing where the mirror's camera belongs each frame.</span>
+    <span class="s1">plane </span><span class="s2">= </span><span class="s1">Plane</span><span class="s2">(</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">0</span><span class="s2">), </span><span class="s1">Point3</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">))</span>
+    <span class="s1">planeNode </span><span class="s2">= </span><span class="s1">PlaneNode</span><span class="s2">(</span><span class="s3">'mirrorPlane'</span><span class="s2">)</span>
+    <span class="s1">planeNode</span><span class="s2">.</span><span class="s1">setPlane</span><span class="s2">(</span><span class="s1">plane</span><span class="s2">)</span>
+    <span class="s1">planeNP </span><span class="s2">= </span><span class="s1">root</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">planeNode</span><span class="s2">)</span>
+
+    <span class="s6"># Now create an offscreen buffer for rendering the mirror's point</span>
+    <span class="s6"># of view.  The parameters here control the resolution of the</span>
+    <span class="s6"># texture.</span>
+    <span class="s1">buffer </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">makeTextureBuffer</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">bufferSize</span><span class="s2">, </span><span class="s1">bufferSize</span><span class="s2">)</span>
+    <span class="s4">if </span><span class="s1">clearColor </span><span class="s4">is None</span><span class="s2">:</span>
+        <span class="s1">buffer</span><span class="s2">.</span><span class="s1">setClearColor</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getClearColor</span><span class="s2">())</span>
+        <span class="s6">#buffer.setClearColor(VBase4(0, 0, 1, 1))</span>
+    <span class="s4">else</span><span class="s2">:</span>
+        <span class="s1">buffer</span><span class="s2">.</span><span class="s1">setClearColor</span><span class="s2">(</span><span class="s1">clearColor</span><span class="s2">)</span>
+
+    <span class="s6"># Set up a display region on this buffer, and create a camera.</span>
+    <span class="s1">dr </span><span class="s2">= </span><span class="s1">buffer</span><span class="s2">.</span><span class="s1">makeDisplayRegion</span><span class="s2">()</span>
+    <span class="s1">camera </span><span class="s2">= </span><span class="s1">Camera</span><span class="s2">(</span><span class="s3">'mirrorCamera'</span><span class="s2">)</span>
+    <span class="s1">lens </span><span class="s2">= </span><span class="s1">PerspectiveLens</span><span class="s2">()</span>
+    <span class="s1">lens</span><span class="s2">.</span><span class="s1">setFilmSize</span><span class="s2">(</span><span class="s1">width</span><span class="s2">, </span><span class="s1">height</span><span class="s2">)</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">setLens</span><span class="s2">(</span><span class="s1">lens</span><span class="s2">)</span>
+    <span class="s1">cameraNP </span><span class="s2">= </span><span class="s1">planeNP</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">)</span>
+    <span class="s1">dr</span><span class="s2">.</span><span class="s1">setCamera</span><span class="s2">(</span><span class="s1">cameraNP</span><span class="s2">)</span>
+
+    <span class="s6"># Since the reflection matrix will reverse the vertex-winding</span>
+    <span class="s6"># order of all the polygons in the world, we have to tell the</span>
+    <span class="s6"># camera to reverse the direction of its face culling.  We also</span>
+    <span class="s6"># tell it not to draw (that is, to clip) anything behind the</span>
+    <span class="s6"># mirror plane.</span>
+    <span class="s1">dummy </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s3">'dummy'</span><span class="s2">)</span>
+    <span class="s1">dummy</span><span class="s2">.</span><span class="s1">setAttrib</span><span class="s2">(</span><span class="s1">CullFaceAttrib</span><span class="s2">.</span><span class="s1">makeReverse</span><span class="s2">())</span>
+    <span class="s1">dummy</span><span class="s2">.</span><span class="s1">setClipPlane</span><span class="s2">(</span><span class="s1">planeNP</span><span class="s2">)</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">setInitialState</span><span class="s2">(</span><span class="s1">dummy</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">())</span>
+
+    <span class="s6"># Create a visible representation of the camera so we can see it.</span>
+    <span class="s6">#cameraVis = loader.loadModel('camera.egg')</span>
+    <span class="s6">#if not cameraVis.isEmpty():</span>
+    <span class="s6">#    cameraVis.reparentTo(cameraNP)</span>
+
+    <span class="s6"># Spawn a task to keep that camera on the opposite side of the</span>
+    <span class="s6"># mirror.</span>
+    <span class="s4">def </span><span class="s1">moveCamera</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">cameraNP </span><span class="s2">= </span><span class="s1">cameraNP</span><span class="s2">, </span><span class="s1">plane </span><span class="s2">= </span><span class="s1">plane</span><span class="s2">,</span>
+                   <span class="s1">planeNP </span><span class="s2">= </span><span class="s1">planeNP</span><span class="s2">, </span><span class="s1">card </span><span class="s2">= </span><span class="s1">card</span><span class="s2">, </span><span class="s1">lens </span><span class="s2">= </span><span class="s1">lens</span><span class="s2">,</span>
+                   <span class="s1">width </span><span class="s2">= </span><span class="s1">width</span><span class="s2">, </span><span class="s1">height </span><span class="s2">= </span><span class="s1">height</span><span class="s2">, </span><span class="s1">rootCamera </span><span class="s2">= </span><span class="s1">rootCamera</span><span class="s2">):</span>
+        <span class="s6"># Set the camera to the mirror-image position of the main camera.</span>
+        <span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">setMat</span><span class="s2">(</span><span class="s1">rootCamera</span><span class="s2">.</span><span class="s1">getMat</span><span class="s2">(</span><span class="s1">planeNP</span><span class="s2">) * </span><span class="s1">plane</span><span class="s2">.</span><span class="s1">getReflectionMat</span><span class="s2">())</span>
+
+        <span class="s6"># Set the cameras roll to the roll of the mirror. Otherwise</span>
+        <span class="s6"># mirrored objects will be moved unexpectedly</span>
+        <span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">setR</span><span class="s2">(</span><span class="s1">planeNP</span><span class="s2">.</span><span class="s1">getR</span><span class="s2">()-</span><span class="s5">180</span><span class="s2">)</span>
+
+        <span class="s6"># And reset the frustum to exactly frame the mirror's corners.</span>
+        <span class="s6"># This is a minor detail, but it helps to provide a realistic</span>
+        <span class="s6"># reflection and keep the subject centered.</span>
+        <span class="s1">ul </span><span class="s2">= </span><span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">getRelativePoint</span><span class="s2">(</span><span class="s1">card</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(-</span><span class="s1">width </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s1">height </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">))</span>
+        <span class="s1">ur </span><span class="s2">= </span><span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">getRelativePoint</span><span class="s2">(</span><span class="s1">card</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">width </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s1">height </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">))</span>
+        <span class="s1">ll </span><span class="s2">= </span><span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">getRelativePoint</span><span class="s2">(</span><span class="s1">card</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(-</span><span class="s1">width </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, -</span><span class="s1">height </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">))</span>
+        <span class="s1">lr </span><span class="s2">= </span><span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">getRelativePoint</span><span class="s2">(</span><span class="s1">card</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">width </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, -</span><span class="s1">height </span><span class="s2">/ </span><span class="s5">2.0</span><span class="s2">))</span>
+
+        <span class="s6"># get the distance from the mirrors camera to the mirror plane</span>
+        <span class="s1">camvec </span><span class="s2">= </span><span class="s1">planeNP</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">() - </span><span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">()</span>
+        <span class="s1">camdist </span><span class="s2">= </span><span class="s1">camvec</span><span class="s2">.</span><span class="s1">length</span><span class="s2">()</span>
+
+        <span class="s6"># set the discance on the mirrors corners so it will keep correct</span>
+        <span class="s6"># sizes of the mirrored objects</span>
+        <span class="s1">ul</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">camdist</span><span class="s2">)</span>
+        <span class="s1">ur</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">camdist</span><span class="s2">)</span>
+        <span class="s1">ll</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">camdist</span><span class="s2">)</span>
+        <span class="s1">lr</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">camdist</span><span class="s2">)</span>
+
+        <span class="s1">lens</span><span class="s2">.</span><span class="s1">setFrustumFromCorners</span><span class="s2">(</span><span class="s1">ul</span><span class="s2">, </span><span class="s1">ur</span><span class="s2">, </span><span class="s1">ll</span><span class="s2">, </span><span class="s1">lr</span><span class="s2">, </span><span class="s1">Lens</span><span class="s2">.</span><span class="s1">FCCameraPlane </span><span class="s2">| </span><span class="s1">Lens</span><span class="s2">.</span><span class="s1">FCOffAxis </span><span class="s2">| </span><span class="s1">Lens</span><span class="s2">.</span><span class="s1">FCAspectRatio</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s6"># Add it with a fairly high priority to make it happen late in the</span>
+    <span class="s6"># frame, after the avatar controls (or whatever) have been applied</span>
+    <span class="s6"># but before we render.</span>
+    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">moveCamera</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">priority </span><span class="s2">= </span><span class="s5">40</span><span class="s2">)</span>
+
+    <span class="s6"># Now apply the output of this camera as a texture on the mirror's</span>
+    <span class="s6"># visible representation.</span>
+    <span class="s1">card</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">buffer</span><span class="s2">.</span><span class="s1">getTexture</span><span class="s2">())</span>
+
+    <span class="s4">return </span><span class="s1">root</span>
+
+<span class="s4">def </span><span class="s1">showFrustum</span><span class="s2">(</span><span class="s1">np</span><span class="s2">):</span>
+    <span class="s6"># Utility function to reveal the frustum for a particular camera.</span>
+    <span class="s1">cameraNP </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'**/+Camera'</span><span class="s2">)</span>
+    <span class="s1">camera </span><span class="s2">= </span><span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">node</span><span class="s2">()</span>
+    <span class="s1">lens </span><span class="s2">= </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getLens</span><span class="s2">()</span>
+    <span class="s1">geomNode </span><span class="s2">= </span><span class="s1">GeomNode</span><span class="s2">(</span><span class="s3">'frustum'</span><span class="s2">)</span>
+    <span class="s1">geomNode</span><span class="s2">.</span><span class="s1">addGeom</span><span class="s2">(</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">makeGeometry</span><span class="s2">())</span>
+    <span class="s1">cameraNP</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">geomNode</span><span class="s2">)</span>
+
+<span class="s4">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">&quot;__main__&quot;</span><span class="s2">:</span>
+    <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s4">import </span><span class="s1">ShowBase</span>
+    <span class="s1">base </span><span class="s2">= </span><span class="s1">ShowBase</span><span class="s2">()</span>
+
+    <span class="s1">panda </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s3">&quot;panda&quot;</span><span class="s2">)</span>
+    <span class="s1">panda</span><span class="s2">.</span><span class="s1">setH</span><span class="s2">(</span><span class="s5">180</span><span class="s2">)</span>
+    <span class="s1">panda</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">10</span><span class="s2">, -</span><span class="s5">2.5</span><span class="s2">)</span>
+    <span class="s1">panda</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s5">0.5</span><span class="s2">)</span>
+    <span class="s1">panda</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s1">myMirror </span><span class="s2">= </span><span class="s1">setupMirror</span><span class="s2">(</span><span class="s3">&quot;mirror&quot;</span><span class="s2">, </span><span class="s5">10</span><span class="s2">, </span><span class="s5">10</span><span class="s2">, </span><span class="s1">bufferSize</span><span class="s2">=</span><span class="s5">1024</span><span class="s2">, </span><span class="s1">clearColor</span><span class="s2">=(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">))</span>
+    <span class="s1">myMirror</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">15</span><span class="s2">, </span><span class="s5">2.5</span><span class="s2">)</span>
+    <span class="s1">myMirror</span><span class="s2">.</span><span class="s1">setH</span><span class="s2">(</span><span class="s5">180</span><span class="s2">)</span>
+
+    <span class="s6"># Uncomment this to show the frustum of the camera in the mirror</span>
+    <span class="s6">#showFrustum(render)</span>
+
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<html>
+<head>
+<title>sprite.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+sprite.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">Sprite</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+
+    <span class="s1">ppu </span><span class="s2">= </span><span class="s3">100</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(**</span><span class="s1">kwargs</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">model </span><span class="s2">= </span><span class="s4">'quad'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">texture </span><span class="s2">= </span><span class="s1">texture</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ppu </span><span class="s2">= </span><span class="s1">Sprite</span><span class="s2">.</span><span class="s1">ppu</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">*= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture</span><span class="s2">.</span><span class="s1">height </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ppu</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture</span><span class="s2">.</span><span class="s1">width </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texture</span><span class="s2">.</span><span class="s1">height</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scale_x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">orthographic </span><span class="s2">= </span><span class="s0">True</span>
+    <span class="s1">camera</span><span class="s2">.</span><span class="s1">fov </span><span class="s2">= </span><span class="s3">1</span>
+    <span class="s1">Sprite</span><span class="s2">.</span><span class="s1">ppu </span><span class="s2">= </span><span class="s3">16</span>
+    <span class="s1">Texture</span><span class="s2">.</span><span class="s1">default_filtering </span><span class="s2">= </span><span class="s0">None</span>
+    <span class="s1">s </span><span class="s2">= </span><span class="s1">Sprite</span><span class="s2">(</span><span class="s4">'brick'</span><span class="s2">, </span><span class="s1">filtering</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

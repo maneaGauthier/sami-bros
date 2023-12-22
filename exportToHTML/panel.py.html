@@ -1,0 +1,39 @@
+<html>
+<head>
+<title>panel.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+panel.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">prefabs</span><span class="s2">.</span><span class="s1">button </span><span class="s0">import </span><span class="s1">Button</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">models</span><span class="s2">.</span><span class="s1">procedural</span><span class="s2">.</span><span class="s1">quad </span><span class="s0">import </span><span class="s1">Quad</span>
+
+<span class="s0">class </span><span class="s1">Panel</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parent </span><span class="s2">= </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">model </span><span class="s2">= </span><span class="s1">Quad</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">.</span><span class="s1">default_color</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s1">p </span><span class="s2">= </span><span class="s1">Panel</span><span class="s2">()</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

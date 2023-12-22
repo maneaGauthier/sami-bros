@@ -1,0 +1,55 @@
+<html>
+<head>
+<title>_blend_export.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+_blend_export.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">bpy</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">sys</span>
+
+
+<span class="s1">blend_file_path </span><span class="s2">= </span><span class="s1">bpy</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">filepath</span>
+<span class="s1">filepath </span><span class="s2">= </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">argv</span><span class="s2">[-</span><span class="s3">1</span><span class="s2">]</span>
+
+
+<span class="s1">bpy</span><span class="s2">.</span><span class="s1">ops</span><span class="s2">.</span><span class="s1">export_scene</span><span class="s2">.</span><span class="s1">obj</span><span class="s2">(</span>
+    <span class="s1">filepath</span><span class="s2">=</span><span class="s1">filepath</span><span class="s2">,</span>
+    <span class="s1">check_existing</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+    <span class="s1">axis_forward</span><span class="s2">=</span><span class="s4">'Z'</span><span class="s2">,</span>
+    <span class="s1">axis_up</span><span class="s2">=</span><span class="s4">'Y'</span><span class="s2">,</span>
+    <span class="s1">filter_glob</span><span class="s2">=</span><span class="s4">&quot;*.obj;*.mtl&quot;</span><span class="s2">,</span>
+    <span class="s1">use_selection</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_animation</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_mesh_modifiers</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+    <span class="s1">use_edges</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_smooth_groups</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_smooth_groups_bitflags</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_normals</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+    <span class="s1">use_uvs</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+    <span class="s1">use_materials</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_triangles</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+    <span class="s1">use_nurbs</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_vertex_groups</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">use_blen_objects</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+    <span class="s1">group_by_object</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">group_by_material</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">keep_vertex_order</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s1">global_scale</span><span class="s2">=</span><span class="s3">1</span><span class="s2">,</span>
+    <span class="s1">path_mode</span><span class="s2">=</span><span class="s4">'AUTO'</span>
+<span class="s2">)</span>
+</pre>
+</body>
+</html>

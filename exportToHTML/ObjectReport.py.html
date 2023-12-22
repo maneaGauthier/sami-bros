@@ -1,0 +1,217 @@
+<html>
+<head>
+<title>ObjectReport.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ObjectReport.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+&gt;&gt;&gt; from direct.showbase import ObjectReport 
+ 
+&gt;&gt;&gt; o=ObjectReport.ObjectReport('baseline') 
+&gt;&gt;&gt; run() 
+... 
+ 
+&gt;&gt;&gt; o2=ObjectReport.ObjectReport('') 
+&gt;&gt;&gt; o.diff(o2) 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ExclusiveObjectPool'</span><span class="s2">, </span><span class="s3">'ObjectReport'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">DirectObject</span><span class="s2">, </span><span class="s1">ObjectPool</span><span class="s2">, </span><span class="s1">GarbageReport</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s4">import </span><span class="s1">makeList</span><span class="s2">, </span><span class="s1">Sync</span>
+<span class="s4">import </span><span class="s1">gc</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+    <span class="s4">import </span><span class="s1">builtins</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s4">import </span><span class="s1">__builtin__ </span><span class="s4">as </span><span class="s1">builtins</span>
+
+<span class="s4">class </span><span class="s1">ExclusiveObjectPool</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s6"># ObjectPool specialization that excludes particular objects</span>
+    <span class="s6"># IDs of objects to globally exclude from reporting</span>
+    <span class="s1">_ExclObjs </span><span class="s2">= []</span>
+    <span class="s1">_ExclObjIds </span><span class="s2">= {}</span>
+    <span class="s1">_SyncMaster </span><span class="s2">= </span><span class="s1">Sync</span><span class="s2">(</span><span class="s3">'ExclusiveObjectPool.ExcludedObjectList'</span><span class="s2">)</span>
+    <span class="s1">_SerialNumGen </span><span class="s2">= </span><span class="s1">SerialNumGen</span><span class="s2">()</span>
+
+    <span class="s2">@</span><span class="s1">classmethod</span>
+    <span class="s4">def </span><span class="s1">addExclObjs</span><span class="s2">(</span><span class="s1">cls</span><span class="s2">, *</span><span class="s1">objs</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">obj </span><span class="s4">in </span><span class="s1">makeList</span><span class="s2">(</span><span class="s1">objs</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">) </span><span class="s4">not in </span><span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">:</span>
+                <span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjs</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+            <span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">), </span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">[</span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)] += </span><span class="s5">1</span>
+        <span class="s1">cls</span><span class="s2">.</span><span class="s1">_SyncMaster</span><span class="s2">.</span><span class="s1">change</span><span class="s2">()</span>
+    <span class="s2">@</span><span class="s1">classmethod</span>
+    <span class="s4">def </span><span class="s1">removeExclObjs</span><span class="s2">(</span><span class="s1">cls</span><span class="s2">, *</span><span class="s1">objs</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">obj </span><span class="s4">in </span><span class="s1">makeList</span><span class="s2">(</span><span class="s1">objs</span><span class="s2">):</span>
+            <span class="s4">assert </span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">) </span><span class="s4">in </span><span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span>
+            <span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">[</span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)] -= </span><span class="s5">1</span>
+            <span class="s4">if </span><span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">[</span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)] == </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s4">del </span><span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">[</span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)]</span>
+                <span class="s1">cls</span><span class="s2">.</span><span class="s1">_ExclObjs</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+        <span class="s1">cls</span><span class="s2">.</span><span class="s1">_SyncMaster</span><span class="s2">.</span><span class="s1">change</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">objects</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_objects </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">objects</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_sync </span><span class="s2">= </span><span class="s1">Sync</span><span class="s2">(</span><span class="s3">'%s-%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">,</span>
+                                     <span class="s1">self</span><span class="s2">.</span><span class="s1">_SerialNumGen</span><span class="s2">.</span><span class="s1">next</span><span class="s2">()),</span>
+                          <span class="s1">self</span><span class="s2">.</span><span class="s1">_SyncMaster</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_sync</span><span class="s2">.</span><span class="s1">invalidate</span><span class="s2">()</span>
+        <span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">addExclObjs</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_objects</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs</span><span class="s2">,</span>
+                                        <span class="s1">self</span><span class="s2">.</span><span class="s1">_sync</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">()</span>
+        <span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">removeExclObjs</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_objects</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs</span><span class="s2">,</span>
+                                           <span class="s1">self</span><span class="s2">.</span><span class="s1">_sync</span><span class="s2">)</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_objects</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_sync</span>
+
+    <span class="s4">def </span><span class="s1">_resync</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_sync</span><span class="s2">.</span><span class="s1">isSynced</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_SyncMaster</span><span class="s2">):</span>
+            <span class="s4">return</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_filteredPool'</span><span class="s2">):</span>
+            <span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">removeExclObjs</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">.</span><span class="s1">_getInternalObjs</span><span class="s2">())</span>
+            <span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">removeExclObjs</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">)</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs</span><span class="s2">[:]</span>
+        <span class="s4">for </span><span class="s1">obj </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_objects</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">) </span><span class="s4">not in </span><span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">_ExclObjIds</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool </span><span class="s2">= </span><span class="s1">ExclusiveObjectPool</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_postFilterObjs</span><span class="s2">)</span>
+        <span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">addExclObjs</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">)</span>
+        <span class="s1">ExclusiveObjectPool</span><span class="s2">.</span><span class="s1">addExclObjs</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">.</span><span class="s1">_getInternalObjs</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_sync</span><span class="s2">.</span><span class="s1">sync</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_SyncMaster</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getObjsOfType</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">type</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_resync</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">.</span><span class="s1">getObjsOfType</span><span class="s2">(</span><span class="s1">type</span><span class="s2">)</span>
+    <span class="s4">def </span><span class="s1">printObjsOfType</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">type</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_resync</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">.</span><span class="s1">printObjsOfType</span><span class="s2">(</span><span class="s1">type</span><span class="s2">)</span>
+    <span class="s4">def </span><span class="s1">diff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_resync</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">.</span><span class="s1">diff</span><span class="s2">(</span><span class="s1">other</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">)</span>
+    <span class="s4">def </span><span class="s1">typeFreqStr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_resync</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">.</span><span class="s1">typeFreqStr</span><span class="s2">()</span>
+    <span class="s4">def </span><span class="s1">__len__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_resync</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_filteredPool</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">ObjectReport</span><span class="s2">:</span>
+    <span class="s0">&quot;&quot;&quot;report on every Python object in the current process&quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'ObjectReport'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">log</span><span class="s2">=</span><span class="s4">True</span><span class="s2">):</span>
+        <span class="s1">gr </span><span class="s2">= </span><span class="s1">GarbageReport</span><span class="s2">.</span><span class="s1">GarbageReport</span><span class="s2">(</span><span class="s3">'ObjectReport</span><span class="s4">\'</span><span class="s3">s GarbageReport: %s' </span><span class="s2">% </span><span class="s1">name</span><span class="s2">, </span><span class="s1">log</span><span class="s2">=</span><span class="s1">log</span><span class="s2">)</span>
+        <span class="s1">gr</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">gr</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pool </span><span class="s2">= </span><span class="s1">ObjectPool</span><span class="s2">.</span><span class="s1">ObjectPool</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getObjectList</span><span class="s2">())</span>
+        <span class="s6">#ExclusiveObjectPool.addExclObjs(self, self._pool, self._name)</span>
+        <span class="s4">if </span><span class="s1">log</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">'===== ObjectReport: </span><span class="s4">\'</span><span class="s3">%s</span><span class="s4">\' </span><span class="s3">=====</span><span class="s4">\n</span><span class="s3">%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">typeFreqStr</span><span class="s2">()))</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">#ExclusiveObjectPool.removeExclObjs(self, self._pool, self._name)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pool</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pool</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span>
+
+    <span class="s4">def </span><span class="s1">typeFreqStr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pool</span><span class="s2">.</span><span class="s1">typeFreqStr</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">diff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pool</span><span class="s2">.</span><span class="s1">diff</span><span class="s2">(</span><span class="s1">other</span><span class="s2">.</span><span class="s1">_pool</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getObjectPool</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pool</span>
+
+    <span class="s4">def </span><span class="s1">_getObjectList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">sys</span><span class="s2">, </span><span class="s3">'getobjects'</span><span class="s2">):</span>
+            <span class="s4">return </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getobjects</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">gc</span><span class="s2">.</span><span class="s1">collect</span><span class="s2">()</span>
+            <span class="s6"># grab gc's object list</span>
+            <span class="s1">gc_objects </span><span class="s2">= </span><span class="s1">gc</span><span class="s2">.</span><span class="s1">get_objects</span><span class="s2">()</span>
+            <span class="s6"># use get_referents to find everything else</span>
+            <span class="s1">objects </span><span class="s2">= </span><span class="s1">gc_objects</span>
+            <span class="s1">objects</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">)</span>
+            <span class="s1">nextObjList </span><span class="s2">= </span><span class="s1">gc_objects</span>
+            <span class="s1">found </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+            <span class="s1">found</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">objects</span><span class="s2">))</span>
+            <span class="s1">found</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">found</span><span class="s2">))</span>
+            <span class="s1">found</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">gc_objects</span><span class="s2">))</span>
+            <span class="s4">for </span><span class="s1">obj </span><span class="s4">in </span><span class="s1">objects</span><span class="s2">:</span>
+                <span class="s1">found</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">))</span>
+            <span class="s6"># repeatedly call get_referents until we can't find any more objects</span>
+            <span class="s4">while </span><span class="s1">len</span><span class="s2">(</span><span class="s1">nextObjList</span><span class="s2">):</span>
+                <span class="s1">curObjList </span><span class="s2">= </span><span class="s1">nextObjList</span>
+                <span class="s1">nextObjList </span><span class="s2">= []</span>
+                <span class="s4">for </span><span class="s1">obj </span><span class="s4">in </span><span class="s1">curObjList</span><span class="s2">:</span>
+                    <span class="s1">refs </span><span class="s2">= </span><span class="s1">gc</span><span class="s2">.</span><span class="s1">get_referents</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+                    <span class="s4">for </span><span class="s1">ref </span><span class="s4">in </span><span class="s1">refs</span><span class="s2">:</span>
+                        <span class="s4">if </span><span class="s1">id</span><span class="s2">(</span><span class="s1">ref</span><span class="s2">) </span><span class="s4">not in </span><span class="s1">found</span><span class="s2">:</span>
+                            <span class="s1">found</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">ref</span><span class="s2">))</span>
+                            <span class="s1">objects</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">ref</span><span class="s2">)</span>
+                            <span class="s1">nextObjList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">ref</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">objects</span>
+        <span class="s3">&quot;&quot;&quot; 
+        if hasattr(sys, 'getobjects'): 
+            return sys.getobjects(0) 
+        else: 
+            objs = [] 
+            stateStack = Stack() 
+            root = builtins 
+            objIds = set([id(root)]) 
+            stateStack.push((root, None, 0)) 
+            while True: 
+                if len(stateStack) == 0: 
+                    break 
+                obj, adjacents, resumeIndex = stateStack.pop() 
+                objs.append(obj) 
+                print id(obj) 
+                if adjacents is None: 
+                    adjacents = gc.get_referents(obj) 
+                    adjacents.extend(gc.get_referrers(obj)) 
+                    # pare the list down to the ones that have not already been visited 
+                    # to minimize calls to get_referents/get_referrers 
+                    newObjs = [] 
+                    for adj in adjacents: 
+                        adjId = id(adj) 
+                        if adjId not in objIds: 
+                            objIds.add(adjId) 
+                            newObjs.append(adj) 
+                    adjacents = newObjs 
+                    if len(adjacents) == 0: 
+                        print 'DEAD END' 
+                for i in range(resumeIndex, len(adjacents)): 
+                    adj = adjacents[i] 
+                    stateStack.push((obj, adjacents, i+1)) 
+                    stateStack.push((adj, None, 0)) 
+                    continue 
+                    &quot;&quot;&quot;</span>
+
+</pre>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<html>
+<head>
+<title>StateData.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+StateData.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;StateData module: contains StateData class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'StateData'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+
+
+<span class="s4">class </span><span class="s1">StateData</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    A StateData is a base class for a single state within a Finite 
+    State Machine (ClassicFSM). 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'StateData'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doneEvent</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">doneEvent </span><span class="s2">= </span><span class="s1">doneEvent</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">doneStatus </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isLoaded </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isEntered </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s4">def </span><span class="s1">enter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Enters the StateData.  This makes it active in whatever sense 
+        this applies.  Returns true if this is a change (i.e. it was 
+        not previously entered), or false if this is the same (i.e. it 
+        was already entered). 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isEntered</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s5">0</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isLoaded</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;entered StateData before it was loaded&quot;</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">load</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isEntered </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s1">StateData</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'enter()'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">exit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Exits the StateData.  Returns true if this is a change 
+        (i.e. it was previously entered), or false if this is the same 
+        (i.e. it was already exited). 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isEntered</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isEntered </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">StateData</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'exit()'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">load</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Loads the StateData.  This loads whatever assets are needed 
+        from disk, and otherwise prepares the StateData for being 
+        entered, without actually entering it.  Returns true if this 
+        is a change (i.e. it was not already loaded), or false if this 
+        is the same (i.e. it was previously loaded). 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isLoaded</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isLoaded </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s1">StateData</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'load()'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">unload</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Unloads the StateData.  This frees whatever assets were loaded 
+        by load(), and generally makes the memory usage for this thing 
+        be as small as possible.  Some StateData-derived classes can 
+        load and unload repeatedly; others are useless once they have 
+        been unloaded. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isLoaded</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s5">0</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isEntered</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;unloaded StateData before it was exited&quot;</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isLoaded </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">StateData</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'unload()'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">getDoneStatus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        The done status of a state data may be anything.  It is common 
+        practice to return a Python dictionary or a string; the default 
+        value is None. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doneStatus</span>
+</pre>
+</body>
+</html>

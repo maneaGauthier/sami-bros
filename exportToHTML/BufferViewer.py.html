@@ -1,0 +1,482 @@
+<html>
+<head>
+<title>BufferViewer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+BufferViewer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the BufferViewer class, which is used as a debugging aid 
+when debugging render-to-texture effects.  It shows different views at 
+the bottom of the screen showing the various render targets. 
+ 
+When using ShowBase, the normal way to enable the BufferViewer is using the 
+following code:: 
+ 
+    base.bufferViewer.toggleEnable() 
+ 
+Or, you can enable the following variable in your Config.prc:: 
+ 
+    show-buffers true 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'BufferViewer'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s4">import </span><span class="s1">taskMgr</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">import </span><span class="s1">math</span>
+
+
+<span class="s4">class </span><span class="s1">BufferViewer</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'BufferViewer'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">win</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Access: private.  Constructor.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">size </span><span class="s2">= </span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s3">'buffer-viewer-size'</span><span class="s2">, </span><span class="s3">'0 0'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizex </span><span class="s2">= </span><span class="s1">size</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizey </span><span class="s2">= </span><span class="s1">size</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= </span><span class="s1">ConfigVariableString</span><span class="s2">(</span><span class="s3">'buffer-viewer-position'</span><span class="s2">, </span><span class="s3">&quot;lrcorner&quot;</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">= </span><span class="s1">ConfigVariableString</span><span class="s2">(</span><span class="s3">'buffer-viewer-layout'</span><span class="s2">, </span><span class="s3">&quot;hline&quot;</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">include </span><span class="s2">= </span><span class="s3">&quot;all&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exclude </span><span class="s2">= </span><span class="s3">&quot;none&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cullbin </span><span class="s2">= </span><span class="s3">&quot;fixed&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cullsort </span><span class="s2">= </span><span class="s5">10000</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">win </span><span class="s2">= </span><span class="s1">win</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">engine </span><span class="s2">= </span><span class="s1">GraphicsEngine</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">renderParent </span><span class="s2">= </span><span class="s1">parent</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cards </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cardindex </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cardmaker </span><span class="s2">= </span><span class="s1">CardMaker</span><span class="s2">(</span><span class="s3">&quot;cubemaker&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cardmaker</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(-</span><span class="s5">1</span><span class="s2">,</span><span class="s5">1</span><span class="s2">,-</span><span class="s5">1</span><span class="s2">,</span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">task </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">&quot;render-texture-targets-changed&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refreshReadout</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">&quot;show-buffers&quot;</span><span class="s2">, </span><span class="s5">0</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">refreshReadout</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Force the readout to be refreshed.  This is usually invoked 
+        by GraphicsOutput::add_render_texture (via an event handler). 
+        However, it is also possible to invoke it manually.  Currently, 
+        the only time I know of that this is necessary is after a 
+        window resize (and I ought to fix that).&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+        <span class="s6"># Call enabled again, mainly to ensure that the task has been</span>
+        <span class="s6"># started.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">isValidTextureSet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Access: private. Returns true if the parameter is a 
+        list of GraphicsOutput and Texture, or the keyword 'all'.&quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">list</span><span class="s2">)):</span>
+            <span class="s4">for </span><span class="s1">elt </span><span class="s4">in </span><span class="s1">x</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">isValidTextureSet</span><span class="s2">(</span><span class="s1">elt</span><span class="s2">)==</span><span class="s5">0</span><span class="s2">):</span>
+                    <span class="s4">return </span><span class="s5">0</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s2">(</span><span class="s1">x</span><span class="s2">==</span><span class="s3">&quot;all&quot;</span><span class="s2">) </span><span class="s4">or </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">Texture</span><span class="s2">)) </span><span class="s4">or </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">GraphicsOutput</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">isEnabled</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns true if the buffer viewer is currently enabled.&quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enabled</span>
+
+    <span class="s4">def </span><span class="s1">enable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Turn the buffer viewer on or off.  The initial state of the 
+        buffer viewer depends on the Config variable 'show-buffers'.&quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">x </span><span class="s2">!= </span><span class="s5">0</span><span class="s2">) </span><span class="s4">and </span><span class="s2">(</span><span class="s1">x </span><span class="s2">!= </span><span class="s5">1</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'invalid parameter to BufferViewer.enable'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s1">x</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">x </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">task </span><span class="s2">== </span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">task </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maintainReadout</span><span class="s2">, </span><span class="s3">&quot;buffer-viewer-maintain-readout&quot;</span><span class="s2">,</span>
+                                    <span class="s1">priority</span><span class="s2">=</span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">toggleEnable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Toggle the buffer viewer on or off.  The initial state of the 
+        enable flag depends on the Config variable 'show-buffers'.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">(</span><span class="s5">1</span><span class="s2">-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setCardSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the size of each card.  The units are relative to 
+        render2d (ie, 1x1 card is not square).  If one of the 
+        dimensions is zero, then the viewer will choose a value 
+        for that dimension so as to ensure that the aspect ratio 
+        of the card matches the aspect ratio of the source-window. 
+        If both dimensions are zero, the viewer uses a heuristic 
+        to choose a reasonable size for the card.  The initial 
+        value is (0, 0).&quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">x </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s2">) </span><span class="s4">or </span><span class="s2">(</span><span class="s1">y </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'invalid parameter to BufferViewer.setCardSize'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizex </span><span class="s2">= </span><span class="s1">x</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizey </span><span class="s2">= </span><span class="s1">y</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setPosition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the position of the cards.  The valid values are: 
+ 
+        - *llcorner* - put them in the lower-left  corner of the window 
+        - *lrcorner* - put them in the lower-right corner of the window 
+        - *ulcorner* - put them in the upper-left  corner of the window 
+        - *urcorner* - put them in the upper-right corner of the window 
+        - *window* - put them in a separate window 
+ 
+        The initial value is 'lrcorner'.&quot;&quot;&quot;</span>
+        <span class="s1">valid</span><span class="s2">=[</span><span class="s3">&quot;llcorner&quot;</span><span class="s2">,</span><span class="s3">&quot;lrcorner&quot;</span><span class="s2">,</span><span class="s3">&quot;ulcorner&quot;</span><span class="s2">,</span><span class="s3">&quot;urcorner&quot;</span><span class="s2">,</span><span class="s3">&quot;window&quot;</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">valid</span><span class="s2">.</span><span class="s1">count</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">)==</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'invalid parameter to BufferViewer.setPosition'</span><span class="s2">)</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'valid parameters are: llcorner, lrcorner, ulcorner, urcorner, window'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">pos </span><span class="s2">== </span><span class="s3">&quot;window&quot;</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'BufferViewer.setPosition - &quot;window&quot; mode not implemented yet.'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= </span><span class="s1">pos</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setLayout</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">lay</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the layout of the cards.  The valid values are: 
+ 
+        - *vline* - display them in a vertical line 
+        - *hline* - display them in a horizontal line 
+        - *vgrid* - display them in a vertical grid 
+        - *hgrid* - display them in a horizontal grid 
+        - *cycle* - display one card at a time, using selectCard/advanceCard 
+ 
+        The default value is 'hline'.&quot;&quot;&quot;</span>
+        <span class="s1">valid</span><span class="s2">=[</span><span class="s3">&quot;vline&quot;</span><span class="s2">,</span><span class="s3">&quot;hline&quot;</span><span class="s2">,</span><span class="s3">&quot;vgrid&quot;</span><span class="s2">,</span><span class="s3">&quot;hgrid&quot;</span><span class="s2">,</span><span class="s3">&quot;cycle&quot;</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">valid</span><span class="s2">.</span><span class="s1">count</span><span class="s2">(</span><span class="s1">lay</span><span class="s2">)==</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'invalid parameter to BufferViewer.setLayout'</span><span class="s2">)</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'valid parameters are: vline, hline, vgrid, hgrid, cycle'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">= </span><span class="s1">lay</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">selectCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">i</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Only useful when using setLayout('cycle').  Sets the index 
+        that selects which card to display.  The index is taken modulo 
+        the actual number of cards.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cardindex </span><span class="s2">= </span><span class="s1">i</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">advanceCard</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Only useful when using setLayout('cycle').  Increments the index 
+        that selects which card to display.  The index is taken modulo 
+        the actual number of cards.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cardindex </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setInclude</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the include-set for the buffer viewer.  The include-set 
+        specifies which of the render-to-texture targets to display. 
+        Valid inputs are the string 'all' (display every render-to-texture 
+        target), or a list of GraphicsOutputs or Textures.  The initial 
+        value is 'all'.&quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">isValidTextureSet</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)==</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'setInclude: must be list of textures and buffers, or &quot;all&quot;'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">include </span><span class="s2">= </span><span class="s1">x</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setExclude</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the exclude-set for the buffer viewer.  The exclude-set 
+        should be a list of GraphicsOutputs and Textures to ignore. 
+        The exclude-set is subtracted from the include-set (so the excludes 
+        effectively override the includes.)  The initial value is the 
+        empty list.&quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">isValidTextureSet</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)==</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'setExclude: must be list of textures and buffers'</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exclude </span><span class="s2">= </span><span class="s1">x</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setSort</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">bin</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the cull-bin and sort-order for the output cards.  The 
+        default value is 'fixed', 10000.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cullbin </span><span class="s2">= </span><span class="s1">bin</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cullsort </span><span class="s2">= </span><span class="s1">sort</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">setRenderParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">renderParent</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Set the scene graph root to which the output cards should 
+        be parented.  The default is render2d. &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">renderParent </span><span class="s2">= </span><span class="s1">renderParent</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">analyzeTextureSet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">set</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Access: private.  Converts a list of GraphicsObject, 
+        GraphicsEngine, and Texture into a table of Textures.&quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">list</span><span class="s2">)):</span>
+            <span class="s4">for </span><span class="s1">elt </span><span class="s4">in </span><span class="s1">x</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">analyzeTextureSet</span><span class="s2">(</span><span class="s1">elt</span><span class="s2">, </span><span class="s1">set</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">Texture</span><span class="s2">)):</span>
+            <span class="s1">set</span><span class="s2">[</span><span class="s1">x</span><span class="s2">] = </span><span class="s5">1</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">GraphicsOutput</span><span class="s2">)):</span>
+            <span class="s4">for </span><span class="s1">itex </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">x</span><span class="s2">.</span><span class="s1">countTextures</span><span class="s2">()):</span>
+                <span class="s1">tex </span><span class="s2">= </span><span class="s1">x</span><span class="s2">.</span><span class="s1">getTexture</span><span class="s2">(</span><span class="s1">itex</span><span class="s2">)</span>
+                <span class="s1">set</span><span class="s2">[</span><span class="s1">tex</span><span class="s2">] = </span><span class="s5">1</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">GraphicsEngine</span><span class="s2">)):</span>
+            <span class="s4">for </span><span class="s1">iwin </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">x</span><span class="s2">.</span><span class="s1">getNumWindows</span><span class="s2">()):</span>
+                <span class="s1">win </span><span class="s2">= </span><span class="s1">x</span><span class="s2">.</span><span class="s1">getWindow</span><span class="s2">(</span><span class="s1">iwin</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">analyzeTextureSet</span><span class="s2">(</span><span class="s1">win</span><span class="s2">, </span><span class="s1">set</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">x</span><span class="s2">==</span><span class="s3">&quot;all&quot;</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">analyzeTextureSet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">engine</span><span class="s2">, </span><span class="s1">set</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">: </span><span class="s4">return</span>
+
+
+    <span class="s4">def </span><span class="s1">makeFrame</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sizex</span><span class="s2">, </span><span class="s1">sizey</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Access: private.  Each texture card is displayed with 
+        a two-pixel wide frame (a ring of black and a ring of white). 
+        This routine builds the frame geometry.  It is necessary to 
+        be precise so that the frame exactly aligns to pixel 
+        boundaries, and so that it doesn't overlap the card at all.&quot;&quot;&quot;</span>
+
+        <span class="s1">format</span><span class="s2">=</span><span class="s1">GeomVertexFormat</span><span class="s2">.</span><span class="s1">getV3cp</span><span class="s2">()</span>
+        <span class="s1">vdata</span><span class="s2">=</span><span class="s1">GeomVertexData</span><span class="s2">(</span><span class="s3">'card-frame'</span><span class="s2">, </span><span class="s1">format</span><span class="s2">, </span><span class="s1">Geom</span><span class="s2">.</span><span class="s1">UHDynamic</span><span class="s2">)</span>
+
+        <span class="s1">vwriter</span><span class="s2">=</span><span class="s1">GeomVertexWriter</span><span class="s2">(</span><span class="s1">vdata</span><span class="s2">, </span><span class="s3">'vertex'</span><span class="s2">)</span>
+        <span class="s1">cwriter</span><span class="s2">=</span><span class="s1">GeomVertexWriter</span><span class="s2">(</span><span class="s1">vdata</span><span class="s2">, </span><span class="s3">'color'</span><span class="s2">)</span>
+
+        <span class="s1">ringoffset </span><span class="s2">= [</span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">2</span><span class="s2">]</span>
+        <span class="s1">ringbright </span><span class="s2">= [</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">ring </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s5">4</span><span class="s2">):</span>
+            <span class="s1">offsetx </span><span class="s2">= (</span><span class="s1">ringoffset</span><span class="s2">[</span><span class="s1">ring</span><span class="s2">]*</span><span class="s5">2.0</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">sizex</span><span class="s2">)</span>
+            <span class="s1">offsety </span><span class="s2">= (</span><span class="s1">ringoffset</span><span class="s2">[</span><span class="s1">ring</span><span class="s2">]*</span><span class="s5">2.0</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">sizey</span><span class="s2">)</span>
+            <span class="s1">bright </span><span class="s2">= </span><span class="s1">ringbright</span><span class="s2">[</span><span class="s1">ring</span><span class="s2">]</span>
+            <span class="s1">vwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">Vec3F</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">(-</span><span class="s5">1 </span><span class="s2">- </span><span class="s1">offsetx</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, -</span><span class="s5">1 </span><span class="s2">- </span><span class="s1">offsety</span><span class="s2">))</span>
+            <span class="s1">vwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">Vec3F</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">( </span><span class="s5">1 </span><span class="s2">+ </span><span class="s1">offsetx</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, -</span><span class="s5">1 </span><span class="s2">- </span><span class="s1">offsety</span><span class="s2">))</span>
+            <span class="s1">vwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">Vec3F</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">( </span><span class="s5">1 </span><span class="s2">+ </span><span class="s1">offsetx</span><span class="s2">, </span><span class="s5">0</span><span class="s2">,  </span><span class="s5">1 </span><span class="s2">+ </span><span class="s1">offsety</span><span class="s2">))</span>
+            <span class="s1">vwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">Vec3F</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">(-</span><span class="s5">1 </span><span class="s2">- </span><span class="s1">offsetx</span><span class="s2">, </span><span class="s5">0</span><span class="s2">,  </span><span class="s5">1 </span><span class="s2">+ </span><span class="s1">offsety</span><span class="s2">))</span>
+            <span class="s1">cwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">)</span>
+            <span class="s1">cwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">)</span>
+            <span class="s1">cwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">)</span>
+            <span class="s1">cwriter</span><span class="s2">.</span><span class="s1">addData3f</span><span class="s2">(</span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">, </span><span class="s1">bright</span><span class="s2">)</span>
+
+        <span class="s1">triangles</span><span class="s2">=</span><span class="s1">GeomTriangles</span><span class="s2">(</span><span class="s1">Geom</span><span class="s2">.</span><span class="s1">UHStatic</span><span class="s2">)</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s5">2</span><span class="s2">):</span>
+            <span class="s1">delta </span><span class="s2">= </span><span class="s1">i</span><span class="s2">*</span><span class="s5">8</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">0</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">4</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">1</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">1</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">4</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">5</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">1</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">5</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">2</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">2</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">5</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">6</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">2</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">6</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">3</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">3</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">6</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">7</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">3</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">7</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">0</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+            <span class="s1">triangles</span><span class="s2">.</span><span class="s1">addVertices</span><span class="s2">(</span><span class="s5">0</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">7</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">, </span><span class="s5">4</span><span class="s2">+</span><span class="s1">delta</span><span class="s2">)</span>
+        <span class="s1">triangles</span><span class="s2">.</span><span class="s1">closePrimitive</span><span class="s2">()</span>
+
+        <span class="s1">geom</span><span class="s2">=</span><span class="s1">Geom</span><span class="s2">(</span><span class="s1">vdata</span><span class="s2">)</span>
+        <span class="s1">geom</span><span class="s2">.</span><span class="s1">addPrimitive</span><span class="s2">(</span><span class="s1">triangles</span><span class="s2">)</span>
+        <span class="s1">geomnode</span><span class="s2">=</span><span class="s1">GeomNode</span><span class="s2">(</span><span class="s3">&quot;card-frame&quot;</span><span class="s2">)</span>
+        <span class="s1">geomnode</span><span class="s2">.</span><span class="s1">addGeom</span><span class="s2">(</span><span class="s1">geom</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">geomnode</span><span class="s2">)</span>
+
+
+    <span class="s4">def </span><span class="s1">maintainReadout</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Access: private.  Whenever necessary, rebuilds the entire 
+        display from scratch.  This is only done when the configuration 
+        parameters have changed.&quot;&quot;&quot;</span>
+
+        <span class="s6"># If nothing has changed, don't update.</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">dirty</span><span class="s2">==</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dirty </span><span class="s2">= </span><span class="s5">0</span>
+
+        <span class="s6"># Delete the old set of cards.</span>
+        <span class="s4">for </span><span class="s1">card </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cards</span><span class="s2">:</span>
+            <span class="s1">card</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cards </span><span class="s2">= []</span>
+
+        <span class="s6"># If not enabled, return.</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">== </span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">task </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+
+        <span class="s6"># Generate the include and exclude sets.</span>
+        <span class="s1">exclude </span><span class="s2">= {}</span>
+        <span class="s1">include </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">analyzeTextureSet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">exclude</span><span class="s2">, </span><span class="s1">exclude</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">analyzeTextureSet</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">include</span><span class="s2">, </span><span class="s1">include</span><span class="s2">)</span>
+
+        <span class="s6"># Use a custom sampler when applying the textures.  This fixes</span>
+        <span class="s6"># wrap issues and prevents depth compare on shadow maps.</span>
+        <span class="s1">sampler </span><span class="s2">= </span><span class="s1">SamplerState</span><span class="s2">()</span>
+        <span class="s1">sampler</span><span class="s2">.</span><span class="s1">setWrapU</span><span class="s2">(</span><span class="s1">SamplerState</span><span class="s2">.</span><span class="s1">WM_clamp</span><span class="s2">)</span>
+        <span class="s1">sampler</span><span class="s2">.</span><span class="s1">setWrapV</span><span class="s2">(</span><span class="s1">SamplerState</span><span class="s2">.</span><span class="s1">WM_clamp</span><span class="s2">)</span>
+        <span class="s1">sampler</span><span class="s2">.</span><span class="s1">setWrapW</span><span class="s2">(</span><span class="s1">SamplerState</span><span class="s2">.</span><span class="s1">WM_clamp</span><span class="s2">)</span>
+        <span class="s1">sampler</span><span class="s2">.</span><span class="s1">setMinfilter</span><span class="s2">(</span><span class="s1">SamplerState</span><span class="s2">.</span><span class="s1">FT_linear</span><span class="s2">)</span>
+        <span class="s1">sampler</span><span class="s2">.</span><span class="s1">setMagfilter</span><span class="s2">(</span><span class="s1">SamplerState</span><span class="s2">.</span><span class="s1">FT_nearest</span><span class="s2">)</span>
+
+        <span class="s6"># Generate a list of cards and the corresponding windows.</span>
+        <span class="s1">cards </span><span class="s2">= []</span>
+        <span class="s1">wins </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">iwin </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">engine</span><span class="s2">.</span><span class="s1">getNumWindows</span><span class="s2">()):</span>
+            <span class="s1">win </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">engine</span><span class="s2">.</span><span class="s1">getWindow</span><span class="s2">(</span><span class="s1">iwin</span><span class="s2">)</span>
+            <span class="s4">for </span><span class="s1">itex </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">win</span><span class="s2">.</span><span class="s1">countTextures</span><span class="s2">()):</span>
+                <span class="s1">tex </span><span class="s2">= </span><span class="s1">win</span><span class="s2">.</span><span class="s1">getTexture</span><span class="s2">(</span><span class="s1">itex</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">tex </span><span class="s4">in </span><span class="s1">include</span><span class="s2">) </span><span class="s4">and </span><span class="s2">(</span><span class="s1">tex </span><span class="s4">not in </span><span class="s1">exclude</span><span class="s2">):</span>
+                    <span class="s4">if </span><span class="s2">(</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getTextureType</span><span class="s2">() == </span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">TTCubeMap</span><span class="s2">):</span>
+                        <span class="s4">for </span><span class="s1">face </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s5">6</span><span class="s2">):</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">cardmaker</span><span class="s2">.</span><span class="s1">setUvRangeCube</span><span class="s2">(</span><span class="s1">face</span><span class="s2">)</span>
+                            <span class="s1">card </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cardmaker</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+                            <span class="s1">card</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">tex</span><span class="s2">, </span><span class="s1">sampler</span><span class="s2">)</span>
+                            <span class="s1">cards</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">card</span><span class="s2">)</span>
+                    <span class="s4">elif </span><span class="s2">(</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getTextureType</span><span class="s2">() == </span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">TT2dTextureArray</span><span class="s2">):</span>
+                        <span class="s4">for </span><span class="s1">layer </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">getZSize</span><span class="s2">()):</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">cardmaker</span><span class="s2">.</span><span class="s1">setUvRange</span><span class="s2">((</span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">0</span><span class="s2">), (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">),</span><span class="s1">\</span>
+                                                      <span class="s2">(</span><span class="s1">layer</span><span class="s2">, </span><span class="s1">layer</span><span class="s2">, </span><span class="s1">layer</span><span class="s2">, </span><span class="s1">layer</span><span class="s2">))</span>
+                            <span class="s1">card </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cardmaker</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">())</span>
+                            <span class="s6"># 2D texture arrays are not supported by</span>
+                            <span class="s6"># the fixed-function pipeline, so we need to</span>
+                            <span class="s6"># enable the shader generator to view them.</span>
+                            <span class="s1">card</span><span class="s2">.</span><span class="s1">setShaderAuto</span><span class="s2">()</span>
+                            <span class="s1">card</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">tex</span><span class="s2">, </span><span class="s1">sampler</span><span class="s2">)</span>
+                            <span class="s1">cards</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">card</span><span class="s2">)</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">card </span><span class="s2">= </span><span class="s1">win</span><span class="s2">.</span><span class="s1">getTextureCard</span><span class="s2">()</span>
+                        <span class="s1">card</span><span class="s2">.</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">tex</span><span class="s2">, </span><span class="s1">sampler</span><span class="s2">)</span>
+                        <span class="s1">cards</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">card</span><span class="s2">)</span>
+                    <span class="s1">wins</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">win</span><span class="s2">)</span>
+                    <span class="s1">exclude</span><span class="s2">[</span><span class="s1">tex</span><span class="s2">] = </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cards </span><span class="s2">= </span><span class="s1">cards</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">cards</span><span class="s2">)==</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">task </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+        <span class="s1">ncards </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">cards</span><span class="s2">)</span>
+
+        <span class="s6"># Decide how many rows and columns to use for the layout.</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">== </span><span class="s3">&quot;hline&quot;</span><span class="s2">):</span>
+            <span class="s1">rows </span><span class="s2">= </span><span class="s5">1</span>
+            <span class="s1">cols </span><span class="s2">= </span><span class="s1">ncards</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">== </span><span class="s3">&quot;vline&quot;</span><span class="s2">):</span>
+            <span class="s1">rows </span><span class="s2">= </span><span class="s1">ncards</span>
+            <span class="s1">cols </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">== </span><span class="s3">&quot;hgrid&quot;</span><span class="s2">):</span>
+            <span class="s1">rows </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">sqrt</span><span class="s2">(</span><span class="s1">ncards</span><span class="s2">))</span>
+            <span class="s1">cols </span><span class="s2">= </span><span class="s1">rows</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">rows </span><span class="s2">* </span><span class="s1">cols </span><span class="s2">&lt; </span><span class="s1">ncards</span><span class="s2">): </span><span class="s1">cols </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">rows </span><span class="s2">* </span><span class="s1">cols </span><span class="s2">&lt; </span><span class="s1">ncards</span><span class="s2">): </span><span class="s1">rows </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">== </span><span class="s3">&quot;vgrid&quot;</span><span class="s2">):</span>
+            <span class="s1">rows </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">sqrt</span><span class="s2">(</span><span class="s1">ncards</span><span class="s2">))</span>
+            <span class="s1">cols </span><span class="s2">= </span><span class="s1">rows</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">rows </span><span class="s2">* </span><span class="s1">cols </span><span class="s2">&lt; </span><span class="s1">ncards</span><span class="s2">): </span><span class="s1">rows </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">rows </span><span class="s2">* </span><span class="s1">cols </span><span class="s2">&lt; </span><span class="s1">ncards</span><span class="s2">): </span><span class="s1">cols </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">layout </span><span class="s2">== </span><span class="s3">&quot;cycle&quot;</span><span class="s2">):</span>
+            <span class="s1">rows </span><span class="s2">= </span><span class="s5">1</span>
+            <span class="s1">cols </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'shouldnt ever get here in BufferViewer.maintainReadout'</span><span class="s2">)</span>
+
+        <span class="s6"># Choose an aspect ratio for the cards.  All card size</span>
+        <span class="s6"># calculations are done in pixel-units, using integers,</span>
+        <span class="s6"># in order to ensure that everything ends up neatly on</span>
+        <span class="s6"># a pixel boundary.</span>
+
+        <span class="s1">aspectx </span><span class="s2">= </span><span class="s1">wins</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">getXSize</span><span class="s2">()</span>
+        <span class="s1">aspecty </span><span class="s2">= </span><span class="s1">wins</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">getYSize</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">win </span><span class="s4">in </span><span class="s1">wins</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">()*</span><span class="s1">aspecty</span><span class="s2">) != (</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">()*</span><span class="s1">aspectx</span><span class="s2">):</span>
+                <span class="s1">aspectx </span><span class="s2">= </span><span class="s5">1</span>
+                <span class="s1">aspecty </span><span class="s2">= </span><span class="s5">1</span>
+
+        <span class="s6"># Choose a card size.  If the user didn't specify a size,</span>
+        <span class="s6"># use a heuristic, otherwise, just follow orders.  The</span>
+        <span class="s6"># heuristic uses an initial card size of 42.66666667% of</span>
+        <span class="s6"># the screen vertically, which comes to 256 pixels on</span>
+        <span class="s6"># an 800x600 display.  Then, it double checks that the</span>
+        <span class="s6"># readout will fit on the screen, and if not, it shrinks it.</span>
+
+        <span class="s1">bordersize </span><span class="s2">= </span><span class="s5">4.0</span>
+
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizex</span><span class="s2">)==</span><span class="s5">0.0</span><span class="s2">) </span><span class="s4">and </span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizey</span><span class="s2">)==</span><span class="s5">0.0</span><span class="s2">):</span>
+            <span class="s1">sizey </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s5">0.4266666667 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">())</span>
+            <span class="s1">sizex </span><span class="s2">= (</span><span class="s1">sizey </span><span class="s2">* </span><span class="s1">aspectx</span><span class="s2">) // </span><span class="s1">aspecty</span>
+            <span class="s1">v_sizey </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">() - (</span><span class="s1">rows</span><span class="s2">-</span><span class="s5">1</span><span class="s2">) - (</span><span class="s1">rows</span><span class="s2">*</span><span class="s5">2</span><span class="s2">)) // </span><span class="s1">rows</span>
+            <span class="s1">v_sizex </span><span class="s2">= (</span><span class="s1">v_sizey </span><span class="s2">* </span><span class="s1">aspectx</span><span class="s2">) // </span><span class="s1">aspecty</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">v_sizey </span><span class="s2">&lt; </span><span class="s1">sizey</span><span class="s2">) </span><span class="s4">or </span><span class="s2">(</span><span class="s1">v_sizex </span><span class="s2">&lt; </span><span class="s1">sizex</span><span class="s2">):</span>
+                <span class="s1">sizey </span><span class="s2">= </span><span class="s1">v_sizey</span>
+                <span class="s1">sizex </span><span class="s2">= </span><span class="s1">v_sizex</span>
+
+            <span class="s1">adjustment </span><span class="s2">= </span><span class="s5">2</span>
+            <span class="s1">h_sizex </span><span class="s2">= </span><span class="s1">float </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">() - </span><span class="s1">adjustment</span><span class="s2">) / </span><span class="s1">float </span><span class="s2">(</span><span class="s1">cols</span><span class="s2">)</span>
+
+            <span class="s1">h_sizex </span><span class="s2">-= </span><span class="s1">bordersize</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">h_sizex </span><span class="s2">&lt; </span><span class="s5">1.0</span><span class="s2">):</span>
+                <span class="s1">h_sizex </span><span class="s2">= </span><span class="s5">1.0</span>
+
+            <span class="s1">h_sizey </span><span class="s2">= (</span><span class="s1">h_sizex </span><span class="s2">* </span><span class="s1">aspecty</span><span class="s2">) // </span><span class="s1">aspectx</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">h_sizey </span><span class="s2">&lt; </span><span class="s1">sizey</span><span class="s2">) </span><span class="s4">or </span><span class="s2">(</span><span class="s1">h_sizex </span><span class="s2">&lt; </span><span class="s1">sizex</span><span class="s2">):</span>
+                <span class="s1">sizey </span><span class="s2">= </span><span class="s1">h_sizey</span>
+                <span class="s1">sizex </span><span class="s2">= </span><span class="s1">h_sizex</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">sizex </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizex </span><span class="s2">* </span><span class="s5">0.5 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">())</span>
+            <span class="s1">sizey </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizey </span><span class="s2">* </span><span class="s5">0.5 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">())</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">sizex </span><span class="s2">== </span><span class="s5">0</span><span class="s2">): </span><span class="s1">sizex </span><span class="s2">= (</span><span class="s1">sizey</span><span class="s2">*</span><span class="s1">aspectx</span><span class="s2">) // </span><span class="s1">aspecty</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">sizey </span><span class="s2">== </span><span class="s5">0</span><span class="s2">): </span><span class="s1">sizey </span><span class="s2">= (</span><span class="s1">sizex</span><span class="s2">*</span><span class="s1">aspecty</span><span class="s2">) // </span><span class="s1">aspectx</span>
+
+        <span class="s6"># Convert from pixels to render2d-units.</span>
+        <span class="s1">fsizex </span><span class="s2">= (</span><span class="s5">2.0 </span><span class="s2">* </span><span class="s1">sizex</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">())</span>
+        <span class="s1">fsizey </span><span class="s2">= (</span><span class="s5">2.0 </span><span class="s2">* </span><span class="s1">sizey</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">())</span>
+        <span class="s1">fpixelx </span><span class="s2">= </span><span class="s5">2.0 </span><span class="s2">/ </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getXSize</span><span class="s2">())</span>
+        <span class="s1">fpixely </span><span class="s2">= </span><span class="s5">2.0 </span><span class="s2">/ </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getYSize</span><span class="s2">())</span>
+
+        <span class="s6"># Choose directional offsets</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">== </span><span class="s3">&quot;llcorner&quot;</span><span class="s2">):</span>
+            <span class="s1">dirx </span><span class="s2">= -</span><span class="s5">1.0</span>
+            <span class="s1">diry </span><span class="s2">= -</span><span class="s5">1.0</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">== </span><span class="s3">&quot;lrcorner&quot;</span><span class="s2">):</span>
+            <span class="s1">dirx </span><span class="s2">=  </span><span class="s5">1.0</span>
+            <span class="s1">diry </span><span class="s2">= -</span><span class="s5">1.0</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">== </span><span class="s3">&quot;ulcorner&quot;</span><span class="s2">):</span>
+            <span class="s1">dirx </span><span class="s2">= -</span><span class="s5">1.0</span>
+            <span class="s1">diry </span><span class="s2">=  </span><span class="s5">1.0</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">position </span><span class="s2">== </span><span class="s3">&quot;urcorner&quot;</span><span class="s2">):</span>
+            <span class="s1">dirx </span><span class="s2">=  </span><span class="s5">1.0</span>
+            <span class="s1">diry </span><span class="s2">=  </span><span class="s5">1.0</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">BufferViewer</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'window mode not implemented yet'</span><span class="s2">)</span>
+
+        <span class="s6"># Create the frame</span>
+        <span class="s1">frame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">makeFrame</span><span class="s2">(</span><span class="s1">sizex</span><span class="s2">, </span><span class="s1">sizey</span><span class="s2">)</span>
+
+        <span class="s6"># Now, position the cards on the screen.</span>
+        <span class="s6"># For each card, create a frame consisting of eight quads.</span>
+
+        <span class="s4">for </span><span class="s1">r </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">rows</span><span class="s2">):</span>
+            <span class="s4">for </span><span class="s1">c </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">cols</span><span class="s2">):</span>
+                <span class="s1">index </span><span class="s2">= </span><span class="s1">c </span><span class="s2">+ </span><span class="s1">r</span><span class="s2">*</span><span class="s1">cols</span>
+                <span class="s4">if </span><span class="s2">(</span><span class="s1">index </span><span class="s2">&lt; </span><span class="s1">ncards</span><span class="s2">):</span>
+                    <span class="s1">index </span><span class="s2">= (</span><span class="s1">index </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cardindex</span><span class="s2">) % </span><span class="s1">len</span><span class="s2">(</span><span class="s1">cards</span><span class="s2">)</span>
+
+                    <span class="s1">posx </span><span class="s2">= </span><span class="s1">dirx </span><span class="s2">* (</span><span class="s5">1.0 </span><span class="s2">- ((</span><span class="s1">c </span><span class="s2">+ </span><span class="s5">0.5</span><span class="s2">) * (</span><span class="s1">fsizex </span><span class="s2">+ </span><span class="s1">fpixelx </span><span class="s2">* </span><span class="s1">bordersize</span><span class="s2">))) - (</span><span class="s1">fpixelx </span><span class="s2">* </span><span class="s1">dirx</span><span class="s2">)</span>
+                    <span class="s1">posy </span><span class="s2">= </span><span class="s1">diry </span><span class="s2">* (</span><span class="s5">1.0 </span><span class="s2">- ((</span><span class="s1">r </span><span class="s2">+ </span><span class="s5">0.5</span><span class="s2">) * (</span><span class="s1">fsizey </span><span class="s2">+ </span><span class="s1">fpixely </span><span class="s2">* </span><span class="s1">bordersize</span><span class="s2">))) - (</span><span class="s1">fpixely </span><span class="s2">* </span><span class="s1">diry</span><span class="s2">)</span>
+                    <span class="s1">placer </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s3">&quot;card-structure&quot;</span><span class="s2">)</span>
+                    <span class="s1">placer</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">Point3</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">(</span><span class="s1">posx</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s1">posy</span><span class="s2">))</span>
+                    <span class="s1">placer</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">Vec3</span><span class="s2">.</span><span class="s1">rfu</span><span class="s2">(</span><span class="s1">fsizex</span><span class="s2">*</span><span class="s5">0.5</span><span class="s2">, </span><span class="s5">1.0</span><span class="s2">, </span><span class="s1">fsizey</span><span class="s2">*</span><span class="s5">0.5</span><span class="s2">))</span>
+                    <span class="s1">placer</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cullbin</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cullsort</span><span class="s2">)</span>
+                    <span class="s1">placer</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">renderParent</span><span class="s2">)</span>
+                    <span class="s1">frame</span><span class="s2">.</span><span class="s1">instanceTo</span><span class="s2">(</span><span class="s1">placer</span><span class="s2">)</span>
+                    <span class="s1">cards</span><span class="s2">[</span><span class="s1">index</span><span class="s2">].</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">placer</span><span class="s2">)</span>
+                    <span class="s1">cards</span><span class="s2">[</span><span class="s1">index</span><span class="s2">] = </span><span class="s1">placer</span>
+
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+</pre>
+</body>
+</html>

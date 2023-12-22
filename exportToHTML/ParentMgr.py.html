@@ -1,0 +1,172 @@
+<html>
+<head>
+<title>ParentMgr.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #7a7e85;}
+.s5 { color: #6aab73;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ParentMgr.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;ParentMgr module: contains the ParentMgr class&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directnotify </span><span class="s2">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">PythonUtil </span><span class="s2">import </span><span class="s1">isDefaultValue</span>
+
+
+<span class="s2">class </span><span class="s1">ParentMgr</span><span class="s3">:</span>
+    <span class="s4"># This is now used on the AI as well.</span>
+    <span class="s0">&quot;&quot;&quot;ParentMgr holds a table of nodes that avatars may be parented to 
+    in a distributed manner. All clients within a particular zone maintain 
+    identical tables of these nodes, and the nodes are referenced by 'tokens' 
+    which the clients can pass to each other to communicate distributed 
+    reparenting information. 
+ 
+    The functionality of ParentMgr used to be implemented with a simple 
+    token-&gt;node dictionary. As distributed 'parent' objects were manifested, 
+    they would add themselves to the dictionary. Problems occured when 
+    distributed avatars were manifested before the objects to which they 
+    were parented to. 
+ 
+    Since the order of object manifestation depends on the order of the 
+    classes in the DC file, we could maintain an ordering of DC definitions 
+    that ensures that the necessary objects are manifested before avatars. 
+    However, it's easy enough to keep a list of pending reparents and thus 
+    support the general case without requiring any strict ordering in the DC. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">DirectNotifyGlobal</span><span class="s3">.</span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s5">'ParentMgr'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath </span><span class="s3">= {}</span>
+        <span class="s4"># these are nodepaths that have requested to be parented to</span>
+        <span class="s4"># a node that has not yet registered as a parent</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children </span><span class="s3">= {}</span>
+        <span class="s4"># Multiple reparent requests may come in for a given child</span>
+        <span class="s4"># before that child can successfully be reparented. We need to</span>
+        <span class="s4"># make sure that each child is only scheduled to be parented to</span>
+        <span class="s4"># a single parent, at most.</span>
+        <span class="s4"># For efficient removal of pending children, we keep a dict</span>
+        <span class="s4"># of pending children to the token of the parent they're waiting for</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken </span><span class="s3">= {}</span>
+
+    <span class="s2">def </span><span class="s1">destroy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span>
+
+    <span class="s2">def </span><span class="s1">privRemoveReparentRequest</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">child</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; this internal function removes any currently-pending reparent 
+        request for the given child nodepath &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">child </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">&quot;cancelling pending reparent of %s to '%s'&quot; </span><span class="s3">%</span>
+                              <span class="s3">(</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">child</span><span class="s3">),</span>
+                               <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">[</span><span class="s1">child</span><span class="s3">]))</span>
+            <span class="s1">parentToken </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">[</span><span class="s1">child</span><span class="s3">]</span>
+            <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">[</span><span class="s1">child</span><span class="s3">]</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span><span class="s3">[</span><span class="s1">parentToken</span><span class="s3">].</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">child</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">requestReparent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">child</span><span class="s3">, </span><span class="s1">parentToken</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">parentToken </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">:</span>
+            <span class="s4"># this parent has registered</span>
+            <span class="s4"># this child may already be waiting on a different parent;</span>
+            <span class="s4"># make sure they aren't any more</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">privRemoveReparentRequest</span><span class="s3">(</span><span class="s1">child</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">&quot;performing wrtReparent of %s to '%s'&quot; </span><span class="s3">%</span>
+                              <span class="s3">(</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">child</span><span class="s3">), </span><span class="s1">parentToken</span><span class="s3">))</span>
+            <span class="s1">child</span><span class="s3">.</span><span class="s1">wrtReparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">[</span><span class="s1">parentToken</span><span class="s3">])</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">isDefaultValue</span><span class="s3">(</span><span class="s1">parentToken</span><span class="s3">):</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">error</span><span class="s3">(</span><span class="s5">'child %s requested reparent to default-value token: %s' </span><span class="s3">% (</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">child</span><span class="s3">), </span><span class="s1">parentToken</span><span class="s3">))</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span>
+                <span class="s5">&quot;child %s requested reparent to parent '%s' that is not (yet) registered&quot; </span><span class="s3">%</span>
+                <span class="s3">(</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">child</span><span class="s3">), </span><span class="s1">parentToken</span><span class="s3">))</span>
+            <span class="s4"># cancel any pending reparent on behalf of this child</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">privRemoveReparentRequest</span><span class="s3">(</span><span class="s1">child</span><span class="s3">)</span>
+            <span class="s4"># make note of this pending parent request</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">[</span><span class="s1">child</span><span class="s3">] = </span><span class="s1">parentToken</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span><span class="s3">.</span><span class="s1">setdefault</span><span class="s3">(</span><span class="s1">parentToken</span><span class="s3">, [])</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span><span class="s3">[</span><span class="s1">parentToken</span><span class="s3">].</span><span class="s1">append</span><span class="s3">(</span><span class="s1">child</span><span class="s3">)</span>
+            <span class="s4"># there is no longer any valid place for the child in the</span>
+            <span class="s4"># scenegraph; put it under hidden</span>
+            <span class="s1">child</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">hidden</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">registerParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">token</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">token </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">error</span><span class="s3">(</span>
+                <span class="s5">&quot;registerParent: token '%s' already registered, referencing %s&quot; </span><span class="s3">%</span>
+                <span class="s3">(</span><span class="s1">token</span><span class="s3">, </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">[</span><span class="s1">token</span><span class="s3">])))</span>
+
+        <span class="s2">if </span><span class="s1">isDefaultValue</span><span class="s3">(</span><span class="s1">token</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">error</span><span class="s3">(</span><span class="s5">'parent token (for %s) cannot be a default value (%s)' </span><span class="s3">% (</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">), </span><span class="s1">token</span><span class="s3">))</span>
+
+        <span class="s2">if </span><span class="s1">type</span><span class="s3">(</span><span class="s1">token</span><span class="s3">) </span><span class="s2">is </span><span class="s1">int</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">token </span><span class="s3">&gt; </span><span class="s6">0xFFFFFFFF</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">error</span><span class="s3">(</span><span class="s5">'parent token %s (for %s) is out of uint32 range' </span><span class="s3">% (</span><span class="s1">token</span><span class="s3">, </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)))</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">&quot;registering %s as '%s'&quot; </span><span class="s3">% (</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">), </span><span class="s1">token</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">[</span><span class="s1">token</span><span class="s3">] = </span><span class="s1">parent</span>
+
+        <span class="s4"># if we have any pending children, add them</span>
+        <span class="s2">if </span><span class="s1">token </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span><span class="s3">:</span>
+            <span class="s1">children </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span><span class="s3">[</span><span class="s1">token</span><span class="s3">]</span>
+            <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingParentToken2children</span><span class="s3">[</span><span class="s1">token</span><span class="s3">]</span>
+            <span class="s2">for </span><span class="s1">child </span><span class="s2">in </span><span class="s1">children</span><span class="s3">:</span>
+                <span class="s4"># NOTE: We do a plain-old reparentTo here (non-wrt)</span>
+                <span class="s4"># under the assumption that the node has been</span>
+                <span class="s4"># positioned as if it is already under the new parent.</span>
+                <span class="s4">#</span>
+                <span class="s4"># The only case that I can think of where the parent</span>
+                <span class="s4"># node would not have been registered at the time of</span>
+                <span class="s4"># the reparent request is when we're entering a new</span>
+                <span class="s4"># zone and manifesting remote toons along with</span>
+                <span class="s4"># other distributed objects, and a remote toon is</span>
+                <span class="s4"># requesting to be parented to geometry owned by a</span>
+                <span class="s4"># distributed object that has not yet been manifested.</span>
+                <span class="s4">#</span>
+                <span class="s4"># (The situation in the factory is a little different;</span>
+                <span class="s4"># the distributed toons of your companions are never</span>
+                <span class="s4"># disabled, since the toons are in the factory's uberzone.</span>
+                <span class="s4"># They send out requests to be parented to nodes that</span>
+                <span class="s4"># may be distributed objects, which may not be generated</span>
+                <span class="s4"># on your client)</span>
+                <span class="s4">#</span>
+                <span class="s4"># It is therefore important for that remote toon to</span>
+                <span class="s4"># have his position set as a required field, relative</span>
+                <span class="s4"># to the parent node, after the reparent request.</span>
+                <span class="s4"># If the node has already been registered, the toon will</span>
+                <span class="s4"># be in the correct position. Otherwise, the toon will</span>
+                <span class="s4"># have the correct position but the wrong parent node,</span>
+                <span class="s4"># until this code runs and corrects the toon's parent</span>
+                <span class="s4"># node. Since we don't start rendering until all objects</span>
+                <span class="s4"># in a new zone have been generated, all of that action</span>
+                <span class="s4"># will happen in a single frame, and the net result will</span>
+                <span class="s4"># be that the toon will be in the right place when</span>
+                <span class="s4"># rendering starts.</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">&quot;performing reparent of %s to '%s'&quot; </span><span class="s3">%</span>
+                                  <span class="s3">(</span><span class="s1">repr</span><span class="s3">(</span><span class="s1">child</span><span class="s3">), </span><span class="s1">token</span><span class="s3">))</span>
+                <span class="s1">child</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">[</span><span class="s1">token</span><span class="s3">])</span>
+                <span class="s4"># remove this child from the child-&gt;parent table</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">[</span><span class="s1">child</span><span class="s3">] == </span><span class="s1">token</span>
+                <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pendingChild2parentToken</span><span class="s3">[</span><span class="s1">child</span><span class="s3">]</span>
+
+    <span class="s2">def </span><span class="s1">unregisterParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">token</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">token </span><span class="s2">not in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">warning</span><span class="s3">(</span><span class="s5">&quot;unregisterParent: unknown parent token '%s'&quot; </span><span class="s3">%</span>
+                                <span class="s1">token</span><span class="s3">)</span>
+            <span class="s2">return</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">&quot;unregistering parent '%s'&quot; </span><span class="s3">% (</span><span class="s1">token</span><span class="s3">))</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">token2nodepath</span><span class="s3">[</span><span class="s1">token</span><span class="s3">]</span>
+</pre>
+</body>
+</html>

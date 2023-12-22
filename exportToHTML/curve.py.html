@@ -1,0 +1,388 @@
+<html>
+<head>
+<title>curve.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+curve.py</font>
+</center></td></tr></table>
+<pre><span class="s0">'''Translated from https://github.com/AndrewRayCode/easing-utils/blob/master/src/easing.js'''</span>
+
+<span class="s2">from </span><span class="s1">math </span><span class="s2">import </span><span class="s1">cos</span><span class="s3">, </span><span class="s1">pi</span><span class="s3">, </span><span class="s1">sqrt</span><span class="s3">, </span><span class="s1">sin</span><span class="s3">, </span><span class="s1">asin</span><span class="s3">, </span><span class="s1">floor</span>
+
+
+<span class="s2">def </span><span class="s1">linear</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t</span>
+
+
+<span class="s2">def </span><span class="s1">in_sine</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s3">-</span><span class="s4">1 </span><span class="s3">* </span><span class="s1">cos</span><span class="s3">(</span><span class="s1">t </span><span class="s3">* (</span><span class="s1">pi </span><span class="s3">/ </span><span class="s4">2</span><span class="s3">)) + </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">out_sine</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">sin</span><span class="s3">(</span><span class="s1">t </span><span class="s3">* (</span><span class="s1">pi </span><span class="s3">/ </span><span class="s4">2</span><span class="s3">))</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_sine</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s3">-</span><span class="s4">.5 </span><span class="s3">* (</span><span class="s1">cos</span><span class="s3">(</span><span class="s1">pi </span><span class="s3">* </span><span class="s1">t</span><span class="s3">) - </span><span class="s4">1</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_quad</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+
+
+<span class="s2">def </span><span class="s1">out_quad</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t </span><span class="s3">* (</span><span class="s4">2 </span><span class="s3">- </span><span class="s1">t</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_quad</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">&lt; </span><span class="s4">.5</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">2 </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s3">- </span><span class="s4">1 </span><span class="s3">+ (</span><span class="s4">4 </span><span class="s3">- </span><span class="s4">2 </span><span class="s3">* </span><span class="s1">t</span><span class="s3">) * </span><span class="s1">t</span>
+
+
+<span class="s2">def </span><span class="s1">in_cubic</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+
+
+<span class="s2">def </span><span class="s1">out_cubic</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s2">return </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">+ </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_cubic</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">&lt; </span><span class="s4">.5</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">4 </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span><span class="s3">) * (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">t </span><span class="s3">- </span><span class="s4">2</span><span class="s3">) * (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">t </span><span class="s3">- </span><span class="s4">2</span><span class="s3">) + </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">in_quart</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+
+
+<span class="s2">def </span><span class="s1">out_quart</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s2">return </span><span class="s4">1 </span><span class="s3">- </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_quart</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">&lt; </span><span class="s4">.5</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">8 </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s4">1 </span><span class="s3">- </span><span class="s4">8 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1</span>
+
+
+<span class="s2">def </span><span class="s1">in_quint</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+
+
+<span class="s2">def </span><span class="s1">out_quint</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s2">return </span><span class="s4">1 </span><span class="s3">+ </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_quint</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">&lt; </span><span class="s4">.5</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">16 </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">1 </span><span class="s3">+ </span><span class="s4">16 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1</span>
+
+
+<span class="s2">def </span><span class="s1">in_expo</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, </span><span class="s4">10 </span><span class="s3">* (</span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span><span class="s3">))</span>
+
+
+<span class="s2">def </span><span class="s1">out_expo</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s3">-</span><span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, -</span><span class="s4">10 </span><span class="s3">* </span><span class="s1">t</span><span class="s3">) + </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_expo</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span>
+    <span class="s1">scaledTime1 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- </span><span class="s4">1</span>
+
+    <span class="s2">if </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">.5 </span><span class="s3">* </span><span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, </span><span class="s4">10 </span><span class="s3">* </span><span class="s1">scaledTime1</span><span class="s3">)</span>
+
+    <span class="s2">return </span><span class="s4">.5 </span><span class="s3">* (-</span><span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, -</span><span class="s4">10 </span><span class="s3">* </span><span class="s1">scaledTime1</span><span class="s3">) + </span><span class="s4">2</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_circ</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">/ </span><span class="s4">1</span>
+    <span class="s2">return </span><span class="s3">-</span><span class="s4">1 </span><span class="s3">* (</span><span class="s1">sqrt</span><span class="s3">(</span><span class="s4">1 </span><span class="s3">- </span><span class="s1">scaledTime </span><span class="s3">* </span><span class="s1">t</span><span class="s3">) - </span><span class="s4">1</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">out_circ</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s2">return </span><span class="s1">sqrt</span><span class="s3">(</span><span class="s4">1 </span><span class="s3">- </span><span class="s1">t1 </span><span class="s3">* </span><span class="s1">t1</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_circ</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span>
+    <span class="s1">scaledTime1 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- </span><span class="s4">2</span>
+
+    <span class="s2">if </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s3">-</span><span class="s4">.5 </span><span class="s3">* (</span><span class="s1">sqrt</span><span class="s3">(</span><span class="s4">1 </span><span class="s3">- </span><span class="s1">scaledTime </span><span class="s3">* </span><span class="s1">scaledTime</span><span class="s3">) - </span><span class="s4">1</span><span class="s3">)</span>
+
+    <span class="s2">return </span><span class="s4">.5 </span><span class="s3">* (</span><span class="s1">sqrt</span><span class="s3">(</span><span class="s4">1 </span><span class="s3">- </span><span class="s1">scaledTime1 </span><span class="s3">* </span><span class="s1">scaledTime1</span><span class="s3">) + </span><span class="s4">1</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_back</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">magnitude</span><span class="s3">=</span><span class="s4">1.70158</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">t </span><span class="s3">* </span><span class="s1">t </span><span class="s3">* ((</span><span class="s1">magnitude </span><span class="s3">+ </span><span class="s4">1</span><span class="s3">) * </span><span class="s1">t </span><span class="s3">- </span><span class="s1">magnitude</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">out_back</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">magnitude</span><span class="s3">=</span><span class="s4">1.70158</span><span class="s3">):</span>
+    <span class="s1">scaledTime </span><span class="s3">= (</span><span class="s1">t </span><span class="s3">/ </span><span class="s4">1</span><span class="s3">) - </span><span class="s4">1</span>
+    <span class="s2">return </span><span class="s3">(</span>
+                   <span class="s1">scaledTime </span><span class="s3">* </span><span class="s1">scaledTime </span><span class="s3">* ((</span><span class="s1">magnitude </span><span class="s3">+ </span><span class="s4">1</span><span class="s3">) * </span><span class="s1">scaledTime </span><span class="s3">+ </span><span class="s1">magnitude</span><span class="s3">)</span>
+           <span class="s3">) + </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_back</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">magnitude</span><span class="s3">=</span><span class="s4">1.70158</span><span class="s3">):</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span>
+    <span class="s1">scaledTime2 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- </span><span class="s4">2</span>
+    <span class="s1">s </span><span class="s3">= </span><span class="s1">magnitude </span><span class="s3">* </span><span class="s4">1.525</span>
+
+    <span class="s2">if </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">.5 </span><span class="s3">* </span><span class="s1">scaledTime </span><span class="s3">* </span><span class="s1">scaledTime </span><span class="s3">* (</span>
+                <span class="s3">((</span><span class="s1">s </span><span class="s3">+ </span><span class="s4">1</span><span class="s3">) * </span><span class="s1">scaledTime</span><span class="s3">) - </span><span class="s1">s</span>
+        <span class="s3">)</span>
+    <span class="s2">return </span><span class="s4">.5 </span><span class="s3">* (</span>
+            <span class="s1">scaledTime2 </span><span class="s3">* </span><span class="s1">scaledTime2 </span><span class="s3">* ((</span><span class="s1">s </span><span class="s3">+ </span><span class="s4">1</span><span class="s3">) * </span><span class="s1">scaledTime2 </span><span class="s3">+ </span><span class="s1">s</span><span class="s3">) + </span><span class="s4">2</span>
+    <span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_elastic</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">magnitude</span><span class="s3">=</span><span class="s4">.7</span><span class="s3">):</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">== </span><span class="s4">0 </span><span class="s2">or </span><span class="s1">t </span><span class="s3">== </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s1">t</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">/ </span><span class="s4">1</span>
+    <span class="s1">scaledTime1 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s1">p </span><span class="s3">= </span><span class="s4">1 </span><span class="s3">- </span><span class="s1">magnitude</span>
+    <span class="s1">s </span><span class="s3">= </span><span class="s1">p </span><span class="s3">/ (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) * </span><span class="s1">asin</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+
+    <span class="s2">return </span><span class="s3">-(</span>
+            <span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, </span><span class="s4">10 </span><span class="s3">* </span><span class="s1">scaledTime1</span><span class="s3">) *</span>
+            <span class="s1">sin</span><span class="s3">((</span><span class="s1">scaledTime1 </span><span class="s3">- </span><span class="s1">s</span><span class="s3">) * (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) / </span><span class="s1">p</span><span class="s3">)</span>
+    <span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">out_elastic</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">magnitude</span><span class="s3">=</span><span class="s4">.7</span><span class="s3">):</span>
+    <span class="s1">p </span><span class="s3">= </span><span class="s4">1 </span><span class="s3">- </span><span class="s1">magnitude</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span>
+
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">== </span><span class="s4">0 </span><span class="s2">or </span><span class="s1">t </span><span class="s3">== </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s1">t</span>
+
+    <span class="s1">s </span><span class="s3">= </span><span class="s1">p </span><span class="s3">/ (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) * </span><span class="s1">asin</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+    <span class="s2">return </span><span class="s3">(</span>
+                   <span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, -</span><span class="s4">10 </span><span class="s3">* </span><span class="s1">scaledTime</span><span class="s3">) *</span>
+                   <span class="s1">sin</span><span class="s3">((</span><span class="s1">scaledTime </span><span class="s3">- </span><span class="s1">s</span><span class="s3">) * (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) / </span><span class="s1">p</span><span class="s3">)</span>
+           <span class="s3">) + </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_elastic</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">magnitude</span><span class="s3">=</span><span class="s4">0.65</span><span class="s3">):</span>
+    <span class="s1">p </span><span class="s3">= </span><span class="s4">1 </span><span class="s3">- </span><span class="s1">magnitude</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">== </span><span class="s4">0 </span><span class="s2">or </span><span class="s1">t </span><span class="s3">== </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s1">t</span>
+
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span>
+    <span class="s1">scaledTime1 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- </span><span class="s4">1</span>
+    <span class="s1">s </span><span class="s3">= </span><span class="s1">p </span><span class="s3">/ (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) * </span><span class="s1">asin</span><span class="s3">(</span><span class="s4">1</span><span class="s3">)</span>
+
+    <span class="s2">if </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">1</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s3">-</span><span class="s4">.5 </span><span class="s3">* (</span>
+                <span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, </span><span class="s4">10 </span><span class="s3">* </span><span class="s1">scaledTime1</span><span class="s3">) *</span>
+                <span class="s1">sin</span><span class="s3">((</span><span class="s1">scaledTime1 </span><span class="s3">- </span><span class="s1">s</span><span class="s3">) * (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) / </span><span class="s1">p</span><span class="s3">)</span>
+        <span class="s3">)</span>
+
+    <span class="s2">return </span><span class="s3">(</span>
+                   <span class="s1">pow</span><span class="s3">(</span><span class="s4">2</span><span class="s3">, -</span><span class="s4">10 </span><span class="s3">* </span><span class="s1">scaledTime1</span><span class="s3">) *</span>
+                   <span class="s1">sin</span><span class="s3">((</span><span class="s1">scaledTime1 </span><span class="s3">- </span><span class="s1">s</span><span class="s3">) * (</span><span class="s4">2 </span><span class="s3">* </span><span class="s1">pi</span><span class="s3">) / </span><span class="s1">p</span><span class="s3">) * </span><span class="s4">.5</span>
+           <span class="s3">) + </span><span class="s4">1</span>
+
+
+<span class="s2">def </span><span class="s1">out_bounce</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s1">scaledTime </span><span class="s3">= </span><span class="s1">t </span><span class="s3">/ </span><span class="s4">1</span>
+
+    <span class="s2">if </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">1 </span><span class="s3">/ </span><span class="s4">2.75</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s4">7.5625 </span><span class="s3">* </span><span class="s1">scaledTime </span><span class="s3">* </span><span class="s1">scaledTime</span>
+
+    <span class="s2">elif </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">2 </span><span class="s3">/ </span><span class="s4">2.75</span><span class="s3">:</span>
+        <span class="s1">scaledTime2 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- (</span><span class="s4">1.5 </span><span class="s3">/ </span><span class="s4">2.75</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s4">7.5625 </span><span class="s3">* </span><span class="s1">scaledTime2 </span><span class="s3">* </span><span class="s1">scaledTime2</span><span class="s3">) + </span><span class="s4">.75</span>
+
+    <span class="s2">elif </span><span class="s1">scaledTime </span><span class="s3">&lt; </span><span class="s4">2.5 </span><span class="s3">/ </span><span class="s4">2.75</span><span class="s3">:</span>
+        <span class="s1">scaledTime2 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- (</span><span class="s4">2.25 </span><span class="s3">/ </span><span class="s4">2.75</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s4">7.5625 </span><span class="s3">* </span><span class="s1">scaledTime2 </span><span class="s3">* </span><span class="s1">scaledTime2</span><span class="s3">) + </span><span class="s4">0.9375</span>
+
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s1">scaledTime2 </span><span class="s3">= </span><span class="s1">scaledTime </span><span class="s3">- (</span><span class="s4">2.625 </span><span class="s3">/ </span><span class="s4">2.75</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s4">7.5625 </span><span class="s3">* </span><span class="s1">scaledTime2 </span><span class="s3">* </span><span class="s1">scaledTime2</span><span class="s3">) + </span><span class="s4">0.984375</span>
+
+
+<span class="s2">def </span><span class="s1">in_bounce</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s4">1 </span><span class="s3">- </span><span class="s1">out_bounce</span><span class="s3">(</span><span class="s4">1 </span><span class="s3">- </span><span class="s1">t</span><span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">in_out_bounce</span><span class="s3">(</span><span class="s1">t</span><span class="s3">):</span>
+    <span class="s2">if </span><span class="s1">t </span><span class="s3">&lt; </span><span class="s4">.5</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s1">in_bounce</span><span class="s3">(</span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span><span class="s3">) * </span><span class="s4">.5</span>
+
+    <span class="s2">return </span><span class="s3">(</span><span class="s1">out_bounce</span><span class="s3">((</span><span class="s1">t </span><span class="s3">* </span><span class="s4">2</span><span class="s3">) - </span><span class="s4">1</span><span class="s3">) * </span><span class="s4">.5</span><span class="s3">) + </span><span class="s4">.5</span>
+
+
+<span class="s5"># generate boomeranged versions of all the functions</span>
+<span class="s2">import </span><span class="s1">sys</span>
+<span class="s2">from </span><span class="s1">textwrap </span><span class="s2">import </span><span class="s1">dedent</span>
+
+<span class="s2">for </span><span class="s1">e </span><span class="s2">in </span><span class="s1">dir</span><span class="s3">(</span><span class="s1">sys</span><span class="s3">.</span><span class="s1">modules</span><span class="s3">[</span><span class="s1">__name__</span><span class="s3">]):</span>
+    <span class="s1">item </span><span class="s3">= </span><span class="s1">getattr</span><span class="s3">(</span><span class="s1">sys</span><span class="s3">.</span><span class="s1">modules</span><span class="s3">[</span><span class="s1">__name__</span><span class="s3">], </span><span class="s1">e</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">callable</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+        <span class="s1">exec</span><span class="s3">(</span><span class="s1">dedent</span><span class="s3">(</span><span class="s6">f'''</span>
+            <span class="s6">def </span><span class="s2">{</span><span class="s1">e</span><span class="s2">}</span><span class="s6">_boomerang(t):</span>
+                <span class="s6">if t &lt; .5:</span>
+                    <span class="s6">return </span><span class="s2">{</span><span class="s1">e</span><span class="s2">}</span><span class="s6">(t*2)</span>
+                <span class="s6">else:</span>
+                    <span class="s6">return </span><span class="s2">{</span><span class="s1">e</span><span class="s2">}</span><span class="s6">(1-((t-.5)*2))</span>
+        <span class="s6">'''</span><span class="s3">))</span>
+
+
+<span class="s5"># bezier code is translated  from WebKit implementation</span>
+<span class="s2">class </span><span class="s1">CubicBezier</span><span class="s3">:</span>
+    <span class="s1">__slots__ </span><span class="s3">= [</span><span class="s6">'a'</span><span class="s3">, </span><span class="s6">'b'</span><span class="s3">, </span><span class="s6">'c'</span><span class="s3">, </span><span class="s6">'d'</span><span class="s3">, </span><span class="s6">'cx'</span><span class="s3">, </span><span class="s6">'bx'</span><span class="s3">, </span><span class="s6">'ax'</span><span class="s3">, </span><span class="s6">'cy'</span><span class="s3">, </span><span class="s6">'by'</span><span class="s3">, </span><span class="s6">'ay'</span><span class="s3">]</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">a</span><span class="s3">, </span><span class="s1">b</span><span class="s3">, </span><span class="s1">c</span><span class="s3">, </span><span class="s1">d</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">a </span><span class="s3">= </span><span class="s1">a</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">b </span><span class="s3">= </span><span class="s1">b</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">c </span><span class="s3">= </span><span class="s1">c</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">d </span><span class="s3">= </span><span class="s1">d</span>
+        <span class="s5"># pre-calculate the polynomial coefficients</span>
+        <span class="s5"># irst and last control points are implied to be (0,0) and (1.0, 1.0)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cx </span><span class="s3">= </span><span class="s4">3.0 </span><span class="s3">* </span><span class="s1">a</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">bx </span><span class="s3">= </span><span class="s4">3.0 </span><span class="s3">* (</span><span class="s1">c </span><span class="s3">- </span><span class="s1">a</span><span class="s3">) - </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cx</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ax </span><span class="s3">= </span><span class="s4">1.0 </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cx </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">bx</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cy </span><span class="s3">= </span><span class="s4">3.0 </span><span class="s3">* </span><span class="s1">b</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">by </span><span class="s3">= </span><span class="s4">3.0 </span><span class="s3">* (</span><span class="s1">d </span><span class="s3">- </span><span class="s1">b</span><span class="s3">) - </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cy</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ay </span><span class="s3">= </span><span class="s4">1.0 </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cy </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">by</span>
+
+    <span class="s2">def </span><span class="s1">sample_curve_x</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s3">((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">ax </span><span class="s3">* </span><span class="s1">t </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">bx</span><span class="s3">) * </span><span class="s1">t </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cx</span><span class="s3">) * </span><span class="s1">t</span>
+
+    <span class="s2">def </span><span class="s1">sample_curve_y</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s3">((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">ay </span><span class="s3">* </span><span class="s1">t </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">by</span><span class="s3">) * </span><span class="s1">t </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cy</span><span class="s3">) * </span><span class="s1">t</span>
+
+    <span class="s2">def </span><span class="s1">sample_curve_derivative_x</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s4">3.0 </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">ax </span><span class="s3">* </span><span class="s1">t </span><span class="s3">+ </span><span class="s4">2.0 </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">bx</span><span class="s3">) * </span><span class="s1">t </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cx</span>
+
+    <span class="s2">def </span><span class="s1">calculate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">epsilon</span><span class="s3">=</span><span class="s4">.0001</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">sample_curve_y</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">solve_curve_x</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">epsilon</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">solve_curve_x</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">, </span><span class="s1">epsilon</span><span class="s3">=</span><span class="s4">.0001</span><span class="s3">):</span>
+        <span class="s5"># First try a few iterations of Newton's method -- normally very fast.</span>
+        <span class="s1">t0 </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">t1 </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">t2 </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">x2 </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s5"># d2 = 0</span>
+        <span class="s5"># i = 0</span>
+
+        <span class="s5"># t2 = t</span>
+        <span class="s5"># for i in range(8):</span>
+        <span class="s5">#     x2 = self.sample_curve_x(t2) - t</span>
+        <span class="s5">#     if abs(x2) &lt; epsilon:</span>
+        <span class="s5">#         return t2</span>
+        <span class="s5">#     d2 = self.sample_curve_derivative_x(t2)</span>
+        <span class="s5">#     if abs(d2) &lt; epsilon:</span>
+        <span class="s5">#         break</span>
+        <span class="s5">#</span>
+        <span class="s5">#     t2 = t2 - x2 / d2</span>
+
+        <span class="s5"># No solution found - use bi-section</span>
+        <span class="s1">t0 </span><span class="s3">= </span><span class="s4">0.0</span>
+        <span class="s1">t1 </span><span class="s3">= </span><span class="s4">1.0</span>
+        <span class="s1">t2 </span><span class="s3">= </span><span class="s1">t</span>
+
+        <span class="s2">if </span><span class="s1">t2 </span><span class="s3">&lt; </span><span class="s1">t0</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">t0</span>
+        <span class="s2">if </span><span class="s1">t2 </span><span class="s3">&gt; </span><span class="s1">t1</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">t1</span>
+
+        <span class="s2">while </span><span class="s1">t0 </span><span class="s3">&lt; </span><span class="s1">t1</span><span class="s3">:</span>
+            <span class="s1">x2 </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">sample_curve_x</span><span class="s3">(</span><span class="s1">t2</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">abs</span><span class="s3">(</span><span class="s1">x2 </span><span class="s3">- </span><span class="s1">t</span><span class="s3">) &lt; </span><span class="s1">epsilon</span><span class="s3">:</span>
+                <span class="s2">return </span><span class="s1">t2</span>
+            <span class="s2">if </span><span class="s1">t </span><span class="s3">&gt; </span><span class="s1">x2</span><span class="s3">:</span>
+                <span class="s1">t0 </span><span class="s3">= </span><span class="s1">t2</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">t1 </span><span class="s3">= </span><span class="s1">t2</span>
+
+            <span class="s1">t2 </span><span class="s3">= (</span><span class="s1">t1 </span><span class="s3">- </span><span class="s1">t0</span><span class="s3">) * </span><span class="s4">.5 </span><span class="s3">+ </span><span class="s1">t0</span>
+
+        <span class="s5"># Give up</span>
+        <span class="s2">return </span><span class="s1">t2</span>
+
+
+<span class="s2">if </span><span class="s1">__name__ </span><span class="s3">== </span><span class="s6">'__main__'</span><span class="s3">:</span>
+    <span class="s6">'''Draws a sheet with every curve and its name'''</span>
+    <span class="s2">from </span><span class="s1">ursina </span><span class="s2">import </span><span class="s3">*</span>
+    <span class="s2">from </span><span class="s1">ursina </span><span class="s2">import </span><span class="s1">Ursina</span><span class="s3">, </span><span class="s1">camera</span><span class="s3">, </span><span class="s1">window</span><span class="s3">, </span><span class="s1">curve</span><span class="s3">, </span><span class="s1">Entity</span><span class="s3">, </span><span class="s1">Mesh</span><span class="s3">, </span><span class="s1">Text</span><span class="s3">, </span><span class="s1">color</span>
+
+    <span class="s1">app </span><span class="s3">= </span><span class="s1">Ursina</span><span class="s3">()</span>
+    <span class="s1">camera</span><span class="s3">.</span><span class="s1">orthographic </span><span class="s3">= </span><span class="s2">True</span>
+    <span class="s1">camera</span><span class="s3">.</span><span class="s1">fov </span><span class="s3">= </span><span class="s4">16</span>
+    <span class="s1">camera</span><span class="s3">.</span><span class="s1">position </span><span class="s3">= (</span><span class="s4">9</span><span class="s3">, </span><span class="s4">6</span><span class="s3">)</span>
+    <span class="s1">window</span><span class="s3">.</span><span class="s1">color </span><span class="s3">= </span><span class="s1">color</span><span class="s3">.</span><span class="s1">black</span>
+
+    <span class="s1">i </span><span class="s3">= </span><span class="s4">0</span>
+    <span class="s2">for </span><span class="s1">e </span><span class="s2">in </span><span class="s1">dir</span><span class="s3">(</span><span class="s1">curve</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">item </span><span class="s3">= </span><span class="s1">getattr</span><span class="s3">(</span><span class="s1">curve</span><span class="s3">, </span><span class="s1">e</span><span class="s3">)</span>
+            <span class="s1">print</span><span class="s3">(</span><span class="s1">item</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">, </span><span class="s6">':'</span><span class="s3">, </span><span class="s1">item</span><span class="s3">(</span><span class="s4">.75</span><span class="s3">))</span>
+            <span class="s1">curve_renderer </span><span class="s3">= </span><span class="s1">Entity</span><span class="s3">(</span>
+                <span class="s1">model</span><span class="s3">=</span><span class="s1">Mesh</span><span class="s3">(</span><span class="s1">vertices</span><span class="s3">=[</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">i </span><span class="s3">/ </span><span class="s4">31</span><span class="s3">, </span><span class="s1">item</span><span class="s3">(</span><span class="s1">i </span><span class="s3">/ </span><span class="s4">31</span><span class="s3">), </span><span class="s4">0</span><span class="s3">) </span><span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s4">32</span><span class="s3">)], </span><span class="s1">mode</span><span class="s3">=</span><span class="s6">'line'</span><span class="s3">, </span><span class="s1">thickness</span><span class="s3">=</span><span class="s4">2</span><span class="s3">),</span>
+                <span class="s1">color</span><span class="s3">=</span><span class="s1">color</span><span class="s3">.</span><span class="s1">light_gray</span><span class="s3">)</span>
+            <span class="s1">row </span><span class="s3">= </span><span class="s1">floor</span><span class="s3">(</span><span class="s1">i </span><span class="s3">/ </span><span class="s4">8</span><span class="s3">)</span>
+            <span class="s1">curve_renderer</span><span class="s3">.</span><span class="s1">x </span><span class="s3">= (</span><span class="s1">i </span><span class="s3">% </span><span class="s4">8</span><span class="s3">) * </span><span class="s4">2.5</span>
+            <span class="s1">curve_renderer</span><span class="s3">.</span><span class="s1">y </span><span class="s3">= </span><span class="s1">row </span><span class="s3">* </span><span class="s4">1.75</span>
+            <span class="s1">label </span><span class="s3">= </span><span class="s1">Text</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">=</span><span class="s1">curve_renderer</span><span class="s3">, </span><span class="s1">text</span><span class="s3">=</span><span class="s1">item</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">, </span><span class="s1">scale</span><span class="s3">=</span><span class="s4">8</span><span class="s3">, </span><span class="s1">color</span><span class="s3">=</span><span class="s1">color</span><span class="s3">.</span><span class="s1">gray</span><span class="s3">, </span><span class="s1">y</span><span class="s3">=-</span><span class="s4">.1</span><span class="s3">)</span>
+            <span class="s1">i </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s2">pass</span>
+
+    <span class="s1">c </span><span class="s3">= </span><span class="s1">CubicBezier</span><span class="s3">(</span><span class="s4">0</span><span class="s3">, </span><span class="s4">.5</span><span class="s3">, </span><span class="s4">1</span><span class="s3">, </span><span class="s4">.5</span><span class="s3">)</span>
+    <span class="s1">print</span><span class="s3">(</span><span class="s6">'-----------'</span><span class="s3">, </span><span class="s1">c</span><span class="s3">.</span><span class="s1">calculate</span><span class="s3">(</span><span class="s4">.23</span><span class="s3">))</span>
+    <span class="s5"># for x, c in enumerate([curve.CubicBezier(0,1,1,0), curve.CubicBezier(0,.5,1,.5), curve.CubicBezier(0,0,0,0), curve.CubicBezier(0,.7,1,.3)]):</span>
+    <span class="s5">#     verts = [Vec3(i/20, c.calculate(i/20), 0) for i in range(20)]</span>
+    <span class="s5">#     Entity(parent=camera.ui, model=Mesh(vertices=verts, mode='line', thickness=3), scale=.25, x=-.5+(x*.25))</span>
+
+    <span class="s1">window</span><span class="s3">.</span><span class="s1">exit_button</span><span class="s3">.</span><span class="s1">visible </span><span class="s3">= </span><span class="s2">False</span>
+    <span class="s1">window</span><span class="s3">.</span><span class="s1">fps_counter</span><span class="s3">.</span><span class="s1">enabled </span><span class="s3">= </span><span class="s2">False</span>
+    <span class="s1">app</span><span class="s3">.</span><span class="s1">run</span><span class="s3">()</span>
+    <span class="s6">''' 
+    These are used by Entity when animating, like this: 
+ 
+    e = Entity() 
+    e.animate_y(1, curve=curve.in_expo) 
+ 
+    e2 = Entity(x=1.5) 
+    e2.animate_y(1, curve=curve.CubicBezier(0,.7,1,.3)) 
+    '''</span>
+</pre>
+</body>
+</html>

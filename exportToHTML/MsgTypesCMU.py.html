@@ -1,0 +1,52 @@
+<html>
+<head>
+<title>MsgTypesCMU.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MsgTypesCMU.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; MsgTypesCMU module: defines the various message type codes as used 
+by the CMU ServerRepository/ClientRepository code in this directory. 
+It replaces the MsgTypes module, which is not used by the CMU 
+implementation. &quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">PythonUtil </span><span class="s2">import </span><span class="s1">invertDictLossless</span>
+
+<span class="s1">MsgName2Id </span><span class="s3">= {</span>
+    <span class="s4">'SET_DOID_RANGE_CMU'                      </span><span class="s3">: </span><span class="s5">9001</span><span class="s3">,</span>
+    <span class="s4">'CLIENT_OBJECT_GENERATE_CMU'              </span><span class="s3">: </span><span class="s5">9002</span><span class="s3">,</span>
+    <span class="s4">'OBJECT_GENERATE_CMU'                     </span><span class="s3">: </span><span class="s5">9003</span><span class="s3">,</span>
+    <span class="s4">'OBJECT_UPDATE_FIELD_CMU'                 </span><span class="s3">: </span><span class="s5">9004</span><span class="s3">,</span>
+    <span class="s4">'OBJECT_DISABLE_CMU'                      </span><span class="s3">: </span><span class="s5">9005</span><span class="s3">,</span>
+    <span class="s4">'OBJECT_DELETE_CMU'                       </span><span class="s3">: </span><span class="s5">9006</span><span class="s3">,</span>
+    <span class="s4">'REQUEST_GENERATES_CMU'                   </span><span class="s3">: </span><span class="s5">9007</span><span class="s3">,</span>
+    <span class="s4">'CLIENT_DISCONNECT_CMU'                   </span><span class="s3">: </span><span class="s5">9008</span><span class="s3">,</span>
+    <span class="s4">'CLIENT_SET_INTEREST_CMU'                 </span><span class="s3">: </span><span class="s5">9009</span><span class="s3">,</span>
+    <span class="s4">'OBJECT_SET_ZONE_CMU'                     </span><span class="s3">: </span><span class="s5">9010</span><span class="s3">,</span>
+    <span class="s4">'CLIENT_HEARTBEAT_CMU'                    </span><span class="s3">: </span><span class="s5">9011</span><span class="s3">,</span>
+    <span class="s4">'CLIENT_OBJECT_UPDATE_FIELD_TARGETED_CMU'  </span><span class="s3">: </span><span class="s5">9011</span><span class="s3">,</span>
+
+    <span class="s4">'CLIENT_OBJECT_UPDATE_FIELD' </span><span class="s3">: </span><span class="s5">120</span><span class="s3">,  </span><span class="s6"># Matches MsgTypes.CLIENT_OBJECT_SET_FIELD</span>
+    <span class="s3">}</span>
+
+<span class="s6"># create id-&gt;name table for debugging</span>
+<span class="s1">MsgId2Names </span><span class="s3">= </span><span class="s1">invertDictLossless</span><span class="s3">(</span><span class="s1">MsgName2Id</span><span class="s3">)</span>
+
+<span class="s6"># put msg names in module scope, assigned to msg value</span>
+<span class="s1">globals</span><span class="s3">().</span><span class="s1">update</span><span class="s3">(</span><span class="s1">MsgName2Id</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

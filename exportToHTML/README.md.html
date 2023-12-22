@@ -1,0 +1,274 @@
+<html>
+<head>
+<title>README.md</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #bcbec4;}
+.s2 { color: #56a8f5;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #c77dbb; font-style: italic;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+README.md</font>
+</center></td></tr></table>
+<pre><span class="s0">[![</span><span class="s1">Build Status</span><span class="s0">](</span><span class="s2">https://api.travis-ci.org/panda3d/panda3d.svg?branch=release/1.10.x</span><span class="s0">)](</span><span class="s2">https://travis-ci.org/panda3d/panda3d</span><span class="s0">)</span>
+<span class="s0">[![</span><span class="s1">OpenCollective</span><span class="s0">](</span><span class="s2">https://opencollective.com/panda3d/backers/badge.svg</span><span class="s0">)](</span><span class="s2">https://opencollective.com/panda3d</span><span class="s0">)</span>
+<span class="s0">[![</span><span class="s1">OpenCollective</span><span class="s0">](</span><span class="s2">https://opencollective.com/panda3d/sponsors/badge.svg</span><span class="s0">)](</span><span class="s2">https://opencollective.com/panda3d</span><span class="s0">)</span>
+
+<span class="s0">&lt;img src=&quot;https://avatars2.githubusercontent.com/u/590956?v=3&amp;s=500&quot; align=&quot;right&quot; width=&quot;200&quot;/&gt;</span>
+
+<span class="s1">Panda3D</span>
+<span class="s3">=======</span>
+
+<span class="s1">Panda3D is a game engine, a framework for 3D rendering and game development for</span>
+<span class="s1">Python and C++ programs.  Panda3D is open-source and free for any purpose,</span>
+<span class="s1">including commercial ventures, thanks to its</span>
+<span class="s0">[</span><span class="s1">liberal license</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/license/</span><span class="s0">)</span><span class="s1">. To learn more about</span>
+<span class="s1">Panda3D's capabilities, visit the </span><span class="s0">[</span><span class="s1">gallery</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/gallery/</span><span class="s0">)</span>
+<span class="s1">and the </span><span class="s0">[</span><span class="s1">feature list</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/features/</span><span class="s0">)</span><span class="s1">.  To learn how to</span>
+<span class="s1">use Panda3D, check the </span><span class="s0">[</span><span class="s1">documentation</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/documentation/</span><span class="s0">)</span>
+<span class="s1">resources. If you get stuck, ask for help from our active</span>
+<span class="s0">[</span><span class="s1">community</span><span class="s0">](</span><span class="s2">https://discourse.panda3d.org</span><span class="s0">)</span><span class="s1">.</span>
+
+<span class="s1">Panda3D is licensed under the Modified BSD License.  See the LICENSE file for</span>
+<span class="s1">more details.</span>
+
+<span class="s1">Installing Panda3D</span>
+<span class="s3">==================</span>
+
+<span class="s1">The latest Panda3D SDK can be downloaded from</span>
+<span class="s0">[</span><span class="s1">this page</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/download/sdk-1-10-13/</span><span class="s0">)</span><span class="s1">.</span>
+<span class="s1">If you are familiar with installing Python packages, you can use</span>
+<span class="s1">the following command</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">pip install panda3d</span>
+<span class="s3">```</span>
+
+<span class="s1">The easiest way to install the latest development build of Panda3D</span>
+<span class="s1">into an existing Python installation is using the following command</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">pip install --pre --extra-index-url https://archive.panda3d.org/ panda3d</span>
+<span class="s3">```</span>
+
+<span class="s1">If this command fails, please make sure your version of pip is up-to-date.</span>
+
+<span class="s1">If you prefer to install the full SDK with all tools, the latest development</span>
+<span class="s1">builds can be obtained from </span><span class="s0">[</span><span class="s1">this page</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/download.php?version=devel&amp;sdk</span><span class="s0">)</span><span class="s1">.</span>
+
+<span class="s1">These are automatically kept up-to-date with the latest GitHub version of Panda.</span>
+
+<span class="s1">Building Panda3D</span>
+<span class="s3">================</span>
+
+<span class="s1">Windows</span>
+<span class="s3">-------</span>
+
+<span class="s1">You can build Panda3D with the Microsoft Visual C++ 2015, 2017, 2019 or 2022</span>
+<span class="s1">compiler, which can be downloaded for free from the </span><span class="s0">[</span><span class="s1">Visual Studio site</span><span class="s0">](</span><span class="s2">https://visualstudio.microsoft.com/downloads/</span><span class="s0">)</span><span class="s1">.</span>
+<span class="s1">You will also need to install the </span><span class="s0">[</span><span class="s1">Windows SDK</span><span class="s0">](</span><span class="s2">https://developer.microsoft.com/en-us/windows/downloads/windows-sdk</span><span class="s0">)</span><span class="s1">,</span>
+<span class="s1">and if you intend to target Windows XP, you will also need the Windows 7.1A</span>
+<span class="s1">SDK </span><span class="s0">(</span><span class="s1">which can be installed from the Visual Studio Installer</span><span class="s0">)</span><span class="s1">.</span>
+
+<span class="s1">You will also need to have the third-party dependency libraries available for</span>
+<span class="s1">the build scripts to use.  These are available from one of these two URLs,</span>
+<span class="s1">depending on whether you are on a 32-bit or 64-bit system, or you can</span>
+<span class="s0">[</span><span class="s1">click here</span><span class="s0">](</span><span class="s2">https://github.com/rdb/panda3d-thirdparty</span><span class="s0">) </span><span class="s1">for instructions on</span>
+<span class="s1">building them from source.</span>
+
+<span class="s3">- </span><span class="s2">https://www.panda3d.org/download/panda3d-1.10.13/panda3d-1.10.13-tools-win64.zip</span>
+<span class="s3">- </span><span class="s2">https://www.panda3d.org/download/panda3d-1.10.13/panda3d-1.10.13-tools-win32.zip</span>
+
+<span class="s1">After acquiring these dependencies, you can build Panda3D from the command</span>
+<span class="s1">prompt using the following command.  Change the `--msvc-version` option based</span>
+<span class="s1">on your version of Visual C++; 2022 is 14.3, 2019 is 14.2, 2017 is 14.1, and</span>
+<span class="s1">2015 is 14.  Remove the `--windows-sdk=10` option if you need to support</span>
+<span class="s1">Windows XP, which requires the Windows 7.1A SDK.</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">makepanda\makepanda.bat --everything --installer --msvc-version=14.3 --windows-sdk=10 --no-eigen --threads=2</span>
+<span class="s3">```</span>
+
+<span class="s1">When the build succeeds, it will produce an .exe file that you can use to</span>
+<span class="s1">install Panda3D on your system.</span>
+
+<span class="s0">**</span><span class="s1">Note</span><span class="s0">:** </span><span class="s1">you may choose to remove `--no-eigen` and build with Eigen support in</span>
+<span class="s1">order to improve runtime performance.  However, this will cause the build to</span>
+<span class="s1">take hours to complete, as Eigen is a heavily template-based library, and the</span>
+<span class="s1">MSVC compiler does not perform well under those circumstances.</span>
+
+<span class="s1">Linux</span>
+<span class="s3">-----</span>
+
+<span class="s1">Building Panda3D on Linux is easy.  All you need is to invoke the makepanda</span>
+<span class="s1">script using the version of Python that you want Panda3D to be built against.</span>
+
+<span class="s1">Run makepanda.py with the --help option to see which options are available.</span>
+<span class="s1">Usually, you will want to specify the --everything option </span><span class="s0">(</span><span class="s1">which builds with</span>
+<span class="s1">support for all features for which it detects the prerequisite dependencies</span><span class="s0">)</span>
+<span class="s1">and the --installer option </span><span class="s0">(</span><span class="s1">which produces an installable .deb or .rpm file</span>
+<span class="s1">for you to install, depending on your distribution</span><span class="s0">)</span><span class="s1">.</span>
+
+<span class="s1">The following command illustrates how to build Panda3D with some common</span>
+<span class="s1">options</span><span class="s0">:</span>
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">python makepanda/makepanda.py --everything --installer --no-egl --no-gles --no-gles2 --no-opencv</span>
+<span class="s3">```</span>
+
+<span class="s1">You will probably see some warnings saying that it's unable to find several</span>
+<span class="s1">dependency packages.  You should determine which ones you want to include in</span>
+<span class="s1">your build and install the respective development packages.  You may visit</span>
+<span class="s0">[</span><span class="s1">this manual page</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/manual/?title=Third-party_dependencies_and_license_info</span><span class="s0">)</span>
+<span class="s1">for an overview of the various dependencies.</span>
+
+<span class="s1">If you are on Ubuntu, this command should cover the most frequently</span>
+<span class="s1">used third-party packages</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">sudo apt-get install build-essential pkg-config fakeroot python-dev libpng-dev libjpeg-dev libtiff-dev zlib1g-dev libssl-dev libx11-dev libgl1-mesa-dev libxrandr-dev libxxf86dga-dev libxcursor-dev bison flex libfreetype6-dev libvorbis-dev libeigen3-dev libopenal-dev libode-dev libbullet-dev nvidia-cg-toolkit libgtk2.0-dev libassimp-dev libopenexr-dev</span>
+<span class="s3">```</span>
+
+<span class="s1">Once Panda3D has built, you can either install the .deb or .rpm package that</span>
+<span class="s1">is produced, depending on which Linux distribution you are using.  For example,</span>
+<span class="s1">to install the package on Debian or Ubuntu, use this</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">sudo dpkg -i panda3d*.deb</span>
+<span class="s3">```</span>
+
+<span class="s1">If you are not using a Linux distribution that supports .deb or .rpm packages, you</span>
+<span class="s1">may have to use the installpanda.py script instead, which will directly copy the</span>
+<span class="s1">files into the appropriate locations on your computer.  You may have to run the</span>
+<span class="s1">`ldconfig` tool in order to update your library cache after installing Panda3D.</span>
+
+<span class="s1">Alternatively, you can add the `--wheel` option, which will produce a .whl</span>
+<span class="s1">file that can be installed into a Python installation using `pip`.</span>
+
+<span class="s1">macOS</span>
+<span class="s3">-----</span>
+
+<span class="s1">On macOS, you will need to download a set of precompiled thirdparty packages in order to</span>
+<span class="s1">compile Panda3D, which can be acquired from </span><span class="s0">[</span><span class="s1">here</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/download/panda3d-1.10.13/panda3d-1.10.13-tools-mac.tar.gz</span><span class="s0">)</span><span class="s1">.</span>
+
+<span class="s1">After placing the thirdparty directory inside the panda3d source directory,</span>
+<span class="s1">you may build Panda3D using a command like the following</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">python makepanda/makepanda.py --everything --installer</span>
+<span class="s3">```</span>
+
+<span class="s1">In order to make a universal build, pass the --universal flag.  You may also</span>
+<span class="s1">target a specific minimum macOS version using the --osxtarget flag followed</span>
+<span class="s1">by the release number, eg. 10.6 or 10.7.</span>
+
+<span class="s1">If the build was successful, makepanda will have generated a .dmg file in</span>
+<span class="s1">the source directory containing the installer.  Simply open it and run the</span>
+<span class="s1">package file in order to install the SDK onto your system.</span>
+
+<span class="s1">FreeBSD</span>
+<span class="s3">-------</span>
+
+<span class="s1">Building on FreeBSD is very similar to building on Linux.  You will need to</span>
+<span class="s1">install the requisite packages using the system package manager.  To install</span>
+<span class="s1">the recommended set of dependencies, you can use this command</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">pkg install pkgconf bison png jpeg-turbo tiff freetype2 harfbuzz eigen squish openal opusfile libvorbis libX11 mesa-libs ode bullet assimp openexr</span>
+<span class="s3">```</span>
+
+<span class="s1">You will also need to choose which version of Python you want to use.</span>
+<span class="s1">Install the appropriate package for it </span><span class="s0">(</span><span class="s1">such as `python2` or `python36`</span><span class="s0">) </span><span class="s1">and</span>
+<span class="s1">run the makepanda script with your chosen Python version</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">python3.6 makepanda/makepanda.py --everything --installer --no-egl --no-gles --no-gles2</span>
+<span class="s3">```</span>
+
+<span class="s1">If successful, this will produce a .pkg file in the root of the source</span>
+<span class="s1">directory which you can install using `pkg install`.</span>
+
+<span class="s1">Android</span>
+<span class="s3">-------</span>
+
+<span class="s1">Note</span><span class="s0">: </span><span class="s1">building on Android is very experimental and not guaranteed to work.</span>
+
+<span class="s1">You can experimentally build the Android Python runner via the </span><span class="s0">[</span><span class="s1">termux</span><span class="s0">](</span><span class="s2">https://termux.com/</span><span class="s0">)</span>
+<span class="s1">shell.  You will need to install </span><span class="s0">[</span><span class="s1">Termux</span><span class="s0">](</span><span class="s2">https://play.google.com/store/apps/details?id=com.termux</span><span class="s0">)</span>
+<span class="s1">and </span><span class="s0">[</span><span class="s1">Termux API</span><span class="s0">](</span><span class="s2">https://play.google.com/store/apps/details?id=com.termux.api</span><span class="s0">)</span>
+<span class="s1">from the Play Store.  Many of the dependencies can be installed by running the</span>
+<span class="s1">following command in the Termux shell</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">pkg install python ndk-sysroot clang bison freetype harfbuzz libpng eigen openal-soft opusfile libvorbis assimp libopus ecj dx patchelf aapt apksigner libcrypt openssl pkg-config</span>
+<span class="s3">```</span>
+
+<span class="s1">Then, you can build the .apk using this command</span><span class="s0">:</span>
+
+<span class="s3">```</span><span class="s4">bash</span>
+<span class="s5">python makepanda/makepanda.py --everything --target android-21 --no-tiff --installer</span>
+<span class="s3">```</span>
+
+<span class="s1">You can install the generated panda3d.apk by browsing to the panda3d folder</span>
+<span class="s1">using a file manager.  You may need to copy it to `/sdcard` to be able to</span>
+<span class="s1">access it from other apps.</span>
+
+<span class="s1">To launch a Python program from Termux, you can use the `run_python.sh` script</span>
+<span class="s1">inside the `panda/src/android` directory.  It will launch Python in a separate</span>
+<span class="s1">activity, load it with the Python script you passed as argument, and use a</span>
+<span class="s1">socket for returning the command-line output to the Termux shell.  Do note</span>
+<span class="s1">that this requires the Python application to reside on the SD card and that</span>
+<span class="s1">Termux needs to be set up with access to the SD card </span><span class="s0">(</span><span class="s1">using the</span>
+<span class="s1">`termux-setup-storage` command</span><span class="s0">)</span><span class="s1">.</span>
+
+<span class="s1">Running Tests</span>
+<span class="s3">=============</span>
+
+<span class="s1">Install </span><span class="s0">[</span><span class="s1">PyTest</span><span class="s0">](</span><span class="s2">https://docs.pytest.org/en/latest/getting-started.html#installation</span><span class="s0">)</span>
+<span class="s1">and run the `pytest` command.  If you have not installed Panda3D, you will</span>
+<span class="s1">need to configure your environment by pointing the `PYTHONPATH` variable at</span>
+<span class="s1">the `built` directory.  On Linux, you will also need to point the</span>
+<span class="s1">`LD_LIBRARY_PATH` variable at the `built/lib` directory.</span>
+
+<span class="s1">As a convenience, you can alternatively pass the `--tests` option to makepanda.</span>
+
+<span class="s1">Reporting Issues</span>
+<span class="s3">================</span>
+
+<span class="s1">If you encounter any bugs when using Panda3D, please report them in the bug</span>
+<span class="s1">tracker.  This is hosted at</span><span class="s0">:</span>
+
+  <span class="s2">https://github.com/panda3d/panda3d/issues</span>
+
+<span class="s1">Make sure to first use the search function to see if the bug has already been</span>
+<span class="s1">reported.  When filling out a bug report, make sure that you include as much</span>
+<span class="s1">information as possible to help the developers track down the issue, such as</span>
+<span class="s1">your version of Panda3D, operating system, architecture, and any code and</span>
+<span class="s1">models that are necessary for the developers to reproduce the issue.</span>
+
+<span class="s1">If you're not sure whether you</span><span class="s0">'</span><span class="s1">ve encountered a bug, feel free to ask about</span>
+<span class="s1">it in the forums or the IRC channel first.</span>
+
+<span class="s1">Supporting the Project</span>
+<span class="s3">======================</span>
+
+<span class="s1">If you would like to support the project financially, visit</span>
+<span class="s0">[</span><span class="s1">our campaign on OpenCollective</span><span class="s0">](</span><span class="s2">https://opencollective.com/panda3d</span><span class="s0">)</span><span class="s1">.  Your</span>
+<span class="s1">contributions help us accelerate the development of Panda3D.</span>
+
+<span class="s1">For the list of backers, see the </span><span class="s0">[</span><span class="s1">BACKERS.md</span><span class="s0">](</span><span class="s1">BACKERS.md</span><span class="s0">) </span><span class="s1">file or visit the</span>
+<span class="s0">[</span><span class="s1">Sponsors page</span><span class="s0">](</span><span class="s2">https://www.panda3d.org/sponsors</span><span class="s0">) </span><span class="s1">on our web site.  Thank you</span>
+<span class="s1">to everyone who has donated</span><span class="s0">!</span>
+
+<span class="s0">&lt;a href=&quot;https://opencollective.com/panda3d&quot; target=&quot;_blank&quot;&gt;</span>
+  <span class="s0">&lt;img src=&quot;https://opencollective.com/panda3d/contribute/button@2x.png?color=blue&quot; width=300 /&gt;</span>
+<span class="s0">&lt;/a&gt;</span>
+</pre>
+</body>
+</html>

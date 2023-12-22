@@ -1,0 +1,121 @@
+<html>
+<head>
+<title>OnScreenDebug.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+OnScreenDebug.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the OnScreenDebug class.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'OnScreenDebug'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">gui </span><span class="s4">import </span><span class="s1">OnscreenText</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directtools </span><span class="s4">import </span><span class="s1">DirectUtil</span>
+
+<span class="s4">class </span><span class="s1">OnScreenDebug</span><span class="s2">:</span>
+
+    <span class="s1">enabled </span><span class="s2">= </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-enabled&quot;</span><span class="s2">, </span><span class="s4">False</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frame </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s3">&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">data </span><span class="s2">= {}</span>
+
+    <span class="s4">def </span><span class="s1">load</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">:</span>
+            <span class="s4">return</span>
+
+        <span class="s1">fontPath </span><span class="s2">= </span><span class="s1">ConfigVariableString</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-font&quot;</span><span class="s2">, </span><span class="s3">&quot;cmtt12&quot;</span><span class="s2">).</span><span class="s1">value</span>
+        <span class="s1">fontScale </span><span class="s2">= </span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-font-scale&quot;</span><span class="s2">, </span><span class="s5">0.05</span><span class="s2">).</span><span class="s1">value</span>
+
+        <span class="s1">color </span><span class="s2">= {</span>
+            <span class="s3">&quot;black&quot;</span><span class="s2">: </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">),</span>
+            <span class="s3">&quot;white&quot;</span><span class="s2">: </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">),</span>
+            <span class="s2">}</span>
+        <span class="s1">fgColor </span><span class="s2">= </span><span class="s1">color</span><span class="s2">[</span><span class="s1">ConfigVariableString</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-fg-color&quot;</span><span class="s2">, </span><span class="s3">&quot;white&quot;</span><span class="s2">).</span><span class="s1">value</span><span class="s2">]</span>
+        <span class="s1">bgColor </span><span class="s2">= </span><span class="s1">color</span><span class="s2">[</span><span class="s1">ConfigVariableString</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-bg-color&quot;</span><span class="s2">, </span><span class="s3">&quot;black&quot;</span><span class="s2">).</span><span class="s1">value</span><span class="s2">]</span>
+        <span class="s1">fgColor</span><span class="s2">.</span><span class="s1">setW</span><span class="s2">(</span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-fg-alpha&quot;</span><span class="s2">, </span><span class="s5">0.85</span><span class="s2">).</span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s1">bgColor</span><span class="s2">.</span><span class="s1">setW</span><span class="s2">(</span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s3">&quot;on-screen-debug-bg-alpha&quot;</span><span class="s2">, </span><span class="s5">0.85</span><span class="s2">).</span><span class="s1">value</span><span class="s2">)</span>
+
+        <span class="s1">font </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadFont</span><span class="s2">(</span><span class="s1">fontPath</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">font</span><span class="s2">.</span><span class="s1">isValid</span><span class="s2">():</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;failed to load OnScreenDebug font %s&quot; </span><span class="s2">% </span><span class="s1">fontPath</span><span class="s2">)</span>
+            <span class="s1">font </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">getDefaultFont</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText </span><span class="s2">= </span><span class="s1">OnscreenText</span><span class="s2">.</span><span class="s1">OnscreenText</span><span class="s2">(</span>
+                <span class="s1">pos </span><span class="s2">= (-</span><span class="s5">1.0</span><span class="s2">, </span><span class="s5">0.9</span><span class="s2">), </span><span class="s1">fg</span><span class="s2">=</span><span class="s1">fgColor</span><span class="s2">, </span><span class="s1">bg</span><span class="s2">=</span><span class="s1">bgColor</span><span class="s2">,</span>
+                <span class="s1">scale </span><span class="s2">= (</span><span class="s1">fontScale</span><span class="s2">, </span><span class="s1">fontScale</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">), </span><span class="s1">align </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ALeft</span><span class="s2">,</span>
+                <span class="s1">mayChange </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">font </span><span class="s2">= </span><span class="s1">font</span><span class="s2">)</span>
+        <span class="s6"># Make sure readout is never lit or drawn in wireframe</span>
+        <span class="s1">DirectUtil</span><span class="s2">.</span><span class="s1">useDirectRenderStyle</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">render</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">enabled</span><span class="s2">:</span>
+            <span class="s4">return</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">load</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">.</span><span class="s1">clearText</span><span class="s2">()</span>
+        <span class="s1">entries </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">items</span><span class="s2">())</span>
+        <span class="s1">entries</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">k</span><span class="s2">, </span><span class="s1">v </span><span class="s4">in </span><span class="s1">entries</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">v</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] == </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame</span><span class="s2">:</span>
+                <span class="s6"># It was updated this frame (key equals value):</span>
+                <span class="s6">#isNew = &quot; is&quot;</span>
+                <span class="s1">isNew </span><span class="s2">= </span><span class="s3">&quot;=&quot;</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s6"># This data is not for the current</span>
+                <span class="s6"># frame (key roughly equals value):</span>
+                <span class="s6">#isNew = &quot;was&quot;</span>
+                <span class="s1">isNew </span><span class="s2">= </span><span class="s3">&quot;~&quot;</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">v</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">value</span><span class="s2">) == </span><span class="s1">float</span><span class="s2">:</span>
+                <span class="s1">value </span><span class="s2">= </span><span class="s3">&quot;% 10.4f&quot;</span><span class="s2">%(</span><span class="s1">value</span><span class="s2">,)</span>
+            <span class="s6"># else: other types will be converted to str by the &quot;%s&quot;</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">.</span><span class="s1">appendText</span><span class="s2">(</span><span class="s3">&quot;%20s %s %-44s</span><span class="s4">\n</span><span class="s3">&quot;</span><span class="s2">%(</span><span class="s1">k</span><span class="s2">, </span><span class="s1">isNew</span><span class="s2">, </span><span class="s1">value</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">.</span><span class="s1">appendText</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">text</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frame </span><span class="s2">+= </span><span class="s5">1</span>
+
+    <span class="s4">def </span><span class="s1">clear</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s3">&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">onScreenText</span><span class="s2">.</span><span class="s1">clearText</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">data</span><span class="s2">[</span><span class="s1">key</span><span class="s2">] = (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frame</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s5">1 </span><span class="s6"># to allow assert onScreenDebug.add(&quot;foo&quot;, bar)</span>
+
+    <span class="s4">def </span><span class="s1">has</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">key </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">data</span>
+
+    <span class="s4">def </span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">data</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">removeAllWithPrefix</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">prefix</span><span class="s2">):</span>
+        <span class="s1">toRemove </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">key </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()):</span>
+            <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">key</span><span class="s2">) &gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">prefix</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">key</span><span class="s2">[:</span><span class="s1">len</span><span class="s2">(</span><span class="s1">prefix</span><span class="s2">)] == </span><span class="s1">prefix</span><span class="s2">:</span>
+                    <span class="s1">toRemove</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+        <span class="s4">for </span><span class="s1">key </span><span class="s4">in </span><span class="s1">toRemove</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">text </span><span class="s2">+= </span><span class="s1">text</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<html>
+<head>
+<title>DistributedActor.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedActor.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;DistributedActor module: contains the DistributedActor class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DistributedActor'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed </span><span class="s4">import </span><span class="s1">DistributedNode</span>
+
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Actor</span>
+
+<span class="s4">class </span><span class="s1">DistributedActor</span><span class="s2">(</span><span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">DistributedNode</span><span class="s2">, </span><span class="s1">Actor</span><span class="s2">.</span><span class="s1">Actor</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cr</span><span class="s2">):</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">DistributedActor_initialized</span>
+        <span class="s4">except</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">DistributedActor_initialized </span><span class="s2">= </span><span class="s5">1</span>
+            <span class="s1">Actor</span><span class="s2">.</span><span class="s1">Actor</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cr</span><span class="s2">)</span>
+            <span class="s6"># Since actors are probably fairly heavyweight, we'd</span>
+            <span class="s6"># rather cache them than delete them if possible.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setCacheable</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">disable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># remove all anims, on all parts and all lods</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s4">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isEmpty</span><span class="s2">()):</span>
+            <span class="s1">Actor</span><span class="s2">.</span><span class="s1">Actor</span><span class="s2">.</span><span class="s1">unloadAnims</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">None</span><span class="s2">, </span><span class="s4">None</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">DistributedActor_deleted</span>
+        <span class="s4">except</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">DistributedActor_deleted </span><span class="s2">= </span><span class="s5">1</span>
+            <span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">DistributedNode</span><span class="s2">.</span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">Actor</span><span class="s2">.</span><span class="s1">Actor</span><span class="s2">.</span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+
+    <span class="s4">def </span><span class="s1">loop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">animName</span><span class="s2">, </span><span class="s1">restart</span><span class="s2">=</span><span class="s5">1</span><span class="s2">, </span><span class="s1">partName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">fromFrame</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">toFrame</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">Actor</span><span class="s2">.</span><span class="s1">Actor</span><span class="s2">.</span><span class="s1">loop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">animName</span><span class="s2">, </span><span class="s1">restart</span><span class="s2">, </span><span class="s1">partName</span><span class="s2">, </span><span class="s1">fromFrame</span><span class="s2">, </span><span class="s1">toFrame</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<html>
+<head>
+<title>DirectScrolledFrame.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectScrolledFrame.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the DirectScrolledFrame class. 
+ 
+See the :ref:`directscrolledframe` page in the programming manual for a more 
+in-depth explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectScrolledFrame'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectFrame </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectScrollBar </span><span class="s4">import </span><span class="s2">*</span>
+
+<span class="s3">&quot;&quot;&quot; 
+import DirectScrolledFrame 
+d = DirectScrolledFrame(borderWidth=(0, 0)) 
+&quot;&quot;&quot;</span>
+
+<span class="s4">class </span><span class="s1">DirectScrolledFrame</span><span class="s2">(</span><span class="s1">DirectFrame</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    DirectScrolledFrame -- a special frame that uses DirectScrollBar to 
+    implement a small window (the frameSize) into a potentially much 
+    larger virtual canvas (the canvasSize, scrolledFrame.getCanvas()). 
+ 
+    Unless specified otherwise, scroll bars are automatically created 
+    and managed as needed, based on the relative sizes od the 
+    frameSize and the canvasSize.  You can also set manageScrollBars = 
+    0 and explicitly position and hide or show the scroll bars 
+    yourself. 
+    &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'pgFunc'</span><span class="s2">,         </span><span class="s1">PGScrollFrame</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'frameSize'</span><span class="s2">,      (-</span><span class="s6">0.5</span><span class="s2">, </span><span class="s6">0.5</span><span class="s2">, -</span><span class="s6">0.5</span><span class="s2">, </span><span class="s6">0.5</span><span class="s2">), </span><span class="s4">None</span><span class="s2">),</span>
+
+            <span class="s2">(</span><span class="s3">'canvasSize'</span><span class="s2">,     (-</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">),        </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setCanvasSize</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'manageScrollBars'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">,                </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setManageScrollBars</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'autoHideScrollBars'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setAutoHideScrollBars</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'scrollBarWidth'</span><span class="s2">, </span><span class="s6">0.08</span><span class="s2">,               </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setScrollBarWidth</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderWidth'</span><span class="s2">,    (</span><span class="s6">0.01</span><span class="s2">, </span><span class="s6">0.01</span><span class="s2">),       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBorderWidth</span><span class="s2">),</span>
+            <span class="s2">)</span>
+
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s5"># Initialize superclasses</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s5"># The scrollBarWidth parameter is just used at scroll bar</span>
+        <span class="s5"># construction time, and supplies a default frame.  It does</span>
+        <span class="s5"># not override an explicit frame specified on the scroll bar.</span>
+        <span class="s5"># If you want to change the frame width after construction,</span>
+        <span class="s5"># you must specify their frameSize tuples explicitly.</span>
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'scrollBarWidth'</span><span class="s2">]</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">&quot;verticalScroll&quot;</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">DirectScrollBar</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">,),</span>
+            <span class="s1">borderWidth </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderWidth'</span><span class="s2">],</span>
+            <span class="s1">frameSize </span><span class="s2">= (-</span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">),</span>
+            <span class="s1">orientation </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">VERTICAL</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">&quot;horizontalScroll&quot;</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">DirectScrollBar</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">,),</span>
+            <span class="s1">borderWidth </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderWidth'</span><span class="s2">],</span>
+            <span class="s1">frameSize </span><span class="s2">= (-</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, -</span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">),</span>
+            <span class="s1">orientation </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">HORIZONTAL</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setVerticalSlider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setHorizontalSlider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">canvas </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getCanvasNode</span><span class="s2">())</span>
+
+        <span class="s5"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectScrolledFrame</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setScrollBarWidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fInit</span><span class="s2">: </span><span class="s4">return</span>
+
+        <span class="s1">w </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'scrollBarWidth'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">] = (-</span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">][</span><span class="s6">2</span><span class="s2">], </span><span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">][</span><span class="s6">3</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">] = (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">][</span><span class="s6">0</span><span class="s2">], </span><span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">][</span><span class="s6">1</span><span class="s2">], -</span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">w </span><span class="s2">/ </span><span class="s6">2.0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setCanvasSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">f </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'canvasSize'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setVirtualFrame</span><span class="s2">(</span><span class="s1">f</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">f</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">f</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">f</span><span class="s2">[</span><span class="s6">3</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">getCanvas</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns the NodePath of the virtual canvas.  Nodes parented to this 
+        canvas will show inside the scrolled area. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span>
+
+    <span class="s4">def </span><span class="s1">setManageScrollBars</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setManagePieces</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'manageScrollBars'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setAutoHideScrollBars</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setAutoHide</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'autoHideScrollBars'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">commandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'extraArgs'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Destroy children of the canvas</span>
+        <span class="s4">for </span><span class="s1">child </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">canvas</span><span class="s2">.</span><span class="s1">getChildren</span><span class="s2">():</span>
+            <span class="s1">childGui </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">child</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+            <span class="s4">if </span><span class="s1">childGui</span><span class="s2">:</span>
+                <span class="s1">childGui</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">parts </span><span class="s2">= </span><span class="s1">child</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'-'</span><span class="s2">)</span>
+                <span class="s1">simpleChildGui </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">parts</span><span class="s2">[-</span><span class="s6">1</span><span class="s2">])</span>
+                <span class="s4">if </span><span class="s1">simpleChildGui</span><span class="s2">:</span>
+                    <span class="s1">simpleChildGui</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">verticalScroll </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">horizontalScroll </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,456 @@
+<html>
+<head>
+<title>Dial.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Dial.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Dial Class: Velocity style controller for floating point values with 
+             a label, entry (validated), and scale 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Dial'</span><span class="s2">, </span><span class="s3">'AngleDial'</span><span class="s2">, </span><span class="s3">'DialWidget'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">TkGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">Valuator </span><span class="s4">import </span><span class="s1">Valuator</span><span class="s2">, </span><span class="s1">VALUATOR_MINI</span><span class="s2">, </span><span class="s1">VALUATOR_FULL</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+<span class="s4">import </span><span class="s1">math</span><span class="s2">, </span><span class="s1">operator</span><span class="s2">, </span><span class="s1">Pmw</span>
+
+<span class="s1">TWO_PI </span><span class="s2">= </span><span class="s5">2.0 </span><span class="s2">* </span><span class="s1">math</span><span class="s2">.</span><span class="s1">pi</span>
+<span class="s1">ONEPOINTFIVE_PI </span><span class="s2">= </span><span class="s5">1.5 </span><span class="s2">* </span><span class="s1">math</span><span class="s2">.</span><span class="s1">pi</span>
+<span class="s1">POINTFIVE_PI </span><span class="s2">= </span><span class="s5">0.5 </span><span class="s2">* </span><span class="s1">math</span><span class="s2">.</span><span class="s1">pi</span>
+<span class="s1">INNER_SF </span><span class="s2">= </span><span class="s5">0.2</span>
+
+<span class="s1">DIAL_FULL_SIZE </span><span class="s2">= </span><span class="s5">45</span>
+<span class="s1">DIAL_MINI_SIZE </span><span class="s2">= </span><span class="s5">30</span>
+
+<span class="s4">class </span><span class="s1">Dial</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Valuator widget which includes an angle dial and an entry for setting 
+    floating point values 
+    &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'style'</span><span class="s2">,             </span><span class="s1">VALUATOR_FULL</span><span class="s2">,  </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'base'</span><span class="s2">,              </span><span class="s5">0.0</span><span class="s2">,            </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBase</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'delta'</span><span class="s2">,             </span><span class="s5">1.0</span><span class="s2">,            </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setDelta</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'fSnap'</span><span class="s2">,             </span><span class="s5">0</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setSnap</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'fRollover'</span><span class="s2">,         </span><span class="s5">1</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setRollover</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s1">Valuator</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">Dial</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">createValuator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">'valuator'</span><span class="s2">,</span>
+            <span class="s2">((</span><span class="s3">'dial'</span><span class="s2">, </span><span class="s3">'valuator'</span><span class="s2">),),</span>
+            <span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">DialWidget</span><span class="s2">,</span>
+            <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(),),</span>
+            <span class="s1">style </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'style'</span><span class="s2">],</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setEntry</span><span class="s2">,</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;Double-ButtonPress-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseReset</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">packValuator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'style'</span><span class="s2">] == </span><span class="s1">VALUATOR_FULL</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">rowspan </span><span class="s2">= </span><span class="s5">2</span><span class="s2">, </span><span class="s1">columnspan </span><span class="s2">= </span><span class="s5">2</span><span class="s2">,</span>
+                                <span class="s1">padx </span><span class="s2">= </span><span class="s5">2</span><span class="s2">, </span><span class="s1">pady </span><span class="s2">= </span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s5">2</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s5">2</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">().</span><span class="s1">columnconfigure</span><span class="s2">(</span><span class="s5">2</span><span class="s2">, </span><span class="s1">weight </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_label</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">column</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_entry</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">column</span><span class="s2">=</span><span class="s5">1</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row</span><span class="s2">=</span><span class="s5">0</span><span class="s2">, </span><span class="s1">column</span><span class="s2">=</span><span class="s5">2</span><span class="s2">, </span><span class="s1">padx </span><span class="s2">= </span><span class="s5">2</span><span class="s2">, </span><span class="s1">pady </span><span class="s2">= </span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">().</span><span class="s1">columnconfigure</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">weight </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">addValuatorPropertiesToDialog</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addPropertyToDialog</span><span class="s2">(</span>
+            <span class="s3">'base'</span><span class="s2">,</span>
+            <span class="s2">{ </span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">,</span>
+              <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'real'</span><span class="s2">,</span>
+              <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Dial value = base + delta * numRevs'</span><span class="s2">})</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addPropertyToDialog</span><span class="s2">(</span>
+            <span class="s3">'delta'</span><span class="s2">,</span>
+            <span class="s2">{ </span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">,</span>
+              <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'real'</span><span class="s2">,</span>
+              <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Dial value = base + delta * numRevs'</span><span class="s2">})</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addPropertyToDialog</span><span class="s2">(</span>
+            <span class="s3">'numSegments'</span><span class="s2">,</span>
+            <span class="s2">{ </span><span class="s3">'widget'</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">,</span>
+              <span class="s3">'type'</span><span class="s2">: </span><span class="s3">'integer'</span><span class="s2">,</span>
+              <span class="s3">'help'</span><span class="s2">: </span><span class="s3">'Number of segments to divide dial into.'</span><span class="s2">})</span>
+
+    <span class="s4">def </span><span class="s1">addValuatorMenuEntries</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># The popup menu</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fSnap </span><span class="s2">= </span><span class="s1">IntVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fSnap</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fSnap'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_checkbutton</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Snap'</span><span class="s2">,</span>
+                                        <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_fSnap</span><span class="s2">,</span>
+                                        <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setSnap</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fRollover </span><span class="s2">= </span><span class="s1">IntVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fRollover</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fRollover'</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fAdjustable'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_checkbutton</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Rollover'</span><span class="s2">,</span>
+                                            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_fRollover</span><span class="s2">,</span>
+                                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_setRollover</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setBase</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Set Dial base value: value = base + delta * numRevs &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'base'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'base'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">setDelta</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Set Dial delta value: value = base + delta * numRevs &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'delta'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'delta'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">_setSnap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Menu command to turn Dial angle snap on/off &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'fSnap'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_fSnap</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setSnap</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Turn Dial angle snap on/off &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fSnap</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fSnap'</span><span class="s2">])</span>
+        <span class="s6"># Call menu command to send down to valuator</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_setSnap</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_setRollover</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Menu command to turn Dial rollover on/off (i.e. does value accumulate 
+        every time you complete a revolution of the dial?) 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_valuator</span><span class="s2">[</span><span class="s3">'fRollover'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_fRollover</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setRollover</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Turn Dial rollover (accumulation of a sum) on/off &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_fRollover</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fRollover'</span><span class="s2">])</span>
+        <span class="s6"># Call menu command to send down to valuator</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_setRollover</span><span class="s2">()</span>
+
+
+<span class="s4">class </span><span class="s1">AngleDial</span><span class="s2">(</span><span class="s1">Dial</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s6"># Set the typical defaults for a 360 degree angle dial</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'delta'</span><span class="s2">,             </span><span class="s5">360.0</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'fRollover'</span><span class="s2">,         </span><span class="s5">0</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'dial_numSegments'</span><span class="s2">,  </span><span class="s5">12</span><span class="s2">,             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s6"># Initialize the superclass</span>
+        <span class="s1">Dial</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s6"># Needed because this method checks if self.__class__ is myClass</span>
+        <span class="s6"># where myClass is the argument passed into inialiseoptions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">AngleDial</span><span class="s2">)</span>
+
+
+<span class="s4">class </span><span class="s1">DialWidget</span><span class="s2">(</span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s6">#define the megawidget options</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s6"># Appearance</span>
+            <span class="s2">(</span><span class="s3">'style'</span><span class="s2">,           </span><span class="s1">VALUATOR_FULL</span><span class="s2">,      </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'size'</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">,           </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'relief'</span><span class="s2">,          </span><span class="s1">SUNKEN</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setRelief</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderwidth'</span><span class="s2">,     </span><span class="s5">2</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBorderwidth</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'background'</span><span class="s2">,      </span><span class="s3">'white'</span><span class="s2">,        </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBackground</span><span class="s2">),</span>
+            <span class="s6"># Number of segments the dial is divided into</span>
+            <span class="s2">(</span><span class="s3">'numSegments'</span><span class="s2">,     </span><span class="s5">10</span><span class="s2">,             </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setNumSegments</span><span class="s2">),</span>
+            <span class="s6"># Behavior</span>
+            <span class="s6"># Initial value of dial, use self.set to change value</span>
+            <span class="s2">(</span><span class="s3">'value'</span><span class="s2">,           </span><span class="s5">0.0</span><span class="s2">,            </span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numDigits'</span><span class="s2">,       </span><span class="s5">2</span><span class="s2">,              </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setNumDigits</span><span class="s2">),</span>
+            <span class="s6"># Dial specific options</span>
+            <span class="s2">(</span><span class="s3">'base'</span><span class="s2">,            </span><span class="s5">0.0</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'delta'</span><span class="s2">,           </span><span class="s5">1.0</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Snap to angle on/off</span>
+            <span class="s2">(</span><span class="s3">'fSnap'</span><span class="s2">,           </span><span class="s5">0</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Do values rollover (i.e. accumulate) with multiple revolutions</span>
+            <span class="s2">(</span><span class="s3">'fRollover'</span><span class="s2">,       </span><span class="s5">1</span><span class="s2">,              </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Command to execute on dial updates</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to command function</span>
+            <span class="s2">(</span><span class="s3">'commandData'</span><span class="s2">,     [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Callback's to execute during mouse interaction</span>
+            <span class="s2">(</span><span class="s3">'preCallback'</span><span class="s2">,     </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'postCallback'</span><span class="s2">,    </span><span class="s4">None</span><span class="s2">,           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Extra data to be passed to callback function, needs to be a list</span>
+            <span class="s2">(</span><span class="s3">'callbackData'</span><span class="s2">,    [],             </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the superclass</span>
+        <span class="s1">Pmw</span><span class="s2">.</span><span class="s1">MegaWidget</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s6"># Set up some local and instance variables</span>
+        <span class="s6"># Create the components</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+
+        <span class="s6"># Current value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'value'</span><span class="s2">]</span>
+
+        <span class="s6"># Running total which increments/decrements every time around dial</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rollCount </span><span class="s2">= </span><span class="s5">0</span>
+
+        <span class="s6"># Base dial size on style, if size not specified,</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'size'</span><span class="s2">]:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'style'</span><span class="s2">] == </span><span class="s1">VALUATOR_FULL</span><span class="s2">:</span>
+                <span class="s1">size </span><span class="s2">= </span><span class="s1">DIAL_FULL_SIZE</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">size </span><span class="s2">= </span><span class="s1">DIAL_MINI_SIZE</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'size'</span><span class="s2">]</span>
+
+        <span class="s6"># Radius of the dial</span>
+        <span class="s1">radius </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">radius </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">size</span><span class="s2">/</span><span class="s5">2.0</span><span class="s2">)</span>
+        <span class="s6"># Radius of the inner knob</span>
+        <span class="s1">inner_radius </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s5">3</span><span class="s2">, </span><span class="s1">radius </span><span class="s2">* </span><span class="s1">INNER_SF</span><span class="s2">)</span>
+
+        <span class="s6"># The canvas</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'canvas'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                            <span class="s1">Canvas</span><span class="s2">, (</span><span class="s1">interior</span><span class="s2">,),</span>
+                                            <span class="s1">width </span><span class="s2">= </span><span class="s1">size</span><span class="s2">, </span><span class="s1">height </span><span class="s2">= </span><span class="s1">size</span><span class="s2">,</span>
+                                            <span class="s1">background </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">],</span>
+                                            <span class="s1">highlightthickness </span><span class="s2">= </span><span class="s5">0</span><span class="s2">,</span>
+                                            <span class="s1">scrollregion </span><span class="s2">= (-</span><span class="s1">radius</span><span class="s2">, -</span><span class="s1">radius</span><span class="s2">,</span>
+                                                            <span class="s1">radius</span><span class="s2">, </span><span class="s1">radius</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+        <span class="s6"># The dial face (no outline/fill, primarily for binding mouse events)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">create_oval</span><span class="s2">(-</span><span class="s1">radius</span><span class="s2">, -</span><span class="s1">radius</span><span class="s2">, </span><span class="s1">radius</span><span class="s2">, </span><span class="s1">radius</span><span class="s2">,</span>
+                                 <span class="s1">outline </span><span class="s2">= </span><span class="s3">''</span><span class="s2">,</span>
+                                 <span class="s1">tags </span><span class="s2">= (</span><span class="s3">'dial'</span><span class="s2">,))</span>
+
+        <span class="s6"># The indicator</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">create_line</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, -</span><span class="s1">radius</span><span class="s2">, </span><span class="s1">width </span><span class="s2">= </span><span class="s5">2</span><span class="s2">,</span>
+                                 <span class="s1">tags </span><span class="s2">= (</span><span class="s3">'indicator'</span><span class="s2">, </span><span class="s3">'dial'</span><span class="s2">))</span>
+
+        <span class="s6"># The central knob</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">create_oval</span><span class="s2">(-</span><span class="s1">inner_radius</span><span class="s2">, -</span><span class="s1">inner_radius</span><span class="s2">,</span>
+                                 <span class="s1">inner_radius</span><span class="s2">, </span><span class="s1">inner_radius</span><span class="s2">,</span>
+                                 <span class="s1">fill </span><span class="s2">= </span><span class="s3">'grey50'</span><span class="s2">,</span>
+                                 <span class="s1">tags </span><span class="s2">= (</span><span class="s3">'knob'</span><span class="s2">,))</span>
+
+        <span class="s6"># Add event bindings</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'dial'</span><span class="s2">, </span><span class="s3">'&lt;ButtonPress-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseDown</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'dial'</span><span class="s2">, </span><span class="s3">'&lt;B1-Motion&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseMotion</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'dial'</span><span class="s2">, </span><span class="s3">'&lt;Shift-B1-Motion&gt;'</span><span class="s2">,</span>
+                              <span class="s1">self</span><span class="s2">.</span><span class="s1">shiftMouseMotion</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'dial'</span><span class="s2">, </span><span class="s3">'&lt;ButtonRelease-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseUp</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s3">'&lt;ButtonPress-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">knobMouseDown</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s3">'&lt;B1-Motion&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateDialSF</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s3">'&lt;ButtonRelease-1&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">knobMouseUp</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s3">'&lt;Enter&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">highlightKnob</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">tag_bind</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s3">'&lt;Leave&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restoreKnob</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure input variables processed</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DialWidget</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self.set(value, fCommand = 1) 
+        Set dial to new value, execute command if fCommand == 1 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Adjust for rollover</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fRollover'</span><span class="s2">]:</span>
+            <span class="s4">if </span><span class="s1">value </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'delta'</span><span class="s2">]:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">rollCount </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">value </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'base'</span><span class="s2">] + ((</span><span class="s1">value </span><span class="s2">- </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'base'</span><span class="s2">]) % </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'delta'</span><span class="s2">])</span>
+        <span class="s6"># Send command if any</span>
+        <span class="s4">if </span><span class="s1">fCommand </span><span class="s4">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] != </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*[</span><span class="s1">value</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">])</span>
+        <span class="s6"># Record value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">value </span><span class="s2">= </span><span class="s1">value</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self.get() 
+        Get current dial value 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">value</span>
+
+    <span class="s6">## Canvas callback functions</span>
+    <span class="s6"># Dial</span>
+    <span class="s4">def </span><span class="s1">mouseDown</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_onButtonPress</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastAngle </span><span class="s2">= </span><span class="s1">dialAngle </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">computeDialAngle</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">computeValueFromAngle</span><span class="s2">(</span><span class="s1">dialAngle</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">mouseUp</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_onButtonRelease</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">shiftMouseMotion</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mouseMotion</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">mouseMotion</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">fShift </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s1">dialAngle </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">computeDialAngle</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">fShift</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">computeValueFromAngle</span><span class="s2">(</span><span class="s1">dialAngle</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">computeDialAngle</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">fShift </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">canvasx</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">x</span><span class="s2">)</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">canvasy</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">y</span><span class="s2">)</span>
+        <span class="s1">rawAngle </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">atan2</span><span class="s2">(</span><span class="s1">y</span><span class="s2">, </span><span class="s1">x</span><span class="s2">)</span>
+        <span class="s6"># Snap to grid</span>
+        <span class="s6"># Convert to dial coords to do snapping</span>
+        <span class="s1">dialAngle </span><span class="s2">= </span><span class="s1">rawAngle </span><span class="s2">+ </span><span class="s1">POINTFIVE_PI</span>
+        <span class="s4">if </span><span class="s1">operator</span><span class="s2">.</span><span class="s1">xor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'fSnap'</span><span class="s2">], </span><span class="s1">fShift</span><span class="s2">):</span>
+            <span class="s1">dialAngle </span><span class="s2">= </span><span class="s1">round</span><span class="s2">(</span><span class="s1">dialAngle </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">snapAngle</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">snapAngle</span>
+        <span class="s4">return </span><span class="s1">dialAngle</span>
+
+    <span class="s4">def </span><span class="s1">computeValueFromAngle</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dialAngle</span><span class="s2">):</span>
+        <span class="s1">delta </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'delta'</span><span class="s2">]</span>
+        <span class="s1">dialAngle </span><span class="s2">= </span><span class="s1">dialAngle </span><span class="s2">% </span><span class="s1">TWO_PI</span>
+        <span class="s6"># Check for rollover, if necessary</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastAngle </span><span class="s2">&gt; </span><span class="s1">ONEPOINTFIVE_PI</span><span class="s2">) </span><span class="s4">and </span><span class="s2">(</span><span class="s1">dialAngle </span><span class="s2">&lt; </span><span class="s1">POINTFIVE_PI</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">rollCount </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastAngle </span><span class="s2">&lt; </span><span class="s1">POINTFIVE_PI</span><span class="s2">) </span><span class="s4">and </span><span class="s2">(</span><span class="s1">dialAngle </span><span class="s2">&gt; </span><span class="s1">ONEPOINTFIVE_PI</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">rollCount </span><span class="s2">-= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastAngle </span><span class="s2">= </span><span class="s1">dialAngle</span>
+        <span class="s6"># Update value</span>
+        <span class="s1">newValue </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'base'</span><span class="s2">] + (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">rollCount </span><span class="s2">+ (</span><span class="s1">dialAngle</span><span class="s2">/</span><span class="s1">TWO_PI</span><span class="s2">)) * </span><span class="s1">delta</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">newValue</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">updateIndicator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s6"># compute new indicator angle</span>
+        <span class="s1">delta </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'delta'</span><span class="s2">]</span>
+        <span class="s1">factors </span><span class="s2">= </span><span class="s1">divmod</span><span class="s2">(</span><span class="s1">value </span><span class="s2">- </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'base'</span><span class="s2">], </span><span class="s1">delta</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">rollCount </span><span class="s2">= </span><span class="s1">factors</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateIndicatorRadians</span><span class="s2">((</span><span class="s1">factors</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]/</span><span class="s1">delta</span><span class="s2">) * </span><span class="s1">TWO_PI</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">updateIndicatorDegrees</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">degAngle</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateIndicatorRadians</span><span class="s2">(</span><span class="s1">degAngle </span><span class="s2">* (</span><span class="s1">math</span><span class="s2">.</span><span class="s1">pi</span><span class="s2">/</span><span class="s5">180.0</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">updateIndicatorRadians</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dialAngle</span><span class="s2">):</span>
+        <span class="s1">rawAngle </span><span class="s2">= </span><span class="s1">dialAngle </span><span class="s2">- </span><span class="s1">POINTFIVE_PI</span>
+        <span class="s6"># Compute end points</span>
+        <span class="s1">endx </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">cos</span><span class="s2">(</span><span class="s1">rawAngle</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">radius</span>
+        <span class="s1">endy </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">sin</span><span class="s2">(</span><span class="s1">rawAngle</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">radius</span>
+        <span class="s6"># Draw new indicator</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">coords</span><span class="s2">(</span><span class="s3">'indicator'</span><span class="s2">, </span><span class="s1">endx </span><span class="s2">* </span><span class="s1">INNER_SF</span><span class="s2">, </span><span class="s1">endy </span><span class="s2">* </span><span class="s1">INNER_SF</span><span class="s2">,</span>
+                            <span class="s1">endx</span><span class="s2">, </span><span class="s1">endy</span><span class="s2">)</span>
+
+    <span class="s6"># Knob velocity controller</span>
+    <span class="s4">def </span><span class="s1">knobMouseDown</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_onButtonPress</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">knobSF </span><span class="s2">= </span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTask </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateDialTask</span><span class="s2">, </span><span class="s3">'updateDial'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTask</span><span class="s2">.</span><span class="s1">lastTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">updateDialTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s6"># Update value</span>
+        <span class="s1">currT </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">dt </span><span class="s2">= </span><span class="s1">currT </span><span class="s2">- </span><span class="s1">state</span><span class="s2">.</span><span class="s1">lastTime</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">value </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">knobSF </span><span class="s2">* </span><span class="s1">dt</span><span class="s2">)</span>
+        <span class="s1">state</span><span class="s2">.</span><span class="s1">lastTime </span><span class="s2">= </span><span class="s1">currT</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s4">def </span><span class="s1">updateDialSF</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">canvasx</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">x</span><span class="s2">)</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">canvasy</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">y</span><span class="s2">)</span>
+        <span class="s1">offset </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">abs</span><span class="s2">(</span><span class="s1">x</span><span class="s2">) - </span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">deadband</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">offset </span><span class="s2">== </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s5">0</span>
+        <span class="s1">sf </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">pow</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">sfBase</span><span class="s2">,</span>
+                      <span class="s1">self</span><span class="s2">.</span><span class="s1">minExp </span><span class="s2">+ </span><span class="s1">offset</span><span class="s2">/</span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">sfDist</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">x </span><span class="s2">&gt; </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">knobSF </span><span class="s2">= </span><span class="s1">sf</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">knobSF </span><span class="s2">= -</span><span class="s1">sf</span>
+
+    <span class="s4">def </span><span class="s1">knobMouseUp</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateTask</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">knobSF </span><span class="s2">= </span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_onButtonRelease</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setNumDigits</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Set minimum exponent to use in velocity task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">minExp </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">floor</span><span class="s2">(-</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numDigits'</span><span class="s2">]/</span>
+                                 <span class="s1">math</span><span class="s2">.</span><span class="s1">log10</span><span class="s2">(</span><span class="s1">Valuator</span><span class="s2">.</span><span class="s1">sfBase</span><span class="s2">))</span>
+
+    <span class="s6"># Methods to modify dial characteristics</span>
+    <span class="s4">def </span><span class="s1">setRelief</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()[</span><span class="s3">'relief'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">setBorderwidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()[</span><span class="s3">'borderwidth'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderwidth'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">setBackground</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'background'</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">setNumSegments</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">delete</span><span class="s2">(</span><span class="s3">'ticks'</span><span class="s2">)</span>
+        <span class="s6"># Based upon input snap angle, how many ticks</span>
+        <span class="s1">numSegments </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numSegments'</span><span class="s2">]</span>
+        <span class="s6"># Compute snapAngle (radians)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">snapAngle </span><span class="s2">= </span><span class="s1">snapAngle </span><span class="s2">= </span><span class="s1">TWO_PI </span><span class="s2">/ </span><span class="s1">numSegments</span>
+        <span class="s6"># Create the ticks at the snap angles</span>
+        <span class="s4">for </span><span class="s1">ticknum </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">numSegments</span><span class="s2">):</span>
+            <span class="s1">angle </span><span class="s2">= </span><span class="s1">snapAngle </span><span class="s2">* </span><span class="s1">ticknum</span>
+            <span class="s6"># convert to canvas coords</span>
+            <span class="s1">angle </span><span class="s2">= </span><span class="s1">angle </span><span class="s2">- </span><span class="s1">POINTFIVE_PI</span>
+            <span class="s6"># Compute tick endpoints</span>
+            <span class="s1">startx </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">cos</span><span class="s2">(</span><span class="s1">angle</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">radius</span>
+            <span class="s1">starty </span><span class="s2">= </span><span class="s1">math</span><span class="s2">.</span><span class="s1">sin</span><span class="s2">(</span><span class="s1">angle</span><span class="s2">) * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">radius</span>
+            <span class="s6"># Elongate ticks at 90 degree points</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">angle </span><span class="s2">% </span><span class="s1">POINTFIVE_PI</span><span class="s2">) == </span><span class="s5">0.0</span><span class="s2">:</span>
+                <span class="s1">sf </span><span class="s2">= </span><span class="s5">0.6</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">sf </span><span class="s2">= </span><span class="s5">0.8</span>
+            <span class="s1">endx </span><span class="s2">= </span><span class="s1">startx </span><span class="s2">* </span><span class="s1">sf</span>
+            <span class="s1">endy </span><span class="s2">= </span><span class="s1">starty </span><span class="s2">* </span><span class="s1">sf</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">create_line</span><span class="s2">(</span><span class="s1">startx</span><span class="s2">, </span><span class="s1">starty</span><span class="s2">, </span><span class="s1">endx</span><span class="s2">, </span><span class="s1">endy</span><span class="s2">,</span>
+                                     <span class="s1">tags </span><span class="s2">= (</span><span class="s3">'ticks'</span><span class="s2">,</span><span class="s3">'dial'</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">highlightKnob</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">itemconfigure</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'black'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">restoreKnob</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_widget</span><span class="s2">.</span><span class="s1">itemconfigure</span><span class="s2">(</span><span class="s3">'knob'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'grey50'</span><span class="s2">)</span>
+
+    <span class="s6"># To call user callbacks</span>
+    <span class="s4">def </span><span class="s1">_onButtonPress</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; User redefinable callback executed on button press &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">_onButtonRelease</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; User redefinable callback executed on button release &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">])</span>
+
+
+<span class="s4">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">tl </span><span class="s2">= </span><span class="s1">Toplevel</span><span class="s2">()</span>
+    <span class="s1">d </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">(</span><span class="s1">tl</span><span class="s2">)</span>
+    <span class="s1">d2 </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">(</span><span class="s1">tl</span><span class="s2">, </span><span class="s1">dial_numSegments </span><span class="s2">= </span><span class="s5">12</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s5">360</span><span class="s2">,</span>
+              <span class="s1">dial_fRollover </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s5">180</span><span class="s2">)</span>
+    <span class="s1">d3 </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">(</span><span class="s1">tl</span><span class="s2">, </span><span class="s1">dial_numSegments </span><span class="s2">= </span><span class="s5">12</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s5">90</span><span class="s2">, </span><span class="s1">min </span><span class="s2">= -</span><span class="s5">90</span><span class="s2">,</span>
+              <span class="s1">dial_fRollover </span><span class="s2">= </span><span class="s5">0</span><span class="s2">)</span>
+    <span class="s1">d4 </span><span class="s2">= </span><span class="s1">Dial</span><span class="s2">(</span><span class="s1">tl</span><span class="s2">, </span><span class="s1">dial_numSegments </span><span class="s2">= </span><span class="s5">16</span><span class="s2">, </span><span class="s1">max </span><span class="s2">= </span><span class="s5">256</span><span class="s2">,</span>
+              <span class="s1">dial_fRollover </span><span class="s2">= </span><span class="s5">0</span><span class="s2">)</span>
+    <span class="s1">d</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+    <span class="s1">d2</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+    <span class="s1">d3</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+    <span class="s1">d4</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

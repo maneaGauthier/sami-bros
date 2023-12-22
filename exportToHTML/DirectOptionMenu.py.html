@@ -1,0 +1,335 @@
+<html>
+<head>
+<title>DirectOptionMenu.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectOptionMenu.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Implements a pop-up menu containing multiple clickable options. 
+ 
+See the :ref:`directoptionmenu` page in the programming manual for a more 
+in-depth explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectOptionMenu'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">ShowBaseGlobal</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectButton </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectLabel </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectFrame </span><span class="s4">import </span><span class="s2">*</span>
+
+
+<span class="s4">class </span><span class="s1">DirectOptionMenu</span><span class="s2">(</span><span class="s1">DirectButton</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    DirectOptionMenu(parent) - Create a DirectButton which pops up a 
+    menu which can be used to select from a list of items. 
+    Execute button command (passing the selected item through) if defined 
+    To cancel the popup menu click anywhere on the screen outside of the 
+    popup menu.  No command is executed in this case. 
+    &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectButton</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># List of items to display on the popup menu</span>
+            <span class="s2">(</span><span class="s3">'items'</span><span class="s2">,       [],             </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setItems</span><span class="s2">),</span>
+            <span class="s5"># Initial item to display on menu button</span>
+            <span class="s5"># Can be an integer index or the same string as the button</span>
+            <span class="s2">(</span><span class="s3">'initialitem'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">,           </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s5"># Amount of padding to place around popup button indicator</span>
+            <span class="s2">(</span><span class="s3">'popupMarkerBorder'</span><span class="s2">, (</span><span class="s6">.1</span><span class="s2">, </span><span class="s6">.1</span><span class="s2">), </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># The initial position of the popup marker</span>
+            <span class="s2">(</span><span class="s3">'popupMarker_pos'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Background color to use to highlight popup menu items</span>
+            <span class="s2">(</span><span class="s3">'highlightColor'</span><span class="s2">, (</span><span class="s6">.5</span><span class="s2">, </span><span class="s6">.5</span><span class="s2">, </span><span class="s6">.5</span><span class="s2">, </span><span class="s6">1</span><span class="s2">), </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Extra scale to use on highlight popup menu items</span>
+            <span class="s2">(</span><span class="s3">'highlightScale'</span><span class="s2">, (</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">), </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Alignment to use for text on popup menu button</span>
+            <span class="s5"># Changing this breaks button layout</span>
+            <span class="s2">(</span><span class="s3">'text_align'</span><span class="s2">,  </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ALeft</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Remove press effect because it looks a bit funny</span>
+            <span class="s2">(</span><span class="s3">'pressEffect'</span><span class="s2">,     </span><span class="s6">0</span><span class="s2">,          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+           <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+        <span class="s5"># Initialize superclasses</span>
+        <span class="s1">DirectButton</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s5"># Record any user specified frame size</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initFrameSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">]</span>
+        <span class="s5"># Create a small rectangular marker to distinguish this button</span>
+        <span class="s5"># as a popup menu button</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">'popupMarker'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">DirectFrame</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">,),</span>
+            <span class="s1">frameSize </span><span class="s2">= (-</span><span class="s6">0.5</span><span class="s2">, </span><span class="s6">0.5</span><span class="s2">, -</span><span class="s6">0.2</span><span class="s2">, </span><span class="s6">0.2</span><span class="s2">),</span>
+            <span class="s1">scale </span><span class="s2">= </span><span class="s6">0.4</span><span class="s2">,</span>
+            <span class="s1">relief </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RAISED</span><span class="s2">)</span>
+        <span class="s5"># Record any user specified popup marker position</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initPopupMarkerPos </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'popupMarker_pos'</span><span class="s2">]</span>
+        <span class="s5"># This needs to popup the menu too</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">showPopupMenu</span><span class="s2">)</span>
+        <span class="s5"># Check if item is highlighted on release and select it if it is</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1RELEASE</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectHighlightedIndex</span><span class="s2">)</span>
+        <span class="s5"># Make popup marker have the same click sound</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'clickSound'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span>
+                <span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'clickSound'</span><span class="s2">])</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+        <span class="s5"># This is created when you set the menu's items</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selectedIndex </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlightedIndex </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s3">'item_text_scale' </span><span class="s4">in </span><span class="s1">kw</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_prevItemTextScale </span><span class="s2">= </span><span class="s1">kw</span><span class="s2">[</span><span class="s3">'item_text_scale'</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_prevItemTextScale </span><span class="s2">= (</span><span class="s6">1</span><span class="s2">,</span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s5"># A big screen encompassing frame to catch the cancel clicks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+            <span class="s3">'cancelframe'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">DirectFrame</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">,),</span>
+            <span class="s1">frameSize </span><span class="s2">= (-</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">),</span>
+            <span class="s1">relief </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">state </span><span class="s2">= </span><span class="s3">'normal'</span><span class="s2">)</span>
+        <span class="s5"># Make sure this is on top of all the other widgets</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'gui-popup'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setBounds</span><span class="s2">(</span><span class="s1">OmniBoundingVolume</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hidePopupMenu</span><span class="s2">)</span>
+        <span class="s5"># Default action on press is to show popup menu</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">showPopupMenu</span><span class="s2">)</span>
+        <span class="s5"># Check if item is highlighted on release and select it if it is</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1RELEASE</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectHighlightedIndex</span><span class="s2">)</span>
+        <span class="s5"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectOptionMenu</span><span class="s2">)</span>
+        <span class="s5"># Need to call this since we explicitly set frame size</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">resetFrameSize</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setItems</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        self['items'] = itemList 
+        Create new popup menu to reflect specified set of items 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Remove old component if it exits</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">destroycomponent</span><span class="s2">(</span><span class="s3">'popupMenu'</span><span class="s2">)</span>
+        <span class="s5"># Create new component</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'popupMenu'</span><span class="s2">, (), </span><span class="s4">None</span><span class="s2">,</span>
+                                              <span class="s1">DirectFrame</span><span class="s2">,</span>
+                                              <span class="s2">(</span><span class="s1">self</span><span class="s2">,),</span>
+                                              <span class="s1">relief </span><span class="s2">= </span><span class="s3">'raised'</span><span class="s2">,</span>
+                                              <span class="s2">)</span>
+        <span class="s5"># Make sure it is on top of all the other gui widgets</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'gui-popup'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlightedIndex </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">]:</span>
+            <span class="s4">return</span>
+        <span class="s5"># Create a new component for each item</span>
+        <span class="s5"># Find the maximum extents of all items</span>
+        <span class="s1">itemIndex </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">minX </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">for </span><span class="s1">item </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">]:</span>
+            <span class="s1">c </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span>
+                <span class="s3">'item%d' </span><span class="s2">% </span><span class="s1">itemIndex</span><span class="s2">, (), </span><span class="s3">'item'</span><span class="s2">,</span>
+                <span class="s1">DirectButton</span><span class="s2">, (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">,),</span>
+                <span class="s1">text </span><span class="s2">= </span><span class="s1">item</span><span class="s2">, </span><span class="s1">text_align </span><span class="s2">= </span><span class="s1">TextNode</span><span class="s2">.</span><span class="s1">ALeft</span><span class="s2">,</span>
+                <span class="s1">command </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">i </span><span class="s2">= </span><span class="s1">itemIndex</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">i</span><span class="s2">))</span>
+            <span class="s1">bounds </span><span class="s2">= </span><span class="s1">c</span><span class="s2">.</span><span class="s1">getBounds</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">minX </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s4">elif </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] &lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">minX </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">maxX </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+            <span class="s4">elif </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">maxX </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">minZ </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+            <span class="s4">elif </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] &lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">minZ </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]</span>
+            <span class="s4">elif </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">3</span><span class="s2">] &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]</span>
+            <span class="s1">itemIndex </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Calc max width and height</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">maxWidth </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ</span>
+        <span class="s5"># Adjust frame size for each item and bind actions to mouse events</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">itemIndex</span><span class="s2">):</span>
+            <span class="s1">item </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'item%d' </span><span class="s2">%</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s5"># So entire extent of item's slot on popup is reactive to mouse</span>
+            <span class="s1">item</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ</span><span class="s2">)</span>
+            <span class="s5"># Move it to its correct position on the popup</span>
+            <span class="s1">item</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ </span><span class="s2">- </span><span class="s1">i </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight</span><span class="s2">)</span>
+            <span class="s1">item</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1RELEASE</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hidePopupMenu</span><span class="s2">)</span>
+            <span class="s5"># Highlight background when mouse is in item</span>
+            <span class="s1">item</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">WITHIN</span><span class="s2">,</span>
+                      <span class="s4">lambda </span><span class="s1">x</span><span class="s2">, </span><span class="s1">i</span><span class="s2">=</span><span class="s1">i</span><span class="s2">, </span><span class="s1">item</span><span class="s2">=</span><span class="s1">item</span><span class="s2">:</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_highlightItem</span><span class="s2">(</span><span class="s1">item</span><span class="s2">, </span><span class="s1">i</span><span class="s2">))</span>
+            <span class="s5"># Restore specified color upon exiting</span>
+            <span class="s1">fc </span><span class="s2">= </span><span class="s1">item</span><span class="s2">[</span><span class="s3">'frameColor'</span><span class="s2">]</span>
+            <span class="s1">item</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">WITHOUT</span><span class="s2">,</span>
+                      <span class="s4">lambda </span><span class="s1">x</span><span class="s2">, </span><span class="s1">item</span><span class="s2">=</span><span class="s1">item</span><span class="s2">, </span><span class="s1">fc</span><span class="s2">=</span><span class="s1">fc</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_unhighlightItem</span><span class="s2">(</span><span class="s1">item</span><span class="s2">, </span><span class="s1">fc</span><span class="s2">))</span>
+        <span class="s5"># Set popup menu frame size to encompass all items</span>
+        <span class="s1">f </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'popupMenu'</span><span class="s2">)</span>
+        <span class="s1">f</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s6">0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxWidth</span><span class="s2">, -</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight </span><span class="s2">* </span><span class="s1">itemIndex</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s5"># Determine what initial item to display and set text accordingly</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'initialitem'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'initialitem'</span><span class="s2">], </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># No initial item specified, just use first item</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s5"># Position popup Marker to the right of the button</span>
+        <span class="s1">pm </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMarker</span>
+        <span class="s1">pmw </span><span class="s2">= (</span><span class="s1">pm</span><span class="s2">.</span><span class="s1">getWidth</span><span class="s2">() * </span><span class="s1">pm</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">()[</span><span class="s6">0</span><span class="s2">] +</span>
+               <span class="s6">2 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'popupMarkerBorder'</span><span class="s2">][</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initFrameSize</span><span class="s2">:</span>
+            <span class="s5"># Use specified frame size</span>
+            <span class="s1">bounds </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">initFrameSize</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Or base it upon largest item</span>
+            <span class="s1">bounds </span><span class="s2">= [</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initPopupMarkerPos</span><span class="s2">:</span>
+            <span class="s5"># Use specified position</span>
+            <span class="s1">pmPos </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">initPopupMarkerPos</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Or base the position on the frame size.</span>
+            <span class="s1">pmPos </span><span class="s2">= [</span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] + </span><span class="s1">pmw</span><span class="s2">/</span><span class="s6">2.0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + (</span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">3</span><span class="s2">] - </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])/</span><span class="s6">2.0</span><span class="s2">]</span>
+        <span class="s1">pm</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">pmPos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">pmPos</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">pmPos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+        <span class="s5"># Adjust popup menu button to fit all items (or use user specified</span>
+        <span class="s5"># frame size</span>
+        <span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] += </span><span class="s1">pmw</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">3</span><span class="s2">])</span>
+        <span class="s5"># Set initial state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hidePopupMenu</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">showPopupMenu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Make popup visible and try to position it just to right of 
+        mouse click with currently selected item aligned with button. 
+        Adjust popup position if default position puts it outside of 
+        visible screen region 
+        &quot;&quot;&quot;</span>
+
+        <span class="s5"># Needed attributes (such as minZ) won't be set unless the user has specified</span>
+        <span class="s5"># items to display. Let's assert that we've given items to work with.</span>
+        <span class="s1">items </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">]</span>
+        <span class="s4">assert </span><span class="s1">items </span><span class="s4">and </span><span class="s1">len</span><span class="s2">(</span><span class="s1">items</span><span class="s2">) &gt; </span><span class="s6">0</span><span class="s2">, </span><span class="s3">'Cannot show an empty popup menu! You must add items!'</span>
+
+        <span class="s5"># Show the menu</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+        <span class="s5"># Make sure its at the right scale</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">VBase3</span><span class="s2">(</span><span class="s6">1</span><span class="s2">))</span>
+        <span class="s5"># Compute bounds</span>
+        <span class="s1">b </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getBounds</span><span class="s2">()</span>
+        <span class="s1">fb </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">getBounds</span><span class="s2">()</span>
+        <span class="s5"># Position menu at midpoint of button</span>
+        <span class="s1">xPos </span><span class="s2">= (</span><span class="s1">b</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] - </span><span class="s1">b</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])/</span><span class="s6">2.0 </span><span class="s2">- </span><span class="s1">fb</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">xPos</span><span class="s2">)</span>
+        <span class="s5"># Try to set height to line up selected item with button</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ </span><span class="s2">+ (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectedIndex </span><span class="s2">+ </span><span class="s6">1</span><span class="s2">)*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxHeight</span><span class="s2">)</span>
+        <span class="s5"># Make sure the whole popup menu is visible</span>
+        <span class="s1">pos </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">)</span>
+        <span class="s1">scale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">)</span>
+        <span class="s5"># How are we doing relative to the right side of the screen</span>
+        <span class="s1">maxX </span><span class="s2">= </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] + </span><span class="s1">fb</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] * </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">maxX </span><span class="s2">&gt; </span><span class="s6">1.0</span><span class="s2">:</span>
+            <span class="s5"># Need to move menu to the left</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] + (</span><span class="s6">1.0 </span><span class="s2">- </span><span class="s1">maxX</span><span class="s2">))</span>
+        <span class="s5"># How about up and down?</span>
+        <span class="s1">minZ </span><span class="s2">= </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + </span><span class="s1">fb</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] * </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+        <span class="s1">maxZ </span><span class="s2">= </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + </span><span class="s1">fb</span><span class="s2">[</span><span class="s6">3</span><span class="s2">] * </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">minZ </span><span class="s2">&lt; -</span><span class="s6">1.0</span><span class="s2">:</span>
+            <span class="s5"># Menu too low, move it up</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + (-</span><span class="s6">1.0 </span><span class="s2">- </span><span class="s1">minZ</span><span class="s2">))</span>
+        <span class="s4">elif </span><span class="s1">maxZ </span><span class="s2">&gt; </span><span class="s6">1.0</span><span class="s2">:</span>
+            <span class="s5"># Menu too high, move it down</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + (</span><span class="s6">1.0 </span><span class="s2">- </span><span class="s1">maxZ</span><span class="s2">))</span>
+        <span class="s5"># Also display cancel frame to catch clicks outside of the popup</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+        <span class="s5"># Position and scale cancel frame to fill entire window</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">render2d</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">hidePopupMenu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Put away popup and cancel frame &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cancelFrame</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_highlightItem</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">item</span><span class="s2">, </span><span class="s1">index</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Set frame color of highlighted item, record index &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_prevItemTextScale </span><span class="s2">= </span><span class="s1">item</span><span class="s2">[</span><span class="s3">'text_scale'</span><span class="s2">]</span>
+        <span class="s1">item</span><span class="s2">[</span><span class="s3">'frameColor'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'highlightColor'</span><span class="s2">]</span>
+        <span class="s1">item</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'highlightScale'</span><span class="s2">][</span><span class="s6">0</span><span class="s2">]*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'highlightScale'</span><span class="s2">][</span><span class="s6">0</span><span class="s2">]*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'highlightScale'</span><span class="s2">][</span><span class="s6">1</span><span class="s2">]*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'highlightScale'</span><span class="s2">][</span><span class="s6">1</span><span class="s2">]*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ</span><span class="s2">)</span>
+        <span class="s1">item</span><span class="s2">[</span><span class="s3">'text_scale'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'highlightScale'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlightedIndex </span><span class="s2">= </span><span class="s1">index</span>
+
+    <span class="s4">def </span><span class="s1">_unhighlightItem</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">item</span><span class="s2">, </span><span class="s1">frameColor</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Clear frame color, clear highlightedIndex &quot;&quot;&quot;</span>
+        <span class="s1">item</span><span class="s2">[</span><span class="s3">'frameColor'</span><span class="s2">] = </span><span class="s1">frameColor</span>
+        <span class="s1">item</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">] = (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxX</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minZ</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxZ</span><span class="s2">)</span>
+        <span class="s1">item</span><span class="s2">[</span><span class="s3">'text_scale'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_prevItemTextScale</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlightedIndex </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s4">def </span><span class="s1">selectHighlightedIndex</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Check to see if item is highlighted (by cursor being within 
+        that item).  If so, selected it.  If not, do nothing 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">highlightedIndex </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">highlightedIndex</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hidePopupMenu</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">index</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">):</span>
+        <span class="s1">intIndex </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">index</span><span class="s2">, </span><span class="s1">int</span><span class="s2">):</span>
+            <span class="s1">intIndex </span><span class="s2">= </span><span class="s1">index</span>
+        <span class="s4">elif </span><span class="s1">index </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">]:</span>
+            <span class="s1">i </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s4">for </span><span class="s1">item </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">]:</span>
+                <span class="s4">if </span><span class="s1">item </span><span class="s2">== </span><span class="s1">index</span><span class="s2">:</span>
+                    <span class="s1">intIndex </span><span class="s2">= </span><span class="s1">i</span>
+                    <span class="s4">break</span>
+                <span class="s1">i </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s4">return </span><span class="s1">intIndex</span>
+
+    <span class="s4">def </span><span class="s1">set</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">index</span><span class="s2">, </span><span class="s1">fCommand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">):</span>
+        <span class="s5"># Item was selected, record item and call command if any</span>
+        <span class="s1">newIndex </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">index</span><span class="s2">(</span><span class="s1">index</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">newIndex </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">selectedIndex </span><span class="s2">= </span><span class="s1">newIndex</span>
+            <span class="s1">item </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">][</span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectedIndex</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">item</span>
+            <span class="s4">if </span><span class="s1">fCommand </span><span class="s4">and </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+                <span class="s5"># Pass any extra args to command</span>
+                <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*[</span><span class="s1">item</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'extraArgs'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Get currently selected item &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'items'</span><span class="s2">][</span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectedIndex</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">commandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Override popup menu button's command func 
+        Command is executed in response to selecting menu items 
+        &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+</pre>
+</body>
+</html>

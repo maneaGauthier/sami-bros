@@ -1,0 +1,162 @@
+<html>
+<head>
+<title>DirectEntryScroll.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #bcbec4;}
+.s2 { color: #6aab73;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectEntryScroll.py</font>
+</center></td></tr></table>
+<pre><span class="s0">__all__ </span><span class="s1">= [</span><span class="s2">'DirectEntryScroll'</span><span class="s1">]</span>
+
+<span class="s3">from </span><span class="s0">panda3d</span><span class="s1">.</span><span class="s0">core </span><span class="s3">import </span><span class="s1">*</span>
+<span class="s3">from </span><span class="s1">. </span><span class="s3">import </span><span class="s0">DirectGuiGlobals </span><span class="s3">as </span><span class="s0">DGG</span>
+<span class="s3">from </span><span class="s1">.</span><span class="s0">DirectScrolledFrame </span><span class="s3">import </span><span class="s1">*</span>
+<span class="s3">from </span><span class="s1">.</span><span class="s0">DirectFrame </span><span class="s3">import </span><span class="s1">*</span>
+<span class="s3">from </span><span class="s1">.</span><span class="s0">DirectEntry </span><span class="s3">import </span><span class="s1">*</span>
+
+<span class="s3">class </span><span class="s0">DirectEntryScroll</span><span class="s1">(</span><span class="s0">DirectFrame</span><span class="s1">):</span>
+    <span class="s3">def </span><span class="s0">__init__</span><span class="s1">(</span><span class="s0">self</span><span class="s1">, </span><span class="s0">entry</span><span class="s1">, </span><span class="s0">parent </span><span class="s1">= </span><span class="s3">None</span><span class="s1">, **</span><span class="s0">kw</span><span class="s1">):</span>
+        <span class="s0">optiondefs </span><span class="s1">= (</span>
+            <span class="s1">(</span><span class="s2">'pgFunc'</span><span class="s1">,         </span><span class="s0">PGVirtualFrame</span><span class="s1">,      </span><span class="s3">None</span><span class="s1">),</span>
+            <span class="s1">(</span><span class="s2">'relief'</span><span class="s1">, </span><span class="s3">None</span><span class="s1">, </span><span class="s3">None</span><span class="s1">),</span>
+            <span class="s1">(</span><span class="s2">'clipSize'</span><span class="s1">,     (-</span><span class="s4">1</span><span class="s1">, </span><span class="s4">1</span><span class="s1">, -</span><span class="s4">1</span><span class="s1">, </span><span class="s4">1</span><span class="s1">),        </span><span class="s0">self</span><span class="s1">.</span><span class="s0">setClipSize</span><span class="s1">),</span>
+            <span class="s1">)</span>
+
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">defineoptions</span><span class="s1">(</span><span class="s0">kw</span><span class="s1">, </span><span class="s0">optiondefs</span><span class="s1">)</span>
+        <span class="s0">DirectFrame</span><span class="s1">.</span><span class="s0">__init__</span><span class="s1">(</span><span class="s0">self</span><span class="s1">, </span><span class="s0">parent</span><span class="s1">, **</span><span class="s0">kw</span><span class="s1">)</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas </span><span class="s1">= </span><span class="s3">None</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">visXMin </span><span class="s1">= </span><span class="s4">0.0</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">visXMax </span><span class="s1">= </span><span class="s4">0.0</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin </span><span class="s1">= </span><span class="s4">0.0</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax </span><span class="s1">= </span><span class="s4">0.0</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">initialiseoptions</span><span class="s1">(</span><span class="s0">DirectEntryScroll</span><span class="s1">)</span>
+
+        <span class="s5"># don't set a scale on the entry</span>
+        <span class="s5"># instead make it the correct size, use something like:</span>
+           <span class="s5"># text_scale = 0.035,</span>
+           <span class="s5"># frameSize = (-0.006, 3.2, -0.015, 0.036),</span>
+        <span class="s5"># if you need to scale the entry scale it's parent instead</span>
+
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas </span><span class="s1">= </span><span class="s0">NodePath</span><span class="s1">(</span><span class="s0">self</span><span class="s1">.</span><span class="s0">guiItem</span><span class="s1">.</span><span class="s0">getCanvasNode</span><span class="s1">())</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">setPos</span><span class="s1">(</span><span class="s4">0</span><span class="s1">,</span><span class="s4">0</span><span class="s1">,</span><span class="s4">0</span><span class="s1">)</span>
+
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s1">= </span><span class="s3">None</span>
+        <span class="s3">if </span><span class="s0">entry </span><span class="s3">is not None</span><span class="s1">:</span>
+            <span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s1">= </span><span class="s0">entry</span>
+            <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">reparentTo</span><span class="s1">(</span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">)</span>
+            <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">bind</span><span class="s1">(</span><span class="s0">DGG</span><span class="s1">.</span><span class="s0">CURSORMOVE</span><span class="s1">, </span><span class="s0">self</span><span class="s1">.</span><span class="s0">cursorMove</span><span class="s1">)</span>
+
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">node</span><span class="s1">().</span><span class="s0">setBounds</span><span class="s1">(</span><span class="s0">OmniBoundingVolume</span><span class="s1">())</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">node</span><span class="s1">().</span><span class="s0">setFinal</span><span class="s1">(</span><span class="s4">1</span><span class="s1">)</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">resetCanvas</span><span class="s1">()</span>
+
+    <span class="s3">def </span><span class="s0">setEntry</span><span class="s1">(</span><span class="s0">self</span><span class="s1">, </span><span class="s0">entry</span><span class="s1">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Sets a DirectEntry element for this scroll frame. A DirectEntryScroll 
+        can only hold one entry at a time, so make sure to not call this 
+        function twice or call clearEntry before to make sure no entry 
+        is already set. 
+        &quot;&quot;&quot;</span>
+        <span class="s3">assert </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s3">is None</span><span class="s1">, </span><span class="s2">&quot;An entry was already set for this DirectEntryScroll element&quot;</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s1">= </span><span class="s0">entry</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">reparentTo</span><span class="s1">(</span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">)</span>
+
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">bind</span><span class="s1">(</span><span class="s0">DGG</span><span class="s1">.</span><span class="s0">CURSORMOVE</span><span class="s1">, </span><span class="s0">self</span><span class="s1">.</span><span class="s0">cursorMove</span><span class="s1">)</span>
+
+    <span class="s3">def </span><span class="s0">clearEntry</span><span class="s1">(</span><span class="s0">self</span><span class="s1">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        detaches and unbinds the entry from the scroll frame and its 
+        events. You'll be responsible for destroying it. 
+        &quot;&quot;&quot;</span>
+        <span class="s3">if </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s3">is None</span><span class="s1">: </span><span class="s3">return</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">unbind</span><span class="s1">(</span><span class="s0">DGG</span><span class="s1">.</span><span class="s0">CURSORMOVE</span><span class="s1">)</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">detachNode</span><span class="s1">()</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s1">= </span><span class="s3">None</span>
+
+    <span class="s3">def </span><span class="s0">cursorMove</span><span class="s1">(</span><span class="s0">self</span><span class="s1">, </span><span class="s0">cursorX</span><span class="s1">, </span><span class="s0">cursorY</span><span class="s1">):</span>
+        <span class="s0">cursorX </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">guiItem</span><span class="s1">.</span><span class="s0">getCursorX</span><span class="s1">() * </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">[</span><span class="s2">'text_scale'</span><span class="s1">][</span><span class="s4">0</span><span class="s1">]</span>
+        <span class="s0">canvasX </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">getX</span><span class="s1">()</span>
+        <span class="s0">visXMin </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin </span><span class="s1">- </span><span class="s0">canvasX</span>
+        <span class="s0">visXMax </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax </span><span class="s1">- </span><span class="s0">canvasX</span>
+        <span class="s0">visXCenter </span><span class="s1">= (</span><span class="s0">visXMin </span><span class="s1">+ </span><span class="s0">visXMax</span><span class="s1">) * </span><span class="s4">0.5</span>
+        <span class="s0">distanceToCenter </span><span class="s1">= </span><span class="s0">visXCenter </span><span class="s1">- </span><span class="s0">cursorX</span>
+        <span class="s0">clipExtent </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax </span><span class="s1">- </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin</span>
+
+        <span class="s0">entryExtent </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">[</span><span class="s2">'text_scale'</span><span class="s1">][</span><span class="s4">0</span><span class="s1">] * </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">[</span><span class="s2">'width'</span><span class="s1">]</span>
+        <span class="s0">entryWiggle </span><span class="s1">= </span><span class="s0">entryExtent </span><span class="s1">- </span><span class="s0">clipExtent</span>
+
+        <span class="s3">if </span><span class="s0">abs</span><span class="s1">(</span><span class="s0">distanceToCenter</span><span class="s1">) &gt; (</span><span class="s0">clipExtent </span><span class="s1">* </span><span class="s4">0.5</span><span class="s1">):</span>
+            <span class="s0">self</span><span class="s1">.</span><span class="s0">moveToCenterCursor</span><span class="s1">()</span>
+
+
+    <span class="s3">def </span><span class="s0">moveToCenterCursor</span><span class="s1">(</span><span class="s0">self</span><span class="s1">):</span>
+        <span class="s0">cursorX </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">guiItem</span><span class="s1">.</span><span class="s0">getCursorX</span><span class="s1">() * </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">[</span><span class="s2">'text_scale'</span><span class="s1">][</span><span class="s4">0</span><span class="s1">]</span>
+        <span class="s0">canvasX </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">getX</span><span class="s1">()</span>
+        <span class="s0">visXMin </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin </span><span class="s1">- </span><span class="s0">canvasX</span>
+        <span class="s0">visXMax </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax </span><span class="s1">- </span><span class="s0">canvasX</span>
+        <span class="s0">visXCenter </span><span class="s1">= (</span><span class="s0">visXMin </span><span class="s1">+ </span><span class="s0">visXMax</span><span class="s1">) * </span><span class="s4">0.5</span>
+        <span class="s0">distanceToCenter </span><span class="s1">= </span><span class="s0">visXCenter </span><span class="s1">- </span><span class="s0">cursorX</span>
+        <span class="s0">newX </span><span class="s1">= </span><span class="s0">canvasX </span><span class="s1">+ </span><span class="s0">distanceToCenter</span>
+
+        <span class="s0">clipExtent </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax </span><span class="s1">- </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin</span>
+
+        <span class="s0">entryExtent </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">[</span><span class="s2">'text_scale'</span><span class="s1">][</span><span class="s4">0</span><span class="s1">] * </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">[</span><span class="s2">'width'</span><span class="s1">]</span>
+        <span class="s0">entryWiggle </span><span class="s1">= </span><span class="s0">entryExtent </span><span class="s1">- </span><span class="s0">clipExtent</span>
+
+        <span class="s3">if </span><span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">guiItem</span><span class="s1">.</span><span class="s0">getCursorPosition</span><span class="s1">() &lt;= </span><span class="s4">0</span><span class="s1">: </span><span class="s5">#deals with the cursor jump bug</span>
+            <span class="s0">newX </span><span class="s1">= </span><span class="s4">0.0</span>
+        <span class="s3">elif </span><span class="s0">newX </span><span class="s1">&gt; </span><span class="s4">0.0</span><span class="s1">:</span>
+            <span class="s0">newX </span><span class="s1">= </span><span class="s4">0.0</span>
+        <span class="s3">elif </span><span class="s0">newX </span><span class="s1">&lt; (-</span><span class="s0">entryWiggle</span><span class="s1">):</span>
+            <span class="s0">newX </span><span class="s1">= -</span><span class="s0">entryWiggle</span>
+
+        <span class="s5">#print(&quot;CursorX %s CanvasX %s VisCenter %s Distance %s NewX %s Wiggle %s&quot; % (cursorX, canvasX, visXCenter, distanceToCenter, newX, entryWiggle))</span>
+
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">setX</span><span class="s1">(</span><span class="s0">newX</span><span class="s1">)</span>
+
+    <span class="s3">def </span><span class="s0">destroy</span><span class="s1">(</span><span class="s0">self</span><span class="s1">):</span>
+        <span class="s5"># Destroy children of the canvas</span>
+        <span class="s3">for </span><span class="s0">child </span><span class="s3">in </span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">getChildren</span><span class="s1">():</span>
+            <span class="s0">childGui </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">guiDict</span><span class="s1">.</span><span class="s0">get</span><span class="s1">(</span><span class="s0">child</span><span class="s1">.</span><span class="s0">getName</span><span class="s1">())</span>
+            <span class="s3">if </span><span class="s0">childGui</span><span class="s1">:</span>
+                <span class="s0">childGui</span><span class="s1">.</span><span class="s0">destroy</span><span class="s1">()</span>
+            <span class="s3">else</span><span class="s1">:</span>
+                <span class="s0">parts </span><span class="s1">= </span><span class="s0">child</span><span class="s1">.</span><span class="s0">getName</span><span class="s1">().</span><span class="s0">split</span><span class="s1">(</span><span class="s2">'-'</span><span class="s1">)</span>
+                <span class="s0">simpleChildGui </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">guiDict</span><span class="s1">.</span><span class="s0">get</span><span class="s1">(</span><span class="s0">parts</span><span class="s1">[-</span><span class="s4">1</span><span class="s1">])</span>
+                <span class="s3">if </span><span class="s0">simpleChildGui</span><span class="s1">:</span>
+                    <span class="s0">simpleChildGui</span><span class="s1">.</span><span class="s0">destroy</span><span class="s1">()</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry</span><span class="s1">.</span><span class="s0">destroy</span><span class="s1">()</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">entry </span><span class="s1">= </span><span class="s3">None</span>
+        <span class="s0">DirectFrame</span><span class="s1">.</span><span class="s0">destroy</span><span class="s1">(</span><span class="s0">self</span><span class="s1">)</span>
+
+
+    <span class="s3">def </span><span class="s0">getCanvas</span><span class="s1">(</span><span class="s0">self</span><span class="s1">):</span>
+        <span class="s3">return </span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span>
+
+    <span class="s3">def </span><span class="s0">setClipSize</span><span class="s1">(</span><span class="s0">self</span><span class="s1">):</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">guiItem</span><span class="s1">.</span><span class="s0">setClipFrame</span><span class="s1">(</span><span class="s0">self</span><span class="s1">[</span><span class="s2">'clipSize'</span><span class="s1">])</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin </span><span class="s1">= </span><span class="s0">self</span><span class="s1">[</span><span class="s2">'clipSize'</span><span class="s1">][</span><span class="s4">0</span><span class="s1">]</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax </span><span class="s1">= </span><span class="s0">self</span><span class="s1">[</span><span class="s2">'clipSize'</span><span class="s1">][</span><span class="s4">1</span><span class="s1">]</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">visXMin </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMin</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">visXMax </span><span class="s1">= </span><span class="s0">self</span><span class="s1">.</span><span class="s0">clipXMax</span>
+        <span class="s3">if </span><span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">:</span>
+            <span class="s0">self</span><span class="s1">.</span><span class="s0">resetCanvas</span><span class="s1">()</span>
+
+    <span class="s3">def </span><span class="s0">resetCanvas</span><span class="s1">(</span><span class="s0">self</span><span class="s1">):</span>
+        <span class="s0">self</span><span class="s1">.</span><span class="s0">canvas</span><span class="s1">.</span><span class="s0">setPos</span><span class="s1">(</span><span class="s4">0</span><span class="s1">,</span><span class="s4">0</span><span class="s1">,</span><span class="s4">0</span><span class="s1">)</span>
+
+</pre>
+</body>
+</html>

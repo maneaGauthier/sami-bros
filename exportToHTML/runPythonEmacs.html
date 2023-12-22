@@ -1,0 +1,65 @@
+<html>
+<head>
+<title>runPythonEmacs</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4; font-weight: bold;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #c57633;}
+.s4 { color: #bcbec4;}
+.s5 { color: #6aab73;}
+.s6 { color: #cf8e6d;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+runPythonEmacs</font>
+</center></td></tr></table>
+<pre><span class="s0">#! /bin/bash</span>
+
+<span class="s2"># This script is designed to de-Cygwinify the project variables set by</span>
+<span class="s2"># the ctattach scripts.  If you aren't using ctattach (and you almost</span>
+<span class="s2"># certainly won't be, unless you're a member of the VR Studio),</span>
+<span class="s2"># there's no reason to use this script.</span>
+
+
+<span class="s2"># First, de-Cygwinify the HOME variable.  Since this variable is</span>
+<span class="s2"># hardcoded, we can just do it.</span>
+
+<span class="s1">HOME=</span><span class="s3">`</span><span class="s1">cygpath -w </span><span class="s4">$HOME</span><span class="s3">`</span>
+<span class="s1">export HOME</span>
+
+<span class="s2"># Now de-Cygwinify the package variables for all of the trees we are</span>
+<span class="s2"># attached to, e.g. $DTOOL, $PANDA, $DIRECT, etc.  These variable</span>
+<span class="s2"># names are discovered by parsing the $CTPROJS variable, which is made</span>
+<span class="s2"># up of a series of words like &quot;DIRECT:personal PANDA:personal</span>
+<span class="s2"># DTOOL:install&quot;; we simply pull off each word and get the part</span>
+<span class="s2"># preceding the colon.</span>
+
+<span class="s2"># That gives us an indirect reference: we end up with a variable that</span>
+<span class="s2"># contains, e.g., the string &quot;DTOOL&quot;: the name of the variable we want</span>
+<span class="s2"># to modify.  Bash provides a way to read the value of an indirect</span>
+<span class="s2"># reference: ${!varname} returns the variable named by the contents of</span>
+<span class="s2"># $varname.</span>
+
+<span class="s2"># However, bash doesn't provide a way to set the variable named by an</span>
+<span class="s2"># indirect reference.  But we can achieve this by using the env</span>
+<span class="s2"># command, which accepts as a parameter a list of variables that</span>
+<span class="s2"># should be reassigned, in the form &quot;var1=value1 var2=value2 ...&quot;.  So</span>
+<span class="s2"># we just have to build up this string and pass it to the env command.</span>
+
+<span class="s1">assign=</span><span class="s5">&quot;&quot;</span>
+<span class="s6">for </span><span class="s1">packageDef </span><span class="s6">in </span><span class="s4">$CTPROJS</span><span class="s1">; </span><span class="s6">do</span>
+    <span class="s1">packageVar=</span><span class="s3">`</span><span class="s1">echo </span><span class="s4">$packageDef </span><span class="s1">| sed </span><span class="s5">'s/:.*$//'</span><span class="s3">`</span>
+    <span class="s1">decyg=</span><span class="s3">`</span><span class="s1">cygpath -w </span><span class="s6">$</span><span class="s4">{</span><span class="s1">!packageVar</span><span class="s4">}</span><span class="s3">`</span>
+    <span class="s1">assign=</span><span class="s5">&quot;</span><span class="s4">$assign $packageVar</span><span class="s5">=</span><span class="s4">$decyg</span><span class="s5">&quot;</span>
+<span class="s6">done</span>
+
+<span class="s2"># Now use the env command to pass all these assignments to emacs.</span>
+<span class="s1">exec env </span><span class="s4">$assign </span><span class="s1">runemacs </span><span class="s5">&quot;</span><span class="s4">$@</span><span class="s5">&quot;</span>
+</pre>
+</body>
+</html>

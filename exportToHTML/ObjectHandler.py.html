@@ -1,0 +1,98 @@
+<html>
+<head>
+<title>ObjectHandler.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ObjectHandler.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+This is just a sample code. 
+ 
+LevelEditor, ObjectHandler, ObjectPalette should be rewritten 
+to be game specific. 
+&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">actor </span><span class="s2">import </span><span class="s1">Actor</span>
+
+<span class="s2">from </span><span class="s3">. </span><span class="s2">import </span><span class="s1">ObjectGlobals </span><span class="s2">as </span><span class="s1">OG</span>
+
+<span class="s2">class </span><span class="s1">ObjectHandler</span><span class="s3">:</span>
+    <span class="s0">&quot;&quot;&quot; ObjectHandler will create and update objects &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">editor</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor </span><span class="s3">= </span><span class="s1">editor</span>
+
+    <span class="s2">def </span><span class="s1">createDoubleSmiley</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">horizontal</span><span class="s3">=</span><span class="s2">True</span><span class="s3">):</span>
+        <span class="s1">root </span><span class="s3">= </span><span class="s1">render</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s4">'doubleSmiley'</span><span class="s3">)</span>
+        <span class="s1">a </span><span class="s3">= </span><span class="s1">loader</span><span class="s3">.</span><span class="s1">loadModel</span><span class="s3">(</span><span class="s4">'models/smiley.egg'</span><span class="s3">)</span>
+        <span class="s1">b </span><span class="s3">= </span><span class="s1">loader</span><span class="s3">.</span><span class="s1">loadModel</span><span class="s3">(</span><span class="s4">'models/smiley.egg'</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">horizontal</span><span class="s3">:</span>
+            <span class="s1">a</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s4">'left'</span><span class="s3">)</span>
+            <span class="s1">b</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s4">'right'</span><span class="s3">)</span>
+            <span class="s1">a</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(-</span><span class="s5">1</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+            <span class="s1">b</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s5">1</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">a</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s4">'top'</span><span class="s3">)</span>
+            <span class="s1">b</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s4">'bottom'</span><span class="s3">)</span>
+            <span class="s1">a</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, </span><span class="s5">1</span><span class="s3">)</span>
+            <span class="s1">b</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, -</span><span class="s5">1</span><span class="s3">)</span>
+
+        <span class="s1">a</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">root</span><span class="s3">)</span>
+        <span class="s1">b</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">root</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">root</span>
+
+    <span class="s2">def </span><span class="s1">updateDoubleSmiley</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">val</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">):</span>
+        <span class="s1">objNP </span><span class="s3">= </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">]</span>
+        <span class="s2">if </span><span class="s1">objNP</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">'left'</span><span class="s3">):</span>
+            <span class="s1">objNP</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">'left'</span><span class="s3">).</span><span class="s1">setPos</span><span class="s3">(-</span><span class="s5">1 </span><span class="s3">* </span><span class="s1">val</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+            <span class="s1">objNP</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">'right'</span><span class="s3">).</span><span class="s1">setPos</span><span class="s3">(</span><span class="s1">val</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">objNP</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">'top'</span><span class="s3">).</span><span class="s1">setPos</span><span class="s3">(</span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, </span><span class="s5">1 </span><span class="s3">* </span><span class="s1">val</span><span class="s3">)</span>
+            <span class="s1">objNP</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">'bottom'</span><span class="s3">).</span><span class="s1">setPos</span><span class="s3">(</span><span class="s5">0</span><span class="s3">, </span><span class="s5">0</span><span class="s3">, -</span><span class="s5">1 </span><span class="s3">* </span><span class="s1">val</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">updateSmiley</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">val</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">):</span>
+        <span class="s1">objNP </span><span class="s3">= </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">]</span>
+        <span class="s2">if </span><span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">:</span>
+            <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">deselectAllCB</span><span class="s3">()</span>
+        <span class="s2">for </span><span class="s1">child </span><span class="s2">in </span><span class="s1">objNP</span><span class="s3">.</span><span class="s1">findAllMatches</span><span class="s3">(</span><span class="s4">&quot;+GeomNode&quot;</span><span class="s3">):</span>
+            <span class="s1">child</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">val</span><span class="s3">):</span>
+            <span class="s1">a </span><span class="s3">= </span><span class="s1">loader</span><span class="s3">.</span><span class="s1">loadModel</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_MODEL</span><span class="s3">])</span>
+            <span class="s1">b </span><span class="s3">= </span><span class="s1">a</span><span class="s3">.</span><span class="s1">find</span><span class="s3">(</span><span class="s4">&quot;+GeomNode&quot;</span><span class="s3">)</span>
+            <span class="s1">b</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(</span><span class="s5">0</span><span class="s3">, </span><span class="s1">i</span><span class="s3">*</span><span class="s5">2</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+            <span class="s1">b</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">objNP</span><span class="s3">)</span>
+            <span class="s1">a</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">createPanda</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">pandaActor </span><span class="s3">= </span><span class="s1">PandaActor</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">pandaActor</span>
+
+    <span class="s2">def </span><span class="s1">createGrass</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">environ </span><span class="s3">= </span><span class="s1">loader</span><span class="s3">.</span><span class="s1">loadModel</span><span class="s3">(</span><span class="s4">&quot;models/environment.egg&quot;</span><span class="s3">)</span>
+        <span class="s1">environ</span><span class="s3">.</span><span class="s1">setScale</span><span class="s3">(</span><span class="s5">0.25</span><span class="s3">,</span><span class="s5">0.25</span><span class="s3">,</span><span class="s5">0.25</span><span class="s3">)</span>
+        <span class="s1">environ</span><span class="s3">.</span><span class="s1">setPos</span><span class="s3">(-</span><span class="s5">8</span><span class="s3">,</span><span class="s5">42</span><span class="s3">,</span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">environ</span>
+
+<span class="s2">class </span><span class="s1">PandaActor</span><span class="s3">(</span><span class="s1">Actor</span><span class="s3">.</span><span class="s1">Actor</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">Actor</span><span class="s3">.</span><span class="s1">Actor</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s4">&quot;models/panda-model.egg&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setScale</span><span class="s3">(</span><span class="s5">0.005</span><span class="s3">)</span>
+
+
+
+</pre>
+</body>
+</html>

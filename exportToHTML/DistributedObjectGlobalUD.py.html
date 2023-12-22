@@ -1,0 +1,88 @@
+<html>
+<head>
+<title>DistributedObjectGlobalUD.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedObjectGlobalUD.py</font>
+</center></td></tr></table>
+<pre>
+
+<span class="s1">from </span><span class="s2">.</span><span class="s0">DistributedObjectUD </span><span class="s1">import </span><span class="s0">DistributedObjectUD</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directnotify</span><span class="s2">.</span><span class="s0">DirectNotifyGlobal </span><span class="s1">import </span><span class="s0">directNotify</span>
+
+<span class="s1">import </span><span class="s0">sys</span>
+
+<span class="s1">class </span><span class="s0">DistributedObjectGlobalUD</span><span class="s2">(</span><span class="s0">DistributedObjectUD</span><span class="s2">):</span>
+    <span class="s0">notify </span><span class="s2">= </span><span class="s0">directNotify</span><span class="s2">.</span><span class="s0">newCategory</span><span class="s2">(</span><span class="s3">'DistributedObjectGlobalUD'</span><span class="s2">)</span>
+
+    <span class="s0">doNotDeallocateChannel </span><span class="s2">= </span><span class="s4">1</span>
+    <span class="s0">isGlobalDistObj </span><span class="s2">= </span><span class="s4">1</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">):</span>
+        <span class="s0">DistributedObjectUD</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">air</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">ExecNamespace </span><span class="s2">= {</span><span class="s3">&quot;self&quot;</span><span class="s2">:</span><span class="s0">self</span><span class="s2">}</span>
+
+    <span class="s1">def </span><span class="s0">announceGenerate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">registerForChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+        <span class="s0">DistributedObjectUD</span><span class="s2">.</span><span class="s0">announceGenerate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">air</span><span class="s2">.</span><span class="s0">unregisterForChannel</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+        <span class="s5">## self.air.removeDOFromTables(self)</span>
+        <span class="s0">DistributedObjectUD</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">execCommand</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">command</span><span class="s2">, </span><span class="s0">mwMgrId</span><span class="s2">, </span><span class="s0">avId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">):</span>
+        <span class="s0">text </span><span class="s2">= </span><span class="s0">str</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">__execMessage</span><span class="s2">(</span><span class="s0">command</span><span class="s2">))[:</span><span class="s0">config</span><span class="s2">.</span><span class="s0">GetInt</span><span class="s2">(</span><span class="s3">&quot;ai-debug-length&quot;</span><span class="s2">,</span><span class="s4">300</span><span class="s2">)]</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">info</span><span class="s2">(</span><span class="s0">text</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">__execMessage</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">message</span><span class="s2">):</span>
+        <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">ExecNamespace</span><span class="s2">:</span>
+            <span class="s5"># Import some useful variables into the ExecNamespace initially.</span>
+            <span class="s1">import </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core</span>
+
+            <span class="s1">for </span><span class="s0">key</span><span class="s2">, </span><span class="s0">value </span><span class="s1">in </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core</span><span class="s2">.</span><span class="s0">__dict__</span><span class="s2">.</span><span class="s0">items</span><span class="s2">():</span>
+                <span class="s1">if not </span><span class="s0">key</span><span class="s2">.</span><span class="s0">startswith</span><span class="s2">(</span><span class="s3">'__'</span><span class="s2">):</span>
+                    <span class="s0">self</span><span class="s2">.</span><span class="s0">ExecNamespace</span><span class="s2">[</span><span class="s0">key</span><span class="s2">] = </span><span class="s0">value</span>
+            <span class="s5">#self.importExecNamespace()</span>
+
+        <span class="s5"># Now try to evaluate the expression using ChatInputNormal.ExecNamespace as</span>
+        <span class="s5"># the local namespace.</span>
+        <span class="s1">try</span><span class="s2">:</span>
+            <span class="s1">return </span><span class="s0">str</span><span class="s2">(</span><span class="s0">eval</span><span class="s2">(</span><span class="s0">message</span><span class="s2">, </span><span class="s0">globals</span><span class="s2">(), </span><span class="s0">self</span><span class="s2">.</span><span class="s0">ExecNamespace</span><span class="s2">))</span>
+
+        <span class="s1">except </span><span class="s0">SyntaxError</span><span class="s2">:</span>
+            <span class="s5"># Maybe it's only a statement, like &quot;x = 1&quot;, or</span>
+            <span class="s5"># &quot;import math&quot;.  These aren't expressions, so eval()</span>
+            <span class="s5"># fails, but they can be exec'ed.</span>
+            <span class="s1">try</span><span class="s2">:</span>
+                <span class="s0">exec</span><span class="s2">(</span><span class="s0">message</span><span class="s2">, </span><span class="s0">globals</span><span class="s2">(), </span><span class="s0">self</span><span class="s2">.</span><span class="s0">ExecNamespace</span><span class="s2">)</span>
+                <span class="s1">return </span><span class="s3">'ok'</span>
+            <span class="s1">except</span><span class="s2">:</span>
+                <span class="s0">exception </span><span class="s2">= </span><span class="s0">sys</span><span class="s2">.</span><span class="s0">exc_info</span><span class="s2">()[</span><span class="s4">0</span><span class="s2">]</span>
+                <span class="s0">extraInfo </span><span class="s2">= </span><span class="s0">sys</span><span class="s2">.</span><span class="s0">exc_info</span><span class="s2">()[</span><span class="s4">1</span><span class="s2">]</span>
+                <span class="s1">if </span><span class="s0">extraInfo</span><span class="s2">:</span>
+                    <span class="s1">return </span><span class="s0">str</span><span class="s2">(</span><span class="s0">extraInfo</span><span class="s2">)</span>
+                <span class="s1">else</span><span class="s2">:</span>
+                    <span class="s1">return </span><span class="s0">str</span><span class="s2">(</span><span class="s0">exception</span><span class="s2">)</span>
+        <span class="s1">except</span><span class="s2">:</span>
+            <span class="s0">exception </span><span class="s2">= </span><span class="s0">sys</span><span class="s2">.</span><span class="s0">exc_info</span><span class="s2">()[</span><span class="s4">0</span><span class="s2">]</span>
+            <span class="s0">extraInfo </span><span class="s2">= </span><span class="s0">sys</span><span class="s2">.</span><span class="s0">exc_info</span><span class="s2">()[</span><span class="s4">1</span><span class="s2">]</span>
+            <span class="s1">if </span><span class="s0">extraInfo</span><span class="s2">:</span>
+                <span class="s1">return </span><span class="s0">str</span><span class="s2">(</span><span class="s0">extraInfo</span><span class="s2">)</span>
+            <span class="s1">else</span><span class="s2">:</span>
+                <span class="s1">return </span><span class="s0">str</span><span class="s2">(</span><span class="s0">exception</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

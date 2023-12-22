@@ -1,0 +1,188 @@
+<html>
+<head>
+<title>_blender_scene_to_ursina.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+_blender_scene_to_ursina.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">bpy</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">sys</span>
+<span class="s0">from </span><span class="s1">pathlib </span><span class="s0">import </span><span class="s1">Path</span>
+<span class="s0">from </span><span class="s1">math </span><span class="s0">import </span><span class="s1">degrees</span>
+<span class="s0">import </span><span class="s1">bmesh</span>
+
+
+<span class="s2"># print('starteddddddddddddddddddd')</span>
+<span class="s2"># for i, arg in enumerate(sys.argv):</span>
+<span class="s2">#     print('aaaaaaaaaaarg:', arg)</span>
+
+<span class="s1">blender_executable</span><span class="s3">, </span><span class="s1">blend_file </span><span class="s3">= </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">[:</span><span class="s4">2</span><span class="s3">]</span>
+<span class="s1">script_file </span><span class="s3">= </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">[</span><span class="s4">4</span><span class="s3">]</span>
+<span class="s1">out_file_path </span><span class="s3">= </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">[</span><span class="s4">5</span><span class="s3">]</span>
+<span class="s1">decimals </span><span class="s3">= </span><span class="s1">int</span><span class="s3">([</span><span class="s1">e </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv </span><span class="s0">if </span><span class="s1">e</span><span class="s3">.</span><span class="s1">startswith</span><span class="s3">(</span><span class="s5">'--decimals='</span><span class="s3">)][</span><span class="s4">0</span><span class="s3">][</span><span class="s1">len</span><span class="s3">(</span><span class="s5">'--decimals='</span><span class="s3">):])</span>
+
+<span class="s1">scene_name </span><span class="s3">= </span><span class="s1">Path</span><span class="s3">(</span><span class="s1">bpy</span><span class="s3">.</span><span class="s1">data</span><span class="s3">.</span><span class="s1">filepath</span><span class="s3">).</span><span class="s1">stem</span>
+<span class="s1">print</span><span class="s3">(</span><span class="s5">'file_name:'</span><span class="s3">, </span><span class="s1">scene_name</span><span class="s3">)</span>
+
+<span class="s1">code </span><span class="s3">= </span><span class="s5">''</span>
+
+<span class="s0">if not </span><span class="s5">'--models_only' </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">:</span>
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">'''from ursina import * 
+from time import perf_counter 
+ 
+scene_parent = Entity() 
+ 
+if __name__ == '__main__': 
+    app = Ursina() 
+ 
+t = perf_counter() 
+'''</span>
+<span class="s1">code </span><span class="s3">+= </span><span class="s5">''' 
+# unique meshes 
+meshes = { 
+'''</span>
+
+<span class="s1">dg </span><span class="s3">= </span><span class="s1">bpy</span><span class="s3">.</span><span class="s1">context</span><span class="s3">.</span><span class="s1">evaluated_depsgraph_get</span><span class="s3">() </span><span class="s2">#getting the dependency graph</span>
+<span class="s1">bpy</span><span class="s3">.</span><span class="s1">ops</span><span class="s3">.</span><span class="s1">object</span><span class="s3">.</span><span class="s1">mode_set</span><span class="s3">(</span><span class="s1">mode</span><span class="s3">=</span><span class="s5">'OBJECT'</span><span class="s3">, </span><span class="s1">toggle</span><span class="s3">=</span><span class="s0">False</span><span class="s3">)</span>
+<span class="s1">objects </span><span class="s3">= [</span><span class="s1">ob </span><span class="s0">for </span><span class="s1">ob </span><span class="s0">in </span><span class="s1">bpy</span><span class="s3">.</span><span class="s1">data</span><span class="s3">.</span><span class="s1">objects </span><span class="s0">if </span><span class="s1">ob</span><span class="s3">.</span><span class="s1">type </span><span class="s3">== </span><span class="s5">'MESH'</span><span class="s3">]</span>
+<span class="s1">unique_objects </span><span class="s3">= {}</span>
+<span class="s2"># print('meshes:', meshes)</span>
+<span class="s0">for </span><span class="s1">ob </span><span class="s0">in </span><span class="s1">objects</span><span class="s3">:</span>
+    <span class="s1">unique_objects</span><span class="s3">[</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">data</span><span class="s3">.</span><span class="s1">name</span><span class="s3">] = </span><span class="s1">ob</span>
+
+
+<span class="s0">for </span><span class="s1">key</span><span class="s3">, </span><span class="s1">ob </span><span class="s0">in </span><span class="s1">unique_objects</span><span class="s3">.</span><span class="s1">items</span><span class="s3">():</span>
+    <span class="s1">mesh </span><span class="s3">= </span><span class="s1">ob</span><span class="s3">.</span><span class="s1">evaluated_get</span><span class="s3">(</span><span class="s1">dg</span><span class="s3">).</span><span class="s1">data</span>
+
+    <span class="s2"># triangulate mesh</span>
+    <span class="s1">bm </span><span class="s3">= </span><span class="s1">bmesh</span><span class="s3">.</span><span class="s1">new</span><span class="s3">()</span>
+    <span class="s1">bm</span><span class="s3">.</span><span class="s1">from_mesh</span><span class="s3">(</span><span class="s1">mesh</span><span class="s3">)</span>
+    <span class="s1">bmesh</span><span class="s3">.</span><span class="s1">ops</span><span class="s3">.</span><span class="s1">triangulate</span><span class="s3">(</span><span class="s1">bm</span><span class="s3">, </span><span class="s1">faces</span><span class="s3">=</span><span class="s1">bm</span><span class="s3">.</span><span class="s1">faces</span><span class="s3">[:], </span><span class="s1">quad_method</span><span class="s3">=</span><span class="s5">'BEAUTY'</span><span class="s3">, </span><span class="s1">ngon_method</span><span class="s3">=</span><span class="s5">'BEAUTY'</span><span class="s3">)</span>
+    <span class="s1">bm</span><span class="s3">.</span><span class="s1">normal_update</span><span class="s3">()</span>
+    <span class="s1">bm</span><span class="s3">.</span><span class="s1">to_mesh</span><span class="s3">(</span><span class="s1">mesh</span><span class="s3">)</span>
+    <span class="s1">bm</span><span class="s3">.</span><span class="s1">free</span><span class="s3">()</span>
+
+    <span class="s1">verts </span><span class="s3">= []</span>
+    <span class="s1">normals </span><span class="s3">= []</span>
+    <span class="s1">vertex_colors </span><span class="s3">= []</span>
+    <span class="s1">uvs </span><span class="s3">= []</span>
+
+    <span class="s1">indices </span><span class="s3">= []</span>
+
+    <span class="s0">for </span><span class="s1">poly </span><span class="s0">in </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">polygons</span><span class="s3">:</span>
+        <span class="s1">indices</span><span class="s3">.</span><span class="s1">extend</span><span class="s3">(</span><span class="s1">poly</span><span class="s3">.</span><span class="s1">vertices</span><span class="s3">)</span>
+
+    <span class="s0">for </span><span class="s1">idx </span><span class="s0">in </span><span class="s1">indices</span><span class="s3">:</span>
+        <span class="s1">v </span><span class="s3">= </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">vertices</span><span class="s3">[</span><span class="s1">idx</span><span class="s3">]</span>
+        <span class="s1">verts</span><span class="s3">.</span><span class="s1">append</span><span class="s3">((</span><span class="s1">round</span><span class="s3">(</span><span class="s1">v</span><span class="s3">.</span><span class="s1">co</span><span class="s3">[</span><span class="s4">0</span><span class="s3">],</span><span class="s1">decimals</span><span class="s3">),</span><span class="s1">round</span><span class="s3">(</span><span class="s1">v</span><span class="s3">.</span><span class="s1">co</span><span class="s3">[</span><span class="s4">2</span><span class="s3">],</span><span class="s1">decimals</span><span class="s3">),</span><span class="s1">round</span><span class="s3">(</span><span class="s1">v</span><span class="s3">.</span><span class="s1">co</span><span class="s3">[</span><span class="s4">1</span><span class="s3">],</span><span class="s1">decimals</span><span class="s3">)))</span>
+
+
+    <span class="s0">if </span><span class="s5">'--vertex_colors' </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv </span><span class="s0">and </span><span class="s5">'Color' </span><span class="s0">in </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">attributes</span><span class="s3">:</span>
+        <span class="s1">color_data </span><span class="s3">= </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">attributes</span><span class="s3">[</span><span class="s5">'Color'</span><span class="s3">].</span><span class="s1">data</span>
+        <span class="s1">vertex_colors_data </span><span class="s3">= [[</span><span class="s1">round</span><span class="s3">(</span><span class="s1">e</span><span class="s3">,</span><span class="s4">4</span><span class="s3">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s3">(</span><span class="s1">color_data</span><span class="s3">[</span><span class="s1">vertex</span><span class="s3">.</span><span class="s1">index</span><span class="s3">].</span><span class="s1">color_srgb</span><span class="s3">)] </span><span class="s0">for </span><span class="s1">vertex </span><span class="s0">in </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">vertices</span><span class="s3">]</span>
+        <span class="s1">vertex_colors </span><span class="s3">= [</span><span class="s1">vertex_colors_data</span><span class="s3">[</span><span class="s1">idx</span><span class="s3">] </span><span class="s0">for </span><span class="s1">idx </span><span class="s0">in </span><span class="s1">indices</span><span class="s3">]</span>
+
+    <span class="s0">if </span><span class="s5">'--normals' </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">:</span>
+        <span class="s0">for </span><span class="s1">idx </span><span class="s0">in </span><span class="s1">indices</span><span class="s3">:</span>
+            <span class="s1">v </span><span class="s3">= </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">vertices</span><span class="s3">[</span><span class="s1">idx</span><span class="s3">]</span>
+            <span class="s1">normals</span><span class="s3">.</span><span class="s1">append</span><span class="s3">((</span><span class="s1">v</span><span class="s3">.</span><span class="s1">normal</span><span class="s3">[</span><span class="s4">0</span><span class="s3">], </span><span class="s1">v</span><span class="s3">.</span><span class="s1">normal</span><span class="s3">[</span><span class="s4">2</span><span class="s3">], </span><span class="s1">v</span><span class="s3">.</span><span class="s1">normal</span><span class="s3">[</span><span class="s4">1</span><span class="s3">]))</span>
+    <span class="s2"># average the vertex normals to get face normals</span>
+        <span class="s1">sharp_normals </span><span class="s3">= []</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s3">(</span><span class="s4">0</span><span class="s3">, </span><span class="s1">len</span><span class="s3">(</span><span class="s1">normals</span><span class="s3">), </span><span class="s4">3</span><span class="s3">):</span>
+            <span class="s1">averaged_normal </span><span class="s3">= (</span>
+                <span class="s1">round</span><span class="s3">(</span><span class="s1">sum</span><span class="s3">((</span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">][</span><span class="s4">0</span><span class="s3">], </span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s4">1</span><span class="s3">][</span><span class="s4">0</span><span class="s3">], </span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s4">2</span><span class="s3">][</span><span class="s4">0</span><span class="s3">])) / </span><span class="s4">3</span><span class="s3">, </span><span class="s1">decimals</span><span class="s3">),</span>
+                <span class="s1">round</span><span class="s3">(</span><span class="s1">sum</span><span class="s3">((</span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">][</span><span class="s4">1</span><span class="s3">], </span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s4">1</span><span class="s3">][</span><span class="s4">1</span><span class="s3">], </span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s4">2</span><span class="s3">][</span><span class="s4">1</span><span class="s3">])) / </span><span class="s4">3</span><span class="s3">, </span><span class="s1">decimals</span><span class="s3">),</span>
+                <span class="s1">round</span><span class="s3">(</span><span class="s1">sum</span><span class="s3">((</span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">][</span><span class="s4">2</span><span class="s3">], </span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s4">1</span><span class="s3">][</span><span class="s4">2</span><span class="s3">], </span><span class="s1">normals</span><span class="s3">[</span><span class="s1">i</span><span class="s3">+</span><span class="s4">2</span><span class="s3">][</span><span class="s4">2</span><span class="s3">])) / </span><span class="s4">3</span><span class="s3">, </span><span class="s1">decimals</span><span class="s3">),</span>
+                <span class="s3">)</span>
+            <span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">range</span><span class="s3">(</span><span class="s4">3</span><span class="s3">):</span>
+                <span class="s1">sharp_normals</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">averaged_normal</span><span class="s3">)</span>
+
+        <span class="s1">normals </span><span class="s3">= </span><span class="s1">sharp_normals</span>
+
+
+    <span class="s0">if </span><span class="s5">'--uvs' </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">:</span>
+        <span class="s1">uv_layer </span><span class="s3">= </span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">uv_layers</span><span class="s3">.</span><span class="s1">active</span>
+        <span class="s0">if </span><span class="s1">uv_layer </span><span class="s0">and </span><span class="s1">len</span><span class="s3">(</span><span class="s1">uv_layer</span><span class="s3">.</span><span class="s1">data</span><span class="s3">) &gt; </span><span class="s4">0</span><span class="s3">:</span>
+            <span class="s1">uvs </span><span class="s3">= [</span><span class="s1">tuple</span><span class="s3">(</span><span class="s1">round</span><span class="s3">(</span><span class="s1">e</span><span class="s3">, </span><span class="s1">decimals</span><span class="s3">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">data</span><span class="s3">.</span><span class="s1">uv</span><span class="s3">) </span><span class="s0">for </span><span class="s1">data </span><span class="s0">in </span><span class="s1">uv_layer</span><span class="s3">.</span><span class="s1">data</span><span class="s3">]</span>
+
+
+
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">f'''</span>
+<span class="s5">'</span><span class="s0">{</span><span class="s1">mesh</span><span class="s3">.</span><span class="s1">name</span><span class="s0">}</span><span class="s5">' : Mesh(</span>
+    <span class="s5">vertices=</span><span class="s0">{</span><span class="s1">str</span><span class="s3">(</span><span class="s1">verts</span><span class="s3">).</span><span class="s1">replace</span><span class="s3">(</span><span class="s5">' '</span><span class="s3">, </span><span class="s5">''</span><span class="s3">)</span><span class="s0">}</span><span class="s5">,</span>
+    <span class="s5">normals=</span><span class="s0">{</span><span class="s1">str</span><span class="s3">(</span><span class="s1">normals</span><span class="s3">).</span><span class="s1">replace</span><span class="s3">(</span><span class="s5">' '</span><span class="s3">, </span><span class="s5">''</span><span class="s3">)</span><span class="s0">}</span><span class="s5">,</span>
+    <span class="s5">colors=</span><span class="s0">{</span><span class="s1">str</span><span class="s3">(</span><span class="s1">vertex_colors</span><span class="s3">).</span><span class="s1">replace</span><span class="s3">(</span><span class="s5">' '</span><span class="s3">, </span><span class="s5">''</span><span class="s3">)</span><span class="s0">}</span><span class="s5">,</span>
+    <span class="s5">uvs=</span><span class="s0">{</span><span class="s1">str</span><span class="s3">(</span><span class="s1">uvs</span><span class="s3">).</span><span class="s1">replace</span><span class="s3">(</span><span class="s5">' '</span><span class="s3">, </span><span class="s5">''</span><span class="s3">)</span><span class="s0">}</span><span class="s5">,</span>
+<span class="s5">),</span>
+<span class="s5">'''</span>
+
+<span class="s1">code </span><span class="s3">+= </span><span class="s5">'}</span><span class="s0">\n</span><span class="s5">'</span>
+
+<span class="s0">if </span><span class="s5">'--models_only' </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv</span><span class="s3">:</span>
+    <span class="s1">print</span><span class="s3">(</span><span class="s5">'sucessfully exported blender models'</span><span class="s3">)</span>
+    <span class="s0">with </span><span class="s1">open</span><span class="s3">(</span><span class="s1">out_file_path</span><span class="s3">, </span><span class="s5">'w'</span><span class="s3">) </span><span class="s0">as </span><span class="s1">f</span><span class="s3">:</span>
+        <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">code</span><span class="s3">)</span>
+
+<span class="s0">else</span><span class="s3">:</span>
+    <span class="s2"># write entities</span>
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">'''print('loaded models:', perf_counter() - t)</span><span class="s0">\n</span><span class="s5">'''</span>
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">'''t = perf_counter()</span><span class="s0">\n</span><span class="s5">'''</span>
+
+
+    <span class="s0">for </span><span class="s1">ob </span><span class="s0">in </span><span class="s1">objects</span><span class="s3">:</span>
+        <span class="s0">if </span><span class="s5">'--skip_hidden' </span><span class="s0">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">argv </span><span class="s0">and </span><span class="s1">ob</span><span class="s3">.</span><span class="s1">hide_get</span><span class="s3">() == </span><span class="s0">True</span><span class="s3">:</span>
+            <span class="s0">continue</span>
+
+        <span class="s2">#deselect all but just one object and make it active</span>
+        <span class="s1">bpy</span><span class="s3">.</span><span class="s1">ops</span><span class="s3">.</span><span class="s1">object</span><span class="s3">.</span><span class="s1">select_all</span><span class="s3">(</span><span class="s1">action</span><span class="s3">=</span><span class="s5">'DESELECT'</span><span class="s3">)</span>
+        <span class="s1">rotation </span><span class="s3">= [</span><span class="s1">degrees</span><span class="s3">(</span><span class="s1">e</span><span class="s3">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">ob</span><span class="s3">.</span><span class="s1">matrix_world</span><span class="s3">.</span><span class="s1">to_euler</span><span class="s3">()]</span>
+
+        <span class="s1">code </span><span class="s3">+= </span><span class="s5">f'''</span>
+<span class="s5">scene_parent.</span><span class="s0">{</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">name</span><span class="s3">.</span><span class="s1">replace</span><span class="s3">(</span><span class="s5">'.'</span><span class="s3">, </span><span class="s5">'_'</span><span class="s3">)</span><span class="s0">} </span><span class="s5">= Entity(</span>
+    <span class="s5">name=</span><span class="s0">\'{</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">name</span><span class="s0">}\'</span><span class="s5">,</span>
+    <span class="s5">parent=scene_parent,</span>
+    <span class="s5">position=Vec3(</span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">location</span><span class="s3">.</span><span class="s1">x</span><span class="s3">,</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">location</span><span class="s3">.</span><span class="s1">z</span><span class="s3">,</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">location</span><span class="s3">.</span><span class="s1">y</span><span class="s3">,</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">),</span>
+    <span class="s5">rotation=(</span><span class="s0">{</span><span class="s1">round</span><span class="s3">(-</span><span class="s1">rotation</span><span class="s3">[</span><span class="s4">0</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(-</span><span class="s1">rotation</span><span class="s3">[</span><span class="s4">2</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">rotation</span><span class="s3">[</span><span class="s4">1</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">),</span>
+    <span class="s5">scale=Vec3(</span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">scale</span><span class="s3">.</span><span class="s1">x</span><span class="s3">,</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">scale</span><span class="s3">.</span><span class="s1">z</span><span class="s3">,</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">scale</span><span class="s3">.</span><span class="s1">y</span><span class="s3">,</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">),</span>
+    <span class="s5">'''</span>
+
+        <span class="s1">code </span><span class="s3">+= </span><span class="s5">f'''model=copy(meshes['</span><span class="s0">{</span><span class="s1">ob</span><span class="s3">.</span><span class="s1">data</span><span class="s3">.</span><span class="s1">name</span><span class="s0">}</span><span class="s5">']),'''</span>
+        <span class="s2"># code += f'''model='cube','''</span>
+
+        <span class="s0">if </span><span class="s1">ob</span><span class="s3">.</span><span class="s1">active_material</span><span class="s3">:</span>
+            <span class="s1">color </span><span class="s3">= </span><span class="s1">ob</span><span class="s3">.</span><span class="s1">active_material</span><span class="s3">.</span><span class="s1">diffuse_color</span>
+            <span class="s1">code </span><span class="s3">+= </span><span class="s5">f'''</span>
+    <span class="s5">color=(</span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">color</span><span class="s3">[</span><span class="s4">0</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">color</span><span class="s3">[</span><span class="s4">1</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">color</span><span class="s3">[</span><span class="s4">2</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">, </span><span class="s0">{</span><span class="s1">round</span><span class="s3">(</span><span class="s1">color</span><span class="s3">[</span><span class="s4">3</span><span class="s3">],</span><span class="s4">5</span><span class="s3">)</span><span class="s0">}</span><span class="s5">),'''</span>
+
+        <span class="s1">code </span><span class="s3">+= </span><span class="s5">f'''</span>
+    <span class="s5">ignore=True,</span>
+    <span class="s5">)'''</span>
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">'''</span><span class="s0">\n\n</span><span class="s5">scene_parent.meshes = meshes'''</span>
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">'''</span><span class="s0">\n</span><span class="s5">print('created entities:', perf_counter() - t)</span><span class="s0">\n</span><span class="s5">'''</span>
+
+    <span class="s1">code </span><span class="s3">+= </span><span class="s5">''' 
+if __name__ == '__main__': 
+    EditorCamera() 
+    app.run() 
+'''</span>
+
+    <span class="s2"># return code</span>
+    <span class="s1">print</span><span class="s3">(</span><span class="s5">'sucessfully exported blender scene'</span><span class="s3">)</span>
+    <span class="s0">with </span><span class="s1">open</span><span class="s3">(</span><span class="s1">out_file_path</span><span class="s3">, </span><span class="s5">'w'</span><span class="s3">) </span><span class="s0">as </span><span class="s1">f</span><span class="s3">:</span>
+        <span class="s1">f</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">code</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

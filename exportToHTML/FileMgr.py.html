@@ -1,0 +1,74 @@
+<html>
+<head>
+<title>FileMgr.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FileMgr.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">imp</span>
+
+
+<span class="s0">class </span><span class="s1">FileMgr</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; To handle data file &quot;&quot;&quot;</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">editor</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">editor </span><span class="s2">= </span><span class="s1">editor</span>
+
+    <span class="s0">def </span><span class="s1">saveToFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fileName</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">f </span><span class="s2">= </span><span class="s1">open</span><span class="s2">(</span><span class="s1">fileName</span><span class="s2">, </span><span class="s4">'w'</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;from pandac.PandaModules import *</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;</span><span class="s0">\n</span><span class="s4">if hasattr(base, 'le'):</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;    objectMgr = base.le.objectMgr</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;    animMgr = base.le.animMgr</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;    ui = base.le.ui</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;    ui.sceneGraphUI.reset()</span><span class="s0">\n\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;else:</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;    objectMgr = base.objectMgr</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;# temporary place holder for nodepath</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;objects = {}</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;animMgr.keyFramesInfo = &quot;</span><span class="s2">+</span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">animMgr</span><span class="s2">.</span><span class="s1">keyFramesInfo</span><span class="s2">)+</span><span class="s4">&quot;</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">&quot;animMgr.curveAnimation = &quot;</span><span class="s2">+</span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">animMgr</span><span class="s2">.</span><span class="s1">curveAnimation</span><span class="s2">)+</span><span class="s4">&quot;</span><span class="s0">\n</span><span class="s4">&quot;</span><span class="s2">)</span>
+            <span class="s1">saveData </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">objectMgr</span><span class="s2">.</span><span class="s1">getSaveData</span><span class="s2">()</span>
+            <span class="s0">for </span><span class="s1">data </span><span class="s0">in </span><span class="s1">saveData</span><span class="s2">:</span>
+                <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">data</span><span class="s2">)</span>
+                <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">'</span><span class="s0">\n</span><span class="s4">'</span><span class="s2">)</span>
+            <span class="s1">saveDataLayers </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">layerEditorUI</span><span class="s2">.</span><span class="s1">getSaveData</span><span class="s2">()</span>
+            <span class="s0">for </span><span class="s1">data </span><span class="s0">in </span><span class="s1">saveDataLayers</span><span class="s2">:</span>
+                <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">data</span><span class="s2">)</span>
+                <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s4">'</span><span class="s0">\n</span><span class="s4">'</span><span class="s2">)</span>
+            <span class="s1">f</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">updateStatusReadout</span><span class="s2">(</span><span class="s4">'Sucessfully saved to %s'</span><span class="s2">%</span><span class="s1">fileName</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">fNeedToSave </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s0">except </span><span class="s1">IOError</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'failed to save %s'</span><span class="s2">%</span><span class="s1">fileName</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">f</span><span class="s2">:</span>
+                <span class="s1">f</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">loadFromFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fileName</span><span class="s2">):</span>
+        <span class="s1">dirname</span><span class="s2">, </span><span class="s1">moduleName </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s1">fileName</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">moduleName</span><span class="s2">.</span><span class="s1">endswith</span><span class="s2">(</span><span class="s4">'.py'</span><span class="s2">):</span>
+            <span class="s1">moduleName </span><span class="s2">= </span><span class="s1">moduleName</span><span class="s2">[:-</span><span class="s5">3</span><span class="s2">]</span>
+        <span class="s1">file</span><span class="s2">, </span><span class="s1">pathname</span><span class="s2">, </span><span class="s1">description </span><span class="s2">= </span><span class="s1">imp</span><span class="s2">.</span><span class="s1">find_module</span><span class="s2">(</span><span class="s1">moduleName</span><span class="s2">, [</span><span class="s1">dirname</span><span class="s2">])</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">module </span><span class="s2">= </span><span class="s1">imp</span><span class="s2">.</span><span class="s1">load_module</span><span class="s2">(</span><span class="s1">moduleName</span><span class="s2">, </span><span class="s1">file</span><span class="s2">, </span><span class="s1">pathname</span><span class="s2">, </span><span class="s1">description</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">updateStatusReadout</span><span class="s2">(</span><span class="s4">'Sucessfully opened file %s'</span><span class="s2">%</span><span class="s1">fileName</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">editor</span><span class="s2">.</span><span class="s1">fNeedToSave </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'failed to load %s'</span><span class="s2">%</span><span class="s1">fileName</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

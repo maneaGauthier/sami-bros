@@ -1,0 +1,373 @@
+<html>
+<head>
+<title>ClusterServer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ClusterServer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">ClusterMsgs </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">MsgTypes </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s0">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s0">import </span><span class="s1">Task</span>
+
+<span class="s3"># NOTE: This assumes the following variables are set via bootstrap command line</span>
+<span class="s3"># arguments on server startup:</span>
+<span class="s3">#     clusterServerPort</span>
+<span class="s3">#     clusterSyncFlag</span>
+<span class="s3">#     clusterDaemonClient</span>
+<span class="s3">#     clusterDaemonPort</span>
+<span class="s3"># Also, I'm not sure multiple camera-group configurations are working for the</span>
+<span class="s3"># cluster system.</span>
+
+<span class="s0">class </span><span class="s1">ClusterServer</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;ClusterServer&quot;</span><span class="s2">)</span>
+    <span class="s1">MSG_NUM </span><span class="s2">= </span><span class="s5">2000000</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cameraJig</span><span class="s2">, </span><span class="s1">camera</span><span class="s2">):</span>
+        <span class="s0">global </span><span class="s1">clusterServerPort</span><span class="s2">, </span><span class="s1">clusterSyncFlag</span>
+        <span class="s0">global </span><span class="s1">clusterDaemonClient</span><span class="s2">, </span><span class="s1">clusterDaemonPort</span>
+        <span class="s3"># Store information about the cluster's camera</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cameraJig </span><span class="s2">= </span><span class="s1">cameraJig</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camera </span><span class="s2">= </span><span class="s1">camera</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens </span><span class="s2">= </span><span class="s1">camera</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">getLens</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fPosReceived </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s3"># Create network layer objects</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">qcm </span><span class="s2">= </span><span class="s1">QueuedConnectionManager</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">qcl </span><span class="s2">= </span><span class="s1">QueuedConnectionListener</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcm</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">qcr </span><span class="s2">= </span><span class="s1">QueuedConnectionReader</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcm</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cw </span><span class="s2">= </span><span class="s1">ConnectionWriter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcm</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">port </span><span class="s2">= </span><span class="s1">clusterServerPort</span>
+        <span class="s0">except </span><span class="s1">NameError</span><span class="s2">:</span>
+            <span class="s1">port </span><span class="s2">= </span><span class="s1">CLUSTER_SERVER_PORT</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tcpRendezvous </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcm</span><span class="s2">.</span><span class="s1">openTCPServerRendezvous</span><span class="s2">(</span><span class="s1">port</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">qcl</span><span class="s2">.</span><span class="s1">addConnection</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">tcpRendezvous</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler </span><span class="s2">= </span><span class="s1">ClusterMsgHandler</span><span class="s2">(</span><span class="s1">ClusterServer</span><span class="s2">.</span><span class="s1">MSG_NUM</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">)</span>
+        <span class="s3"># Start cluster tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">startListenerPollTask</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">startReaderPollTask</span><span class="s2">()</span>
+        <span class="s3"># If synchronized server, start swap coordinator too</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">clusterSyncFlag</span>
+        <span class="s0">except </span><span class="s1">NameError</span><span class="s2">:</span>
+            <span class="s1">clusterSyncFlag </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s0">if </span><span class="s1">clusterSyncFlag</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startSwapCoordinator</span><span class="s2">()</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">graphicsEngine</span><span class="s2">.</span><span class="s1">setAutoFlip</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s3"># Set global clock mode to slave mode</span>
+        <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setMode</span><span class="s2">(</span><span class="s1">ClockObject</span><span class="s2">.</span><span class="s1">MSlave</span><span class="s2">)</span>
+        <span class="s3"># Send verification of startup to client</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">daemon </span><span class="s2">= </span><span class="s1">DirectD</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings  </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">objectHasColor  </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">controlPriorities </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">controlOffsets  </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">messageQueue    </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sortedControlMappings   </span><span class="s2">= []</span>
+
+        <span class="s3"># These must be passed in as bootstrap arguments and stored in</span>
+        <span class="s3"># the __builtins__ namespace</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">clusterDaemonClient</span>
+        <span class="s0">except </span><span class="s1">NameError</span><span class="s2">:</span>
+            <span class="s1">clusterDaemonClient </span><span class="s2">= </span><span class="s4">'localhost'</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">clusterDaemonPort</span>
+        <span class="s0">except </span><span class="s1">NameError</span><span class="s2">:</span>
+            <span class="s1">clusterDaemonPort </span><span class="s2">= </span><span class="s1">CLUSTER_DAEMON_PORT</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">daemon</span><span class="s2">.</span><span class="s1">serverReady</span><span class="s2">(</span><span class="s1">clusterDaemonClient</span><span class="s2">, </span><span class="s1">clusterDaemonPort</span><span class="s2">)</span>
+
+
+
+    <span class="s0">def </span><span class="s1">startListenerPollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3"># Run this task near the start of frame, sometime after the dataLoop</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">listenerPollTask</span><span class="s2">, </span><span class="s4">&quot;serverListenerPollTask&quot;</span><span class="s2">, -</span><span class="s5">40</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">listenerPollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Task to listen for a new connection from the client &quot;&quot;&quot;</span>
+        <span class="s3"># Run this task after the dataLoop</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcl</span><span class="s2">.</span><span class="s1">newConnectionAvailable</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;New connection is available&quot;</span><span class="s2">)</span>
+            <span class="s1">rendezvous </span><span class="s2">= </span><span class="s1">PointerToConnection</span><span class="s2">()</span>
+            <span class="s1">netAddress </span><span class="s2">= </span><span class="s1">NetAddress</span><span class="s2">()</span>
+            <span class="s1">newConnection </span><span class="s2">= </span><span class="s1">PointerToConnection</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcl</span><span class="s2">.</span><span class="s1">getNewConnection</span><span class="s2">(</span><span class="s1">rendezvous</span><span class="s2">, </span><span class="s1">netAddress</span><span class="s2">, </span><span class="s1">newConnection</span><span class="s2">):</span>
+                <span class="s3"># Crazy dereferencing</span>
+                <span class="s1">newConnection</span><span class="s2">=</span><span class="s1">newConnection</span><span class="s2">.</span><span class="s1">p</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">qcr</span><span class="s2">.</span><span class="s1">addConnection</span><span class="s2">(</span><span class="s1">newConnection</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection </span><span class="s2">= </span><span class="s1">newConnection</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Got a connection!&quot;</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">&quot;getNewConnection returned false&quot;</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+
+    <span class="s0">def </span><span class="s1">addNamedObjectMapping</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s1">object</span><span class="s2">,</span><span class="s1">name</span><span class="s2">,</span><span class="s1">hasColor </span><span class="s2">= </span><span class="s0">True</span><span class="s2">,</span>
+                              <span class="s1">priority </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">name </span><span class="s0">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">object</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">objectHasColor</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = </span><span class="s1">hasColor</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'attempt to add duplicate named object: '</span><span class="s2">+</span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">removeObjectMapping</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">name </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">redoSortedPriorities</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sortedControlMappings </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">key </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sortedControlMappings</span><span class="s2">.</span><span class="s1">append</span><span class="s2">([</span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlPriorities</span><span class="s2">[</span><span class="s1">key</span><span class="s2">],</span>
+                                               <span class="s1">key</span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sortedControlMappings</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">addControlMapping</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s1">objectName</span><span class="s2">,</span><span class="s1">controlledName</span><span class="s2">, </span><span class="s1">offset </span><span class="s2">= </span><span class="s0">None</span><span class="s2">,</span>
+                          <span class="s1">priority </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">objectName </span><span class="s0">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings</span><span class="s2">[</span><span class="s1">objectName</span><span class="s2">] = </span><span class="s1">controlledName</span>
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">offset </span><span class="s2">== </span><span class="s0">None</span><span class="s2">):</span>
+                <span class="s1">offset </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">controlOffsets</span><span class="s2">[</span><span class="s1">objectName</span><span class="s2">]  = </span><span class="s1">offset</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">controlPriorities</span><span class="s2">[</span><span class="s1">objectName</span><span class="s2">] = </span><span class="s1">priority</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">redoSortedPriorities</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'attempt to add duplicate controlled object: '</span><span class="s2">+</span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setControlMappingOffset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s1">objectName</span><span class="s2">,</span><span class="s1">offset</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">objectName </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">controlOffsets</span><span class="s2">[</span><span class="s1">objectName</span><span class="s2">] = </span><span class="s1">offset</span>
+
+
+    <span class="s0">def </span><span class="s1">removeControlMapping</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">name </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">controlPriorities</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoSortedPriorities</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">startControlObjectTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;moving control objects&quot;</span><span class="s2">)</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlObjectTask</span><span class="s2">,</span><span class="s4">&quot;controlObjectTask&quot;</span><span class="s2">,</span><span class="s5">50</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">controlObjectTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s3">#print &quot;running control object task&quot;</span>
+        <span class="s0">for </span><span class="s1">pair </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sortedControlPriorities</span><span class="s2">:</span>
+            <span class="s1">object </span><span class="s2">= </span><span class="s1">pair</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+            <span class="s1">name   </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlMappings</span><span class="s2">[</span><span class="s1">object</span><span class="s2">]</span>
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">object </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">moveObject</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">object</span><span class="s2">],</span><span class="s1">name</span><span class="s2">,</span><span class="s1">self</span><span class="s2">.</span><span class="s1">controlOffsets</span><span class="s2">[</span><span class="s1">object</span><span class="s2">],</span>
+                                <span class="s1">self</span><span class="s2">.</span><span class="s1">objectHasColor</span><span class="s2">[</span><span class="s1">object</span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendNamedMovementDone</span><span class="s2">()</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+
+    <span class="s0">def </span><span class="s1">sendNamedMovementDone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;named movement done&quot;</span><span class="s2">)</span>
+        <span class="s1">datagram </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">makeNamedMovementDone</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cw</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">datagram</span><span class="s2">,</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">moveObject</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">object</span><span class="s2">, </span><span class="s1">offset</span><span class="s2">, </span><span class="s1">hasColor</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'moving object '</span><span class="s2">+</span><span class="s1">object</span><span class="s2">)</span>
+        <span class="s3">#print &quot;moving object&quot;,object</span>
+        <span class="s1">xyz </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">render</span><span class="s2">) + </span><span class="s1">offset</span>
+        <span class="s1">hpr </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getHpr</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+        <span class="s1">scale </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">hasColor</span><span class="s2">):</span>
+            <span class="s1">color </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">color </span><span class="s2">= [</span><span class="s5">1</span><span class="s2">,</span><span class="s5">1</span><span class="s2">,</span><span class="s5">1</span><span class="s2">,</span><span class="s5">1</span><span class="s2">]</span>
+        <span class="s1">hidden </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">isHidden</span><span class="s2">()</span>
+        <span class="s1">datagram </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">makeNamedObjectMovementDatagram</span><span class="s2">(</span><span class="s1">xyz</span><span class="s2">,</span><span class="s1">hpr</span><span class="s2">,</span><span class="s1">scale</span><span class="s2">,</span><span class="s1">color</span><span class="s2">,</span><span class="s1">hidden</span><span class="s2">,</span><span class="s1">object</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cw</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">datagram</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">startReaderPollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Task to handle datagrams from client &quot;&quot;&quot;</span>
+        <span class="s3"># Run this task just after the listener poll task</span>
+        <span class="s0">if </span><span class="s1">clusterSyncFlag</span><span class="s2">:</span>
+            <span class="s3"># Sync version</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_syncReaderPollTask</span><span class="s2">, </span><span class="s4">&quot;serverReaderPollTask&quot;</span><span class="s2">, -</span><span class="s5">39</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s3"># Asynchronous version</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_readerPollTask</span><span class="s2">, </span><span class="s4">&quot;serverReaderPollTask&quot;</span><span class="s2">, -</span><span class="s5">39</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">_readerPollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Non blocking task to read all available datagrams &quot;&quot;&quot;</span>
+        <span class="s0">while </span><span class="s5">1</span><span class="s2">:</span>
+            <span class="s2">(</span><span class="s1">datagram</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">nonBlockingRead</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcr</span><span class="s2">)</span>
+            <span class="s3"># Queue is empty, done for now</span>
+            <span class="s0">if </span><span class="s1">type </span><span class="s0">is </span><span class="s1">CLUSTER_NONE</span><span class="s2">:</span>
+                <span class="s0">break</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s3"># Got a datagram, handle it</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">handleDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">_syncReaderPollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+        <span class="s0">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcr</span><span class="s2">.</span><span class="s1">isConnectionOk</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection</span><span class="s2">):</span>
+            <span class="s3"># Process datagrams till you get a postion update</span>
+            <span class="s1">type </span><span class="s2">= </span><span class="s1">CLUSTER_NONE</span>
+            <span class="s0">while </span><span class="s1">type </span><span class="s2">!= </span><span class="s1">CLUSTER_CAM_MOVEMENT</span><span class="s2">:</span>
+                <span class="s3"># Block until you get a new datagram</span>
+                <span class="s2">(</span><span class="s1">datagram</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">blockingRead</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcr</span><span class="s2">)</span>
+                <span class="s3"># Process datagram</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">handleDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">startSwapCoordinator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">swapCoordinatorTask</span><span class="s2">, </span><span class="s4">&quot;serverSwapCoordinator&quot;</span><span class="s2">, </span><span class="s5">51</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">swapCoordinatorTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fPosReceived</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fPosReceived </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s3"># Alert client that this server is ready to swap</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sendSwapReady</span><span class="s2">()</span>
+            <span class="s3"># Wait for swap command (processing any intermediate datagrams)</span>
+            <span class="s0">while </span><span class="s5">1</span><span class="s2">:</span>
+                <span class="s2">(</span><span class="s1">datagram</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">blockingRead</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">qcr</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">handleDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_SWAP_NOW</span><span class="s2">:</span>
+                    <span class="s0">break</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">sendSwapReady</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+            <span class="s4">'send swap ready packet %d' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">packetNumber</span><span class="s2">)</span>
+        <span class="s1">datagram </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">makeSwapReadyDatagram</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cw</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">datagram</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastConnection</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">handleDatagram</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">, </span><span class="s1">type</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Process a datagram depending upon type flag &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_NONE</span><span class="s2">):</span>
+            <span class="s0">pass</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_EXIT</span><span class="s2">):</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'GOT EXIT'</span><span class="s2">)</span>
+            <span class="s0">import </span><span class="s1">sys</span>
+            <span class="s1">sys</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">()</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_CAM_OFFSET</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleCamOffset</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_CAM_FRUSTUM</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleCamFrustum</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_CAM_MOVEMENT</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleCamMovement</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_SELECTED_MOVEMENT</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleSelectedMovement</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_COMMAND_STRING</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleCommandString</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_SWAP_READY</span><span class="s2">):</span>
+            <span class="s0">pass</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_SWAP_NOW</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'swapping'</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">graphicsEngine</span><span class="s2">.</span><span class="s1">flipFrame</span><span class="s2">()</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_TIME_DATA</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'time data'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleTimeData</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_NAMED_OBJECT_MOVEMENT</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">messageQueue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseNamedMovementDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">))</span>
+            <span class="s3">#self.handleNamedMovement(dgi)</span>
+        <span class="s0">elif </span><span class="s2">(</span><span class="s1">type </span><span class="s2">== </span><span class="s1">CLUSTER_NAMED_MOVEMENT_DONE</span><span class="s2">):</span>
+            <span class="s3">#print &quot;got done&quot;,self.messageQueue</span>
+            <span class="s3">#if (len(self.messageQueue) &gt; 0):</span>
+            <span class="s3">#    print self.messageQueue[0]</span>
+            <span class="s3">#    print dir(self.messageQueue)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleMessageQueue</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">&quot;Received unknown packet type:&quot; </span><span class="s2">% </span><span class="s1">type</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">type</span>
+
+    <span class="s3"># Server specific tasks</span>
+    <span class="s0">def </span><span class="s1">handleCamOffset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Set offset of camera from cameraJig &quot;&quot;&quot;</span>
+        <span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseCamOffsetDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">x</span><span class="s2">,</span><span class="s1">y</span><span class="s2">,</span><span class="s1">z</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setViewHpr</span><span class="s2">(</span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">handleCamFrustum</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Adjust camera frustum based on parameters sent by client &quot;&quot;&quot;</span>
+        <span class="s2">(</span><span class="s1">fl</span><span class="s2">, </span><span class="s1">fs</span><span class="s2">, </span><span class="s1">fo</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseCamFrustumDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setFocalLength</span><span class="s2">(</span><span class="s1">fl</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setFilmSize</span><span class="s2">(</span><span class="s1">fs</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">fs</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setFilmOffset</span><span class="s2">(</span><span class="s1">fo</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">fo</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">handleNamedMovement</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">data</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Update cameraJig position to reflect latest position &quot;&quot;&quot;</span>
+        <span class="s2">(</span><span class="s1">name</span><span class="s2">,</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">,</span><span class="s1">sx</span><span class="s2">,</span><span class="s1">sy</span><span class="s2">,</span><span class="s1">sz</span><span class="s2">, </span><span class="s1">red</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">a</span><span class="s2">, </span><span class="s1">hidden</span><span class="s2">) = </span><span class="s1">data</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">name </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">name</span><span class="s2">].</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">render</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">name</span><span class="s2">].</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">render</span><span class="s2">,</span><span class="s1">sx</span><span class="s2">,</span><span class="s1">sy</span><span class="s2">,</span><span class="s1">sz</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">name</span><span class="s2">].</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">red</span><span class="s2">,</span><span class="s1">g</span><span class="s2">,</span><span class="s1">b</span><span class="s2">,</span><span class="s1">a</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">hidden</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">name</span><span class="s2">].</span><span class="s1">hide</span><span class="s2">()</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">objectMappings</span><span class="s2">[</span><span class="s1">name</span><span class="s2">].</span><span class="s1">show</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;recieved unknown named object command: &quot;</span><span class="s2">+</span><span class="s1">name</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">handleMessageQueue</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+
+        <span class="s3">#print self.messageQueue</span>
+        <span class="s0">for </span><span class="s1">data </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">messageQueue</span><span class="s2">:</span>
+            <span class="s3">#print &quot;in queue&quot;,dgi</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">handleNamedMovement</span><span class="s2">(</span><span class="s1">data</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">messageQueue </span><span class="s2">= []</span>
+
+    <span class="s0">def </span><span class="s1">handleCamMovement</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Update cameraJig position to reflect latest position &quot;&quot;&quot;</span>
+        <span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseCamMovementDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cameraJig</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">render</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fPosReceived </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s0">def </span><span class="s1">handleSelectedMovement</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Update cameraJig position to reflect latest position &quot;&quot;&quot;</span>
+        <span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">sx</span><span class="s2">, </span><span class="s1">sy</span><span class="s2">, </span><span class="s1">sz</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseSelectedMovementDatagram</span><span class="s2">(</span>
+            <span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">last</span><span class="s2">:</span>
+            <span class="s1">last</span><span class="s2">.</span><span class="s1">setPosHprScale</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">sx</span><span class="s2">, </span><span class="s1">sy</span><span class="s2">, </span><span class="s1">sz</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">handleTimeData</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Update cameraJig position to reflect latest position &quot;&quot;&quot;</span>
+        <span class="s2">(</span><span class="s1">frameCount</span><span class="s2">, </span><span class="s1">frameTime</span><span class="s2">, </span><span class="s1">dt</span><span class="s2">) = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseTimeDataDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s3"># Use frame time from client for both real and frame time</span>
+        <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setFrameCount</span><span class="s2">(</span><span class="s1">frameCount</span><span class="s2">)</span>
+        <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setFrameTime</span><span class="s2">(</span><span class="s1">frameTime</span><span class="s2">)</span>
+        <span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setDt</span><span class="s2">(</span><span class="s1">dt</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">handleCommandString</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dgi</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Handle arbitrary command string from client &quot;&quot;&quot;</span>
+        <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">msgHandler</span><span class="s2">.</span><span class="s1">parseCommandStringDatagram</span><span class="s2">(</span><span class="s1">dgi</span><span class="s2">)</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">exec</span><span class="s2">(</span><span class="s1">command</span><span class="s2">, </span><span class="s1">__builtins__</span><span class="s2">)</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+
+
+</pre>
+</body>
+</html>

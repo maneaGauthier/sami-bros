@@ -1,0 +1,100 @@
+<html>
+<head>
+<title>instancing_shader.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+instancing_shader.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Shader</span><span class="s2">, </span><span class="s1">Vec2</span><span class="s2">, </span><span class="s1">Vec3</span><span class="s2">, </span><span class="s1">Vec4</span><span class="s2">, </span><span class="s1">Quat; instancing_shader</span><span class="s2">=</span><span class="s1">Shader</span><span class="s2">(</span><span class="s1">name</span><span class="s2">=</span><span class="s3">'instancing_shader'</span><span class="s2">, </span><span class="s1">language</span><span class="s2">=</span><span class="s1">Shader</span><span class="s2">.</span><span class="s1">GLSL</span><span class="s2">, </span><span class="s1">vertex</span><span class="s2">=</span><span class="s3">'''#version 140 
+ 
+uniform mat4 p3d_ModelViewProjectionMatrix; 
+in vec4 p3d_Vertex; 
+in vec2 p3d_MultiTexCoord0; 
+out vec2 texcoords; 
+uniform vec2 texture_scale; 
+uniform vec2 texture_offset; 
+ 
+uniform vec3 position_offsets[256]; 
+uniform vec4 rotation_offsets[256]; 
+uniform vec3 scale_multipliers[256]; 
+ 
+ 
+void main() { 
+    vec3 v = p3d_Vertex.xyz * scale_multipliers[gl_InstanceID]; 
+    vec4 q = rotation_offsets[gl_InstanceID]; 
+    v = v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); 
+ 
+    gl_Position = p3d_ModelViewProjectionMatrix * (vec4(v + position_offsets[gl_InstanceID], 1.)); 
+    texcoords = (p3d_MultiTexCoord0 * texture_scale) + texture_offset; 
+} 
+'''</span><span class="s2">,</span>
+
+<span class="s1">fragment</span><span class="s2">=</span><span class="s3">''' 
+#version 140 
+ 
+uniform sampler2D p3d_Texture0; 
+uniform vec4 p3d_ColorScale; 
+in vec2 texcoords; 
+out vec4 fragColor; 
+ 
+ 
+ 
+void main() { 
+    vec4 color = texture(p3d_Texture0, texcoords) * p3d_ColorScale; 
+    fragColor = color.rgba; 
+} 
+ 
+'''</span><span class="s2">,</span>
+<span class="s1">default_input</span><span class="s2">={</span>
+    <span class="s3">'texture_scale' </span><span class="s2">: </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s4">1</span><span class="s2">,</span><span class="s4">1</span><span class="s2">),</span>
+    <span class="s3">'texture_offset' </span><span class="s2">: </span><span class="s1">Vec2</span><span class="s2">(</span><span class="s4">0.0</span><span class="s2">, </span><span class="s4">0.0</span><span class="s2">),</span>
+    <span class="s3">'position_offsets' </span><span class="s2">: [</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">i</span><span class="s2">,</span><span class="s4">0</span><span class="s2">,</span><span class="s4">0</span><span class="s2">) </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">256</span><span class="s2">)],</span>
+    <span class="s3">'rotation_offsets' </span><span class="s2">: [</span><span class="s1">Vec4</span><span class="s2">(</span><span class="s4">0</span><span class="s2">) </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">256</span><span class="s2">)],</span>
+    <span class="s3">'scale_multipliers' </span><span class="s2">: [</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s4">1</span><span class="s2">) </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">256</span><span class="s2">)],</span>
+<span class="s2">}</span>
+<span class="s2">)</span>
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Ursina</span><span class="s2">, </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">EditorCamera</span><span class="s2">, </span><span class="s1">Vec3</span><span class="s2">, </span><span class="s1">color</span><span class="s2">, </span><span class="s1">application</span><span class="s2">, </span><span class="s1">time</span><span class="s2">, </span><span class="s1">Cone</span>
+    <span class="s0">import </span><span class="s1">random</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">(</span><span class="s1">vsync</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+
+    <span class="s1">instances </span><span class="s2">= []</span>
+    <span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s3">'plane'</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'grass'</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">128</span><span class="s2">)</span>
+    <span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder </span><span class="s2">= </span><span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder</span><span class="s2">.</span><span class="s1">parent</span><span class="s2">.</span><span class="s1">parent</span>
+    <span class="s1">p </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s1">Cone</span><span class="s2">(</span><span class="s4">5</span><span class="s2">), </span><span class="s1">y</span><span class="s2">=</span><span class="s4">1</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'brick'</span><span class="s2">)</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">uvs </span><span class="s2">= [(</span><span class="s1">v</span><span class="s2">[</span><span class="s4">0</span><span class="s2">],</span><span class="s1">v</span><span class="s2">[</span><span class="s4">1</span><span class="s2">]) </span><span class="s0">for </span><span class="s1">v </span><span class="s0">in </span><span class="s1">p</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">vertices</span><span class="s2">]</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">shader </span><span class="s2">= </span><span class="s1">instancing_shader</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">setInstanceCount</span><span class="s2">(</span><span class="s4">256</span><span class="s2">)</span>
+
+    <span class="s0">for </span><span class="s1">z </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">16</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">16</span><span class="s2">):</span>
+            <span class="s1">e </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">position</span><span class="s2">=</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s1">z</span><span class="s2">), </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">lime</span><span class="s2">, </span><span class="s1">rotation_y</span><span class="s2">=</span><span class="s1">random</span><span class="s2">.</span><span class="s1">random</span><span class="s2">()*</span><span class="s4">360</span><span class="s2">)</span>
+            <span class="s1">instances</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">.</span><span class="s1">quaternion</span><span class="s2">, </span><span class="s1">Quat</span><span class="s2">())</span>
+
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s3">'position_offsets'</span><span class="s2">, [</span><span class="s1">e</span><span class="s2">.</span><span class="s1">position</span><span class="s2">*</span><span class="s4">4 </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">instances</span><span class="s2">])</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s3">'rotation_offsets'</span><span class="s2">, [</span><span class="s1">e</span><span class="s2">.</span><span class="s1">quaternion </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">instances</span><span class="s2">])</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">set_shader_input</span><span class="s2">(</span><span class="s3">'scale_multipliers'</span><span class="s2">,[</span><span class="s1">e</span><span class="s2">.</span><span class="s1">scale</span><span class="s2">*</span><span class="s1">random</span><span class="s2">.</span><span class="s1">uniform</span><span class="s2">(</span><span class="s4">.9</span><span class="s2">,</span><span class="s4">2</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">instances</span><span class="s2">])</span>
+
+    <span class="s1">print</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">p</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">vertices</span><span class="s2">) * </span><span class="s1">len</span><span class="s2">(</span><span class="s1">instances</span><span class="s2">))</span>
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

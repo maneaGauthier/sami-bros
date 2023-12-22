@@ -1,0 +1,253 @@
+<html>
+<head>
+<title>CountedResource.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+CountedResource.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">class </span><span class="s0">CountedResource</span><span class="s2">(</span><span class="s0">object</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This class is an attempt to combine the RAIA idiom with reference 
+    counting semantics in order to model shared resources. RAIA stands 
+    for &quot;Resource Allocation Is Acquisition&quot; (see 'Effective C++' for a 
+    more in-depth explanation) 
+ 
+    When a resource is needed, create an appropriate CountedResource 
+    object.  If the resource is already available (meaning another 
+    CountedResource object of the same type already exists), no action 
+    is taken.  Otherwise, acquire() is invoked, and the resource is 
+    allocated. The resource will remain valid until all matching 
+    CountedResource objects have been deleted.  When no objects of 
+    a particular CountedResource type exist, the release() function for 
+    that type is invoked and the managed resource is cleaned up. 
+ 
+    Usage: 
+        Define a subclass of CountedResource that defines the 
+        @classmethods acquire() and release().  In these two 
+        functions, define your resource allocation and cleanup code. 
+ 
+    IMPORTANT: 
+        If you define your own __init__ and __del__ methods, you 
+        MUST be sure to call down to the ones defined in 
+        CountedResource. 
+ 
+    Notes: 
+        Until we figure out a way to wrangle a bit more functionality 
+        out of Python, you MUST NOT inherit from any class that has 
+        CountedResource as its base class. In debug mode, this will 
+        raise a runtime assertion during the invalid class's call to 
+        __init__(). If you have more than one resource that you want to 
+        manage/access with a single object, you should subclass 
+        CountedResource again. See the example code at the bottom of 
+        this file to see how to accomplish this (This is useful for 
+        dependent resources). 
+    &quot;&quot;&quot;</span>
+
+    <span class="s2">@</span><span class="s0">classmethod</span>
+    <span class="s1">def </span><span class="s0">incrementCounter</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+        <span class="s1">try</span><span class="s2">:</span>
+            <span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER </span><span class="s2">+= </span><span class="s4">1</span>
+        <span class="s1">except </span><span class="s0">AttributeError</span><span class="s2">:</span>
+            <span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER </span><span class="s2">= </span><span class="s4">1</span>
+
+        <span class="s1">if </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER </span><span class="s2">== </span><span class="s4">1</span><span class="s2">:</span>
+            <span class="s0">cls</span><span class="s2">.</span><span class="s0">acquire</span><span class="s2">()</span>
+
+    <span class="s2">@</span><span class="s0">classmethod</span>
+    <span class="s1">def </span><span class="s0">decrementCounter</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+        <span class="s1">try</span><span class="s2">:</span>
+            <span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER_INIT_FAILED</span>
+            <span class="s1">del </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER_INIT_FAILED</span>
+        <span class="s1">except </span><span class="s0">AttributeError</span><span class="s2">:</span>
+            <span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER </span><span class="s2">-= </span><span class="s4">1</span>
+            <span class="s1">if </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER </span><span class="s2">&lt; </span><span class="s4">1</span><span class="s2">:</span>
+                <span class="s0">cls</span><span class="s2">.</span><span class="s0">release</span><span class="s2">()</span>
+
+    <span class="s2">@</span><span class="s0">classmethod</span>
+    <span class="s1">def </span><span class="s0">getCount</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER</span>
+
+    <span class="s2">@</span><span class="s0">classmethod</span>
+    <span class="s1">def </span><span class="s0">acquire</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+        <span class="s1">pass</span>
+
+    <span class="s2">@</span><span class="s0">classmethod</span>
+    <span class="s1">def </span><span class="s0">release</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+        <span class="s1">pass</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">cls </span><span class="s2">= </span><span class="s0">type</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER_INIT_FAILED </span><span class="s2">= </span><span class="s1">True</span>
+        <span class="s1">assert </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">mro</span><span class="s2">()[</span><span class="s4">1</span><span class="s2">] == </span><span class="s0">CountedResource</span><span class="s2">, </span><span class="s0">\</span>
+               <span class="s2">(</span><span class="s1">lambda</span><span class="s2">: </span><span class="s0">\</span>
+                <span class="s5">'%s cannot be subclassed.' </span><span class="s0">\</span>
+                 <span class="s2">% </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">mro</span><span class="s2">()[</span><span class="s0">list</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">.</span><span class="s0">mro</span><span class="s2">()).</span><span class="s0">index</span><span class="s2">(</span><span class="s0">CountedResource</span><span class="s2">) - </span><span class="s4">1</span><span class="s2">].</span><span class="s0">__name__</span><span class="s2">)()</span>
+        <span class="s1">del </span><span class="s0">cls</span><span class="s2">.</span><span class="s0">RESOURCE_COUNTER_INIT_FAILED</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">incrementCounter</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">__del__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">decrementCounter</span><span class="s2">()</span>
+
+
+<span class="s1">if __debug__ and </span><span class="s0">__name__ </span><span class="s2">== </span><span class="s5">'__main__'</span><span class="s2">:</span>
+    <span class="s1">class </span><span class="s0">MouseResource</span><span class="s2">(</span><span class="s0">CountedResource</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        A simple class to demonstrate the acquisition of a resource. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">@</span><span class="s0">classmethod</span>
+        <span class="s1">def </span><span class="s0">acquire</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+            <span class="s6"># The call to the super-class's acquire() is</span>
+            <span class="s6"># not necessary at the moment, but may be in</span>
+            <span class="s6"># the future, so do it now for good measure.</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">MouseResource</span><span class="s2">, </span><span class="s0">cls</span><span class="s2">).</span><span class="s0">acquire</span><span class="s2">()</span>
+
+            <span class="s6"># Now acquire the resource this class is</span>
+            <span class="s6"># managing.</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s5">'-- Acquire Mouse'</span><span class="s2">)</span>
+
+        <span class="s2">@</span><span class="s0">classmethod</span>
+        <span class="s1">def </span><span class="s0">release</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+            <span class="s6"># First, release the resource this class is</span>
+            <span class="s6"># managing.</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s5">'-- Release Mouse'</span><span class="s2">)</span>
+
+            <span class="s6"># The call to the super-class's release() is</span>
+            <span class="s6"># not necessary at the moment, but may be in</span>
+            <span class="s6"># the future, so do it now for good measure.</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">MouseResource</span><span class="s2">, </span><span class="s0">cls</span><span class="s2">).</span><span class="s0">release</span><span class="s2">()</span>
+
+
+        <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">MouseResource</span><span class="s2">, </span><span class="s0">self</span><span class="s2">).</span><span class="s0">__init__</span><span class="s2">()</span>
+
+        <span class="s1">def </span><span class="s0">__del__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">MouseResource</span><span class="s2">, </span><span class="s0">self</span><span class="s2">).</span><span class="s0">__del__</span><span class="s2">()</span>
+
+    <span class="s1">class </span><span class="s0">CursorResource</span><span class="s2">(</span><span class="s0">CountedResource</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        A class to demonstrate how to implement a dependent 
+        resource.  Notice how this class also inherits from 
+        CountedResource.  Instead of subclassing MouseCounter, 
+        we will just acquire it in our __init__() and release 
+        it in our __del__(). 
+        &quot;&quot;&quot;</span>
+        <span class="s2">@</span><span class="s0">classmethod</span>
+        <span class="s1">def </span><span class="s0">acquire</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">CursorResource</span><span class="s2">, </span><span class="s0">cls</span><span class="s2">).</span><span class="s0">acquire</span><span class="s2">()</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s5">'-- Acquire Cursor'</span><span class="s2">)</span>
+
+        <span class="s2">@</span><span class="s0">classmethod</span>
+        <span class="s1">def </span><span class="s0">release</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s5">'-- Release Cursor'</span><span class="s2">)</span>
+
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">CursorResource</span><span class="s2">, </span><span class="s0">cls</span><span class="s2">).</span><span class="s0">release</span><span class="s2">()</span>
+
+        <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s6"># The required resource references should</span>
+            <span class="s6"># be stored on 'self' since we want to</span>
+            <span class="s6"># release it when the object is deleted.</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">__mouseResource </span><span class="s2">= </span><span class="s0">MouseResource</span><span class="s2">()</span>
+
+            <span class="s6"># Call the super-classes __init__()</span>
+            <span class="s6"># after all required resources are</span>
+            <span class="s6"># referenced.</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">CursorResource</span><span class="s2">, </span><span class="s0">self</span><span class="s2">).</span><span class="s0">__init__</span><span class="s2">()</span>
+
+        <span class="s1">def </span><span class="s0">__del__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s6"># Free up the most dependent resource</span>
+            <span class="s6"># first, the one this class is managing.</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">CursorResource</span><span class="s2">, </span><span class="s0">self</span><span class="s2">).</span><span class="s0">__del__</span><span class="s2">()</span>
+
+            <span class="s6"># Now unlink any required resources.</span>
+            <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">__mouseResource</span>
+
+    <span class="s1">class </span><span class="s0">InvalidResource</span><span class="s2">(</span><span class="s0">MouseResource</span><span class="s2">):</span>
+        <span class="s2">@</span><span class="s0">classmethod</span>
+        <span class="s1">def </span><span class="s0">acquire</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">InvalidResource</span><span class="s2">, </span><span class="s0">cls</span><span class="s2">).</span><span class="s0">acquire</span><span class="s2">()</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s5">'-- Acquire Invalid'</span><span class="s2">)</span>
+
+        <span class="s2">@</span><span class="s0">classmethod</span>
+        <span class="s1">def </span><span class="s0">release</span><span class="s2">(</span><span class="s0">cls</span><span class="s2">):</span>
+            <span class="s0">print</span><span class="s2">(</span><span class="s5">'-- Release Invalid'</span><span class="s2">)</span>
+            <span class="s0">super</span><span class="s2">(</span><span class="s0">InvalidResource</span><span class="s2">, </span><span class="s0">cls</span><span class="s2">).</span><span class="s0">release</span><span class="s2">()</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Mouse'</span><span class="s2">)</span>
+    <span class="s0">m </span><span class="s2">= </span><span class="s0">MouseResource</span><span class="s2">()</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Mouse'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">m</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Cursor'</span><span class="s2">)</span>
+    <span class="s0">c </span><span class="s2">= </span><span class="s0">CursorResource</span><span class="s2">()</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Cursor'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">c</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Mouse then Cursor'</span><span class="s2">)</span>
+    <span class="s0">m </span><span class="s2">= </span><span class="s0">MouseResource</span><span class="s2">()</span>
+    <span class="s0">c </span><span class="s2">= </span><span class="s0">CursorResource</span><span class="s2">()</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Cursor'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">c</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Mouse'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">m</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Mouse then Cursor'</span><span class="s2">)</span>
+    <span class="s0">m </span><span class="s2">= </span><span class="s0">MouseResource</span><span class="s2">()</span>
+    <span class="s0">c </span><span class="s2">= </span><span class="s0">CursorResource</span><span class="s2">()</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Mouse'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">m</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Cursor'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">c</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Cursor then Mouse'</span><span class="s2">)</span>
+    <span class="s0">c </span><span class="s2">= </span><span class="s0">CursorResource</span><span class="s2">()</span>
+    <span class="s0">m </span><span class="s2">= </span><span class="s0">MouseResource</span><span class="s2">()</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Mouse'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">m</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Cursor'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">c</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Cursor then Mouse'</span><span class="s2">)</span>
+    <span class="s0">c </span><span class="s2">= </span><span class="s0">CursorResource</span><span class="s2">()</span>
+    <span class="s0">m </span><span class="s2">= </span><span class="s0">MouseResource</span><span class="s2">()</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Cursor'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">c</span>
+
+    <span class="s6"># example of an invalid subclass</span>
+    <span class="s1">try</span><span class="s2">:</span>
+        <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Invalid'</span><span class="s2">)</span>
+        <span class="s0">i </span><span class="s2">= </span><span class="s0">InvalidResource</span><span class="s2">()</span>
+        <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Invalid'</span><span class="s2">)</span>
+    <span class="s1">except </span><span class="s0">AssertionError </span><span class="s1">as </span><span class="s0">e</span><span class="s2">:</span>
+        <span class="s0">print</span><span class="s2">(</span><span class="s0">e</span><span class="s2">)</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">''</span><span class="s2">)</span>
+
+    <span class="s0">print</span><span class="s2">(</span><span class="s5">'Free up Mouse'</span><span class="s2">)</span>
+    <span class="s1">del </span><span class="s0">m</span>
+
+    <span class="s1">def </span><span class="s0">demoFunc</span><span class="s2">():</span>
+        <span class="s0">print</span><span class="s2">(</span><span class="s5">'</span><span class="s1">\n</span><span class="s5">Allocate Cursor within function'</span><span class="s2">)</span>
+        <span class="s0">c </span><span class="s2">= </span><span class="s0">CursorResource</span><span class="s2">()</span>
+
+        <span class="s0">print</span><span class="s2">(</span><span class="s5">'Cursor will be freed on function exit'</span><span class="s2">)</span>
+
+    <span class="s0">demoFunc</span><span class="s2">()</span>
+
+
+
+</pre>
+</body>
+</html>

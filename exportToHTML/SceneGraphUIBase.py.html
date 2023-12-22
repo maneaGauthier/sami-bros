@@ -1,0 +1,390 @@
+<html>
+<head>
+<title>SceneGraphUIBase.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+SceneGraphUIBase.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Defines Scene Graph tree UI Base 
+&quot;&quot;&quot;</span>
+<span class="s2">import </span><span class="s1">wx</span>
+<span class="s2">from </span><span class="s1">pandac</span><span class="s3">.</span><span class="s1">PandaModules </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">ActionMgr </span><span class="s2">import </span><span class="s3">*</span>
+
+<span class="s2">from </span><span class="s3">. </span><span class="s2">import </span><span class="s1">ObjectGlobals </span><span class="s2">as </span><span class="s1">OG</span>
+
+<span class="s2">class </span><span class="s1">SceneGraphUIDropTarget</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TextDropTarget</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">editor</span><span class="s3">):</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;in SceneGraphUIDropTarget::init...&quot;</span><span class="s3">)</span>
+        <span class="s1">wx</span><span class="s3">.</span><span class="s1">TextDropTarget</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor </span><span class="s3">= </span><span class="s1">editor</span>
+
+    <span class="s2">def </span><span class="s1">OnDropText</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">text</span><span class="s3">):</span>
+        <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;in SceneGraphUIDropTarget::OnDropText...&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">sceneGraphUI</span><span class="s3">.</span><span class="s1">changeHierarchy</span><span class="s3">(</span><span class="s1">text</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">SceneGraphUIBase</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">Panel</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">editor</span><span class="s3">):</span>
+        <span class="s1">wx</span><span class="s3">.</span><span class="s1">Panel</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor </span><span class="s3">= </span><span class="s1">editor</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TreeCtrl</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">id</span><span class="s3">=-</span><span class="s5">1</span><span class="s3">, </span><span class="s1">pos</span><span class="s3">=</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">DefaultPosition</span><span class="s3">,</span>
+                  <span class="s1">size</span><span class="s3">=</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">DefaultSize</span><span class="s3">, </span><span class="s1">style</span><span class="s3">=</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TR_MULTIPLE</span><span class="s3">|</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TR_DEFAULT_STYLE</span><span class="s3">,</span>
+                  <span class="s1">validator</span><span class="s3">=</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">DefaultValidator</span><span class="s3">, </span><span class="s1">name</span><span class="s3">=</span><span class="s4">&quot;treeCtrl&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">root </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">AddRoot</span><span class="s3">(</span><span class="s4">'render'</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s4">&quot;render&quot;</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">shouldShowPandaObjChildren </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s1">sizer </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">BoxSizer</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">VERTICAL</span><span class="s3">)</span>
+        <span class="s1">sizer</span><span class="s3">.</span><span class="s1">Add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">, </span><span class="s5">1</span><span class="s3">, </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EXPAND</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">SetSizer</span><span class="s3">(</span><span class="s1">sizer</span><span class="s3">)</span><span class="s1">; self</span><span class="s3">.</span><span class="s1">Layout</span><span class="s3">()</span>
+
+        <span class="s1">parentSizer </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">BoxSizer</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">VERTICAL</span><span class="s3">)</span>
+        <span class="s1">parentSizer</span><span class="s3">.</span><span class="s1">Add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s5">1</span><span class="s3">, </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EXPAND</span><span class="s3">, </span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s1">parent</span><span class="s3">.</span><span class="s1">SetSizer</span><span class="s3">(</span><span class="s1">parentSizer</span><span class="s3">)</span><span class="s1">; parent</span><span class="s3">.</span><span class="s1">Layout</span><span class="s3">()</span>
+
+        <span class="s1">parent</span><span class="s3">.</span><span class="s1">SetDropTarget</span><span class="s3">(</span><span class="s1">SceneGraphUIDropTarget</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">))</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_TREE_SEL_CHANGED</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onSelected</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_TREE_BEGIN_DRAG</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onBeginDrag</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currItem </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currObj </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">menu </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">Menu</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">populateMenu</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_CONTEXT_MENU</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onShowPopup</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">reset</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s6">#import pdb;set_trace()</span>
+        <span class="s1">itemList </span><span class="s3">= </span><span class="s1">list</span><span class="s3">()</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+             <span class="s1">itemList</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+             <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+
+        <span class="s2">for </span><span class="s1">item </span><span class="s2">in </span><span class="s1">itemList</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Delete</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">traversePandaObjects</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">objNodePath</span><span class="s3">):</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s1">i </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s2">for </span><span class="s1">child </span><span class="s2">in </span><span class="s1">objNodePath</span><span class="s3">.</span><span class="s1">getChildren</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">child</span><span class="s3">.</span><span class="s1">hasTag</span><span class="s3">(</span><span class="s4">'OBJRoot'</span><span class="s3">):</span>
+                <span class="s6"># since they are already shown in scene graph tree</span>
+                <span class="s2">continue</span>
+            <span class="s1">namestr </span><span class="s3">= </span><span class="s4">&quot;%s.%s&quot;</span><span class="s3">%(</span><span class="s1">child</span><span class="s3">.</span><span class="s1">node</span><span class="s3">().</span><span class="s1">getType</span><span class="s3">(), </span><span class="s1">child</span><span class="s3">.</span><span class="s1">node</span><span class="s3">().</span><span class="s1">getName</span><span class="s3">())</span>
+            <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">PrependItem</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">namestr</span><span class="s3">)</span>
+            <span class="s1">newItemId </span><span class="s3">= </span><span class="s4">&quot;%s.%s&quot;</span><span class="s3">%(</span><span class="s1">itemId</span><span class="s3">, </span><span class="s1">i</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">newItemId</span><span class="s3">)</span>
+
+            <span class="s6"># recursing...</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">traversePandaObjects</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">child</span><span class="s3">)</span>
+            <span class="s1">i </span><span class="s3">= </span><span class="s1">i </span><span class="s3">+ </span><span class="s5">1</span>
+
+    <span class="s2">def </span><span class="s1">addPandaObjectChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">):</span>
+        <span class="s6"># first, find Panda Object's NodePath of the item</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">itemId </span><span class="s3">== </span><span class="s4">&quot;render&quot;</span><span class="s3">:</span>
+           <span class="s2">return</span>
+        <span class="s1">obj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">obj </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s2">return</span>
+
+        <span class="s1">objNodePath </span><span class="s3">= </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">traversePandaObjects</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">objNodePath</span><span class="s3">)</span>
+
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+             <span class="s6"># recursing...</span>
+             <span class="s1">self</span><span class="s3">.</span><span class="s1">addPandaObjectChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+             <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">removePandaObjectChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">):</span>
+        <span class="s6"># first, find Panda Object's NodePath of the item</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">itemId </span><span class="s3">== </span><span class="s4">&quot;render&quot;</span><span class="s3">:</span>
+           <span class="s2">return</span>
+        <span class="s1">obj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">obj </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Delete</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+           <span class="s2">return</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+           <span class="s6"># recurse...</span>
+           <span class="s1">itemToRemove </span><span class="s3">= </span><span class="s1">item</span>
+           <span class="s6"># continue iteration to the next child</span>
+           <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">removePandaObjectChildren</span><span class="s3">(</span><span class="s1">itemToRemove</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">item</span><span class="s3">, </span><span class="s1">parentNP </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s6">#import pdb;pdb.set_trace()</span>
+        <span class="s2">if </span><span class="s1">item </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s2">return</span>
+        <span class="s1">obj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectByNodePath</span><span class="s3">(</span><span class="s1">NodePath</span><span class="s3">(</span><span class="s1">item</span><span class="s3">))</span>
+        <span class="s2">if </span><span class="s1">obj </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s2">return</span>
+
+        <span class="s2">if </span><span class="s1">parentNP </span><span class="s2">is None </span><span class="s3">:</span>
+           <span class="s1">parentNP </span><span class="s3">= </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">].</span><span class="s1">getParent</span><span class="s3">()</span>
+        <span class="s1">parentObj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectByNodePath</span><span class="s3">(</span><span class="s1">parentNP</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">parentObj </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">parent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">parent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">parentObj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_UID</span><span class="s3">])</span>
+
+        <span class="s1">name </span><span class="s3">= </span><span class="s1">NodePath</span><span class="s3">(</span><span class="s1">item</span><span class="s3">).</span><span class="s1">getName</span><span class="s3">()</span>
+        <span class="s2">if not </span><span class="s1">name</span><span class="s3">:</span>
+            <span class="s1">name </span><span class="s3">= </span><span class="s4">' '</span>
+        <span class="s1">namestr </span><span class="s3">= </span><span class="s4">&quot;%s_%s_%s&quot;</span><span class="s3">%(</span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_DEF</span><span class="s3">].</span><span class="s1">name</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_UID</span><span class="s3">])</span>
+        <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">namestr</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_UID</span><span class="s3">])</span>
+
+        <span class="s6"># adding children of PandaObj</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">shouldShowPandaObjChildren</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">addPandaObjectChildren</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Expand</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">):</span>
+        <span class="s6"># prevent from traversing into self</span>
+        <span class="s2">if </span><span class="s1">itemId </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">):</span>
+           <span class="s2">return None</span>
+
+        <span class="s6"># main loop - serching for an item with an itemId</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+              <span class="s6"># if the item was found - return it</span>
+              <span class="s2">if </span><span class="s1">itemId </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+                 <span class="s2">return </span><span class="s1">item</span>
+
+              <span class="s6"># the tem was not found - checking if it has children</span>
+              <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">ItemHasChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+                 <span class="s6"># item has children - delving into it</span>
+                 <span class="s1">child </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+                 <span class="s2">if </span><span class="s1">child </span><span class="s2">is not None</span><span class="s3">:</span>
+                    <span class="s2">return </span><span class="s1">child</span>
+
+              <span class="s6"># continue iteration to the next child</span>
+              <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+        <span class="s2">return None</span>
+
+    <span class="s2">def </span><span class="s1">reParentTree</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">newParent</span><span class="s3">):</span>
+        <span class="s6"># main loop - iterating over item's children</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+           <span class="s1">data </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+           <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+           <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">newParent</span><span class="s3">, </span><span class="s1">data</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+
+           <span class="s6"># if an item had children, we need to re-parent them as well</span>
+           <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">ItemHasChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+              <span class="s6"># recursing...</span>
+              <span class="s1">self</span><span class="s3">.</span><span class="s1">reParentTree</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">newItem</span><span class="s3">)</span>
+
+           <span class="s6"># continue iteration to the next child</span>
+           <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">reParentData</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">child</span><span class="s3">):</span>
+        <span class="s1">child</span><span class="s3">.</span><span class="s1">wrtReparentTo</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">reParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">oldParent</span><span class="s3">, </span><span class="s1">newParent</span><span class="s3">, </span><span class="s1">child</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">newParent </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s1">newParent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">oldParent</span><span class="s3">)</span>
+        <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">newParent</span><span class="s3">, </span><span class="s1">child</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">reParentTree</span><span class="s3">(</span><span class="s1">oldParent</span><span class="s3">, </span><span class="s1">newItem</span><span class="s3">)</span>
+
+        <span class="s1">obj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">newParent</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">itemId </span><span class="s3">!= </span><span class="s4">&quot;render&quot;</span><span class="s3">:</span>
+          <span class="s1">newParentObj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span>
+          <span class="s1">self</span><span class="s3">.</span><span class="s1">reParentData</span><span class="s3">(</span><span class="s1">newParentObj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">], </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">])</span>
+        <span class="s2">else</span><span class="s3">:</span>
+          <span class="s1">self</span><span class="s3">.</span><span class="s1">reParentData</span><span class="s3">(</span><span class="s1">render</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">])</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Delete</span><span class="s3">(</span><span class="s1">oldParent</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">shouldShowPandaObjChildren</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">removePandaObjectChildren</span><span class="s3">(</span><span class="s1">oldParent</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">addPandaObjectChildren</span><span class="s3">(</span><span class="s1">oldParent</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">removePandaObjectChildren</span><span class="s3">(</span><span class="s1">newParent</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">addPandaObjectChildren</span><span class="s3">(</span><span class="s1">newpParent</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">isChildOrGrandChild</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">child</span><span class="s3">):</span>
+        <span class="s1">childId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">child</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">childId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">changeHierarchy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">data</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">):</span>
+        <span class="s1">itemText </span><span class="s3">= </span><span class="s1">data</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s4">'_'</span><span class="s3">)</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">itemText</span><span class="s3">[-</span><span class="s5">1</span><span class="s3">] </span><span class="s6"># uid is the last token</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(), </span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s2">return</span>
+
+        <span class="s1">dragToItem</span><span class="s3">, </span><span class="s1">flags </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">HitTest</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">Point</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">))</span>
+        <span class="s2">if </span><span class="s1">dragToItem</span><span class="s3">.</span><span class="s1">IsOk</span><span class="s3">():</span>
+           <span class="s6"># prevent draging into itself</span>
+           <span class="s2">if </span><span class="s1">dragToItem </span><span class="s3">== </span><span class="s1">item</span><span class="s3">:</span>
+              <span class="s2">return</span>
+           <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isChildOrGrandChild</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">dragToItem</span><span class="s3">):</span>
+              <span class="s2">return</span>
+
+           <span class="s6"># undo function setup...</span>
+           <span class="s1">action </span><span class="s3">= </span><span class="s1">ActionChangeHierarchy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemParent</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)), </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">item</span><span class="s3">), </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">dragToItem</span><span class="s3">), </span><span class="s1">data</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">actionMgr</span><span class="s3">.</span><span class="s1">push</span><span class="s3">(</span><span class="s1">action</span><span class="s3">)</span>
+           <span class="s1">action</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">parent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">oldParentId</span><span class="s3">, </span><span class="s1">newParentId</span><span class="s3">, </span><span class="s1">childName</span><span class="s3">):</span>
+        <span class="s1">oldParent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(), </span><span class="s1">oldParentId</span><span class="s3">)</span>
+        <span class="s1">newParent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(), </span><span class="s1">newParentId</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">reParent</span><span class="s3">(</span><span class="s1">oldParent</span><span class="s3">, </span><span class="s1">newParent</span><span class="s3">, </span><span class="s1">childName</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">showPandaObjectChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">itemList </span><span class="s3">= </span><span class="s1">list</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">shouldShowPandaObjChildren </span><span class="s3">= </span><span class="s2">not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">shouldShowPandaObjChildren</span>
+
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+             <span class="s1">itemList</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+             <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+
+        <span class="s6">#import pdb;set_trace()</span>
+        <span class="s2">for </span><span class="s1">item </span><span class="s2">in </span><span class="s1">itemList</span><span class="s3">:</span>
+             <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">shouldShowPandaObjChildren</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">addPandaObjectChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+             <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">removePandaObjectChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+             <span class="s6"># continue iteration to the next child</span>
+
+    <span class="s2">def </span><span class="s1">delete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">Delete</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">select</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item</span><span class="s3">:</span>
+           <span class="s2">if not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">IsSelected</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+              <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SelectItem</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+              <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">EnsureVisible</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">changeLabel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">, </span><span class="s1">newName</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item</span><span class="s3">:</span>
+            <span class="s1">obj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">obj </span><span class="s2">is None</span><span class="s3">:</span>
+                <span class="s2">return</span>
+
+            <span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">].</span><span class="s1">setName</span><span class="s3">(</span><span class="s1">newName</span><span class="s3">)</span>
+            <span class="s1">namestr </span><span class="s3">= </span><span class="s4">&quot;%s_%s_%s&quot;</span><span class="s3">%(</span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_DEF</span><span class="s3">].</span><span class="s1">name</span><span class="s3">, </span><span class="s1">newName</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_UID</span><span class="s3">])</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">SetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">namestr</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">deSelect</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">=  </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">root</span><span class="s3">, </span><span class="s1">itemId</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item </span><span class="s2">is not None</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">UnselectItem</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onSelected</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">event</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">event</span><span class="s3">.</span><span class="s1">GetItem</span><span class="s3">()</span><span class="s1">;</span>
+        <span class="s2">if </span><span class="s1">item</span><span class="s3">:</span>
+           <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+           <span class="s2">if </span><span class="s1">itemId</span><span class="s3">:</span>
+              <span class="s1">obj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span><span class="s1">;</span>
+              <span class="s2">if </span><span class="s1">obj</span><span class="s3">:</span>
+                 <span class="s1">selections </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetSelections</span><span class="s3">()</span>
+                 <span class="s2">if </span><span class="s1">len</span><span class="s3">(</span><span class="s1">selections</span><span class="s3">) &gt; </span><span class="s5">1</span><span class="s3">:</span>
+                    <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">select</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">], </span><span class="s1">fMultiSelect </span><span class="s3">= </span><span class="s5">1</span><span class="s3">, </span><span class="s1">fLEPane </span><span class="s3">= </span><span class="s5">0</span><span class="s3">)</span>
+                 <span class="s2">else</span><span class="s3">:</span>
+                    <span class="s1">base</span><span class="s3">.</span><span class="s1">direct</span><span class="s3">.</span><span class="s1">select</span><span class="s3">(</span><span class="s1">obj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">], </span><span class="s1">fMultiSelect </span><span class="s3">= </span><span class="s5">0</span><span class="s3">, </span><span class="s1">fLEPane </span><span class="s3">= </span><span class="s5">0</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onBeginDrag</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">event</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">event</span><span class="s3">.</span><span class="s1">GetItem</span><span class="s3">()</span>
+
+        <span class="s2">if </span><span class="s1">item </span><span class="s3">!= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(): </span><span class="s6"># prevent dragging root item</span>
+            <span class="s1">text </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+            <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;Starting SceneGraphUI drag'n'drop with %s...&quot; </span><span class="s3">% </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">text</span><span class="s3">))</span>
+
+            <span class="s1">tdo </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TextDataObject</span><span class="s3">(</span><span class="s1">text</span><span class="s3">)</span>
+            <span class="s1">tds </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">DropSource</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">)</span>
+            <span class="s1">tds</span><span class="s3">.</span><span class="s1">SetData</span><span class="s3">(</span><span class="s1">tdo</span><span class="s3">)</span>
+            <span class="s1">tds</span><span class="s3">.</span><span class="s1">DoDragDrop</span><span class="s3">(</span><span class="s2">True</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onShowPopup</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">event</span><span class="s3">):</span>
+        <span class="s1">pos </span><span class="s3">= </span><span class="s1">event</span><span class="s3">.</span><span class="s1">GetPosition</span><span class="s3">()</span>
+        <span class="s1">pos </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">ScreenToClient</span><span class="s3">(</span><span class="s1">pos</span><span class="s3">)</span>
+
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">flags </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">HitTest</span><span class="s3">(</span><span class="s1">pos</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">item</span><span class="s3">.</span><span class="s1">IsOk</span><span class="s3">():</span>
+            <span class="s2">return</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currItem </span><span class="s3">= </span><span class="s1">item</span>
+        <span class="s1">itemId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">itemId</span><span class="s3">:</span>
+            <span class="s2">return</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currObj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">objectMgr</span><span class="s3">.</span><span class="s1">findObjectById</span><span class="s3">(</span><span class="s1">itemId</span><span class="s3">)</span><span class="s1">;</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currObj</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">PopupMenu</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">menu</span><span class="s3">, </span><span class="s1">pos</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">populateMenu</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">menuitem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">menu</span><span class="s3">.</span><span class="s1">Append</span><span class="s3">(-</span><span class="s5">1</span><span class="s3">, </span><span class="s4">'Expand All'</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_MENU</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onExpandAllChildren</span><span class="s3">, </span><span class="s1">menuitem</span><span class="s3">)</span>
+        <span class="s1">menuitem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">menu</span><span class="s3">.</span><span class="s1">Append</span><span class="s3">(-</span><span class="s5">1</span><span class="s3">, </span><span class="s4">'Collapse All'</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_MENU</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onCollapseAllChildren</span><span class="s3">, </span><span class="s1">menuitem</span><span class="s3">)</span>
+        <span class="s1">menuitem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">menu</span><span class="s3">.</span><span class="s1">Append</span><span class="s3">(-</span><span class="s5">1</span><span class="s3">, </span><span class="s4">'Delete'</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_MENU</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onDelete</span><span class="s3">, </span><span class="s1">menuitem</span><span class="s3">)</span>
+        <span class="s1">menuitem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">menu</span><span class="s3">.</span><span class="s1">Append</span><span class="s3">(-</span><span class="s5">1</span><span class="s3">, </span><span class="s4">'Rename'</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_MENU</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onRename</span><span class="s3">, </span><span class="s1">menuitem</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">populateExtraMenu</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">populateExtraMenu</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s6"># You should implement this in subclass</span>
+        <span class="s2">raise </span><span class="s1">NotImplementedError</span><span class="s3">(</span><span class="s4">'populateExtraMenu() must be implemented in subclass'</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onCollapseAllChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">evt</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currItem</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">CollapseAllChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">currItem</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onExpandAllChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">evt</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currItem</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">tree</span><span class="s3">.</span><span class="s1">ExpandAllChildren</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">currItem</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onDelete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">evt</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currObj </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s2">return</span>
+
+        <span class="s1">uid </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currObj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_UID</span><span class="s3">]</span>
+        <span class="s1">action </span><span class="s3">= </span><span class="s1">ActionDeleteObjById</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">, </span><span class="s1">uid</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">actionMgr</span><span class="s3">.</span><span class="s1">push</span><span class="s3">(</span><span class="s1">action</span><span class="s3">)</span>
+        <span class="s1">action</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">delete</span><span class="s3">(</span><span class="s1">uid</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onRename</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">evt</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">currObj </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s2">return</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">bindKeyEvents</span><span class="s3">(</span><span class="s2">False</span><span class="s3">)</span>
+        <span class="s1">dialog </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TextEntryDialog</span><span class="s3">(</span><span class="s2">None</span><span class="s3">, </span><span class="s4">''</span><span class="s3">, </span><span class="s4">'Input new name'</span><span class="s3">, </span><span class="s1">defaultValue</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">currObj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">].</span><span class="s1">getName</span><span class="s3">())</span>
+        <span class="s2">if </span><span class="s1">dialog</span><span class="s3">.</span><span class="s1">ShowModal</span><span class="s3">() == </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">ID_OK</span><span class="s3">:</span>
+            <span class="s1">newName </span><span class="s3">= </span><span class="s1">dialog</span><span class="s3">.</span><span class="s1">GetValue</span><span class="s3">()</span>
+        <span class="s1">dialog</span><span class="s3">.</span><span class="s1">Destroy</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">editor</span><span class="s3">.</span><span class="s1">ui</span><span class="s3">.</span><span class="s1">bindKeyEvents</span><span class="s3">(</span><span class="s2">True</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">currObj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_NP</span><span class="s3">].</span><span class="s1">setName</span><span class="s3">(</span><span class="s1">newName</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">changeLabel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">currObj</span><span class="s3">[</span><span class="s1">OG</span><span class="s3">.</span><span class="s1">OBJ_UID</span><span class="s3">], </span><span class="s1">newName</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

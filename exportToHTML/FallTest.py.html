@@ -1,0 +1,109 @@
+<html>
+<head>
+<title>FallTest.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FallTest.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">NodePath</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">physics </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">FallTest</span><span class="s2">(</span><span class="s1">NodePath</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">NodePath</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;FallTest&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Connect to Physics Manager:</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">actorNode</span><span class="s2">=</span><span class="s1">ActorNode</span><span class="s2">(</span><span class="s3">&quot;FallTestActorNode&quot;</span><span class="s2">)</span>
+        <span class="s4">#self.actorNode.getPhysicsObject().setOriented(1)</span>
+        <span class="s4">#self.actorNode.getPhysical(0).setViscosity(0.1)</span>
+
+        <span class="s1">actorNodePath</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">actorNode</span><span class="s2">)</span>
+        <span class="s4">#self.setPos(avatarNodePath, Vec3(0))</span>
+        <span class="s4">#self.setHpr(avatarNodePath, Vec3(0))</span>
+
+        <span class="s1">avatarNodePath</span><span class="s2">=</span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s3">&quot;models/misc/smiley&quot;</span><span class="s2">)</span>
+        <span class="s0">assert not </span><span class="s1">avatarNodePath</span><span class="s2">.</span><span class="s1">isEmpty</span><span class="s2">()</span>
+
+        <span class="s1">camLL</span><span class="s2">=</span><span class="s1">render</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">&quot;**/camLL&quot;</span><span class="s2">)</span>
+        <span class="s1">camLL</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">avatarNodePath</span><span class="s2">)</span>
+        <span class="s1">camLL</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, -</span><span class="s5">10</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">avatarNodePath</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">actorNodePath</span><span class="s2">)</span>
+        <span class="s4">#avatarNodePath.setPos(Vec3(0))</span>
+        <span class="s4">#avatarNodePath.setHpr(Vec3(0))</span>
+        <span class="s4">#avatarNodePath.assign(physicsActor)</span>
+        <span class="s4">#self.phys=PhysicsManager()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">=</span><span class="s1">base</span><span class="s2">.</span><span class="s1">physicsMgr</span>
+
+        <span class="s0">if </span><span class="s5">1</span><span class="s2">:</span>
+            <span class="s1">fn</span><span class="s2">=</span><span class="s1">ForceNode</span><span class="s2">(</span><span class="s3">&quot;FallTest gravity&quot;</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">=</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">fn</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+            <span class="s1">gravity</span><span class="s2">=</span><span class="s1">LinearVectorForce</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, -</span><span class="s5">.5</span><span class="s2">)</span>
+            <span class="s1">fn</span><span class="s2">.</span><span class="s1">addForce</span><span class="s2">(</span><span class="s1">gravity</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">addLinearForce</span><span class="s2">(</span><span class="s1">gravity</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">gravity </span><span class="s2">= </span><span class="s1">gravity</span>
+
+        <span class="s0">if </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">fn</span><span class="s2">=</span><span class="s1">ForceNode</span><span class="s2">(</span><span class="s3">&quot;FallTest viscosity&quot;</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">=</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">fn</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">avatarViscosity</span><span class="s2">=</span><span class="s1">LinearFrictionForce</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">1.0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s4">#self.avatarViscosity.setCoef(0.9)</span>
+            <span class="s1">fn</span><span class="s2">.</span><span class="s1">addForce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">avatarViscosity</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">addLinearForce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">avatarViscosity</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">attachLinearIntegrator</span><span class="s2">(</span><span class="s1">LinearEulerIntegrator</span><span class="s2">())</span>
+        <span class="s0">if </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">attachAngularIntegrator</span><span class="s2">(</span><span class="s1">AngularEulerIntegrator</span><span class="s2">())</span>
+        <span class="s4">#self.phys.attachPhysicalNode(self.node())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">attachPhysicalNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">actorNode</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">momentumForce</span><span class="s2">=</span><span class="s1">LinearVectorForce</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">)</span>
+            <span class="s1">fn</span><span class="s2">=</span><span class="s1">ForceNode</span><span class="s2">(</span><span class="s3">&quot;FallTest momentum&quot;</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">=</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">fn</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+            <span class="s1">fn</span><span class="s2">.</span><span class="s1">addForce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">momentumForce</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">addLinearForce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">momentumForce</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">acForce</span><span class="s2">=</span><span class="s1">LinearVectorForce</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">)</span>
+            <span class="s1">fn</span><span class="s2">=</span><span class="s1">ForceNode</span><span class="s2">(</span><span class="s3">&quot;FallTest avatarControls&quot;</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">=</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">fn</span><span class="s2">)</span>
+            <span class="s1">fnp</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+            <span class="s1">fn</span><span class="s2">.</span><span class="s1">addForce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">acForce</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">phys</span><span class="s2">.</span><span class="s1">addLinearForce</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">acForce</span><span class="s2">)</span>
+            <span class="s4">#self.phys.removeLinearForce(self.acForce)</span>
+            <span class="s4">#fnp.remove()</span>
+
+        <span class="s4">#avatarNodePath.reparentTo(render)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">avatarNodePath </span><span class="s2">= </span><span class="s1">avatarNodePath</span>
+        <span class="s4">#self.actorNode.getPhysicsObject().resetPosition(self.avatarNodePath.getPos())</span>
+        <span class="s4">#self.actorNode.updateTransform()</span>
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">&quot;__main__&quot;</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directbase</span><span class="s2">.</span><span class="s1">ThreeUpStart </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s1">test</span><span class="s2">=</span><span class="s1">FallTest</span><span class="s2">()</span>
+    <span class="s1">test</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">render</span><span class="s2">)</span>
+    <span class="s1">test</span><span class="s2">.</span><span class="s1">setup</span><span class="s2">()</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(-</span><span class="s5">10.0</span><span class="s2">)</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<html>
+<head>
+<title>terrain.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #7a7e85;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+terrain.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+
+<span class="s0">def </span><span class="s1">texture_to_height_values</span><span class="s2">(</span><span class="s1">heightmap</span><span class="s2">, </span><span class="s1">skip</span><span class="s2">=</span><span class="s3">1</span><span class="s2">):</span>
+    <span class="s0">from </span><span class="s1">PIL </span><span class="s0">import </span><span class="s1">Image</span>
+    <span class="s0">from </span><span class="s1">numpy </span><span class="s0">import </span><span class="s1">asarray</span><span class="s2">, </span><span class="s1">flip</span><span class="s2">, </span><span class="s1">swapaxes</span>
+
+    <span class="s1">heightmap </span><span class="s2">= </span><span class="s1">heightmap</span>
+    <span class="s1">skip </span><span class="s2">= </span><span class="s1">skip    </span><span class="s4"># should be power of two. only works with heightmap, not height_values.</span>
+
+    <span class="s0">if not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">heightmap</span><span class="s2">, </span><span class="s1">Texture</span><span class="s2">):</span>
+        <span class="s1">heightmap </span><span class="s2">= </span><span class="s1">load_texture</span><span class="s2">(</span><span class="s1">heightmap</span><span class="s2">)</span>
+        <span class="s0">if not </span><span class="s1">heightmap</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s5">'failed to load heightmap:'</span><span class="s2">, </span><span class="s1">heightmap</span><span class="s2">)</span>
+            <span class="s0">return</span>
+
+    <span class="s1">width</span><span class="s2">, </span><span class="s1">depth </span><span class="s2">= </span><span class="s1">heightmap</span><span class="s2">.</span><span class="s1">width</span><span class="s2">//</span><span class="s1">skip</span><span class="s2">, </span><span class="s1">heightmap</span><span class="s2">.</span><span class="s1">height</span><span class="s2">//</span><span class="s1">skip</span>
+    <span class="s1">img </span><span class="s2">= </span><span class="s1">Image</span><span class="s2">.</span><span class="s1">open</span><span class="s2">(</span><span class="s1">heightmap</span><span class="s2">.</span><span class="s1">path</span><span class="s2">).</span><span class="s1">convert</span><span class="s2">(</span><span class="s5">'L'</span><span class="s2">)</span>
+    <span class="s0">if </span><span class="s1">skip </span><span class="s2">&gt; </span><span class="s3">1</span><span class="s2">:</span>
+        <span class="s1">img </span><span class="s2">= </span><span class="s1">img</span><span class="s2">.</span><span class="s1">resize</span><span class="s2">([</span><span class="s1">width</span><span class="s2">, </span><span class="s1">depth</span><span class="s2">], </span><span class="s1">Image</span><span class="s2">.</span><span class="s1">LANCZOS</span><span class="s2">)</span>
+
+    <span class="s1">height_values </span><span class="s2">= </span><span class="s1">asarray</span><span class="s2">(</span><span class="s1">img</span><span class="s2">)</span>
+    <span class="s1">height_values </span><span class="s2">= </span><span class="s1">flip</span><span class="s2">(</span><span class="s1">height_values</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">=</span><span class="s3">0</span><span class="s2">)</span>
+    <span class="s1">height_values </span><span class="s2">= </span><span class="s1">swapaxes</span><span class="s2">(</span><span class="s1">height_values</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s2">)</span>
+    <span class="s0">return </span><span class="s1">height_values</span>
+
+
+
+<span class="s0">class </span><span class="s1">Terrain</span><span class="s2">(</span><span class="s1">Mesh</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">heightmap</span><span class="s2">=</span><span class="s5">''</span><span class="s2">, </span><span class="s1">height_values</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">gradient</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">skip</span><span class="s2">=</span><span class="s3">1</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+
+        <span class="s0">if </span><span class="s1">heightmap</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">height_values </span><span class="s2">= </span><span class="s1">texture_to_height_values</span><span class="s2">(</span><span class="s1">heightmap</span><span class="s2">, </span><span class="s1">skip</span><span class="s2">)</span>
+
+        <span class="s0">elif </span><span class="s1">height_values</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">height_values </span><span class="s2">= </span><span class="s1">height_values</span>
+
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">width </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">depth </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">aspect_ratio </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">width </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">depth</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">gradient </span><span class="s2">= </span><span class="s1">gradient</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">generate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># copy this from Plane to avoid unnecessary init</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">vertices </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">uvs </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">normals </span><span class="s2">= []</span>
+
+        <span class="s1">_height_values </span><span class="s2">= [[</span><span class="s1">j</span><span class="s2">/</span><span class="s3">255 </span><span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">i</span><span class="s2">] </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">]</span>
+        <span class="s1">w</span><span class="s2">, </span><span class="s1">h </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">width</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">depth</span>
+        <span class="s1">min_dim </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">w</span><span class="s2">, </span><span class="s1">h</span><span class="s2">)</span>
+        <span class="s1">centering_offset </span><span class="s2">= </span><span class="s1">Vec2</span><span class="s2">(-</span><span class="s3">.5</span><span class="s2">, -</span><span class="s3">.5</span><span class="s2">)</span>
+
+        <span class="s4"># create the plane</span>
+        <span class="s1">i </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s0">for </span><span class="s1">z </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">h</span><span class="s2">):</span>
+            <span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">w</span><span class="s2">):</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">vertices</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Vec3</span><span class="s2">((</span><span class="s1">x</span><span class="s2">/</span><span class="s1">min_dim</span><span class="s2">)+(</span><span class="s1">centering_offset</span><span class="s2">.</span><span class="s1">x</span><span class="s2">), </span><span class="s1">_height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">][</span><span class="s1">z</span><span class="s2">], (</span><span class="s1">z</span><span class="s2">/</span><span class="s1">min_dim</span><span class="s2">)+</span><span class="s1">centering_offset</span><span class="s2">.</span><span class="s1">y</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">uvs</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">x</span><span class="s2">/</span><span class="s1">w</span><span class="s2">, </span><span class="s1">z</span><span class="s2">/</span><span class="s1">h</span><span class="s2">))</span>
+
+                <span class="s0">if </span><span class="s1">x </span><span class="s2">&gt; </span><span class="s3">0 </span><span class="s0">and </span><span class="s1">z </span><span class="s2">&gt; </span><span class="s3">0</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">triangles</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">i</span><span class="s2">, </span><span class="s1">i</span><span class="s2">-</span><span class="s3">1</span><span class="s2">, </span><span class="s1">i</span><span class="s2">-</span><span class="s1">w</span><span class="s2">-</span><span class="s3">1</span><span class="s2">, </span><span class="s1">i</span><span class="s2">-</span><span class="s1">w</span><span class="s2">-</span><span class="s3">0</span><span class="s2">))</span>
+
+                <span class="s4"># normals</span>
+                <span class="s0">if </span><span class="s1">x </span><span class="s2">&gt; </span><span class="s3">0 </span><span class="s0">and </span><span class="s1">z </span><span class="s2">&gt; </span><span class="s3">0 </span><span class="s0">and </span><span class="s1">x </span><span class="s2">&lt; </span><span class="s1">w</span><span class="s2">-</span><span class="s3">1 </span><span class="s0">and </span><span class="s1">z </span><span class="s2">&lt; </span><span class="s1">h</span><span class="s2">-</span><span class="s3">1</span><span class="s2">:</span>
+                    <span class="s1">rl </span><span class="s2">=  </span><span class="s1">_height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">+</span><span class="s3">1</span><span class="s2">][</span><span class="s1">z</span><span class="s2">] - </span><span class="s1">_height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">-</span><span class="s3">1</span><span class="s2">][</span><span class="s1">z</span><span class="s2">]</span>
+                    <span class="s1">fb </span><span class="s2">=  </span><span class="s1">_height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">][</span><span class="s1">z</span><span class="s2">+</span><span class="s3">1</span><span class="s2">] - </span><span class="s1">_height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">][</span><span class="s1">z</span><span class="s2">-</span><span class="s3">1</span><span class="s2">]</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">normals</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">rl</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s1">fb</span><span class="s2">).</span><span class="s1">normalized</span><span class="s2">())</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">normals</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">,</span><span class="s3">1</span><span class="s2">,</span><span class="s3">0</span><span class="s2">))</span>
+
+                <span class="s1">i </span><span class="s2">+= </span><span class="s3">1</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">gradient</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">colors </span><span class="s2">= []</span>
+            <span class="s0">for </span><span class="s1">z</span><span class="s2">, </span><span class="s1">column </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">):</span>
+                <span class="s0">for </span><span class="s1">x</span><span class="s2">, </span><span class="s1">row </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">column</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">vertices</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">x</span><span class="s2">/</span><span class="s1">w</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">][</span><span class="s1">z</span><span class="s2">], </span><span class="s1">z</span><span class="s2">/</span><span class="s1">h</span><span class="s2">) + </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">centering_offset</span><span class="s2">.</span><span class="s1">x</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s1">centering_offset</span><span class="s2">.</span><span class="s1">y</span><span class="s2">))</span>
+                    <span class="s4"># terrain.model.colors.append(hsv(0, 0, 1-(terrain.model.height_values[x][z]*1)))</span>
+                    <span class="s1">y </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">[</span><span class="s1">x</span><span class="s2">][</span><span class="s1">z</span><span class="s2">]*</span><span class="s3">16</span><span class="s2">)</span>
+                    <span class="s1">y </span><span class="s2">= </span><span class="s1">clamp</span><span class="s2">(</span><span class="s1">y</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">255</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">colors</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">gradient</span><span class="s2">[</span><span class="s1">y</span><span class="s2">])</span>
+
+
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">generate</span><span class="s2">()</span>
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s5">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s5">'''Terrain using an RGB texture as input'''</span>
+    <span class="s1">terrain_from_heightmap_texture </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s1">Terrain</span><span class="s2">(</span><span class="s5">'heightmap_1'</span><span class="s2">, </span><span class="s1">skip</span><span class="s2">=</span><span class="s3">8</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=(</span><span class="s3">40</span><span class="s2">,</span><span class="s3">5</span><span class="s2">,</span><span class="s3">20</span><span class="s2">), </span><span class="s1">texture</span><span class="s2">=</span><span class="s5">'heightmap_1'</span><span class="s2">)</span>
+
+    <span class="s5">''' 
+    I'm just getting the height values from the previous terrain as an example, but you can provide your own. 
+    It should be a list of lists, where each value is between 0 and 255. 
+    '''</span>
+    <span class="s1">hv </span><span class="s2">= </span><span class="s1">terrain_from_heightmap_texture</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">.</span><span class="s1">tolist</span><span class="s2">()</span>
+    <span class="s1">terrain_from_list </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s1">Terrain</span><span class="s2">(</span><span class="s1">height_values</span><span class="s2">=</span><span class="s1">hv</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=(</span><span class="s3">40</span><span class="s2">,</span><span class="s3">5</span><span class="s2">,</span><span class="s3">20</span><span class="s2">), </span><span class="s1">texture</span><span class="s2">=</span><span class="s5">'heightmap_1'</span><span class="s2">, </span><span class="s1">x</span><span class="s2">=</span><span class="s3">40</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s5">'space'</span><span class="s2">:  </span><span class="s4"># randomize the terrain</span>
+            <span class="s1">terrain_from_list</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">height_values </span><span class="s2">= [[</span><span class="s1">random</span><span class="s2">.</span><span class="s1">uniform</span><span class="s2">(</span><span class="s3">0</span><span class="s2">,</span><span class="s3">255</span><span class="s2">) </span><span class="s0">for </span><span class="s1">a </span><span class="s0">in </span><span class="s1">column</span><span class="s2">] </span><span class="s0">for </span><span class="s1">column </span><span class="s0">in </span><span class="s1">terrain_from_list</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">height_values</span><span class="s2">]</span>
+            <span class="s1">terrain_from_list</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+
+    <span class="s1">EditorCamera</span><span class="s2">()</span>
+    <span class="s1">Sky</span><span class="s2">()</span>
+
+    <span class="s1">player </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">model</span><span class="s2">=</span><span class="s5">'sphere'</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">azure</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s3">.2</span><span class="s2">, </span><span class="s1">origin_y</span><span class="s2">=-</span><span class="s3">.5</span><span class="s2">)</span>
+    <span class="s1">hv </span><span class="s2">= </span><span class="s1">terrain_from_list</span><span class="s2">.</span><span class="s1">model</span><span class="s2">.</span><span class="s1">height_values</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">():</span>
+        <span class="s1">direction </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'d'</span><span class="s2">] - </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'a'</span><span class="s2">], </span><span class="s3">0</span><span class="s2">, </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'w'</span><span class="s2">] - </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s5">'s'</span><span class="s2">]).</span><span class="s1">normalized</span><span class="s2">()</span>
+        <span class="s1">player</span><span class="s2">.</span><span class="s1">position </span><span class="s2">+= </span><span class="s1">direction </span><span class="s2">* </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt </span><span class="s2">* </span><span class="s3">8</span>
+        <span class="s1">player</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">terraincast</span><span class="s2">(</span><span class="s1">player</span><span class="s2">.</span><span class="s1">world_position</span><span class="s2">, </span><span class="s1">terrain_from_list</span><span class="s2">, </span><span class="s1">hv</span><span class="s2">)</span>
+
+
+
+
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

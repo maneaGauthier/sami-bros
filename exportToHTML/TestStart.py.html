@@ -1,0 +1,55 @@
+<html>
+<head>
+<title>TestStart.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #bcbec4;}
+.s2 { color: #6aab73;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+TestStart.py</font>
+</center></td></tr></table>
+<pre><span class="s0">print</span><span class="s1">(</span><span class="s2">'TestStart: Starting up test environment.'</span><span class="s1">)</span>
+
+<span class="s3">from </span><span class="s0">panda3d</span><span class="s1">.</span><span class="s0">core </span><span class="s3">import </span><span class="s1">*</span>
+
+<span class="s3">from </span><span class="s0">direct</span><span class="s1">.</span><span class="s0">showbase</span><span class="s1">.</span><span class="s0">PythonUtil </span><span class="s3">import </span><span class="s1">*</span>
+<span class="s3">from </span><span class="s0">direct</span><span class="s1">.</span><span class="s0">showbase </span><span class="s3">import </span><span class="s0">ShowBase</span>
+<span class="s0">base </span><span class="s1">= </span><span class="s0">ShowBase</span><span class="s1">.</span><span class="s0">ShowBase</span><span class="s1">()</span>
+
+<span class="s4"># Put an axis in the world:</span>
+<span class="s0">loader</span><span class="s1">.</span><span class="s0">loadModel</span><span class="s1">(</span><span class="s2">&quot;models/misc/xyzAxis&quot;</span><span class="s1">).</span><span class="s0">reparentTo</span><span class="s1">(</span><span class="s0">render</span><span class="s1">)</span>
+
+<span class="s3">if </span><span class="s5">0</span><span class="s1">:</span>
+    <span class="s4"># Hack:</span>
+    <span class="s4"># Enable drive mode but turn it off, and reset the camera</span>
+    <span class="s4"># This is here because ShowBase sets up a drive interface, this</span>
+    <span class="s4"># can be removed if ShowBase is changed to not set that up.</span>
+    <span class="s0">base</span><span class="s1">.</span><span class="s0">useDrive</span><span class="s1">()</span>
+    <span class="s0">base</span><span class="s1">.</span><span class="s0">disableMouse</span><span class="s1">()</span>
+    <span class="s3">if </span><span class="s0">base</span><span class="s1">.</span><span class="s0">mouseInterface</span><span class="s1">:</span>
+        <span class="s0">base</span><span class="s1">.</span><span class="s0">mouseInterface</span><span class="s1">.</span><span class="s0">reparentTo</span><span class="s1">(</span><span class="s0">base</span><span class="s1">.</span><span class="s0">dataUnused</span><span class="s1">)</span>
+    <span class="s3">if </span><span class="s0">base</span><span class="s1">.</span><span class="s0">mouse2cam</span><span class="s1">:</span>
+        <span class="s0">base</span><span class="s1">.</span><span class="s0">mouse2cam</span><span class="s1">.</span><span class="s0">reparentTo</span><span class="s1">(</span><span class="s0">base</span><span class="s1">.</span><span class="s0">dataUnused</span><span class="s1">)</span>
+    <span class="s4"># end of hack.</span>
+
+<span class="s0">camera</span><span class="s1">.</span><span class="s0">setPosHpr</span><span class="s1">(</span><span class="s5">0</span><span class="s1">, -</span><span class="s5">10.0</span><span class="s1">, </span><span class="s5">0</span><span class="s1">, </span><span class="s5">0</span><span class="s1">, </span><span class="s5">0</span><span class="s1">, </span><span class="s5">0</span><span class="s1">)</span>
+<span class="s0">base</span><span class="s1">.</span><span class="s0">camLens</span><span class="s1">.</span><span class="s0">setFov</span><span class="s1">(</span><span class="s5">52.0</span><span class="s1">)</span>
+<span class="s0">base</span><span class="s1">.</span><span class="s0">camLens</span><span class="s1">.</span><span class="s0">setNearFar</span><span class="s1">(</span><span class="s5">1.0</span><span class="s1">, </span><span class="s5">10000.0</span><span class="s1">)</span>
+
+<span class="s0">globalClock</span><span class="s1">.</span><span class="s0">setMaxDt</span><span class="s1">(</span><span class="s5">0.2</span><span class="s1">)</span>
+<span class="s0">base</span><span class="s1">.</span><span class="s0">enableParticles</span><span class="s1">()</span>
+
+<span class="s4"># Force the screen to update:</span>
+<span class="s0">base</span><span class="s1">.</span><span class="s0">graphicsEngine</span><span class="s1">.</span><span class="s0">renderFrame</span><span class="s1">()</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,560 @@
+<html>
+<head>
+<title>FSM.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FSM.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;The new Finite State Machine module. This replaces the module 
+previously called FSM (now called :mod:`.ClassicFSM`). 
+ 
+For more information on FSMs, consult the :ref:`finite-state-machines` section 
+of the programming manual. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'FSMException'</span><span class="s2">, </span><span class="s3">'FSM'</span><span class="s2">]</span>
+
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s4">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">PythonUtil</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">stdpy</span><span class="s2">.</span><span class="s1">threading </span><span class="s4">import </span><span class="s1">RLock</span>
+
+
+<span class="s4">class </span><span class="s1">FSMException</span><span class="s2">(</span><span class="s1">Exception</span><span class="s2">):</span>
+    <span class="s4">pass</span>
+
+
+<span class="s4">class </span><span class="s1">AlreadyInTransition</span><span class="s2">(</span><span class="s1">FSMException</span><span class="s2">):</span>
+    <span class="s4">pass</span>
+
+
+<span class="s4">class </span><span class="s1">RequestDenied</span><span class="s2">(</span><span class="s1">FSMException</span><span class="s2">):</span>
+    <span class="s4">pass</span>
+
+
+<span class="s4">class </span><span class="s1">FSM</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    A Finite State Machine.  This is intended to be the base class 
+    of any number of specific machines, which consist of a collection 
+    of states and transitions, and rules to switch between states 
+    according to arbitrary input data. 
+ 
+    The states of an FSM are defined implicitly.  Each state is 
+    identified by a string, which by convention begins with a capital 
+    letter.  (Also by convention, strings passed to request that are 
+    not state names should begin with a lowercase letter.) 
+ 
+    To define specialized behavior when entering or exiting a 
+    particular state, define a method named enterState() and/or 
+    exitState(), where &quot;State&quot; is the name of the state, e.g.:: 
+ 
+        def enterRed(self): 
+            ... do stuff ... 
+ 
+        def exitRed(self): 
+            ... cleanup stuff ... 
+ 
+        def enterYellow(self): 
+            ... do stuff ... 
+ 
+        def exitYellow(self): 
+            ... cleanup stuff ... 
+ 
+        def enterGreen(self): 
+            ... do stuff ... 
+ 
+        def exitGreen(self): 
+            ... cleanup stuff ... 
+ 
+    Both functions can access the previous state name as 
+    self.oldState, and the new state name we are transitioning to as 
+    self.newState.  (Of course, in enterRed(), self.newState will 
+    always be &quot;Red&quot;, and the in exitRed(), self.oldState will always 
+    be &quot;Red&quot;.) 
+ 
+    Both functions are optional.  If either function is omitted, the 
+    state is still defined, but nothing is done when transitioning 
+    into (or out of) the state. 
+ 
+    Additionally, you may define a filterState() function for each 
+    state.  The purpose of this function is to decide what state to 
+    transition to next, if any, on receipt of a particular input.  The 
+    input is always a string and a tuple of optional parameters (which 
+    is often empty), and the return value should either be None to do 
+    nothing, or the name of the state to transition into.  For 
+    example:: 
+ 
+        def filterRed(self, request, args): 
+            if request in ['Green']: 
+                return (request,) + args 
+            return None 
+ 
+        def filterYellow(self, request, args): 
+            if request in ['Red']: 
+                return (request,) + args 
+            return None 
+ 
+        def filterGreen(self, request, args): 
+            if request in ['Yellow']: 
+                return (request,) + args 
+            return None 
+ 
+    As above, the filterState() functions are optional.  If any is 
+    omitted, the defaultFilter() method is called instead.  A standard 
+    implementation of defaultFilter() is provided, which may be 
+    overridden in a derived class to change the behavior on an 
+    unexpected transition. 
+ 
+    If self.defaultTransitions is left unassigned, then the standard 
+    implementation of defaultFilter() will return None for any 
+    lowercase transition name and allow any uppercase transition name 
+    (this assumes that an uppercase name is a request to go directly 
+    to a particular state by name). 
+ 
+    self.state may be queried at any time other than during the 
+    handling of the enter() and exit() functions.  During these 
+    functions, self.state contains the value None (you are not really 
+    in any state during the transition).  However, during a transition 
+    you *can* query the outgoing and incoming states, respectively, 
+    via self.oldState and self.newState.  At other times, self.state 
+    contains the name of the current state. 
+ 
+    Initially, the FSM is in state 'Off'.  It does not call enterOff() 
+    at construction time; it is simply in Off already by convention. 
+    If you need to call code in enterOff() to initialize your FSM 
+    properly, call it explicitly in the constructor.  Similarly, when 
+    `cleanup()` is called or the FSM is destructed, the FSM transitions 
+    back to 'Off' by convention.  (It does call enterOff() at this 
+    point, but does not call exitOff().) 
+ 
+    To implement nested hierarchical FSM's, simply create a nested FSM 
+    and store it on the class within the appropriate enterState() 
+    function, and clean it up within the corresponding exitState() 
+    function. 
+ 
+    There is a way to define specialized transition behavior between 
+    two particular states.  This is done by defining a from&lt;X&gt;To&lt;Y&gt;() 
+    function, where X is the old state and Y is the new state.  If this 
+    is defined, it will be run in place of the exit&lt;X&gt; and enter&lt;Y&gt; 
+    functions, so if you want that behavior, you'll have to call them 
+    specifically.  Otherwise, you can completely replace that transition's 
+    behavior. 
+ 
+    See the code in SampleFSM.py for further examples. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;FSM&quot;</span><span class="s2">)</span>
+
+    <span class="s1">SerialNum </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s6"># This member lists the default transitions that are accepted</span>
+    <span class="s6"># without question by the defaultFilter.  It's a map of state</span>
+    <span class="s6"># names to a list of legal target state names from that state.</span>
+    <span class="s6"># Define it only if you want to use the classic FSM model of</span>
+    <span class="s6"># defining all (or most) of your transitions up front.  If</span>
+    <span class="s6"># this is set to None (the default), all named-state</span>
+    <span class="s6"># transitions (that is, those requests whose name begins with</span>
+    <span class="s6"># a capital letter) are allowed.  If it is set to an empty</span>
+    <span class="s6"># map, no transitions are implicitly allowed--all transitions</span>
+    <span class="s6"># must be approved by some filter function.</span>
+    <span class="s1">defaultTransitions </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock </span><span class="s2">= </span><span class="s1">RLock</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_serialNum </span><span class="s2">= </span><span class="s1">FSM</span><span class="s2">.</span><span class="s1">SerialNum</span>
+        <span class="s1">FSM</span><span class="s2">.</span><span class="s1">SerialNum </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_broadcastStateChanges </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s6"># Initially, we are in the Off state by convention.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'Off'</span>
+
+        <span class="s6"># This member records transition requests made by demand() or</span>
+        <span class="s6"># forceTransition() while the FSM is in transition between</span>
+        <span class="s6"># states.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__requestQueue </span><span class="s2">= []</span>
+
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">ClassicFSM </span><span class="s4">import </span><span class="s1">_debugFsms</span>
+            <span class="s4">import </span><span class="s1">weakref</span>
+            <span class="s1">_debugFsms</span><span class="s2">[</span><span class="s1">name</span><span class="s2">]=</span><span class="s1">weakref</span><span class="s2">.</span><span class="s1">ref</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">cleanup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># A convenience function to force the FSM to clean itself up</span>
+        <span class="s6"># by transitioning to the &quot;Off&quot; state.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">!= </span><span class="s3">'Off'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__setState</span><span class="s2">(</span><span class="s3">'Off'</span><span class="s2">)</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setBroadcastStateChanges</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doBroadcast</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_broadcastStateChanges </span><span class="s2">= </span><span class="s1">doBroadcast</span>
+    <span class="s4">def </span><span class="s1">getStateChangeEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># if setBroadcastStateChanges(True), this event will be sent through</span>
+        <span class="s6"># the messenger on every state change. The new and old states are</span>
+        <span class="s6"># accessible as self.oldState and self.newState, and the transition</span>
+        <span class="s6"># functions will already have been called.</span>
+        <span class="s4">return </span><span class="s3">'FSM-%s-%s-stateChange' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_serialNum</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getCurrentFilter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">:</span>
+            <span class="s1">error </span><span class="s2">= </span><span class="s3">&quot;FSM cannot determine current filter while in transition (%s -&gt; %s).&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">)</span>
+            <span class="s4">raise </span><span class="s1">AlreadyInTransition</span><span class="s2">(</span><span class="s1">error</span><span class="s2">)</span>
+
+        <span class="s1">filter </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;filter&quot; </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">filter</span><span class="s2">:</span>
+            <span class="s6"># If there's no matching filterState() function, call</span>
+            <span class="s6"># defaultFilter() instead.</span>
+            <span class="s1">filter </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span>
+
+        <span class="s4">return </span><span class="s1">filter</span>
+
+    <span class="s4">def </span><span class="s1">getCurrentOrNextState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Returns the current state if we are in a state now, or the</span>
+        <span class="s6"># state we are transitioning into if we are currently within</span>
+        <span class="s6"># the enter or exit function for a state.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getCurrentStateOrTransition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Returns the current state if we are in a state now, or the</span>
+        <span class="s6"># transition we are performing if we are currently within</span>
+        <span class="s6"># the enter or exit function for a state.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span>
+            <span class="s4">return </span><span class="s3">'%s -&gt; %s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">)</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">isInTransition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s4">None</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">forceTransition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Changes unconditionally to the indicated state.  This 
+        bypasses the filterState() function, and just calls 
+        exitState() followed by enterState().&quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">str</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%s.forceTransition(%s, %s&quot; </span><span class="s2">% (</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">args</span><span class="s2">)[</span><span class="s5">1</span><span class="s2">:]))</span>
+
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">:</span>
+                <span class="s6"># Queue up the request.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__requestQueue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">PythonUtil</span><span class="s2">.</span><span class="s1">Functor</span><span class="s2">(</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">forceTransition</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">))</span>
+                <span class="s4">return</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__setState</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">)</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">demand</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Requests a state transition, by code that does not expect 
+        the request to be denied.  If the request is denied, raises a 
+        `RequestDenied` exception. 
+ 
+        Unlike `request()`, this method allows a new request to be made 
+        while the FSM is currently in transition.  In this case, the 
+        request is queued up and will be executed when the current 
+        transition finishes.  Multiple requests will queue up in 
+        sequence. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">str</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%s.demand(%s, %s&quot; </span><span class="s2">% (</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">args</span><span class="s2">)[</span><span class="s5">1</span><span class="s2">:]))</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">:</span>
+                <span class="s6"># Queue up the request.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__requestQueue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">PythonUtil</span><span class="s2">.</span><span class="s1">Functor</span><span class="s2">(</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">demand</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">))</span>
+                <span class="s4">return</span>
+
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+                <span class="s4">raise </span><span class="s1">RequestDenied</span><span class="s2">(</span><span class="s3">&quot;%s (from state: %s)&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">))</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Requests a state transition (or other behavior).  The 
+        request may be denied by the FSM's filter function.  If it is 
+        denied, the filter function may either raise an exception 
+        (`RequestDenied`), or it may simply return None, without 
+        changing the FSM's state. 
+ 
+        The request parameter should be a string.  The request, along 
+        with any additional arguments, is passed to the current 
+        filterState() function.  If filterState() returns a string, 
+        the FSM transitions to that state. 
+ 
+        The return value is the same as the return value of 
+        filterState() (that is, None if the request does not provoke a 
+        state transition, otherwise it is a tuple containing the name 
+        of the state followed by any optional args.) 
+ 
+        If the FSM is currently in transition (i.e. in the middle of 
+        executing an enterState or exitState function), an 
+        `AlreadyInTransition` exception is raised (but see `demand()`, 
+        which will queue these requests up and apply when the 
+        transition is complete).&quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">str</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%s.request(%s, %s&quot; </span><span class="s2">% (</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">args</span><span class="s2">)[</span><span class="s5">1</span><span class="s2">:]))</span>
+
+            <span class="s1">filter </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getCurrentFilter</span><span class="s2">()</span>
+            <span class="s1">result </span><span class="s2">= </span><span class="s1">filter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">result</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">result</span><span class="s2">, </span><span class="s1">str</span><span class="s2">):</span>
+                    <span class="s6"># If the return value is a string, it's just the name</span>
+                    <span class="s6"># of the state.  Wrap it in a tuple for consistency.</span>
+                    <span class="s1">result </span><span class="s2">= (</span><span class="s1">result</span><span class="s2">,) + </span><span class="s1">args</span>
+
+                <span class="s6"># Otherwise, assume it's a (name, *args) tuple</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__setState</span><span class="s2">(*</span><span class="s1">result</span><span class="s2">)</span>
+
+            <span class="s4">return </span><span class="s1">result</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">defaultEnter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; This is the default function that is called if there is no 
+        enterState() method for a particular state name. &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">defaultExit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; This is the default function that is called if there is no 
+        exitState() method for a particular state name. &quot;&quot;&quot;</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;This is the function that is called if there is no 
+        filterState() method for a particular state name. 
+ 
+        This default filter function behaves in one of two modes: 
+ 
+        (1) if self.defaultTransitions is None, allow any request 
+        whose name begins with a capital letter, which is assumed to 
+        be a direct request to a particular state.  This is similar to 
+        the old ClassicFSM onUndefTransition=ALLOW, with no explicit 
+        state transitions listed. 
+ 
+        (2) if self.defaultTransitions is not None, allow only those 
+        requests explicitly identified in this map.  This is similar 
+        to the old ClassicFSM onUndefTransition=DISALLOW, with an 
+        explicit list of allowed state transitions. 
+ 
+        Specialized FSM's may wish to redefine this default filter 
+        (for instance, to always return the request itself, thus 
+        allowing any transition.).&quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">request </span><span class="s2">== </span><span class="s3">'Off'</span><span class="s2">:</span>
+            <span class="s6"># We can always go to the &quot;Off&quot; state.</span>
+            <span class="s4">return </span><span class="s2">(</span><span class="s1">request</span><span class="s2">,) + </span><span class="s1">args</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultTransitions </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s6"># If self.defaultTransitions is None, it means to accept</span>
+            <span class="s6"># all requests whose name begins with a capital letter.</span>
+            <span class="s6"># These are direct requests to a particular state.</span>
+            <span class="s4">if </span><span class="s1">request</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">isupper</span><span class="s2">():</span>
+                <span class="s4">return </span><span class="s2">(</span><span class="s1">request</span><span class="s2">,) + </span><span class="s1">args</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s6"># If self.defaultTransitions is not None, it is a map of</span>
+            <span class="s6"># allowed transitions from each state.  That is, each key</span>
+            <span class="s6"># of the map is the current state name; for that key, the</span>
+            <span class="s6"># value is a list of allowed transitions from the</span>
+            <span class="s6"># indicated state.</span>
+            <span class="s4">if </span><span class="s1">request </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultTransitions</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">, []):</span>
+                <span class="s6"># This transition is listed in the defaultTransitions map;</span>
+                <span class="s6"># accept it.</span>
+                <span class="s4">return </span><span class="s2">(</span><span class="s1">request</span><span class="s2">,) + </span><span class="s1">args</span>
+
+            <span class="s6"># If self.defaultTransitions is not None, it is an error</span>
+            <span class="s6"># to request a direct state transition (capital letter</span>
+            <span class="s6"># request) not listed in defaultTransitions and not</span>
+            <span class="s6"># handled by an earlier filter.</span>
+            <span class="s4">if </span><span class="s1">request</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">isupper</span><span class="s2">():</span>
+                <span class="s4">raise </span><span class="s1">RequestDenied</span><span class="s2">(</span><span class="s3">&quot;%s (from state: %s)&quot; </span><span class="s2">% (</span><span class="s1">request</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">))</span>
+
+        <span class="s6"># In either case, we quietly ignore unhandled command</span>
+        <span class="s6"># (lowercase) requests.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%s ignoring request %s from state %s.&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">))</span>
+        <span class="s4">return None</span>
+
+    <span class="s4">def </span><span class="s1">filterOff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;From the off state, we can always go directly to any other 
+        state.&quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">request</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">isupper</span><span class="s2">():</span>
+            <span class="s4">return </span><span class="s2">(</span><span class="s1">request</span><span class="s2">,) + </span><span class="s1">args</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultFilter</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setStateArray</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateArray</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;array of unique states to iterate through&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray </span><span class="s2">= </span><span class="s1">stateArray</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">requestNext</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Request the 'next' state in the predefined state array.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">:</span>
+                <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">cur_index </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">.</span><span class="s1">index</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">)</span>
+                    <span class="s1">new_index </span><span class="s2">= (</span><span class="s1">cur_index </span><span class="s2">+ </span><span class="s5">1</span><span class="s2">) % </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">[</span><span class="s1">new_index</span><span class="s2">], </span><span class="s1">args</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notifier</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                                    <span class="s3">&quot;stateArray empty. Can't switch to next.&quot;</span><span class="s2">)</span>
+
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">requestPrev</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Request the 'previous' state in the predefined state array.&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">:</span>
+                <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">cur_index </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">.</span><span class="s1">index</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">)</span>
+                    <span class="s1">new_index </span><span class="s2">= (</span><span class="s1">cur_index </span><span class="s2">- </span><span class="s5">1</span><span class="s2">) % </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateArray</span><span class="s2">[</span><span class="s1">new_index</span><span class="s2">], </span><span class="s1">args</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notifier</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                                    <span class="s3">&quot;stateArray empty. Can't switch to next.&quot;</span><span class="s2">)</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__setState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">newState</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s6"># Internal function to change unconditionally to the indicated</span>
+        <span class="s6"># state.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%s to state %s.&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">newState</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">oldState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">newState </span><span class="s2">= </span><span class="s1">newState</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__callFromToFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__callExitFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__callEnterFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">)</span>
+                <span class="s4">pass</span>
+            <span class="s4">pass</span>
+        <span class="s4">except</span><span class="s2">:</span>
+            <span class="s6"># If we got an exception during the enter or exit methods,</span>
+            <span class="s6"># go directly to state &quot;InternalError&quot; and raise up the</span>
+            <span class="s6"># exception.  This might leave things a little unclean</span>
+            <span class="s6"># since we've partially transitioned, but what can you do?</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'InternalError'</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span>
+            <span class="s4">raise</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_broadcastStateChanges</span><span class="s2">:</span>
+            <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getStateChangeEvent</span><span class="s2">())</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">newState</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__requestQueue</span><span class="s2">:</span>
+            <span class="s1">request </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__requestQueue</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;%s continued queued request.&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">))</span>
+            <span class="s1">request</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__callEnterFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s6"># Calls the appropriate enter function when transitioning into</span>
+        <span class="s6"># a new state, if it exists.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s4">None and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState </span><span class="s2">== </span><span class="s1">name</span>
+
+        <span class="s1">func </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;enter&quot; </span><span class="s2">+ </span><span class="s1">name</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">func</span><span class="s2">:</span>
+            <span class="s6"># If there's no matching enterFoo() function, call</span>
+            <span class="s6"># defaultEnter() instead.</span>
+            <span class="s1">func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultEnter</span>
+        <span class="s1">func</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__callFromToFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">newState</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">):</span>
+        <span class="s6"># Calls the appropriate fromTo function when transitioning into</span>
+        <span class="s6"># a new state, if it exists.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s4">None and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState </span><span class="s2">== </span><span class="s1">oldState </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState </span><span class="s2">== </span><span class="s1">newState</span>
+
+        <span class="s1">func </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;from%sTo%s&quot; </span><span class="s2">% (</span><span class="s1">oldState</span><span class="s2">,</span><span class="s1">newState</span><span class="s2">), </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">func</span><span class="s2">:</span>
+            <span class="s1">func</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">)</span>
+            <span class="s4">return True</span>
+        <span class="s4">return False</span>
+
+    <span class="s4">def </span><span class="s1">__callExitFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s6"># Calls the appropriate exit function when leaving a</span>
+        <span class="s6"># state, if it exists.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s4">None and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState </span><span class="s2">== </span><span class="s1">name</span>
+
+        <span class="s1">func </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;exit&quot; </span><span class="s2">+ </span><span class="s1">name</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">func</span><span class="s2">:</span>
+            <span class="s6"># If there's no matching exitFoo() function, call</span>
+            <span class="s6"># defaultExit() instead.</span>
+            <span class="s1">func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">defaultExit</span>
+        <span class="s1">func</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__str__</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Print out something useful about the fsm 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">className </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">:</span>
+                <span class="s1">str </span><span class="s2">= (</span><span class="s3">'%s FSM:%s in state &quot;%s&quot;' </span><span class="s2">% (</span><span class="s1">className</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state</span><span class="s2">))</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">str </span><span class="s2">= (</span><span class="s3">'%s FSM:%s in transition from </span><span class="s4">\'</span><span class="s3">%s</span><span class="s4">\' </span><span class="s3">to </span><span class="s4">\'</span><span class="s3">%s</span><span class="s4">\'</span><span class="s3">' </span><span class="s2">% (</span><span class="s1">className</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">oldState</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">newState</span><span class="s2">))</span>
+            <span class="s4">return </span><span class="s1">str</span>
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fsmLock</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

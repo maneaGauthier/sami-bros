@@ -1,0 +1,818 @@
+<html>
+<head>
+<title>Placer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #cf8e6d;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Placer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; DIRECT Nine DoF Manipulation Panel &quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'place'</span><span class="s2">]</span>
+
+<span class="s4"># Import Tkinter, Pmw, and the dial code from this directory tree.</span>
+<span class="s5">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s5">import </span><span class="s2">*</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">TkGlobal </span><span class="s5">import </span><span class="s2">*</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets</span><span class="s2">.</span><span class="s1">AppShell </span><span class="s5">import </span><span class="s2">*</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">Dial</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets </span><span class="s5">import </span><span class="s1">Floater</span>
+<span class="s5">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directtools</span><span class="s2">.</span><span class="s1">DirectGlobals </span><span class="s5">import </span><span class="s1">ZERO_VEC</span><span class="s2">, </span><span class="s1">UNIT_VEC</span>
+<span class="s5">import </span><span class="s1">Pmw</span>
+
+<span class="s3">&quot;&quot;&quot; 
+TODO: 
+Task to monitor pose 
+&quot;&quot;&quot;</span>
+
+<span class="s5">class </span><span class="s1">Placer</span><span class="s2">(</span><span class="s1">AppShell</span><span class="s2">):</span>
+    <span class="s4"># Override class variables here</span>
+    <span class="s1">appname </span><span class="s2">= </span><span class="s3">'Placer Panel'</span>
+    <span class="s1">frameWidth      </span><span class="s2">= </span><span class="s6">625</span>
+    <span class="s1">frameHeight     </span><span class="s2">= </span><span class="s6">215</span>
+    <span class="s1">usecommandarea </span><span class="s2">= </span><span class="s6">0</span>
+    <span class="s1">usestatusarea  </span><span class="s2">= </span><span class="s6">0</span>
+
+    <span class="s5">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s5">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'title'</span><span class="s2">,       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appname</span><span class="s2">,       </span><span class="s5">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'nodePath'</span><span class="s2">,    </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">,      </span><span class="s5">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s4"># Call superclass initialization function</span>
+        <span class="s1">AppShell</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">Placer</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">appInit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Initialize state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">group</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'placerTempCS'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">group</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span>
+            <span class="s3">'placerOrbitFromCS'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">group</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'placerOrbitToCS'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refCS </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS</span>
+
+        <span class="s4"># Dictionary keeping track of all node paths manipulated so far</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">[</span><span class="s3">'camera'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">[</span><span class="s3">'widget'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames </span><span class="s2">= [</span><span class="s3">'camera'</span><span class="s2">, </span><span class="s3">'widget'</span><span class="s2">, </span><span class="s3">'selected'</span><span class="s2">]</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict</span><span class="s2">[</span><span class="s3">'parent'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">getParent</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict</span><span class="s2">[</span><span class="s3">'render'</span><span class="s2">] = </span><span class="s1">render</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict</span><span class="s2">[</span><span class="s3">'camera'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict</span><span class="s2">[</span><span class="s3">'widget'</span><span class="s2">] = </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathNames </span><span class="s2">= [</span><span class="s3">'parent'</span><span class="s2">, </span><span class="s3">'self'</span><span class="s2">, </span><span class="s3">'render'</span><span class="s2">,</span>
+                                 <span class="s3">'camera'</span><span class="s2">, </span><span class="s3">'widget'</span><span class="s2">, </span><span class="s3">'selected'</span><span class="s2">]</span>
+
+        <span class="s4"># Initial state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initPos </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initScale </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">deltaHpr </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s4"># Offset for orbital mode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s4"># Set up event hooks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoEvents </span><span class="s2">= [(</span><span class="s3">'DIRECT_undo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoHook</span><span class="s2">),</span>
+                           <span class="s2">(</span><span class="s3">'DIRECT_pushUndo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pushUndoHook</span><span class="s2">),</span>
+                           <span class="s2">(</span><span class="s3">'DIRECT_undoListEmpty'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoListEmptyHook</span><span class="s2">),</span>
+                           <span class="s2">(</span><span class="s3">'DIRECT_redo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">redoHook</span><span class="s2">),</span>
+                           <span class="s2">(</span><span class="s3">'DIRECT_pushRedo'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pushRedoHook</span><span class="s2">),</span>
+                           <span class="s2">(</span><span class="s3">'DIRECT_redoListEmpty'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">redoListEmptyHook</span><span class="s2">)]</span>
+        <span class="s5">for </span><span class="s1">event</span><span class="s2">, </span><span class="s1">method </span><span class="s5">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">method</span><span class="s2">)</span>
+
+        <span class="s4"># Init movement mode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">movementMode </span><span class="s2">= </span><span class="s3">'Relative To:'</span>
+
+    <span class="s5">def </span><span class="s1">createInterface</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># The interior of the toplevel panel</span>
+        <span class="s1">interior </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+        <span class="s1">interior</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">] = </span><span class="s1">FLAT</span>
+        <span class="s4"># Add placer commands to menubar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenu</span><span class="s2">(</span><span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'Placer Panel Operations'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+                            <span class="s3">'Zero Node Path'</span><span class="s2">,</span>
+                            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Zero All'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zeroAll</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+                            <span class="s3">'Reset Node Path'</span><span class="s2">,</span>
+                            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset All'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resetAll</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span><span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+                            <span class="s3">'Print Node Path Info'</span><span class="s2">,</span>
+                            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Print Info'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">printNodePathInfo</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+            <span class="s3">'Toggle widget visability'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Toggle Widget Vis'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">toggleWidgetVis</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">menuBar</span><span class="s2">.</span><span class="s1">addmenuitem</span><span class="s2">(</span>
+            <span class="s3">'Placer'</span><span class="s2">, </span><span class="s3">'command'</span><span class="s2">,</span>
+            <span class="s3">'Toggle widget manipulation mode'</span><span class="s2">,</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Toggle Widget Mode'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">toggleObjectHandlesMode</span><span class="s2">)</span>
+
+        <span class="s4"># Get a handle to the menu frame</span>
+        <span class="s1">menuFrame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">menuFrame</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+            <span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">labelpos </span><span class="s2">= </span><span class="s1">W</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'Node Path:'</span><span class="s2">,</span>
+            <span class="s1">entry_width </span><span class="s2">= </span><span class="s6">20</span><span class="s2">,</span>
+            <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectNodePathNamed</span><span class="s2">,</span>
+            <span class="s1">scrolledlist_items </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'selected'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuEntry </span><span class="s2">= (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'entryfield_entry'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuBG </span><span class="s2">= (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s3">'background'</span><span class="s2">)[</span><span class="s6">3</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'x'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">, </span><span class="s3">'Select node path to manipulate'</span><span class="s2">)</span>
+
+        <span class="s1">modeMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">OptionMenu</span><span class="s2">(</span><span class="s1">menuFrame</span><span class="s2">,</span>
+                                  <span class="s1">items </span><span class="s2">= (</span><span class="s3">'Relative To:'</span><span class="s2">,</span>
+                                           <span class="s3">'Orbit:'</span><span class="s2">),</span>
+                                  <span class="s1">initialitem </span><span class="s2">= </span><span class="s3">'Relative To:'</span><span class="s2">,</span>
+                                  <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setMovementMode</span><span class="s2">,</span>
+                                  <span class="s1">menubutton_width </span><span class="s2">= </span><span class="s6">8</span><span class="s2">)</span>
+        <span class="s1">modeMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">modeMenu</span><span class="s2">, </span><span class="s3">'Select manipulation mode'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ComboBox</span><span class="s2">(</span>
+            <span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">entry_width </span><span class="s2">= </span><span class="s6">16</span><span class="s2">,</span>
+            <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">selectRefNodePathNamed</span><span class="s2">,</span>
+            <span class="s1">scrolledlist_items </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathNames</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'parent'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenuEntry </span><span class="s2">= (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'entryfield_entry'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'x'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">, </span><span class="s3">'Select relative node path'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Undo'</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">undo</span><span class="s2">)</span>
+        <span class="s5">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">undoList</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'normal'</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'disabled'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">, </span><span class="s3">'Undo last operation'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">menuFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Redo'</span><span class="s2">,</span>
+                                 <span class="s1">command </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">redo</span><span class="s2">)</span>
+        <span class="s5">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">redoList</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'normal'</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] = </span><span class="s3">'disabled'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side </span><span class="s2">= </span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">, </span><span class="s3">'Redo last operation'</span><span class="s2">)</span>
+
+        <span class="s4"># Create and pack the Pos Controls</span>
+        <span class="s1">posGroup </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">Group</span><span class="s2">(</span><span class="s1">interior</span><span class="s2">,</span>
+                             <span class="s1">tag_pyclass </span><span class="s2">= </span><span class="s1">Menubutton</span><span class="s2">,</span>
+                             <span class="s1">tag_text </span><span class="s2">= </span><span class="s3">'Position'</span><span class="s2">,</span>
+                             <span class="s1">tag_font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">),</span>
+                             <span class="s1">tag_activebackground </span><span class="s2">= </span><span class="s3">'#909090'</span><span class="s2">,</span>
+                             <span class="s1">ring_relief </span><span class="s2">= </span><span class="s1">RIDGE</span><span class="s2">)</span>
+        <span class="s1">posMenubutton </span><span class="s2">= </span><span class="s1">posGroup</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'tag'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">posMenubutton</span><span class="s2">, </span><span class="s3">'Position menu operations'</span><span class="s2">)</span>
+        <span class="s1">posMenu </span><span class="s2">= </span><span class="s1">Menu</span><span class="s2">(</span><span class="s1">posMenubutton</span><span class="s2">, </span><span class="s1">tearoff </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">posMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Set to zero'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zeroPos</span><span class="s2">)</span>
+        <span class="s1">posMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset initial'</span><span class="s2">,</span>
+                            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resetPos</span><span class="s2">)</span>
+        <span class="s1">posMenubutton</span><span class="s2">[</span><span class="s3">'menu'</span><span class="s2">] = </span><span class="s1">posMenu</span>
+        <span class="s1">posGroup</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side</span><span class="s2">=</span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'both'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">posInterior </span><span class="s2">= </span><span class="s1">posGroup</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+
+        <span class="s4"># Create the dials</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'posX'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                         <span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">, (</span><span class="s1">posInterior</span><span class="s2">,),</span>
+                                         <span class="s1">text </span><span class="s2">= </span><span class="s3">'X'</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                         <span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                                         <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'Red'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'x'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'x'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'posY'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                         <span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">, (</span><span class="s1">posInterior</span><span class="s2">,),</span>
+                                         <span class="s1">text </span><span class="s2">= </span><span class="s3">'Y'</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                         <span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                                         <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'#00A000'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'y'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'y'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'posZ'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                         <span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">, (</span><span class="s1">posInterior</span><span class="s2">,),</span>
+                                         <span class="s1">text </span><span class="s2">= </span><span class="s3">'Z'</span><span class="s2">, </span><span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                         <span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                                         <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'Blue'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'z'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'z'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s4"># Create and pack the Hpr Controls</span>
+        <span class="s1">hprGroup </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">Group</span><span class="s2">(</span><span class="s1">interior</span><span class="s2">,</span>
+                             <span class="s1">tag_pyclass </span><span class="s2">= </span><span class="s1">Menubutton</span><span class="s2">,</span>
+                             <span class="s1">tag_text </span><span class="s2">= </span><span class="s3">'Orientation'</span><span class="s2">,</span>
+                             <span class="s1">tag_font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">),</span>
+                             <span class="s1">tag_activebackground </span><span class="s2">= </span><span class="s3">'#909090'</span><span class="s2">,</span>
+                             <span class="s1">ring_relief </span><span class="s2">= </span><span class="s1">RIDGE</span><span class="s2">)</span>
+        <span class="s1">hprMenubutton </span><span class="s2">= </span><span class="s1">hprGroup</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'tag'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">hprMenubutton</span><span class="s2">, </span><span class="s3">'Orientation menu operations'</span><span class="s2">)</span>
+        <span class="s1">hprMenu </span><span class="s2">= </span><span class="s1">Menu</span><span class="s2">(</span><span class="s1">hprMenubutton</span><span class="s2">, </span><span class="s1">tearoff </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">hprMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Set to zero'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zeroHpr</span><span class="s2">)</span>
+        <span class="s1">hprMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset initial'</span><span class="s2">, </span><span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resetHpr</span><span class="s2">)</span>
+        <span class="s1">hprMenubutton</span><span class="s2">[</span><span class="s3">'menu'</span><span class="s2">] = </span><span class="s1">hprMenu</span>
+        <span class="s1">hprGroup</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side</span><span class="s2">=</span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'both'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">hprInterior </span><span class="s2">= </span><span class="s1">hprGroup</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+
+        <span class="s4"># Create the dials</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'hprH'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                         <span class="s1">Dial</span><span class="s2">.</span><span class="s1">AngleDial</span><span class="s2">, (</span><span class="s1">hprInterior</span><span class="s2">,),</span>
+                                         <span class="s1">style </span><span class="s2">= </span><span class="s3">'mini'</span><span class="s2">,</span>
+                                         <span class="s1">text </span><span class="s2">= </span><span class="s3">'H'</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                                         <span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                         <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'blue'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'h'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'h'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'hprP'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                         <span class="s1">Dial</span><span class="s2">.</span><span class="s1">AngleDial</span><span class="s2">, (</span><span class="s1">hprInterior</span><span class="s2">,),</span>
+                                         <span class="s1">style </span><span class="s2">= </span><span class="s3">'mini'</span><span class="s2">,</span>
+                                         <span class="s1">text </span><span class="s2">= </span><span class="s3">'P'</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                                         <span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                         <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'red'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'p'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'p'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'hprR'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                         <span class="s1">Dial</span><span class="s2">.</span><span class="s1">AngleDial</span><span class="s2">, (</span><span class="s1">hprInterior</span><span class="s2">,),</span>
+                                         <span class="s1">style </span><span class="s2">= </span><span class="s3">'mini'</span><span class="s2">,</span>
+                                         <span class="s1">text </span><span class="s2">= </span><span class="s3">'R'</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                                         <span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                         <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'#00A000'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'r'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'r'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s4"># Create and pack the Scale Controls</span>
+        <span class="s4"># The available scaling modes</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode </span><span class="s2">= </span><span class="s1">StringVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">'Scale Uniform'</span><span class="s2">)</span>
+        <span class="s4"># The scaling widgets</span>
+        <span class="s1">scaleGroup </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">Group</span><span class="s2">(</span><span class="s1">interior</span><span class="s2">,</span>
+                               <span class="s1">tag_text </span><span class="s2">= </span><span class="s3">'Scale Uniform'</span><span class="s2">,</span>
+                               <span class="s1">tag_pyclass </span><span class="s2">= </span><span class="s1">Menubutton</span><span class="s2">,</span>
+                               <span class="s1">tag_font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s6">14</span><span class="s2">),</span>
+                               <span class="s1">tag_activebackground </span><span class="s2">= </span><span class="s3">'#909090'</span><span class="s2">,</span>
+                               <span class="s1">ring_relief </span><span class="s2">= </span><span class="s1">RIDGE</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleMenubutton </span><span class="s2">= </span><span class="s1">scaleGroup</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'tag'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">scaleMenubutton</span><span class="s2">, </span><span class="s3">'Scale menu operations'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleMenubutton</span><span class="s2">[</span><span class="s3">'textvariable'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span>
+
+        <span class="s4"># Scaling menu</span>
+        <span class="s1">scaleMenu </span><span class="s2">= </span><span class="s1">Menu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">scaleMenubutton</span><span class="s2">, </span><span class="s1">tearoff </span><span class="s2">= </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">scaleMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Set to unity'</span><span class="s2">,</span>
+                              <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">unitScale</span><span class="s2">)</span>
+        <span class="s1">scaleMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Reset initial'</span><span class="s2">,</span>
+                              <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resetScale</span><span class="s2">)</span>
+        <span class="s1">scaleMenu</span><span class="s2">.</span><span class="s1">add_radiobutton</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Scale Free'</span><span class="s2">,</span>
+                                      <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span><span class="s2">)</span>
+        <span class="s1">scaleMenu</span><span class="s2">.</span><span class="s1">add_radiobutton</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Scale Uniform'</span><span class="s2">,</span>
+                                      <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span><span class="s2">)</span>
+        <span class="s1">scaleMenu</span><span class="s2">.</span><span class="s1">add_radiobutton</span><span class="s2">(</span><span class="s1">label </span><span class="s2">= </span><span class="s3">'Scale Proportional'</span><span class="s2">,</span>
+                                      <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleMenubutton</span><span class="s2">[</span><span class="s3">'menu'</span><span class="s2">] = </span><span class="s1">scaleMenu</span>
+        <span class="s4"># Pack group widgets</span>
+        <span class="s1">scaleGroup</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">side</span><span class="s2">=</span><span class="s3">'left'</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s3">'both'</span><span class="s2">, </span><span class="s1">expand </span><span class="s2">= </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">scaleInterior </span><span class="s2">= </span><span class="s1">scaleGroup</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">()</span>
+
+        <span class="s4"># Create the dials</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'scaleX'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                           <span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">, (</span><span class="s1">scaleInterior</span><span class="s2">,),</span>
+                                           <span class="s1">text </span><span class="s2">= </span><span class="s3">'X Scale'</span><span class="s2">,</span>
+                                           <span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                           <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0001</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                                           <span class="s1">resetValue </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                                           <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'Red'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'sx'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'sx'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'scaleY'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                           <span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">, (</span><span class="s1">scaleInterior</span><span class="s2">,),</span>
+                                           <span class="s1">text </span><span class="s2">= </span><span class="s3">'Y Scale'</span><span class="s2">,</span>
+                                           <span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                           <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0001</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                                           <span class="s1">resetValue </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                                           <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'#00A000'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'sy'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'sy'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s3">'scaleZ'</span><span class="s2">, (), </span><span class="s5">None</span><span class="s2">,</span>
+                                           <span class="s1">Floater</span><span class="s2">.</span><span class="s1">Floater</span><span class="s2">, (</span><span class="s1">scaleInterior</span><span class="s2">,),</span>
+                                           <span class="s1">text </span><span class="s2">= </span><span class="s3">'Z Scale'</span><span class="s2">,</span>
+                                           <span class="s1">relief </span><span class="s2">= </span><span class="s1">FLAT</span><span class="s2">,</span>
+                                           <span class="s1">min </span><span class="s2">= </span><span class="s6">0.0001</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                                           <span class="s1">resetValue </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                                           <span class="s1">label_foreground </span><span class="s2">= </span><span class="s3">'Blue'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">[</span><span class="s3">'commandData'</span><span class="s2">] = [</span><span class="s3">'sz'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">[</span><span class="s3">'callbackData'</span><span class="s2">] = [</span><span class="s3">'sz'</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">[</span><span class="s3">'preCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">[</span><span class="s3">'postCallback'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">fill</span><span class="s2">=</span><span class="s3">'both'</span><span class="s2">)</span>
+
+        <span class="s4"># Make sure appropriate labels are showing</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setMovementMode</span><span class="s2">(</span><span class="s3">'Relative To:'</span><span class="s2">)</span>
+        <span class="s4"># Set up placer for inital node path</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selectNodePathNamed</span><span class="s2">(</span><span class="s3">'init'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selectRefNodePathNamed</span><span class="s2">(</span><span class="s3">'parent'</span><span class="s2">)</span>
+        <span class="s4"># Update place to reflect initial state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+        <span class="s4"># Now that you're done setting up, attach commands</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">xform</span>
+
+
+    <span class="s4">### WIDGET OPERATIONS ###</span>
+    <span class="s5">def </span><span class="s1">setMovementMode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">movementMode</span><span class="s2">):</span>
+        <span class="s4"># Set prefix</span>
+        <span class="s1">namePrefix </span><span class="s2">= </span><span class="s3">''</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">movementMode </span><span class="s2">= </span><span class="s1">movementMode</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">movementMode </span><span class="s2">== </span><span class="s3">'Relative To:'</span><span class="s2">):</span>
+            <span class="s1">namePrefix </span><span class="s2">= </span><span class="s3">'Relative '</span>
+        <span class="s5">elif </span><span class="s2">(</span><span class="s1">movementMode </span><span class="s2">== </span><span class="s3">'Orbit:'</span><span class="s2">):</span>
+            <span class="s1">namePrefix </span><span class="s2">= </span><span class="s3">'Orbit '</span>
+        <span class="s4"># Update pos widgets</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">namePrefix </span><span class="s2">+ </span><span class="s3">'X'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">namePrefix </span><span class="s2">+ </span><span class="s3">'Y'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">namePrefix </span><span class="s2">+ </span><span class="s3">'Z'</span>
+        <span class="s4"># Update hpr widgets</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">movementMode </span><span class="s2">== </span><span class="s3">'Orbit:'</span><span class="s2">):</span>
+            <span class="s1">namePrefix </span><span class="s2">= </span><span class="s3">'Orbit delta '</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">namePrefix </span><span class="s2">+ </span><span class="s3">'H'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">namePrefix </span><span class="s2">+ </span><span class="s3">'P'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'text'</span><span class="s2">] = </span><span class="s1">namePrefix </span><span class="s2">+ </span><span class="s3">'R'</span>
+        <span class="s4"># Update temp cs and initialize widgets</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">setScalingMode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">scale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">getScale</span><span class="s2">()</span>
+            <span class="s5">if </span><span class="s2">((</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] != </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]) </span><span class="s5">or</span>
+                <span class="s2">(</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] != </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]) </span><span class="s5">or</span>
+                <span class="s2">(</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] != </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">'Scale Free'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">selectNodePathNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+        <span class="s5">if </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'init'</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]</span>
+            <span class="s4"># Add Combo box entry for the initial node path</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'selected'</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">last</span>
+            <span class="s4"># Add Combo box entry for this selected object</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">== </span><span class="s5">None</span><span class="s2">):</span>
+                <span class="s4"># See if this evaluates into a node path</span>
+                <span class="s5">try</span><span class="s2">:</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">eval</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                    <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+                    <span class="s5">else</span><span class="s2">:</span>
+                        <span class="s4"># Good eval but not a node path, give up</span>
+                        <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                <span class="s5">except</span><span class="s2">:</span>
+                    <span class="s4"># Bogus eval</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                    <span class="s4"># Clear bogus entry from listbox</span>
+                    <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+                    <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s5">if </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'widget'</span><span class="s2">:</span>
+                    <span class="s4"># Record relationship between selected nodes and widget</span>
+                    <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">getWrtAll</span><span class="s2">()</span>
+        <span class="s4"># Update active node path</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setActiveNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setActiveNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">] = </span><span class="s1">nodePath</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span>
+                <span class="s1">background </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuBG</span><span class="s2">)</span>
+            <span class="s4"># Check to see if node path and ref node path are the same</span>
+            <span class="s5">if </span><span class="s2">((</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and</span>
+                <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS </span><span class="s2">== </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">])):</span>
+                <span class="s4"># Yes they are, use temp CS as ref</span>
+                <span class="s4"># This calls updatePlacer</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">setReferenceNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS</span><span class="s2">)</span>
+                <span class="s4"># update listbox accordingly</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'parent'</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s4"># Record initial value and initialize the widgets</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+            <span class="s4"># Record initial position</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateResetValues</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">])</span>
+            <span class="s4"># Set scaling mode based on node path's current scale</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setScalingMode</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s4"># Flash entry</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">background </span><span class="s2">= </span><span class="s3">'Pink'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">selectRefNodePathNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+        <span class="s5">if </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'self'</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'selected'</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">last</span>
+            <span class="s4"># Add Combo box entry for this selected object</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">addRefNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+        <span class="s5">elif </span><span class="s1">name </span><span class="s2">== </span><span class="s3">'parent'</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">getParent</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">== </span><span class="s5">None</span><span class="s2">):</span>
+                <span class="s4"># See if this evaluates into a node path</span>
+                <span class="s5">try</span><span class="s2">:</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">eval</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                    <span class="s5">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">addRefNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+                    <span class="s5">else</span><span class="s2">:</span>
+                        <span class="s4"># Good eval but not a node path, give up</span>
+                        <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                <span class="s5">except</span><span class="s2">:</span>
+                    <span class="s4"># Bogus eval</span>
+                    <span class="s1">nodePath </span><span class="s2">= </span><span class="s5">None</span>
+                    <span class="s4"># Clear bogus entry from listbox</span>
+                    <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+                    <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathNames</span><span class="s2">)</span>
+        <span class="s4"># Check to see if node path and ref node path are the same</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">== </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]):</span>
+            <span class="s4"># Yes they are, use temp CS and update listbox accordingly</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s3">'parent'</span><span class="s2">)</span>
+        <span class="s4"># Update ref node path</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setReferenceNodePath</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">setReferenceNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">refCS </span><span class="s2">= </span><span class="s1">nodePath</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span>
+                <span class="s1">background </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenuBG</span><span class="s2">)</span>
+            <span class="s4"># Update placer to reflect new state</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s4"># Flash entry</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenuEntry</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">background </span><span class="s2">= </span><span class="s3">'Pink'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePathToDict</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathNames</span><span class="s2">,</span>
+                               <span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathDict</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addRefNodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addNodePathToDict</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathNames</span><span class="s2">,</span>
+                               <span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathMenu</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refNodePathDict</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">addNodePathToDict</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">names</span><span class="s2">, </span><span class="s1">menu</span><span class="s2">, </span><span class="s1">dict</span><span class="s2">):</span>
+        <span class="s5">if not </span><span class="s1">nodePath</span><span class="s2">:</span>
+            <span class="s5">return</span>
+        <span class="s4"># Get node path's name</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+        <span class="s5">if </span><span class="s1">name </span><span class="s5">in </span><span class="s2">[</span><span class="s3">'parent'</span><span class="s2">, </span><span class="s3">'render'</span><span class="s2">, </span><span class="s3">'camera'</span><span class="s2">]:</span>
+            <span class="s1">dictName </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s5">else</span><span class="s2">:</span>
+            <span class="s4"># Generate a unique name for the dict</span>
+            <span class="s1">dictName </span><span class="s2">= </span><span class="s1">name </span><span class="s2">+ </span><span class="s3">'-' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">hash</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">))</span>
+        <span class="s5">if </span><span class="s1">dictName </span><span class="s5">not in </span><span class="s1">dict</span><span class="s2">:</span>
+            <span class="s4"># Update combo box to include new item</span>
+            <span class="s1">names</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">dictName</span><span class="s2">)</span>
+            <span class="s1">listbox </span><span class="s2">= </span><span class="s1">menu</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'scrolledlist'</span><span class="s2">)</span>
+            <span class="s1">listbox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">names</span><span class="s2">)</span>
+            <span class="s4"># Add new item to dictionary</span>
+            <span class="s1">dict</span><span class="s2">[</span><span class="s1">dictName</span><span class="s2">] = </span><span class="s1">nodePath</span>
+        <span class="s1">menu</span><span class="s2">.</span><span class="s1">selectitem</span><span class="s2">(</span><span class="s1">dictName</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">updatePlacer</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">pos </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">hpr </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s1">scale </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">np </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">np </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">np</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+            <span class="s4"># Update temp CS</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateAuxiliaryCoordinateSystems</span><span class="s2">()</span>
+            <span class="s4"># Update widgets</span>
+            <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">movementMode </span><span class="s2">== </span><span class="s3">'Orbit:'</span><span class="s2">:</span>
+                <span class="s1">pos</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset</span><span class="s2">)</span>
+                <span class="s1">hpr</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">ZERO_VEC</span><span class="s2">)</span>
+                <span class="s1">scale</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">np</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">())</span>
+            <span class="s5">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">:</span>
+                <span class="s1">pos</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">np</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">))</span>
+                <span class="s1">hpr</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">np</span><span class="s2">.</span><span class="s1">getHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">))</span>
+                <span class="s1">scale</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">np</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePosWidgets</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateHprWidgets</span><span class="s2">(</span><span class="s1">hpr</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateScaleWidgets</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">updateAuxiliaryCoordinateSystems</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Temp CS</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">], </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4"># Orbit CS</span>
+        <span class="s4"># At reference</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4"># But aligned with target</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">], </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4"># Also update to CS</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4"># Get offset from origin</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">))</span>
+
+    <span class="s4">### NODE PATH TRANSFORMATION OPERATIONS ###</span>
+    <span class="s5">def </span><span class="s1">xform</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">axis </span><span class="s5">in </span><span class="s2">[</span><span class="s3">'sx'</span><span class="s2">, </span><span class="s3">'sy'</span><span class="s2">, </span><span class="s3">'sz'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformScale</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">)</span>
+        <span class="s5">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">movementMode </span><span class="s2">== </span><span class="s3">'Relative To:'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformRelative</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">)</span>
+        <span class="s5">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">movementMode </span><span class="s2">== </span><span class="s3">'Orbit:'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformOrbit</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">)</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">get</span><span class="s2">() == </span><span class="s3">'widget'</span><span class="s2">:</span>
+            <span class="s5">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">fSetCoa</span><span class="s2">:</span>
+                <span class="s4"># Update coa based on current widget position</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">last</span><span class="s2">.</span><span class="s1">mCoa2Dnp</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span>
+                    <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">getMat</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">last</span><span class="s2">))</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s4"># Move the objects with the widget</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">moveWrtWidgetAll</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">xformStart</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">data</span><span class="s2">):</span>
+        <span class="s4"># Record undo point</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">()</span>
+        <span class="s4"># If moving widget kill follow task and update wrts</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">get</span><span class="s2">() == </span><span class="s3">'widget'</span><span class="s2">:</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'followSelectedNodePath'</span><span class="s2">)</span>
+            <span class="s4"># Record relationship between selected nodes and widget</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">getWrtAll</span><span class="s2">()</span>
+        <span class="s4"># Record initial state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">deltaHpr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">getHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">)</span>
+        <span class="s4"># Update placer to reflect new state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">xformStop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">data</span><span class="s2">):</span>
+        <span class="s4"># Throw event to signal manipulation done</span>
+        <span class="s4"># Send nodepath as a list</span>
+        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s3">'DIRECT_manipulateObjectCleanup'</span><span class="s2">, [[</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]]])</span>
+        <span class="s4"># Update placer to reflect new state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+        <span class="s4"># If moving widget restart follow task</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nodePathMenu</span><span class="s2">.</span><span class="s1">get</span><span class="s2">() == </span><span class="s3">'widget'</span><span class="s2">:</span>
+            <span class="s4"># Restart followSelectedNodePath task</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">spawnFollowSelectedNodePathTask</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">xformRelative</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">):</span>
+        <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]</span>
+        <span class="s5">if </span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">):</span>
+            <span class="s5">if </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'x'</span><span class="s2">:</span>
+                <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'y'</span><span class="s2">:</span>
+                <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'z'</span><span class="s2">:</span>
+                <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">else</span><span class="s2">:</span>
+                <span class="s5">if </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'h'</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">deltaHpr</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'p'</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">deltaHpr</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'r'</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">deltaHpr</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s4"># Put node path at new hpr</span>
+                <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deltaHpr</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">xformOrbit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">):</span>
+        <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]</span>
+        <span class="s5">if </span><span class="s2">((</span><span class="s1">nodePath </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">refCS </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and</span>
+            <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">) </span><span class="s5">and </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS </span><span class="s2">!= </span><span class="s5">None</span><span class="s2">)):</span>
+            <span class="s5">if </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'x'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'y'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'z'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'h'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS</span><span class="s2">.</span><span class="s1">setH</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'p'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS</span><span class="s2">.</span><span class="s1">setP</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'r'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS</span><span class="s2">.</span><span class="s1">setR</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">posOffset</span><span class="s2">, </span><span class="s1">ZERO_VEC</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">xformScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">axis</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">mode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">scalingMode</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+            <span class="s1">scale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">getScale</span><span class="s2">()</span>
+            <span class="s5">if </span><span class="s1">mode </span><span class="s2">== </span><span class="s3">'Scale Free'</span><span class="s2">:</span>
+                <span class="s5">if </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'sx'</span><span class="s2">:</span>
+                    <span class="s1">scale</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'sy'</span><span class="s2">:</span>
+                    <span class="s1">scale</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'sz'</span><span class="s2">:</span>
+                    <span class="s1">scale</span><span class="s2">.</span><span class="s1">setZ</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">mode </span><span class="s2">== </span><span class="s3">'Scale Uniform'</span><span class="s2">:</span>
+                <span class="s1">scale</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">value</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s5">elif </span><span class="s1">mode </span><span class="s2">== </span><span class="s3">'Scale Proportional'</span><span class="s2">:</span>
+                <span class="s5">if </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'sx'</span><span class="s2">:</span>
+                    <span class="s1">sf </span><span class="s2">= </span><span class="s1">value</span><span class="s2">/</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+                <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'sy'</span><span class="s2">:</span>
+                    <span class="s1">sf </span><span class="s2">= </span><span class="s1">value</span><span class="s2">/</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s5">elif </span><span class="s1">axis </span><span class="s2">== </span><span class="s3">'sz'</span><span class="s2">:</span>
+                    <span class="s1">sf </span><span class="s2">= </span><span class="s1">value</span><span class="s2">/</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+                <span class="s1">scale </span><span class="s2">= </span><span class="s1">scale </span><span class="s2">* </span><span class="s1">sf</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">updatePosWidgets</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">[</span><span class="s6">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+
+    <span class="s5">def </span><span class="s1">updateHprWidgets</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">hpr</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">hpr</span><span class="s2">[</span><span class="s6">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">hpr</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+
+    <span class="s5">def </span><span class="s1">updateScaleWidgets</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+
+    <span class="s5">def </span><span class="s1">zeroAll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePosWidgets</span><span class="s2">(</span><span class="s1">ZERO_VEC</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateHprWidgets</span><span class="s2">(</span><span class="s1">ZERO_VEC</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateScaleWidgets</span><span class="s2">(</span><span class="s1">UNIT_VEC</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">zeroPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePosWidgets</span><span class="s2">(</span><span class="s1">ZERO_VEC</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">zeroHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateHprWidgets</span><span class="s2">(</span><span class="s1">ZERO_VEC</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">unitScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateScaleWidgets</span><span class="s2">(</span><span class="s1">UNIT_VEC</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">updateResetValues</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initPos</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posX</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initPos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posY</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initPos</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">posZ</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initPos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getHpr</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprH</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprP</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hprR</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initScale</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleX</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initScale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleY</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initScale</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">scaleZ</span><span class="s2">[</span><span class="s3">'resetValue'</span><span class="s2">] = </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initScale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">]</span>
+
+    <span class="s5">def </span><span class="s1">resetAll</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">setPosHprScale</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">initPos</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">initScale</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">resetPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">initPos</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">resetHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">initHpr</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">resetScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStart</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">].</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">initScale</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">xformStop</span><span class="s2">(</span><span class="s5">None</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">pushUndo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fResetRedo </span><span class="s2">= </span><span class="s6">1</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]])</span>
+
+    <span class="s5">def </span><span class="s1">undoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePathList </span><span class="s2">= []):</span>
+        <span class="s4"># Reflect new changes</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">pushUndoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is reactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'normal'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">undoListEmptyHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is deactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">undoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'disabled'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">pushRedo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushRedo</span><span class="s2">([</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]])</span>
+
+    <span class="s5">def </span><span class="s1">redoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePathList </span><span class="s2">= []):</span>
+        <span class="s4"># Reflect new changes</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updatePlacer</span><span class="s2">()</span>
+
+    <span class="s5">def </span><span class="s1">pushRedoHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is reactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'normal'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">redoListEmptyHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4"># Make sure button is deactivated</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">redoButton</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(</span><span class="s1">state </span><span class="s2">= </span><span class="s3">'disabled'</span><span class="s2">)</span>
+
+    <span class="s5">def </span><span class="s1">printNodePathInfo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">np </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'nodePath'</span><span class="s2">]</span>
+        <span class="s5">if </span><span class="s1">np</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+            <span class="s1">pos </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">()</span>
+            <span class="s1">hpr </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">getHpr</span><span class="s2">()</span>
+            <span class="s1">scale </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">()</span>
+            <span class="s1">posString </span><span class="s2">= </span><span class="s3">'%.2f, %.2f, %.2f' </span><span class="s2">% (</span><span class="s1">pos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">pos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+            <span class="s1">hprString </span><span class="s2">= </span><span class="s3">'%.2f, %.2f, %.2f' </span><span class="s2">% (</span><span class="s1">hpr</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">hpr</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">hpr</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+            <span class="s1">scaleString </span><span class="s2">= </span><span class="s3">'%.2f, %.2f, %.2f' </span><span class="s2">% (</span><span class="s1">scale</span><span class="s2">[</span><span class="s6">0</span><span class="s2">], </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">1</span><span class="s2">], </span><span class="s1">scale</span><span class="s2">[</span><span class="s6">2</span><span class="s2">])</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'NodePath: %s' </span><span class="s2">% </span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'Pos: %s' </span><span class="s2">% </span><span class="s1">posString</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'Hpr: %s' </span><span class="s2">% </span><span class="s1">hprString</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'Scale: %s' </span><span class="s2">% </span><span class="s1">scaleString</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">((</span><span class="s3">'%s.setPosHprScale(%s, %s, %s)' </span><span class="s2">%</span>
+                   <span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">posString</span><span class="s2">, </span><span class="s1">hprString</span><span class="s2">, </span><span class="s1">scaleString</span><span class="s2">)))</span>
+
+    <span class="s5">def </span><span class="s1">onDestroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4"># Remove hooks</span>
+        <span class="s5">for </span><span class="s1">event</span><span class="s2">, </span><span class="s1">method </span><span class="s5">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">undoEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tempCS</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitFromCS</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orbitToCS</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+
+<span class="s5">def </span><span class="s1">place</span><span class="s2">(</span><span class="s1">nodePath</span><span class="s2">):</span>
+    <span class="s5">return </span><span class="s1">Placer</span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">)</span>
+
+<span class="s4">######################################################################</span>
+
+<span class="s4"># Create demo in root window for testing.</span>
+<span class="s5">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">root </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">initialise</span><span class="s2">()</span>
+    <span class="s1">widget </span><span class="s2">= </span><span class="s1">Placer</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

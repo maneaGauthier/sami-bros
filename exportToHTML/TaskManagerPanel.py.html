@@ -1,0 +1,249 @@
+<html>
+<head>
+<title>TaskManagerPanel.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+TaskManagerPanel.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Undocumented Module&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'TaskManagerPanel'</span><span class="s2">, </span><span class="s3">'TaskManagerWidget'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">tkwidgets</span><span class="s2">.</span><span class="s1">AppShell </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">import </span><span class="s1">Pmw</span><span class="s2">, </span><span class="s1">sys</span>
+
+<span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+    <span class="s4">from </span><span class="s1">tkinter </span><span class="s4">import </span><span class="s2">*</span>
+    <span class="s4">from </span><span class="s1">tkinter</span><span class="s2">.</span><span class="s1">messagebox </span><span class="s4">import </span><span class="s1">askokcancel</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s4">from </span><span class="s1">Tkinter </span><span class="s4">import </span><span class="s2">*</span>
+    <span class="s4">from </span><span class="s1">tkMessageBox </span><span class="s4">import </span><span class="s1">askokcancel</span>
+
+
+<span class="s4">class </span><span class="s1">TaskManagerPanel</span><span class="s2">(</span><span class="s1">AppShell</span><span class="s2">):</span>
+    <span class="s6"># Override class variables here</span>
+    <span class="s1">appname </span><span class="s2">= </span><span class="s3">'TaskManager Panel'</span>
+    <span class="s1">frameWidth      </span><span class="s2">= </span><span class="s5">300</span>
+    <span class="s1">frameHeight     </span><span class="s2">= </span><span class="s5">400</span>
+    <span class="s1">usecommandarea </span><span class="s2">= </span><span class="s5">0</span>
+    <span class="s1">usestatusarea  </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskMgr</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">INITOPT </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">INITOPT</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s2">(</span><span class="s3">'title'</span><span class="s2">,       </span><span class="s1">self</span><span class="s2">.</span><span class="s1">appname</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr </span><span class="s2">= </span><span class="s1">taskMgr</span>
+
+        <span class="s6"># Call superclass initialization function</span>
+        <span class="s1">AppShell</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">TaskManagerPanel</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">createInterface</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># FILE MENU</span>
+        <span class="s6"># Get a handle on the file menu so commands can be inserted</span>
+        <span class="s6"># before quit item</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrWidget </span><span class="s2">= </span><span class="s1">TaskManagerWidget</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">interior</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr</span><span class="s2">)</span>
+
+
+    <span class="s4">def </span><span class="s1">onDestroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrWidget</span><span class="s2">.</span><span class="s1">onDestroy</span><span class="s2">()</span>
+
+<span class="s4">class </span><span class="s1">TaskManagerWidget</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    TaskManagerWidget class: this class contains methods for creating 
+    a panel to control taskManager tasks. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">, </span><span class="s1">taskMgr</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        TaskManagerWidget class pops up a control panel to view/delete 
+        tasks managed by the taskManager. 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Make sure TK mainloop is running</span>
+        <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">TkGlobal</span>
+        <span class="s6"># Record parent (used by ok cancel dialog boxes)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parent </span><span class="s2">= </span><span class="s1">parent</span>
+        <span class="s6"># Record taskManager</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr </span><span class="s2">= </span><span class="s1">taskMgr</span>
+        <span class="s6"># Init current task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currentTask </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__taskDict </span><span class="s2">= {}</span>
+
+        <span class="s6"># Create widgets</span>
+        <span class="s6"># Create a listbox</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox </span><span class="s2">= </span><span class="s1">Pmw</span><span class="s2">.</span><span class="s1">ScrolledListBox</span><span class="s2">(</span>
+            <span class="s1">parent</span><span class="s2">,</span>
+            <span class="s1">labelpos </span><span class="s2">= </span><span class="s1">NW</span><span class="s2">, </span><span class="s1">label_text </span><span class="s2">= </span><span class="s3">'Tasks:'</span><span class="s2">,</span>
+            <span class="s1">label_font</span><span class="s2">=(</span><span class="s3">'MSSansSerif'</span><span class="s2">, </span><span class="s5">10</span><span class="s2">, </span><span class="s3">'bold'</span><span class="s2">),</span>
+            <span class="s1">listbox_takefocus </span><span class="s2">= </span><span class="s5">1</span><span class="s2">,</span>
+            <span class="s1">items </span><span class="s2">= [],</span>
+            <span class="s1">selectioncommand </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setCurrentTask</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">expand </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">fill </span><span class="s2">= </span><span class="s1">BOTH</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu </span><span class="s2">= </span><span class="s1">Menu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'listbox'</span><span class="s2">),</span>
+                               <span class="s1">tearoff </span><span class="s2">= </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Remove Task'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeCurrentTask</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">add_command</span><span class="s2">(</span>
+            <span class="s1">label </span><span class="s2">= </span><span class="s3">'Remove Matching Tasks'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeMatchingTasks</span><span class="s2">)</span>
+
+        <span class="s6"># Controls Frame</span>
+        <span class="s1">controlsFrame </span><span class="s2">= </span><span class="s1">Frame</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">controlsFrame</span><span class="s2">, </span><span class="s1">text </span><span class="s2">= </span><span class="s3">'Remove Task'</span><span class="s2">,</span>
+                                   <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeCurrentTask</span><span class="s2">)</span>
+        <span class="s6">#self.removeButton.pack(expand = 1, fill = X, side = LEFT)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeButton</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeMatchingButton </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">controlsFrame</span><span class="s2">,</span>
+                                           <span class="s1">text </span><span class="s2">= </span><span class="s3">'Remove Matching Tasks'</span><span class="s2">,</span>
+                                           <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeMatchingTasks</span><span class="s2">)</span>
+        <span class="s6">#self.removeMatchingButton.pack(expand = 1, fill = X, side = LEFT)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeMatchingButton</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrVerbose </span><span class="s2">= </span><span class="s1">IntVar</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrVerbose</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">update </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span>
+            <span class="s1">controlsFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Update'</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">)</span>
+        <span class="s6">#self.update.pack(expand = 1, fill = X, side = LEFT)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">update</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicUpdate </span><span class="s2">= </span><span class="s1">Checkbutton</span><span class="s2">(</span>
+            <span class="s1">controlsFrame</span><span class="s2">,</span>
+            <span class="s1">text </span><span class="s2">= </span><span class="s3">'Dynamic Update'</span><span class="s2">,</span>
+            <span class="s1">variable </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrVerbose</span><span class="s2">,</span>
+            <span class="s1">command </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleTaskMgrVerbose</span><span class="s2">)</span>
+        <span class="s6">#self.dynamicUpdate.pack(expand = 1, fill = X, side = LEFT)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dynamicUpdate</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">(</span><span class="s1">row </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">column </span><span class="s2">= </span><span class="s5">1</span><span class="s2">, </span><span class="s1">sticky </span><span class="s2">= </span><span class="s1">EW</span><span class="s2">)</span>
+        <span class="s6"># Pack frames</span>
+        <span class="s1">controlsFrame</span><span class="s2">.</span><span class="s1">pack</span><span class="s2">(</span><span class="s1">fill </span><span class="s2">= </span><span class="s1">X</span><span class="s2">)</span>
+        <span class="s1">controlsFrame</span><span class="s2">.</span><span class="s1">grid_columnconfigure</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">weight </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">controlsFrame</span><span class="s2">.</span><span class="s1">grid_columnconfigure</span><span class="s2">(</span><span class="s5">1</span><span class="s2">, </span><span class="s1">weight </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+
+        <span class="s6"># Add hook to spawnTaskEvents</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'TaskManager-spawnTask'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnTaskHook</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'TaskManager-removeTask'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeTaskHook</span><span class="s2">)</span>
+        <span class="s6"># Get listbox</span>
+        <span class="s1">listbox </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'listbox'</span><span class="s2">)</span>
+        <span class="s6"># Bind updates to arrow buttons</span>
+        <span class="s1">listbox</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;KeyRelease-Up&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setCurrentTask</span><span class="s2">)</span>
+        <span class="s1">listbox</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;KeyRelease-Down&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setCurrentTask</span><span class="s2">)</span>
+        <span class="s1">listbox</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s3">'&lt;ButtonPress-3&gt;'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popupMenu</span><span class="s2">)</span>
+        <span class="s6"># And grab focus (to allow keyboard navigation)</span>
+        <span class="s1">listbox</span><span class="s2">.</span><span class="s1">focus_set</span><span class="s2">()</span>
+        <span class="s6"># Update listbox values</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">popupMenu</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        listbox = self.taskListBox.component('listbox') 
+        index = listbox.nearest(event.y) 
+        listbox.selection_clear(0) 
+        listbox.activate(index) 
+        self.taskListBox.select_set(index) 
+        self.setCurrentTask() 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_popupMenu</span><span class="s2">.</span><span class="s1">post</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">winfo_pointerx</span><span class="s2">(),</span>
+                             <span class="s1">event</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">winfo_pointery</span><span class="s2">())</span>
+        <span class="s4">return </span><span class="s3">&quot;break&quot;</span>
+
+    <span class="s4">def </span><span class="s1">setCurrentTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">curselection</span><span class="s2">()) &gt; </span><span class="s5">0</span><span class="s2">: </span><span class="s6"># [gjeon] to avoid crash when nothing is selected</span>
+            <span class="s1">index </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">curselection</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentTask </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__taskDict</span><span class="s2">[</span><span class="s1">index</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">currentTask </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s4">def </span><span class="s1">updateTaskListBox</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Get a list of task names</span>
+        <span class="s1">taskNames </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__taskDict </span><span class="s2">= {}</span>
+        <span class="s1">tasks </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()</span>
+        <span class="s1">tasks</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">(</span><span class="s1">key </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">t</span><span class="s2">: </span><span class="s1">t</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+        <span class="s1">count </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">tasks</span><span class="s2">:</span>
+            <span class="s1">taskNames</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">task</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__taskDict</span><span class="s2">[</span><span class="s1">count</span><span class="s2">] = </span><span class="s1">task</span>
+            <span class="s1">count </span><span class="s2">+= </span><span class="s5">1</span>
+
+        <span class="s4">if </span><span class="s1">taskNames</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">setlist</span><span class="s2">(</span><span class="s1">taskNames</span><span class="s2">)</span>
+            <span class="s6"># And set current index (so keypresses will start with index 0)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s3">'listbox'</span><span class="s2">).</span><span class="s1">activate</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s6"># Select first item</span>
+            <span class="s6">#self.taskListBox.select_set(0) # [gjeon] commented out to avoid focus problem with other lists</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setCurrentTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">toggleTaskMgrVerbose</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrVerbose</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">spawnTaskHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrVerbose</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">removeTaskHook</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgrVerbose</span><span class="s2">.</span><span class="s1">get</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">removeCurrentTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currentTask</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currentTask</span><span class="s2">.</span><span class="s1">name</span>
+            <span class="s1">ok </span><span class="s2">= </span><span class="s5">1</span>
+            <span class="s4">if </span><span class="s2">((</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'dataLoop'</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'resetPrevTransform'</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'tkLoop'</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'eventManager'</span><span class="s2">) </span><span class="s4">or</span>
+                <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'igLoop'</span><span class="s2">)):</span>
+                <span class="s1">ok </span><span class="s2">= </span><span class="s1">askokcancel</span><span class="s2">(</span><span class="s3">'TaskManagerControls'</span><span class="s2">,</span>
+                                 <span class="s3">'Remove: %s?' </span><span class="s2">% </span><span class="s1">name</span><span class="s2">,</span>
+                                 <span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parent</span><span class="s2">,</span>
+                                 <span class="s1">default </span><span class="s2">= </span><span class="s3">'cancel'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">ok</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">currentTask</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">removeMatchingTasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskListBox</span><span class="s2">.</span><span class="s1">getcurselection</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s1">ok </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s4">if </span><span class="s2">((</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'dataLoop'</span><span class="s2">) </span><span class="s4">or</span>
+            <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'resetPrevTransform'</span><span class="s2">) </span><span class="s4">or</span>
+            <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'tkLoop'</span><span class="s2">) </span><span class="s4">or</span>
+            <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'eventManager'</span><span class="s2">) </span><span class="s4">or</span>
+            <span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'igLoop'</span><span class="s2">)):</span>
+            <span class="s1">ok </span><span class="s2">= </span><span class="s1">askokcancel</span><span class="s2">(</span><span class="s3">'TaskManagerControls'</span><span class="s2">,</span>
+                             <span class="s3">'Remove tasks named: %s?' </span><span class="s2">% </span><span class="s1">name</span><span class="s2">,</span>
+                             <span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parent</span><span class="s2">,</span>
+                             <span class="s1">default </span><span class="s2">= </span><span class="s3">'cancel'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">ok</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateTaskListBox</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">onDestroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s3">'TaskManager-spawnTask'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s3">'TaskManager-removeTask'</span><span class="s2">)</span>
+
+
+</pre>
+</body>
+</html>

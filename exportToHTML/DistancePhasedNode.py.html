@@ -1,0 +1,372 @@
+<html>
+<head>
+<title>DistancePhasedNode.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistancePhasedNode.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">PhasedObject </span><span class="s0">import </span><span class="s1">PhasedObject</span>
+
+
+<span class="s0">class </span><span class="s1">DistancePhasedNode</span><span class="s2">(</span><span class="s1">PhasedObject</span><span class="s2">, </span><span class="s1">DirectObject</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This class defines a PhasedObject,NodePath object that will handle 
+    the phasing of an object in the scene graph according to its 
+    distance from some other collider object(such as an avatar). 
+ 
+    Since it's a NodePath, you can parent it to another object in the 
+    scene graph, or even inherit from this class to get its functionality. 
+ 
+    What you will need to define to use this class: 
+ 
+     - The distances at which you want the phases to load/unload 
+     - Whether you want the object to clean itself up or not when 
+       exitting the largest distance sphere 
+     - What the load/unload functions are 
+     - What sort of events to listen for when a collision occurs 
+     - (Optional) A collision bitmask for the phase collision spheres 
+     - (Optional) A 'from' collision node to collide into our 'into' spheres 
+ 
+    You specify the distances and function names by the phaseParamMap 
+    parameter to `__init__()`.  For example:: 
+ 
+        phaseParamMap = {'Alias': distance, ...} 
+        ... 
+        def loadPhaseAlias(self): 
+            pass 
+        def unloadPhaseAlias(self): 
+            pass 
+ 
+    If the 'fromCollideNode' is supplied, we will set up our own 
+    traverser and only traverse below this node.  It will send out 
+    events of the form '&lt;enterPrefix&gt;%in' and '&lt;exitPrefix&gt;%in' in 
+    order to match the main collision traverser's patterns.  Note 
+    that this will only be used after a reset or phase change in 
+    order to fully transition to the correct phase in a single pass. 
+    Most of the time, it will be reacting to events from the main 
+    collision traverser. 
+ 
+    IMPORTANT: 
+ 
+        The following only applies when ``autoCleanup is True``: 
+        If you unload the last phase, by either calling `cleanup()` or 
+        by exiting the last phase's distance, you will need to 
+        explicitly call `reset()` to get the distance phasing to work 
+        again. This was done so if either this node or the collider is 
+        removed from the scene graph (e.g. avatar teleport), the phased 
+        object will clean itself up automatically. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;DistancePhasedObject&quot;</span><span class="s2">)</span>
+    <span class="s1">__InstanceSequence </span><span class="s2">= </span><span class="s5">0</span>
+    <span class="s1">__InstanceDeque </span><span class="s2">= []</span>
+
+    <span class="s2">@</span><span class="s1">staticmethod</span>
+    <span class="s0">def </span><span class="s1">__allocateId</span><span class="s2">():</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Give each phase node a unique id in order to filter out 
+        collision events from other phase nodes.  We do it in 
+        this manner so the client doesn't need to worry about 
+        giving each phase node a unique name. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__InstanceDeque</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__InstanceDeque</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">id </span><span class="s2">= </span><span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__InstanceSequence</span>
+            <span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__InstanceSequence </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__InstanceSequence </span><span class="s2">&amp;= </span><span class="s5">65535</span>
+            <span class="s0">return </span><span class="s1">id</span>
+
+    <span class="s2">@</span><span class="s1">staticmethod</span>
+    <span class="s0">def </span><span class="s1">__deallocateId</span><span class="s2">(</span><span class="s1">id</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Reuse abandoned ids. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__InstanceDeque</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">id</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">phaseParamMap </span><span class="s2">= {},</span>
+                 <span class="s1">autoCleanup </span><span class="s2">= </span><span class="s0">True</span><span class="s2">,</span>
+                 <span class="s1">enterPrefix </span><span class="s2">= </span><span class="s4">'enter'</span><span class="s2">, </span><span class="s1">exitPrefix </span><span class="s2">= </span><span class="s4">'exit'</span><span class="s2">,</span>
+                 <span class="s1">phaseCollideMask </span><span class="s2">= </span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">allOn</span><span class="s2">(),</span>
+                 <span class="s1">fromCollideNode </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">NodePath</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">phaseParamMap </span><span class="s2">= </span><span class="s1">phaseParamMap</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">phaseParamList </span><span class="s2">= </span><span class="s1">sorted</span><span class="s2">(</span><span class="s1">list</span><span class="s2">(</span><span class="s1">phaseParamMap</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()),</span>
+                                     <span class="s1">key </span><span class="s2">= </span><span class="s0">lambda </span><span class="s1">x</span><span class="s2">: </span><span class="s1">x</span><span class="s2">[</span><span class="s5">1</span><span class="s2">],</span>
+                                     <span class="s1">reverse </span><span class="s2">= </span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s1">PhasedObject</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span>
+                              <span class="s1">dict</span><span class="s2">([(</span><span class="s1">alias</span><span class="s2">,</span><span class="s1">phase</span><span class="s2">) </span><span class="s0">for </span><span class="s2">(</span><span class="s1">phase</span><span class="s2">,</span><span class="s1">alias</span><span class="s2">) </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">([</span><span class="s1">item</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] </span><span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">phaseParamList</span><span class="s2">])]))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__id </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__allocateId</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">autoCleanup </span><span class="s2">= </span><span class="s1">autoCleanup</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enterPrefix </span><span class="s2">= </span><span class="s1">enterPrefix</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">exitPrefix </span><span class="s2">= </span><span class="s1">exitPrefix</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">phaseCollideMask </span><span class="s2">= </span><span class="s1">phaseCollideMask</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">cTrav</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fromCollideNode </span><span class="s2">= </span><span class="s1">fromCollideNode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres </span><span class="s2">= []</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reset</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__del__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__deallocateId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__id</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">outStr </span><span class="s2">= </span><span class="s4">'DistancePhasedObject('</span>
+        <span class="s1">outStr </span><span class="s2">+= </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+        <span class="s0">for </span><span class="s1">param</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">zip</span><span class="s2">((</span><span class="s4">'phaseParamMap'</span><span class="s2">, </span><span class="s4">'autoCleanup'</span><span class="s2">, </span><span class="s4">'enterPrefix'</span><span class="s2">, </span><span class="s4">'exitPrefix'</span><span class="s2">, </span><span class="s4">'phaseCollideMask'</span><span class="s2">, </span><span class="s4">'fromCollideNode'</span><span class="s2">),</span>
+                                <span class="s2">({}, </span><span class="s0">True</span><span class="s2">, </span><span class="s4">'enter'</span><span class="s2">, </span><span class="s4">'exit'</span><span class="s2">, </span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">allOn</span><span class="s2">(), </span><span class="s0">None</span><span class="s2">)):</span>
+            <span class="s1">pv </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">param</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">pv </span><span class="s2">!= </span><span class="s1">value</span><span class="s2">:</span>
+                <span class="s1">outStr </span><span class="s2">+= </span><span class="s4">', %s = %r' </span><span class="s2">% (</span><span class="s1">param</span><span class="s2">, </span><span class="s1">pv</span><span class="s2">)</span>
+        <span class="s1">outStr </span><span class="s2">+= </span><span class="s4">')'</span>
+        <span class="s0">return </span><span class="s1">outStr</span>
+
+    <span class="s0">def </span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s4">'%s in phase </span><span class="s0">\'</span><span class="s4">%s</span><span class="s0">\'</span><span class="s4">' </span><span class="s2">% (</span><span class="s1">NodePath</span><span class="s2">.</span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPhase</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">cleanup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Disables all collisions. 
+        Ignores all owned event listeners. 
+        Unloads all unloaded phases. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__disableCollisions</span><span class="s2">(</span><span class="s1">cleanup </span><span class="s2">= </span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s0">for </span><span class="s1">sphere </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">:</span>
+            <span class="s1">sphere</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres </span><span class="s2">= []</span>
+        <span class="s1">PhasedObject</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setPhaseCollideMask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">mask</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Sets the intoCollideMasks for our collision spheres. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">phaseCollideMask </span><span class="s2">= </span><span class="s1">mask</span>
+        <span class="s0">for </span><span class="s1">sphere </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">colSphere</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setIntoCollideMask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">phaseCollideMask</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">reset</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Unloads all loaded phases and puts the phase node 
+        in the startup state is if it had just been initialized. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__oneTimeCollide</span><span class="s2">()</span>
+        <span class="s0">for </span><span class="s1">name</span><span class="s2">, </span><span class="s1">dist </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">phaseParamList</span><span class="s2">:</span>
+            <span class="s1">cSphere </span><span class="s2">= </span><span class="s1">CollisionSphere</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">)</span>
+            <span class="s1">cSphere</span><span class="s2">.</span><span class="s1">setTangible</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s1">cName </span><span class="s2">= </span><span class="s4">'PhaseNode%s-%d' </span><span class="s2">% (</span><span class="s1">name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__id</span><span class="s2">)</span>
+            <span class="s1">cSphereNode </span><span class="s2">= </span><span class="s1">CollisionNode</span><span class="s2">(</span><span class="s1">cName</span><span class="s2">)</span>
+            <span class="s1">cSphereNode</span><span class="s2">.</span><span class="s1">setIntoCollideMask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">phaseCollideMask</span><span class="s2">)</span>
+            <span class="s1">cSphereNode</span><span class="s2">.</span><span class="s1">setFromCollideMask</span><span class="s2">(</span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">allOff</span><span class="s2">())</span>
+            <span class="s1">cSphereNode</span><span class="s2">.</span><span class="s1">addSolid</span><span class="s2">(</span><span class="s1">cSphere</span><span class="s2">)</span>
+            <span class="s1">cSphereNodePath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">cSphereNode</span><span class="s2">)</span>
+            <span class="s1">cSphereNodePath</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">()</span>
+            <span class="s6"># cSphereNodePath.show() # For debugging</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">cSphereNodePath</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fromCollideNode</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav </span><span class="s2">= </span><span class="s1">CollisionTraverser</span><span class="s2">()</span>
+            <span class="s1">cHandler </span><span class="s2">= </span><span class="s1">CollisionHandlerEvent</span><span class="s2">()</span>
+            <span class="s1">cHandler</span><span class="s2">.</span><span class="s1">addInPattern</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">enterPrefix </span><span class="s2">+ </span><span class="s4">'%in'</span><span class="s2">)</span>
+            <span class="s1">cHandler</span><span class="s2">.</span><span class="s1">addOutPattern</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">exitPrefix </span><span class="s2">+ </span><span class="s4">'%in'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">addCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fromCollideNode</span><span class="s2">,</span><span class="s1">cHandler</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enableCollisions</span><span class="s2">(-</span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setPhase</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aPhase</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        See PhasedObject.setPhase() 
+        &quot;&quot;&quot;</span>
+        <span class="s1">phase </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getAliasPhase</span><span class="s2">(</span><span class="s1">aPhase</span><span class="s2">)</span>
+        <span class="s1">PhasedObject</span><span class="s2">.</span><span class="s1">setPhase</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aPhase</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__disableCollisions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enableCollisions</span><span class="s2">(</span><span class="s1">phase</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">phase </span><span class="s2">== -</span><span class="s5">1 </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCleanup</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__oneTimeCollide</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__getEnterEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">phaseName</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s4">'%sPhaseNode%s-%d' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">enterPrefix</span><span class="s2">, </span><span class="s1">phaseName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__id</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__getExitEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">phaseName</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s4">'%sPhaseNode%s-%d' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">exitPrefix</span><span class="s2">, </span><span class="s1">phaseName</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__id</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__enableCollisions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">phase</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Turns on collisions for the spheres bounding this 
+        phase zone by unstashing their geometry.  Enables 
+        the exit event for the larger and the enter event 
+        for the smaller.  Handles the  extreme(end) phases 
+        gracefully. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s5">0 </span><span class="s2">&lt;= </span><span class="s1">phase</span><span class="s2">:</span>
+            <span class="s1">phaseName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPhaseAlias</span><span class="s2">(</span><span class="s1">phase</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__getExitEvent</span><span class="s2">(</span><span class="s1">phaseName</span><span class="s2">),</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">__handleExitEvent</span><span class="s2">,</span>
+                        <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">phaseName</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">[</span><span class="s1">phase</span><span class="s2">].</span><span class="s1">unstash</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s5">0 </span><span class="s2">&lt;= </span><span class="s1">phase</span><span class="s2">+</span><span class="s5">1 </span><span class="s2">&lt; </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">):</span>
+            <span class="s1">phaseName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPhaseAlias</span><span class="s2">(</span><span class="s1">phase</span><span class="s2">+</span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__getEnterEvent</span><span class="s2">(</span><span class="s1">phaseName</span><span class="s2">),</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">__handleEnterEvent</span><span class="s2">,</span>
+                        <span class="s1">extraArgs </span><span class="s2">= [</span><span class="s1">phaseName</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">[</span><span class="s1">phase</span><span class="s2">+</span><span class="s5">1</span><span class="s2">].</span><span class="s1">unstash</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__disableCollisions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cleanup </span><span class="s2">= </span><span class="s0">False</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Disables all collision geometry by stashing 
+        the geometry.  If autoCleanup == True and we're 
+        not currently cleaning up, leave the exit event 
+        and collision sphere active for the largest(thus lowest) 
+        phase.  This is so that we can still cleanup if 
+        the phase node exits the largest sphere. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">for </span><span class="s1">x</span><span class="s2">,</span><span class="s1">sphere </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">):</span>
+            <span class="s1">phaseName </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPhaseAlias</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__getEnterEvent</span><span class="s2">(</span><span class="s1">phaseName</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">x </span><span class="s2">&gt; </span><span class="s5">0 </span><span class="s0">or not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">autoCleanup </span><span class="s0">or </span><span class="s1">cleanup</span><span class="s2">:</span>
+                <span class="s1">sphere</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__getExitEvent</span><span class="s2">(</span><span class="s1">phaseName</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">__handleEnterEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">phaseName</span><span class="s2">, </span><span class="s1">cEntry</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setPhase</span><span class="s2">(</span><span class="s1">phaseName</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__handleExitEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">phaseName</span><span class="s2">, </span><span class="s1">cEntry</span><span class="s2">):</span>
+        <span class="s1">phase </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getAliasPhase</span><span class="s2">(</span><span class="s1">phaseName</span><span class="s2">) - </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setPhase</span><span class="s2">(</span><span class="s1">phase</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__oneTimeCollide</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Fire off a one-time collision traversal of the 
+        scene graph.  This allows us to process our entire 
+        phasing process in one frame in the cases where 
+        we cross more than one phase border. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav </span><span class="s0">is </span><span class="s1">base</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">:</span>
+                <span class="s6"># we use 'render'here since if we only try to</span>
+                <span class="s6"># traverse ourself, we end up calling exit</span>
+                <span class="s6"># events for the rest of the eventHandlers.</span>
+                <span class="s6"># Consider supplying the fromCollideNode parameter.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">traverse</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s6"># Only traverse ourself</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">traverse</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">eventMgr</span><span class="s2">.</span><span class="s1">doEvents</span><span class="s2">()</span>
+
+<span class="s0">class </span><span class="s1">BufferedDistancePhasedNode</span><span class="s2">(</span><span class="s1">DistancePhasedNode</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This class is similar to DistancePhasedNode except you can also 
+    specify a buffer distance for each phase.  Upon entering that phase, 
+    its distance will be increased by the buffer amount.  Conversely, 
+    the distance will be decremented by that amount, back to its 
+    original size, upon leaving.  In this manner, you can avoid the problem 
+    of 'phase flicker' as someone repeatedly steps across a static phase 
+    border. 
+ 
+    You specify the buffer amount in the bufferParamMap parameter 
+    to :meth:`__init__()`.  It has this format:: 
+ 
+        bufferParamMap = {'alias':(distance, bufferAmount), ...} 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;BufferedDistancePhasedObject&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">bufferParamMap </span><span class="s2">= {}, </span><span class="s1">autoCleanup </span><span class="s2">= </span><span class="s0">True</span><span class="s2">,</span>
+                 <span class="s1">enterPrefix </span><span class="s2">= </span><span class="s4">'enter'</span><span class="s2">, </span><span class="s1">exitPrefix </span><span class="s2">= </span><span class="s4">'exit'</span><span class="s2">, </span><span class="s1">phaseCollideMask </span><span class="s2">= </span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">allOn</span><span class="s2">(), </span><span class="s1">fromCollideNode </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bufferParamMap </span><span class="s2">= </span><span class="s1">bufferParamMap</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bufferParamList </span><span class="s2">= </span><span class="s1">sorted</span><span class="s2">(</span><span class="s1">list</span><span class="s2">(</span><span class="s1">bufferParamMap</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()),</span>
+                                      <span class="s1">key </span><span class="s2">= </span><span class="s0">lambda </span><span class="s1">x</span><span class="s2">: </span><span class="s1">x</span><span class="s2">[</span><span class="s5">1</span><span class="s2">],</span>
+                                      <span class="s1">reverse </span><span class="s2">= </span><span class="s0">True</span><span class="s2">)</span>
+
+        <span class="s1">sParams </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">(</span><span class="s1">bufferParamMap</span><span class="s2">)</span>
+        <span class="s0">for </span><span class="s1">key </span><span class="s0">in </span><span class="s1">sParams</span><span class="s2">:</span>
+            <span class="s1">sParams</span><span class="s2">[</span><span class="s1">key</span><span class="s2">] = </span><span class="s1">sParams</span><span class="s2">[</span><span class="s1">key</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+
+        <span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">,</span>
+                                    <span class="s1">phaseParamMap </span><span class="s2">= </span><span class="s1">sParams</span><span class="s2">,</span>
+                                    <span class="s1">autoCleanup </span><span class="s2">= </span><span class="s1">autoCleanup</span><span class="s2">,</span>
+                                    <span class="s1">enterPrefix </span><span class="s2">= </span><span class="s1">enterPrefix</span><span class="s2">,</span>
+                                    <span class="s1">exitPrefix </span><span class="s2">= </span><span class="s1">exitPrefix</span><span class="s2">,</span>
+                                    <span class="s1">phaseCollideMask </span><span class="s2">= </span><span class="s1">phaseCollideMask</span><span class="s2">,</span>
+                                    <span class="s1">fromCollideNode </span><span class="s2">= </span><span class="s1">fromCollideNode</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">outStr </span><span class="s2">= </span><span class="s4">'BufferedDistancePhasedNode('</span>
+        <span class="s1">outStr </span><span class="s2">+= </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+        <span class="s0">for </span><span class="s1">param</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">zip</span><span class="s2">((</span><span class="s4">'bufferParamMap'</span><span class="s2">, </span><span class="s4">'autoCleanup'</span><span class="s2">, </span><span class="s4">'enterPrefix'</span><span class="s2">, </span><span class="s4">'exitPrefix'</span><span class="s2">, </span><span class="s4">'phaseCollideMask'</span><span class="s2">, </span><span class="s4">'fromCollideNode'</span><span class="s2">),</span>
+                                <span class="s2">({}, </span><span class="s0">True</span><span class="s2">, </span><span class="s4">'enter'</span><span class="s2">, </span><span class="s4">'exit'</span><span class="s2">, </span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">allOn</span><span class="s2">(), </span><span class="s0">None</span><span class="s2">)):</span>
+            <span class="s1">pv </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">param</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">pv </span><span class="s2">!= </span><span class="s1">value</span><span class="s2">:</span>
+                <span class="s1">outStr </span><span class="s2">+= </span><span class="s4">', %s = %r' </span><span class="s2">% (</span><span class="s1">param</span><span class="s2">, </span><span class="s1">pv</span><span class="s2">)</span>
+        <span class="s1">outStr </span><span class="s2">+= </span><span class="s4">')'</span>
+        <span class="s0">return </span><span class="s1">outStr</span>
+
+    <span class="s0">def </span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s4">'%s in phase </span><span class="s0">\'</span><span class="s4">%s</span><span class="s0">\'</span><span class="s4">' </span><span class="s2">% (</span><span class="s1">NodePath</span><span class="s2">.</span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPhase</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">setPhase</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aPhase</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        see DistancePhasedNode.setPhase() 
+        &quot;&quot;&quot;</span>
+        <span class="s1">DistancePhasedNode</span><span class="s2">.</span><span class="s1">setPhase</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aPhase</span><span class="s2">)</span>
+        <span class="s1">phase </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getAliasPhase</span><span class="s2">(</span><span class="s1">aPhase</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__adjustCollisions</span><span class="s2">(</span><span class="s1">phase</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__adjustCollisions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">phase</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">x</span><span class="s2">,</span><span class="s1">sphere </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">[:</span><span class="s1">phase</span><span class="s2">+</span><span class="s5">1</span><span class="s2">]):</span>
+            <span class="s1">sphere</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">modifySolid</span><span class="s2">(</span><span class="s5">0</span><span class="s2">).</span><span class="s1">setRadius</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bufferParamList</span><span class="s2">[</span><span class="s1">x</span><span class="s2">][</span><span class="s5">1</span><span class="s2">][</span><span class="s5">1</span><span class="s2">])</span>
+            <span class="s1">sphere</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">markInternalBoundsStale</span><span class="s2">()</span>
+
+        <span class="s0">for </span><span class="s1">x</span><span class="s2">,</span><span class="s1">sphere </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_colSpheres</span><span class="s2">[</span><span class="s1">phase</span><span class="s2">+</span><span class="s5">1</span><span class="s2">:]):</span>
+            <span class="s1">sphere</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">modifySolid</span><span class="s2">(</span><span class="s5">0</span><span class="s2">).</span><span class="s1">setRadius</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bufferParamList</span><span class="s2">[</span><span class="s1">x</span><span class="s2">+</span><span class="s1">phase</span><span class="s2">+</span><span class="s5">1</span><span class="s2">][</span><span class="s5">1</span><span class="s2">][</span><span class="s5">0</span><span class="s2">])</span>
+            <span class="s1">sphere</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">markInternalBoundsStale</span><span class="s2">()</span>
+
+
+<span class="s0">if __debug__ and </span><span class="s5">0</span><span class="s2">:</span>
+    <span class="s1">cSphere </span><span class="s2">= </span><span class="s1">CollisionSphere</span><span class="s2">(</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0.1</span><span class="s2">)</span>
+    <span class="s1">cNode </span><span class="s2">= </span><span class="s1">CollisionNode</span><span class="s2">(</span><span class="s4">'camCol'</span><span class="s2">)</span>
+    <span class="s1">cNode</span><span class="s2">.</span><span class="s1">addSolid</span><span class="s2">(</span><span class="s1">cSphere</span><span class="s2">)</span>
+    <span class="s1">cNodePath </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">cNode</span><span class="s2">)</span>
+    <span class="s1">cNodePath</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">)</span>
+    <span class="s6"># cNodePath.show()</span>
+    <span class="s6"># cNodePath.setPos(25,0,0)</span>
+
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">cTrav </span><span class="s2">= </span><span class="s1">CollisionTraverser</span><span class="s2">()</span>
+
+    <span class="s1">eventHandler </span><span class="s2">= </span><span class="s1">CollisionHandlerEvent</span><span class="s2">()</span>
+    <span class="s1">eventHandler</span><span class="s2">.</span><span class="s1">addInPattern</span><span class="s2">(</span><span class="s4">'enter%in'</span><span class="s2">)</span>
+    <span class="s1">eventHandler</span><span class="s2">.</span><span class="s1">addOutPattern</span><span class="s2">(</span><span class="s4">'exit%in'</span><span class="s2">)</span>
+
+    <span class="s6"># messenger.toggleVerbose()</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">addCollider</span><span class="s2">(</span><span class="s1">cNodePath</span><span class="s2">,</span><span class="s1">eventHandler</span><span class="s2">)</span>
+
+    <span class="s1">p </span><span class="s2">= </span><span class="s1">BufferedDistancePhasedNode</span><span class="s2">(</span><span class="s4">'p'</span><span class="s2">,{</span><span class="s4">'At'</span><span class="s2">:(</span><span class="s5">10</span><span class="s2">,</span><span class="s5">20</span><span class="s2">),</span><span class="s4">'Near'</span><span class="s2">:(</span><span class="s5">100</span><span class="s2">,</span><span class="s5">200</span><span class="s2">),</span><span class="s4">'Far'</span><span class="s2">:(</span><span class="s5">1000</span><span class="s2">, </span><span class="s5">1020</span><span class="s2">)},</span>
+                                   <span class="s1">autoCleanup </span><span class="s2">= </span><span class="s0">False</span><span class="s2">,</span>
+                                   <span class="s1">fromCollideNode </span><span class="s2">= </span><span class="s1">cNodePath</span><span class="s2">,</span>
+                                   <span class="s2">)</span>
+
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+    <span class="s1">p</span><span class="s2">.</span><span class="s1">_DistancePhasedNode__oneTimeCollide</span><span class="s2">()</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">eventMgr</span><span class="s2">.</span><span class="s1">doEvents</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

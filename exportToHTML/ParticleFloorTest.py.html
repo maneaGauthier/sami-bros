@@ -1,0 +1,78 @@
+<html>
+<head>
+<title>ParticleFloorTest.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ParticleFloorTest.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core </span><span class="s1">import </span><span class="s0">NodePath</span>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">physics </span><span class="s1">import </span><span class="s0">LinearVectorForce</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">particles </span><span class="s1">import </span><span class="s0">ParticleEffect</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">particles </span><span class="s1">import </span><span class="s0">Particles</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">particles </span><span class="s1">import </span><span class="s0">ForceGroup</span>
+
+<span class="s1">class </span><span class="s0">ParticleFloorTest</span><span class="s2">(</span><span class="s0">NodePath</span><span class="s2">):</span>
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">NodePath</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s3">&quot;particleFloorTest&quot;</span><span class="s2">)</span>
+
+        <span class="s4"># Sort Order of Particles</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">setDepthWrite</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s4"># Load Particle Effects</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">f </span><span class="s2">= </span><span class="s0">ParticleEffect</span><span class="s2">.</span><span class="s0">ParticleEffect</span><span class="s2">()</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">f</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0 </span><span class="s2">= </span><span class="s0">Particles</span><span class="s2">.</span><span class="s0">Particles</span><span class="s2">(</span><span class="s3">'particles-1'</span><span class="s2">)</span>
+        <span class="s4"># Particles parameters</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setFactory</span><span class="s2">(</span><span class="s3">&quot;PointParticleFactory&quot;</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setRenderer</span><span class="s2">(</span><span class="s3">&quot;PointParticleRenderer&quot;</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setEmitter</span><span class="s2">(</span><span class="s3">&quot;SphereVolumeEmitter&quot;</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setPoolSize</span><span class="s2">(</span><span class="s5">64</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setBirthRate</span><span class="s2">(</span><span class="s5">0.020</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setLitterSize</span><span class="s2">(</span><span class="s5">7</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setLitterSpread</span><span class="s2">(</span><span class="s5">2</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setSystemLifespan</span><span class="s2">(</span><span class="s5">0.0000</span><span class="s2">)</span>
+        <span class="s4">#self.p0.setLocalVelocityFlag(1)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setFloorZ</span><span class="s2">(-</span><span class="s5">1.0</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">setSystemGrowsOlderFlag</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s4"># Factory parameters</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">factory</span><span class="s2">.</span><span class="s0">setLifespanBase</span><span class="s2">(</span><span class="s5">10.000</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">factory</span><span class="s2">.</span><span class="s0">setLifespanSpread</span><span class="s2">(</span><span class="s5">0.50</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">factory</span><span class="s2">.</span><span class="s0">setMassBase</span><span class="s2">(</span><span class="s5">1.80</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">factory</span><span class="s2">.</span><span class="s0">setMassSpread</span><span class="s2">(</span><span class="s5">1.00</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">factory</span><span class="s2">.</span><span class="s0">setTerminalVelocityBase</span><span class="s2">(</span><span class="s5">400.0000</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">.</span><span class="s0">factory</span><span class="s2">.</span><span class="s0">setTerminalVelocitySpread</span><span class="s2">(</span><span class="s5">0.0000</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">f</span><span class="s2">.</span><span class="s0">addParticles</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">p0</span><span class="s2">)</span>
+        <span class="s1">if </span><span class="s5">1</span><span class="s2">:</span>
+            <span class="s0">f0 </span><span class="s2">= </span><span class="s0">ForceGroup</span><span class="s2">.</span><span class="s0">ForceGroup</span><span class="s2">(</span><span class="s3">'frict'</span><span class="s2">)</span>
+            <span class="s4"># Force parameters</span>
+            <span class="s0">force0 </span><span class="s2">= </span><span class="s0">LinearVectorForce</span><span class="s2">(</span><span class="s0">Vec3</span><span class="s2">(</span><span class="s5">0.</span><span class="s2">, </span><span class="s5">0.</span><span class="s2">, -</span><span class="s5">1.</span><span class="s2">))</span>
+            <span class="s0">force0</span><span class="s2">.</span><span class="s0">setActive</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s0">f0</span><span class="s2">.</span><span class="s0">addForce</span><span class="s2">(</span><span class="s0">force0</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">f</span><span class="s2">.</span><span class="s0">addForceGroup</span><span class="s2">(</span><span class="s0">f0</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">start</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">f</span><span class="s2">.</span><span class="s0">enable</span><span class="s2">()</span>
+
+<span class="s1">if </span><span class="s0">__name__ </span><span class="s2">== </span><span class="s3">&quot;__main__&quot;</span><span class="s2">:</span>
+    <span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directbase</span><span class="s2">.</span><span class="s0">TestStart </span><span class="s1">import </span><span class="s2">*</span>
+    <span class="s0">pt </span><span class="s2">= </span><span class="s0">ParticleFloorTest</span><span class="s2">()</span>
+    <span class="s0">pt</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">render</span><span class="s2">)</span>
+    <span class="s0">pt</span><span class="s2">.</span><span class="s0">start</span><span class="s2">()</span>
+    <span class="s0">base</span><span class="s2">.</span><span class="s0">camera</span><span class="s2">.</span><span class="s0">setY</span><span class="s2">(-</span><span class="s5">10.0</span><span class="s2">)</span>
+    <span class="s0">base</span><span class="s2">.</span><span class="s0">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

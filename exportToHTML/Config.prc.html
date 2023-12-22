@@ -1,0 +1,120 @@
+<html>
+<head>
+<title>Config.prc</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Config.prc</font>
+</center></td></tr></table>
+<pre><span class="s0">###########################################################</span>
+<span class="s0">###                                                     ###</span>
+<span class="s0">### Panda3D Configuration File -  </span><span class="s1">User</span><span class="s0">-Editable </span><span class="s1">Portion </span><span class="s0">###</span>
+<span class="s0">###                                                     ###</span>
+<span class="s0">###########################################################</span>
+
+<span class="s0"># Uncomment one </span><span class="s1">of </span><span class="s0">the </span><span class="s1">following </span><span class="s0">lines </span><span class="s1">to </span><span class="s0">choose whether you should</span>
+<span class="s0"># run </span><span class="s1">using </span><span class="s0">OpenGL</span><span class="s2">, </span><span class="s0">DirectX </span><span class="s1">or </span><span class="s0">TinyPanda </span><span class="s2">(</span><span class="s0">software</span><span class="s2">) </span><span class="s0">rendering</span><span class="s2">.</span>
+<span class="s0"># There can </span><span class="s1">only </span><span class="s0">be one load-display line</span><span class="s2">, </span><span class="s0">but you can use</span>
+<span class="s0"># multiple aux-display lines </span><span class="s1">to </span><span class="s0">specify fallback modules</span><span class="s2">.</span>
+<span class="s0"># </span><span class="s1">When </span><span class="s0">the </span><span class="s1">module </span><span class="s0">indicated </span><span class="s1">by </span><span class="s0">load-display fails</span><span class="s2">, </span><span class="s0">it will fall</span>
+<span class="s0"># back </span><span class="s1">to </span><span class="s0">the </span><span class="s1">next </span><span class="s0">display </span><span class="s1">module </span><span class="s0">indicated </span><span class="s1">by </span><span class="s0">aux-display</span><span class="s2">,</span>
+<span class="s0"># </span><span class="s1">when </span><span class="s0">that fails</span><span class="s2">, </span><span class="s0">the </span><span class="s1">next </span><span class="s0">aux-display line</span><span class="s2">, </span><span class="s1">and </span><span class="s0">so </span><span class="s1">on</span><span class="s2">.</span>
+
+<span class="s0">load-display pandagl</span>
+<span class="s0">#load-display pandadx9</span>
+<span class="s0">#load-display p3tinydisplay</span>
+
+<span class="s0"># These control the placement </span><span class="s1">and size of </span><span class="s0">the </span><span class="s1">default </span><span class="s0">rendering </span><span class="s1">window</span><span class="s2">.</span>
+<span class="s0"># A </span><span class="s1">value of </span><span class="s0">-</span><span class="s3">2 </span><span class="s1">for </span><span class="s0">the origin means </span><span class="s1">to </span><span class="s0">center it </span><span class="s1">on </span><span class="s0">the screen</span><span class="s2">,</span>
+<span class="s0"># while -</span><span class="s3">1 </span><span class="s0">lets the </span><span class="s1">window </span><span class="s0">manager choose the </span><span class="s1">position</span><span class="s2">.</span>
+
+<span class="s0">win-origin -</span><span class="s3">2 </span><span class="s0">-</span><span class="s3">2</span>
+<span class="s0">win-</span><span class="s1">size </span><span class="s3">800 600</span>
+
+<span class="s0"># Uncomment this line if you want </span><span class="s1">to </span><span class="s0">run Panda fullscreen </span><span class="s1">instead of</span>
+<span class="s0"># </span><span class="s1">in </span><span class="s0">a </span><span class="s1">window</span><span class="s2">.</span>
+
+<span class="s0">fullscreen #f</span>
+
+<span class="s0"># The framebuffer-hardware flag forces it </span><span class="s1">to </span><span class="s0">use an accelerated driver</span><span class="s2">.</span>
+<span class="s0"># The framebuffer-software flag forces it </span><span class="s1">to </span><span class="s0">use a software renderer</span><span class="s2">.</span>
+<span class="s0"># If you </span><span class="s1">set both to false</span><span class="s2">, </span><span class="s0">it will use whatever</span><span class="s4">'s available. 
+ 
+framebuffer-hardware #t 
+framebuffer-software #f 
+ 
+# These set the minimum requirements for the framebuffer. 
+# A value of 1 means: get as many bits as possible, 
+# consistent with the other framebuffer requirements. 
+ 
+depth-bits 1 
+color-bits 1 1 1 
+alpha-bits 0 
+stencil-bits 0 
+multisamples 0 
+ 
+# These control the amount of output Panda gives for some various 
+# categories.  The severity levels, in order, are &quot;spam&quot;, &quot;debug&quot;, 
+# &quot;info&quot;, &quot;warning&quot;, and &quot;error&quot;; the default is &quot;info&quot;.  Uncomment 
+# one (or define a new one for the particular category you wish to 
+# change) to control this output. 
+ 
+notify-level warning 
+default-directnotify-level warning 
+ 
+# These specify where model files may be loaded from.  You probably 
+# want to set this to a sensible path for yourself.  $THIS_PRC_DIR is 
+# a special variable that indicates the same directory as this 
+# particular Config.prc file. 
+ 
+model-path    $MAIN_DIR 
+model-path    $THIS_PRC_DIR/.. 
+model-path    $THIS_PRC_DIR/../models 
+ 
+# This enable the automatic creation of a TK window when running 
+# Direct. 
+ 
+want-directtools  #f 
+want-tk           #f 
+ 
+# Enable/disable performance profiling tool and frame-rate meter 
+ 
+want-pstats            #f 
+show-frame-rate-meter  #f 
+ 
+# Enable audio using the OpenAL audio library by default: 
+ 
+audio-library-name p3openal_audio 
+ 
+# Enable the use of the new movietexture class. 
+ 
+use-movietexture #t 
+ 
+# The new version of panda supports hardware vertex animation, but it'</span><span class="s0">s </span><span class="s1">not </span><span class="s0">quite ready</span>
+
+<span class="s0">hardware-animated-vertices #f</span>
+
+<span class="s0"># Enable the model-cache</span><span class="s2">, </span><span class="s0">but </span><span class="s1">only for </span><span class="s0">models</span><span class="s2">, </span><span class="s1">not </span><span class="s0">textures</span><span class="s2">.</span>
+
+<span class="s0">model-cache-dir $USER_APPDATA/Panda3D-</span><span class="s3">1.10</span>
+<span class="s0">model-cache-textures #f</span>
+
+<span class="s0"># This </span><span class="s1">option </span><span class="s0">specifies the </span><span class="s1">default </span><span class="s0">profiles </span><span class="s1">for </span><span class="s0">Cg shaders</span><span class="s2">.</span>
+<span class="s0"># Setting it </span><span class="s1">to </span><span class="s0">#t makes them arbvp1 </span><span class="s1">and </span><span class="s0">arbfp1</span><span class="s2">, </span><span class="s0">since these</span>
+<span class="s0"># seem </span><span class="s1">to </span><span class="s0">be most reliable</span><span class="s2">. </span><span class="s0">Setting it </span><span class="s1">to </span><span class="s0">#f makes Panda use</span>
+<span class="s0"># the latest profile available</span><span class="s2">.</span>
+
+<span class="s0">basic-shaders-</span><span class="s1">only </span><span class="s0">#f</span>
+</pre>
+</body>
+</html>

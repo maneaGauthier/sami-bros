@@ -1,0 +1,210 @@
+<html>
+<head>
+<title>howto.DIRECT</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+howto.DIRECT</font>
+</center></td></tr></table>
+<pre>                                                                     <span class="s0">5/25/01</span>
+                                  <span class="s0">DIRECT</span>
+
+<span class="s0">****************************************************************************</span>
+                              <span class="s0">STARTING DIRECT</span>
+<span class="s0">****************************************************************************</span>
+
+<span class="s0"># IN YOUR CONFIGRC</span>
+<span class="s0">want-directtools  #t</span>
+<span class="s0">want-tk           #t</span>
+<span class="s0"># Optional: GL allows lines of different widths</span>
+<span class="s0">load-display      pandagl</span>
+
+<span class="s0"># IN PYTHON</span>
+<span class="s0">from ShowBaseGlobal import *</span>
+
+<span class="s0">****************************************************************************</span>
+                            <span class="s0">OBJECT MANIPULATION</span>
+<span class="s0">****************************************************************************</span>
+
+<span class="s0">All object manipulation is performed with left mouse button (LMB).</span>
+<span class="s0">Objects are selected by clicking on them with the LMB.  Objects can be</span>
+<span class="s0">manipulated freely, or manipulation can be constrained using DIRECT</span>
+<span class="s0">widgets.  Rotations and scales are relative to the object's Center of</span>
+<span class="s0">Action (COA).  If widget is made visible ('v' key), this is the point</span>
+<span class="s0">of intersection of the three axes (red, green, blue lines).</span>
+
+<span class="s0">FREE MANIPULATION:</span>
+<span class="s0">For free manipulation, the window is divided up into three regions: an</span>
+<span class="s0">outer frame, central region, and the four corners.  Object manipulation</span>
+<span class="s0">depends on where mouse interaction begins.</span>
+
+<span class="s0">Central Region:</span>
+   <span class="s0">LMB:</span>
+      <span class="s0">Up/Down/Left/Right: Moves object in plane parallel to camera's image</span>
+         <span class="s0">plane </span>
+   <span class="s0">Shift + LMB:</span>
+      <span class="s0">Up/Down:  Moves object's COA in camera's XY plane</span>
+      <span class="s0">Left/Right: Moves object parallel to camera's X axis</span>
+   <span class="s0">Control + LMB:</span>
+      <span class="s0">Up/Down:  Moves object's COA toward Camera (in Y and Z)</span>
+      <span class="s0">Left/Right: Moves object parallel to camera's X axis</span>
+   <span class="s0">Alt + LMB (off of widget):</span>
+      <span class="s0">Away from COA: scale object up</span>
+      <span class="s0">Towards COA: scale object down</span>
+<span class="s0">Outer Region:</span>
+   <span class="s0">LMB:</span>
+      <span class="s0">Up/Down/Left/Right: Rotates object about current COA (default is</span>
+         <span class="s0">model's origin, modified using manipulation widget...see below).  </span>
+         <span class="s0">If mouse stays within outer frame, motion about COA is constrained</span>
+         <span class="s0">to a single axis. (parallel to camera's X axis when in left and</span>
+         <span class="s0">right part of the frame and parallel to the camera's Z axis when</span>
+         <span class="s0">in the top or bottom part of the frame)</span>
+<span class="s0">Four corners:</span>
+   <span class="s0">LMB:</span>
+      <span class="s0">Up/Down/Left/Right: Roll object about current center of action.</span>
+
+<span class="s0">CONSTRAINED/WIDGET MANIPULATION:</span>
+<span class="s0">For constrained/widget manipulation, object motion depends on where the</span>
+<span class="s0">mouse begins:</span>
+   <span class="s0">Axis lines: 1D translation along the chosen axis</span>
+   <span class="s0">Rotation rings: 1D rotation about orthogonal axis</span>
+   <span class="s0">Translation discs: 2D translation in the plane of the disc</span>
+
+<span class="s0">Pressing 'Tab' toggles between object manipulation or COA manipulation</span>
+<span class="s0">(indictated by widget lines turning grey).  When in COA manipulation mode,</span>
+<span class="s0">movement of the widget does not move the object but changes the object's</span>
+<span class="s0">COA.  Hit 'Tab' again to return to normal object manipulation mode.</span>
+
+<span class="s0">****************************************************************************</span>
+                            <span class="s0">CAMERA MANIPULATION</span>
+<span class="s0">****************************************************************************</span>
+
+<span class="s0">All camera manipulation performed with middle mouse button (MMB).</span>
+
+<span class="s0">Camera manipulation depends on where mouse interaction begins and the</span>
+<span class="s0">current center of action (COA). </span>
+
+<span class="s0">The window is divided up into three regions: an outer frame, central region,</span>
+<span class="s0">and the four corners.  A different manipulation mode is defined for each</span>
+<span class="s0">region and is described below.</span>
+
+<span class="s0">The camera center of action (COA) determines the center of rotation of any</span>
+<span class="s0">rotation moves and the scale factor for any translation moves.  </span>
+
+<span class="s0">The COA is set by quickly clicking (less than .25 second or 1 frame) with</span>
+<span class="s0">the MMB in the central region.  It is defined as the intersection point of</span>
+<span class="s0">the ray from the camera's origin, through the mouse with the model.  If no</span>
+<span class="s0">intersection occurs, the COA is put out along the camera's Y axis.  Each</span>
+<span class="s0">time the MMB is clicked with no intersection the COA moves further out</span>
+<span class="s0">along the Y axis.</span>
+
+<span class="s0">Pressing 'L' toggles COA lock, when on, the COA is locked in its current</span>
+<span class="s0">location.</span>
+
+<span class="s0">Central Region:</span>
+   <span class="s0">MMB:</span>
+      <span class="s0">Up/Down:  Moves camera towards mouse intersection point</span>
+      <span class="s0">Left/Right: Yaws camera</span>
+   <span class="s0">Control + MMB:</span>
+      <span class="s0">Up/Down: Moves camera along view vector (perpendicular to image plane)</span>
+      <span class="s0">Left/Right: Yaws camera</span>
+   <span class="s0">Shift + MMB:</span>
+      <span class="s0">Up/Down/Left/Right: shifts camera in image plane</span>
+<span class="s0">Outer Region:</span>
+   <span class="s0">MMB:</span>
+      <span class="s0">Up/Down/Left/Right: Rotates about current COA.  If mouse stays within</span>
+      <span class="s0">outer frame, motion about COA is constrained to a single axis.</span>
+      <span class="s0">(parallel to camera's X axis when in left and right part of the frame</span>
+      <span class="s0">and parallel to the camera's Z axis when in the top or bottom part of</span>
+      <span class="s0">the frame)</span>
+   <span class="s0">Shift + MMB:</span>
+      <span class="s0">Up/Down: Pitch about camera's X axis</span>
+      <span class="s0">Left/Right: Yaw about camera's Z axis</span>
+<span class="s0">Four corners:</span>
+   <span class="s0">MMB:</span>
+      <span class="s0">Up/Down/Left/Right: Roll about current center of action.</span>
+
+<span class="s0">The number keys and plus minus keys can be used for motion relative to the</span>
+<span class="s0">COA (see hot keys below)</span>
+
+<span class="s0">****************************************************************************</span>
+                                  <span class="s0">HOTKEYS</span>
+<span class="s0">****************************************************************************</span>
+
+<span class="s0"># UNDO/REDO</span>
+<span class="s0">[           undo</span>
+<span class="s0">]           redo</span>
+
+<span class="s0"># CAMERA MOVES</span>
+<span class="s0">+           zoomCam in</span>
+<span class="s0">-           zoomCam out</span>
+<span class="s0">1           front view (render relative)</span>
+<span class="s0">2           back view (render relative)</span>
+<span class="s0">3           right view (render relative)</span>
+<span class="s0">4           left view (render relative)</span>
+<span class="s0">5           top view (render relative)</span>
+<span class="s0">6           bottom view (render relative)</span>
+<span class="s0">7           3/4 view (render relative)</span>
+<span class="s0">8           roll view about axis relative to camera's axis</span>
+<span class="s0">9           swing camera about hot point (about render's Z axis)</span>
+<span class="s0">0           swing camera about hot point (about render's Z axis)</span>
+<span class="s0">c           center on hot point</span>
+<span class="s0">f           fit on hot point</span>
+<span class="s0">h           move camera to home (0,0,0)</span>
+<span class="s0">L           toggle hot point lock (if set, hot point stays in current location)</span>
+<span class="s0">n           select next possible camera COA (along last intersection ray)</span>
+<span class="s0">u           orbit upright cam about hot point</span>
+<span class="s0">U           upright cam</span>
+<span class="s0">`           kill camera move task</span>
+
+<span class="s0"># RENDER STYLE</span>
+<span class="s0">A           show all</span>
+<span class="s0">control-f   flash selected</span>
+<span class="s0">b           toggle backface</span>
+<span class="s0">l           toggle lights</span>
+<span class="s0">t           toggle texture</span>
+<span class="s0">w           toggle wireframe</span>
+
+<span class="s0"># DIRECT CONTROLS</span>
+<span class="s0">delete      delete selected object</span>
+<span class="s0">escape      deselect all</span>
+<span class="s0">page_down   move down selected objects hierarchy</span>
+<span class="s0">page_up     move up selected objects hierarchy</span>
+<span class="s0">tab         toggle widget mode (move objects or set center of action)</span>
+<span class="s0">F           grow widget to fit current view</span>
+<span class="s0">i           plant selected object at cursor intersection point</span>
+<span class="s0">m           move widget in front of camera</span>
+<span class="s0">p           set active parent to selected object</span>
+<span class="s0">r           wrt reparent selected to active parent</span>
+<span class="s0">R           reparent selected to active parent</span>
+<span class="s0">s           (re)select last selected object</span>
+<span class="s0">v           toggle widget visibility</span>
+<span class="s0">V           toggle COA marker visibility</span>
+<span class="s0">&lt;           shrink widget</span>
+<span class="s0">&gt;           expand widget</span>
+
+<span class="s0"># LEVEL EDITOR</span>
+<span class="s0">insert      add new object of current object type</span>
+<span class="s0">space       add exact copy of current object</span>
+<span class="s0">right       move selected object right (in screen space)</span>
+<span class="s0">left        move selected object left (in screen space)</span>
+<span class="s0">down        move selected object down (in screen space)</span>
+<span class="s0">up          move selected object up (in screen space)</span>
+<span class="s0">a           auto position snap point to selected object</span>
+<span class="s0">j           move selected object to snap point</span>
+<span class="s0">shift-s     place suit point</span>
+<span class="s0">shift-c     place battle cell</span>
+
+<span class="s0"># ROBOT TOON MANAGER</span>
+<span class="s0">f9          take screenshot</span>
+<span class="s0">f10         place new random robot toon</span>
+<span class="s0">f11         toggle visibility of render2d</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<html>
+<head>
+<title>ExceptionVarDump.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #bcbec4;}
+.s2 { color: #6aab73;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ExceptionVarDump.py</font>
+</center></td></tr></table>
+<pre><span class="s0">__all__ </span><span class="s1">= [</span><span class="s2">&quot;install&quot;</span><span class="s1">]</span>
+
+<span class="s3">from </span><span class="s0">panda3d</span><span class="s1">.</span><span class="s0">core </span><span class="s3">import </span><span class="s1">*</span>
+<span class="s3">from </span><span class="s0">direct</span><span class="s1">.</span><span class="s0">directnotify</span><span class="s1">.</span><span class="s0">DirectNotifyGlobal </span><span class="s3">import </span><span class="s0">directNotify</span>
+<span class="s3">from </span><span class="s0">direct</span><span class="s1">.</span><span class="s0">showbase</span><span class="s1">.</span><span class="s0">PythonUtil </span><span class="s3">import </span><span class="s0">fastRepr</span>
+<span class="s3">import </span><span class="s0">sys</span>
+<span class="s3">import </span><span class="s0">traceback</span>
+
+<span class="s0">notify </span><span class="s1">= </span><span class="s0">directNotify</span><span class="s1">.</span><span class="s0">newCategory</span><span class="s1">(</span><span class="s2">&quot;ExceptionVarDump&quot;</span><span class="s1">)</span>
+
+<span class="s0">reentry </span><span class="s1">= </span><span class="s4">0</span>
+
+<span class="s3">def </span><span class="s0">_varDump__init__</span><span class="s1">(</span><span class="s0">self</span><span class="s1">, *</span><span class="s0">args</span><span class="s1">, **</span><span class="s0">kArgs</span><span class="s1">):</span>
+    <span class="s3">global </span><span class="s0">reentry</span>
+    <span class="s3">if </span><span class="s0">reentry </span><span class="s1">&gt; </span><span class="s4">0</span><span class="s1">:</span>
+        <span class="s3">return</span>
+    <span class="s0">reentry </span><span class="s1">+= </span><span class="s4">1</span>
+    <span class="s5"># frame zero is this frame</span>
+    <span class="s0">f </span><span class="s1">= </span><span class="s4">1</span>
+    <span class="s0">self</span><span class="s1">.</span><span class="s0">_savedExcString </span><span class="s1">= </span><span class="s3">None</span>
+    <span class="s0">self</span><span class="s1">.</span><span class="s0">_savedStackFrames </span><span class="s1">= []</span>
+    <span class="s3">while True</span><span class="s1">:</span>
+        <span class="s3">try</span><span class="s1">:</span>
+            <span class="s0">frame </span><span class="s1">= </span><span class="s0">sys</span><span class="s1">.</span><span class="s0">_getframe</span><span class="s1">(</span><span class="s0">f</span><span class="s1">)</span>
+        <span class="s3">except </span><span class="s0">ValueError </span><span class="s3">as </span><span class="s0">e</span><span class="s1">:</span>
+            <span class="s3">break</span>
+        <span class="s3">else</span><span class="s1">:</span>
+            <span class="s0">f </span><span class="s1">+= </span><span class="s4">1</span>
+            <span class="s0">self</span><span class="s1">.</span><span class="s0">_savedStackFrames</span><span class="s1">.</span><span class="s0">append</span><span class="s1">(</span><span class="s0">frame</span><span class="s1">)</span>
+    <span class="s0">self</span><span class="s1">.</span><span class="s0">_moved__init__</span><span class="s1">(*</span><span class="s0">args</span><span class="s1">, **</span><span class="s0">kArgs</span><span class="s1">)</span>
+    <span class="s0">reentry </span><span class="s1">-= </span><span class="s4">1</span>
+
+<span class="s0">sReentry </span><span class="s1">= </span><span class="s4">0</span>
+
+<span class="s3">def </span><span class="s0">_varDump__print</span><span class="s1">(</span><span class="s0">exc</span><span class="s1">):</span>
+    <span class="s3">global </span><span class="s0">sReentry</span>
+    <span class="s3">global </span><span class="s0">notify</span>
+    <span class="s3">if </span><span class="s0">sReentry </span><span class="s1">&gt; </span><span class="s4">0</span><span class="s1">:</span>
+        <span class="s3">return</span>
+    <span class="s0">sReentry </span><span class="s1">+= </span><span class="s4">1</span>
+    <span class="s3">if not </span><span class="s0">exc</span><span class="s1">.</span><span class="s0">_savedExcString</span><span class="s1">:</span>
+        <span class="s0">s </span><span class="s1">= </span><span class="s2">''</span>
+        <span class="s0">foundRun </span><span class="s1">= </span><span class="s3">False</span>
+        <span class="s3">for </span><span class="s0">frame </span><span class="s3">in </span><span class="s0">reversed</span><span class="s1">(</span><span class="s0">exc</span><span class="s1">.</span><span class="s0">_savedStackFrames</span><span class="s1">):</span>
+            <span class="s0">filename </span><span class="s1">= </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_code</span><span class="s1">.</span><span class="s0">co_filename</span>
+            <span class="s0">codename </span><span class="s1">= </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_code</span><span class="s1">.</span><span class="s0">co_name</span>
+            <span class="s3">if not </span><span class="s0">foundRun </span><span class="s3">and </span><span class="s0">codename </span><span class="s1">!= </span><span class="s2">'run'</span><span class="s1">:</span>
+                <span class="s5"># don't print stack frames before run(),</span>
+                <span class="s5"># they contain builtins and are huge</span>
+                <span class="s3">continue</span>
+            <span class="s0">foundRun </span><span class="s1">= </span><span class="s3">True</span>
+            <span class="s0">s </span><span class="s1">+= </span><span class="s2">'</span><span class="s3">\n</span><span class="s2">locals for %s:%s</span><span class="s3">\n</span><span class="s2">' </span><span class="s1">% (</span><span class="s0">filename</span><span class="s1">, </span><span class="s0">codename</span><span class="s1">)</span>
+            <span class="s0">locals </span><span class="s1">= </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_locals</span>
+            <span class="s3">for </span><span class="s0">var </span><span class="s3">in </span><span class="s0">locals</span><span class="s1">:</span>
+                <span class="s0">obj </span><span class="s1">= </span><span class="s0">locals</span><span class="s1">[</span><span class="s0">var</span><span class="s1">]</span>
+                <span class="s0">rep </span><span class="s1">= </span><span class="s0">fastRepr</span><span class="s1">(</span><span class="s0">obj</span><span class="s1">)</span>
+                <span class="s0">s </span><span class="s1">+= </span><span class="s2">'::%s = %s</span><span class="s3">\n</span><span class="s2">' </span><span class="s1">% (</span><span class="s0">var</span><span class="s1">, </span><span class="s0">rep</span><span class="s1">)</span>
+        <span class="s0">exc</span><span class="s1">.</span><span class="s0">_savedExcString </span><span class="s1">= </span><span class="s0">s</span>
+        <span class="s0">exc</span><span class="s1">.</span><span class="s0">_savedStackFrames </span><span class="s1">= </span><span class="s3">None</span>
+    <span class="s0">notify</span><span class="s1">.</span><span class="s0">info</span><span class="s1">(</span><span class="s0">exc</span><span class="s1">.</span><span class="s0">_savedExcString</span><span class="s1">)</span>
+    <span class="s0">sReentry </span><span class="s1">-= </span><span class="s4">1</span>
+
+<span class="s0">oldExcepthook </span><span class="s1">= </span><span class="s3">None</span>
+<span class="s5"># store these values here so that Task.py can always reliably access them</span>
+<span class="s5"># from its main exception handler</span>
+<span class="s0">wantStackDumpLog </span><span class="s1">= </span><span class="s3">False</span>
+<span class="s0">wantStackDumpUpload </span><span class="s1">= </span><span class="s3">False</span>
+<span class="s0">variableDumpReasons </span><span class="s1">= []</span>
+<span class="s0">dumpOnExceptionInit </span><span class="s1">= </span><span class="s3">False</span>
+
+<span class="s3">class </span><span class="s0">_AttrNotFound</span><span class="s1">:</span>
+    <span class="s3">pass</span>
+
+<span class="s3">def </span><span class="s0">_excepthookDumpVars</span><span class="s1">(</span><span class="s0">eType</span><span class="s1">, </span><span class="s0">eValue</span><span class="s1">, </span><span class="s0">tb</span><span class="s1">):</span>
+    <span class="s0">origTb </span><span class="s1">= </span><span class="s0">tb</span>
+    <span class="s0">excStrs </span><span class="s1">= </span><span class="s0">traceback</span><span class="s1">.</span><span class="s0">format_exception</span><span class="s1">(</span><span class="s0">eType</span><span class="s1">, </span><span class="s0">eValue</span><span class="s1">, </span><span class="s0">origTb</span><span class="s1">)</span>
+    <span class="s0">s </span><span class="s1">= </span><span class="s2">'printing traceback in case variable repr crashes the process...</span><span class="s3">\n</span><span class="s2">'</span>
+    <span class="s3">for </span><span class="s0">excStr </span><span class="s3">in </span><span class="s0">excStrs</span><span class="s1">:</span>
+        <span class="s0">s </span><span class="s1">+= </span><span class="s0">excStr</span>
+    <span class="s0">notify</span><span class="s1">.</span><span class="s0">info</span><span class="s1">(</span><span class="s0">s</span><span class="s1">)</span>
+    <span class="s0">s </span><span class="s1">= </span><span class="s2">'DUMPING STACK FRAME VARIABLES'</span>
+    <span class="s5">#import pdb;pdb.set_trace()</span>
+    <span class="s5">#foundRun = False</span>
+    <span class="s0">foundRun </span><span class="s1">= </span><span class="s3">True</span>
+    <span class="s3">while </span><span class="s0">tb </span><span class="s3">is not None</span><span class="s1">:</span>
+        <span class="s0">frame </span><span class="s1">= </span><span class="s0">tb</span><span class="s1">.</span><span class="s0">tb_frame</span>
+        <span class="s0">code </span><span class="s1">= </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_code</span>
+        <span class="s5"># this is a list of every string identifier used in this stack frame's code</span>
+        <span class="s0">codeNames </span><span class="s1">= </span><span class="s0">set</span><span class="s1">(</span><span class="s0">code</span><span class="s1">.</span><span class="s0">co_names</span><span class="s1">)</span>
+        <span class="s5"># skip everything before the 'run' method, those frames have lots of</span>
+        <span class="s5"># not-useful information</span>
+        <span class="s3">if not </span><span class="s0">foundRun</span><span class="s1">:</span>
+            <span class="s3">if </span><span class="s0">code</span><span class="s1">.</span><span class="s0">co_name </span><span class="s1">== </span><span class="s2">'run'</span><span class="s1">:</span>
+                <span class="s0">foundRun </span><span class="s1">= </span><span class="s3">True</span>
+            <span class="s3">else</span><span class="s1">:</span>
+                <span class="s0">tb </span><span class="s1">= </span><span class="s0">tb</span><span class="s1">.</span><span class="s0">tb_next</span>
+                <span class="s3">continue</span>
+        <span class="s0">s </span><span class="s1">+= </span><span class="s2">'</span><span class="s3">\n  </span><span class="s2">File &quot;%s&quot;, line %s, in %s' </span><span class="s1">% (</span>
+            <span class="s0">code</span><span class="s1">.</span><span class="s0">co_filename</span><span class="s1">, </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_lineno</span><span class="s1">, </span><span class="s0">code</span><span class="s1">.</span><span class="s0">co_name</span><span class="s1">)</span>
+        <span class="s0">stateStack </span><span class="s1">= </span><span class="s0">Stack</span><span class="s1">()</span>
+        <span class="s5"># prime the stack with the variables we should visit from the frame's data structures</span>
+        <span class="s5"># grab all of the local, builtin and global variables that appear in the code's name list</span>
+        <span class="s0">name2obj </span><span class="s1">= {}</span>
+        <span class="s3">for </span><span class="s0">name</span><span class="s1">, </span><span class="s0">obj </span><span class="s3">in </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_builtins</span><span class="s1">.</span><span class="s0">items</span><span class="s1">():</span>
+            <span class="s3">if </span><span class="s0">name </span><span class="s3">in </span><span class="s0">codeNames</span><span class="s1">:</span>
+                <span class="s0">name2obj</span><span class="s1">[</span><span class="s0">name</span><span class="s1">] = </span><span class="s0">obj</span>
+        <span class="s3">for </span><span class="s0">name</span><span class="s1">, </span><span class="s0">obj </span><span class="s3">in </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_globals</span><span class="s1">.</span><span class="s0">items</span><span class="s1">():</span>
+            <span class="s3">if </span><span class="s0">name </span><span class="s3">in </span><span class="s0">codeNames</span><span class="s1">:</span>
+                <span class="s0">name2obj</span><span class="s1">[</span><span class="s0">name</span><span class="s1">] = </span><span class="s0">obj</span>
+        <span class="s3">for </span><span class="s0">name</span><span class="s1">, </span><span class="s0">obj </span><span class="s3">in </span><span class="s0">frame</span><span class="s1">.</span><span class="s0">f_locals</span><span class="s1">.</span><span class="s0">items</span><span class="s1">():</span>
+            <span class="s3">if </span><span class="s0">name </span><span class="s3">in </span><span class="s0">codeNames</span><span class="s1">:</span>
+                <span class="s0">name2obj</span><span class="s1">[</span><span class="s0">name</span><span class="s1">] = </span><span class="s0">obj</span>
+        <span class="s5"># show them in alphabetical order</span>
+        <span class="s0">names </span><span class="s1">= </span><span class="s0">list</span><span class="s1">(</span><span class="s0">name2obj</span><span class="s1">.</span><span class="s0">keys</span><span class="s1">())</span>
+        <span class="s0">names</span><span class="s1">.</span><span class="s0">sort</span><span class="s1">()</span>
+        <span class="s5"># push them in reverse order so they'll be popped in the correct order</span>
+        <span class="s0">names</span><span class="s1">.</span><span class="s0">reverse</span><span class="s1">()</span>
+
+        <span class="s0">traversedIds </span><span class="s1">= </span><span class="s0">set</span><span class="s1">()</span>
+
+        <span class="s3">for </span><span class="s0">name </span><span class="s3">in </span><span class="s0">names</span><span class="s1">:</span>
+            <span class="s0">stateStack</span><span class="s1">.</span><span class="s0">push</span><span class="s1">([</span><span class="s0">name</span><span class="s1">, </span><span class="s0">name2obj</span><span class="s1">[</span><span class="s0">name</span><span class="s1">], </span><span class="s0">traversedIds</span><span class="s1">])</span>
+
+        <span class="s3">while </span><span class="s0">len</span><span class="s1">(</span><span class="s0">stateStack</span><span class="s1">) &gt; </span><span class="s4">0</span><span class="s1">:</span>
+            <span class="s0">name</span><span class="s1">, </span><span class="s0">obj</span><span class="s1">, </span><span class="s0">traversedIds </span><span class="s1">= </span><span class="s0">stateStack</span><span class="s1">.</span><span class="s0">pop</span><span class="s1">()</span>
+            <span class="s5">#notify.info('%s, %s, %s' % (name, fastRepr(obj), traversedIds))</span>
+            <span class="s0">r </span><span class="s1">= </span><span class="s0">fastRepr</span><span class="s1">(</span><span class="s0">obj</span><span class="s1">, </span><span class="s0">maxLen</span><span class="s1">=</span><span class="s4">10</span><span class="s1">)</span>
+            <span class="s3">if </span><span class="s0">type</span><span class="s1">(</span><span class="s0">r</span><span class="s1">) </span><span class="s3">is </span><span class="s0">str</span><span class="s1">:</span>
+                <span class="s0">r </span><span class="s1">= </span><span class="s0">r</span><span class="s1">.</span><span class="s0">replace</span><span class="s1">(</span><span class="s2">'</span><span class="s3">\n</span><span class="s2">'</span><span class="s1">, </span><span class="s2">'</span><span class="s3">\\</span><span class="s2">n'</span><span class="s1">)</span>
+            <span class="s0">s </span><span class="s1">+= </span><span class="s2">'</span><span class="s3">\n    </span><span class="s2">%s = %s' </span><span class="s1">% (</span><span class="s0">name</span><span class="s1">, </span><span class="s0">r</span><span class="s1">)</span>
+            <span class="s5"># if we've already traversed through this object, don't traverse through it again</span>
+            <span class="s3">if </span><span class="s0">id</span><span class="s1">(</span><span class="s0">obj</span><span class="s1">) </span><span class="s3">not in </span><span class="s0">traversedIds</span><span class="s1">:</span>
+                <span class="s0">attrName2obj </span><span class="s1">= {}</span>
+                <span class="s3">for </span><span class="s0">attrName </span><span class="s3">in </span><span class="s0">codeNames</span><span class="s1">:</span>
+                    <span class="s0">attr </span><span class="s1">= </span><span class="s0">getattr</span><span class="s1">(</span><span class="s0">obj</span><span class="s1">, </span><span class="s0">attrName</span><span class="s1">, </span><span class="s0">_AttrNotFound</span><span class="s1">)</span>
+                    <span class="s3">if </span><span class="s1">(</span><span class="s0">attr </span><span class="s3">is not </span><span class="s0">_AttrNotFound</span><span class="s1">):</span>
+                        <span class="s5"># prevent infinite recursion on method wrappers (__init__.__init__.__init__...)</span>
+                        <span class="s3">try</span><span class="s1">:</span>
+                            <span class="s0">className </span><span class="s1">= </span><span class="s0">attr</span><span class="s1">.</span><span class="s0">__class__</span><span class="s1">.</span><span class="s0">__name__</span>
+                        <span class="s3">except</span><span class="s1">:</span>
+                            <span class="s3">pass</span>
+                        <span class="s3">else</span><span class="s1">:</span>
+                            <span class="s3">if </span><span class="s0">className </span><span class="s1">== </span><span class="s2">'method-wrapper'</span><span class="s1">:</span>
+                                <span class="s3">continue</span>
+                        <span class="s0">attrName2obj</span><span class="s1">[</span><span class="s0">attrName</span><span class="s1">] = </span><span class="s0">attr</span>
+                <span class="s3">if </span><span class="s0">len</span><span class="s1">(</span><span class="s0">attrName2obj</span><span class="s1">):</span>
+                    <span class="s5"># show them in alphabetical order</span>
+                    <span class="s0">attrNames </span><span class="s1">= </span><span class="s0">list</span><span class="s1">(</span><span class="s0">attrName2obj</span><span class="s1">.</span><span class="s0">keys</span><span class="s1">())</span>
+                    <span class="s0">attrNames</span><span class="s1">.</span><span class="s0">sort</span><span class="s1">()</span>
+                    <span class="s5"># push them in reverse order so they'll be popped in the correct order</span>
+                    <span class="s0">attrNames</span><span class="s1">.</span><span class="s0">reverse</span><span class="s1">()</span>
+                    <span class="s0">ids </span><span class="s1">= </span><span class="s0">set</span><span class="s1">(</span><span class="s0">traversedIds</span><span class="s1">)</span>
+                    <span class="s0">ids</span><span class="s1">.</span><span class="s0">add</span><span class="s1">(</span><span class="s0">id</span><span class="s1">(</span><span class="s0">obj</span><span class="s1">))</span>
+                    <span class="s3">for </span><span class="s0">attrName </span><span class="s3">in </span><span class="s0">attrNames</span><span class="s1">:</span>
+                        <span class="s0">obj </span><span class="s1">= </span><span class="s0">attrName2obj</span><span class="s1">[</span><span class="s0">attrName</span><span class="s1">]</span>
+                        <span class="s0">stateStack</span><span class="s1">.</span><span class="s0">push</span><span class="s1">([</span><span class="s2">'%s.%s' </span><span class="s1">% (</span><span class="s0">name</span><span class="s1">, </span><span class="s0">attrName</span><span class="s1">), </span><span class="s0">obj</span><span class="s1">, </span><span class="s0">ids</span><span class="s1">])</span>
+
+        <span class="s0">tb </span><span class="s1">= </span><span class="s0">tb</span><span class="s1">.</span><span class="s0">tb_next</span>
+
+    <span class="s3">if </span><span class="s0">foundRun</span><span class="s1">:</span>
+        <span class="s0">s </span><span class="s1">+= </span><span class="s2">'</span><span class="s3">\n</span><span class="s2">'</span>
+        <span class="s3">if </span><span class="s0">wantStackDumpLog</span><span class="s1">:</span>
+            <span class="s0">notify</span><span class="s1">.</span><span class="s0">info</span><span class="s1">(</span><span class="s0">s</span><span class="s1">)</span>
+        <span class="s3">if </span><span class="s0">wantStackDumpUpload</span><span class="s1">:</span>
+            <span class="s0">excStrs </span><span class="s1">= </span><span class="s0">traceback</span><span class="s1">.</span><span class="s0">format_exception</span><span class="s1">(</span><span class="s0">eType</span><span class="s1">, </span><span class="s0">eValue</span><span class="s1">, </span><span class="s0">origTb</span><span class="s1">)</span>
+            <span class="s3">for </span><span class="s0">excStr </span><span class="s3">in </span><span class="s0">excStrs</span><span class="s1">:</span>
+                <span class="s0">s </span><span class="s1">+= </span><span class="s0">excStr</span>
+            <span class="s0">timeMgr </span><span class="s1">= </span><span class="s3">None</span>
+            <span class="s3">try</span><span class="s1">:</span>
+                <span class="s0">timeMgr </span><span class="s1">= </span><span class="s0">base</span><span class="s1">.</span><span class="s0">cr</span><span class="s1">.</span><span class="s0">timeManager</span>
+            <span class="s3">except</span><span class="s1">:</span>
+                <span class="s3">try</span><span class="s1">:</span>
+                    <span class="s0">timeMgr </span><span class="s1">= </span><span class="s0">simbase</span><span class="s1">.</span><span class="s0">air</span><span class="s1">.</span><span class="s0">timeManager</span>
+                <span class="s3">except</span><span class="s1">:</span>
+                    <span class="s3">pass</span>
+            <span class="s3">if </span><span class="s0">timeMgr</span><span class="s1">:</span>
+                <span class="s0">timeMgr</span><span class="s1">.</span><span class="s0">setStackDump</span><span class="s1">(</span><span class="s0">s</span><span class="s1">)</span>
+
+    <span class="s0">oldExcepthook</span><span class="s1">(</span><span class="s0">eType</span><span class="s1">, </span><span class="s0">eValue</span><span class="s1">, </span><span class="s0">origTb</span><span class="s1">)</span>
+
+<span class="s3">def </span><span class="s0">install</span><span class="s1">(</span><span class="s0">log</span><span class="s1">, </span><span class="s0">upload</span><span class="s1">):</span>
+    <span class="s6">&quot;&quot;&quot;Installs the exception hook.&quot;&quot;&quot;</span>
+    <span class="s3">global </span><span class="s0">oldExcepthook</span>
+    <span class="s3">global </span><span class="s0">wantStackDumpLog</span>
+    <span class="s3">global </span><span class="s0">wantStackDumpUpload</span>
+    <span class="s3">global </span><span class="s0">dumpOnExceptionInit</span>
+
+    <span class="s0">wantStackDumpLog </span><span class="s1">= </span><span class="s0">log</span>
+    <span class="s0">wantStackDumpUpload </span><span class="s1">= </span><span class="s0">upload</span>
+
+    <span class="s0">dumpOnExceptionInit </span><span class="s1">= </span><span class="s0">ConfigVariableBool</span><span class="s1">(</span><span class="s2">'variable-dump-on-exception-init'</span><span class="s1">, </span><span class="s3">False</span><span class="s1">)</span>
+    <span class="s3">if </span><span class="s0">dumpOnExceptionInit</span><span class="s1">:</span>
+        <span class="s5"># this mode doesn't completely work because exception objects</span>
+        <span class="s5"># thrown by the interpreter don't get created until the</span>
+        <span class="s5"># stack has been unwound and an except block has been reached</span>
+        <span class="s3">if not </span><span class="s0">hasattr</span><span class="s1">(</span><span class="s0">Exception</span><span class="s1">, </span><span class="s2">'_moved__init__'</span><span class="s1">):</span>
+            <span class="s0">Exception</span><span class="s1">.</span><span class="s0">_moved__init__ </span><span class="s1">= </span><span class="s0">Exception</span><span class="s1">.</span><span class="s0">__init__</span>
+            <span class="s0">Exception</span><span class="s1">.</span><span class="s0">__init__ </span><span class="s1">= </span><span class="s0">_varDump__init__</span>
+    <span class="s3">else</span><span class="s1">:</span>
+        <span class="s3">if </span><span class="s0">sys</span><span class="s1">.</span><span class="s0">excepthook </span><span class="s3">is not </span><span class="s0">_excepthookDumpVars</span><span class="s1">:</span>
+            <span class="s0">oldExcepthook </span><span class="s1">= </span><span class="s0">sys</span><span class="s1">.</span><span class="s0">excepthook</span>
+            <span class="s0">sys</span><span class="s1">.</span><span class="s0">excepthook </span><span class="s1">= </span><span class="s0">_excepthookDumpVars</span>
+</pre>
+</body>
+</html>

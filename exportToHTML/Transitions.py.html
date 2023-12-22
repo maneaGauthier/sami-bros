@@ -1,0 +1,542 @@
+<html>
+<head>
+<title>Transitions.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Transitions.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This module defines various transition effects that can be used to 
+graphically transition between two scenes, such as by fading the screen to 
+a particular color.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Transitions'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">ShowBaseGlobal</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">gui</span><span class="s2">.</span><span class="s1">DirectGui </span><span class="s4">import </span><span class="s1">DirectFrame</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">gui </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">interval</span><span class="s2">.</span><span class="s1">LerpInterval </span><span class="s4">import </span><span class="s1">LerpColorScaleInterval</span><span class="s2">, </span><span class="s1">LerpColorInterval</span><span class="s2">, </span><span class="s1">LerpScaleInterval</span><span class="s2">, </span><span class="s1">LerpPosInterval</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">interval</span><span class="s2">.</span><span class="s1">MetaInterval </span><span class="s4">import </span><span class="s1">Sequence</span><span class="s2">, </span><span class="s1">Parallel</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">interval</span><span class="s2">.</span><span class="s1">FunctionInterval </span><span class="s4">import </span><span class="s1">Func</span>
+
+<span class="s4">class </span><span class="s1">Transitions</span><span class="s2">:</span>
+
+    <span class="s5"># These may be reassigned before the fade or iris transitions are</span>
+    <span class="s5"># actually invoked to change the models that will be used.</span>
+    <span class="s1">IrisModelName </span><span class="s2">= </span><span class="s3">&quot;models/misc/iris&quot;</span>
+    <span class="s1">FadeModelName </span><span class="s2">= </span><span class="s3">&quot;models/misc/fade&quot;</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">loader</span><span class="s2">,</span>
+                 <span class="s1">model</span><span class="s2">=</span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">scale</span><span class="s2">=</span><span class="s6">3.0</span><span class="s2">,</span>
+                 <span class="s1">pos</span><span class="s2">=</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">iris </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel </span><span class="s2">= </span><span class="s1">model</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">imagePos </span><span class="s2">= </span><span class="s1">pos</span>
+        <span class="s4">if </span><span class="s1">model</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOff </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">model</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lerpFunc </span><span class="s2">= </span><span class="s1">LerpColorScaleInterval</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOff </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lerpFunc </span><span class="s2">= </span><span class="s1">LerpColorInterval</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">irisTaskName </span><span class="s2">= </span><span class="s3">&quot;irisTask&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fadeTaskName </span><span class="s2">= </span><span class="s3">&quot;fadeTask&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTaskName </span><span class="s2">= </span><span class="s3">&quot;letterboxTask&quot;</span>
+
+    <span class="s4">def </span><span class="s1">__del__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s5">##################################################</span>
+    <span class="s5"># Fade</span>
+    <span class="s5">##################################################</span>
+
+    <span class="s5"># We can set a custom model for the fade before using it for the first time</span>
+    <span class="s4">def </span><span class="s1">setFadeModel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">model</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s6">1.0</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel </span><span class="s2">= </span><span class="s1">model</span>
+        <span class="s5"># We have to change some default parameters for a custom fadeModel</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+
+        <span class="s5"># Reload fade if its already been created</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">loadFade</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s5"># We create a DirectFrame for the fade polygon, instead of</span>
+            <span class="s5"># simply loading the polygon model and using it directly,</span>
+            <span class="s5"># so that it will also obscure mouse events for objects</span>
+            <span class="s5"># positioned behind it.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s2">= </span><span class="s1">DirectFrame</span><span class="s2">(</span>
+                <span class="s1">parent </span><span class="s2">= </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">hidden</span><span class="s2">,</span>
+                <span class="s1">guiId </span><span class="s2">= </span><span class="s3">'fade'</span><span class="s2">,</span>
+                <span class="s1">relief </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel</span><span class="s2">,</span>
+                <span class="s1">image_scale </span><span class="s2">= (</span><span class="s6">4</span><span class="s2">, </span><span class="s6">2</span><span class="s2">, </span><span class="s6">2</span><span class="s2">),</span>
+                <span class="s1">state </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">,</span>
+                <span class="s2">)</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fadeModel</span><span class="s2">:</span>
+                <span class="s5"># No fade model was given, so we make this the fade model.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">[</span><span class="s3">&quot;relief&quot;</span><span class="s2">] = </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FLAT</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">[</span><span class="s3">&quot;frameSize&quot;</span><span class="s2">] = (-</span><span class="s6">2</span><span class="s2">, </span><span class="s6">2</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">[</span><span class="s3">&quot;frameColor&quot;</span><span class="s2">] = (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s1">TransparencyAttrib</span><span class="s2">.</span><span class="s1">MAlpha</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'unsorted'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s6">0</span><span class="s2">,</span><span class="s6">0</span><span class="s2">,</span><span class="s6">0</span><span class="s2">,</span><span class="s6">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">max</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">a2dRight</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">a2dTop</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">getFadeInIval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Returns an interval without starting it.  This is particularly useful in 
+        cutscenes, so when the cutsceneIval is escaped out of we can finish the fade immediately 
+        &quot;&quot;&quot;</span>
+        <span class="s5">#self.noTransitions() masad: this creates a one frame pop, is it necessary?</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+
+        <span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">, </span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">),</span>
+                                  <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">showThrough</span><span class="s2">),  </span><span class="s5"># in case aspect2d is hidden for some reason</span>
+                                  <span class="s1">self</span><span class="s2">.</span><span class="s1">lerpFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">, </span><span class="s1">t</span><span class="s2">,</span>
+                                                <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOff</span><span class="s2">,</span>
+                                                <span class="s5"># self.alphaOn,</span>
+                                                <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span>
+                                                <span class="s2">),</span>
+                                  <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">),</span>
+                                  <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fadeTaskName</span><span class="s2">,</span>
+                                  <span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+            <span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">finishIval</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">transitionIval</span>
+
+    <span class="s4">def </span><span class="s1">getFadeOutIval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Create a sequence that lerps the color out, then 
+        parents the fade to hidden 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+
+        <span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">, </span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">),</span>
+                                  <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">showThrough</span><span class="s2">),  </span><span class="s5"># in case aspect2d is hidden for some reason</span>
+                                  <span class="s1">self</span><span class="s2">.</span><span class="s1">lerpFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">, </span><span class="s1">t</span><span class="s2">,</span>
+                                                <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn</span><span class="s2">,</span>
+                                                <span class="s5"># self.alphaOff,</span>
+                                                <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span>
+                                                <span class="s2">),</span>
+                                  <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fadeTaskName</span><span class="s2">,</span>
+                                  <span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+            <span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">finishIval</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">transitionIval</span>
+
+    <span class="s4">def </span><span class="s1">fadeIn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Play a fade in transition over t seconds. 
+        Places a polygon on the aspect2d plane then lerps the color 
+        from black to transparent. When the color lerp is finished, it 
+        parents the fade polygon to hidden. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">gsg </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">getGsg</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">gsg</span><span class="s2">:</span>
+            <span class="s5"># If we're about to fade in from black, go ahead and</span>
+            <span class="s5"># preload all the textures etc.</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">graphicsEngine</span><span class="s2">.</span><span class="s1">renderFrame</span><span class="s2">()</span>
+            <span class="s1">render</span><span class="s2">.</span><span class="s1">prepareScene</span><span class="s2">(</span><span class="s1">gsg</span><span class="s2">)</span>
+            <span class="s1">render2d</span><span class="s2">.</span><span class="s1">prepareScene</span><span class="s2">(</span><span class="s1">gsg</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s5"># Fade in immediately with no lerp</span>
+            <span class="s5">#print &quot;transitiosn: fadeIn 0.0&quot;</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+            <span class="s1">fut </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">fut</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">fut</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Create a sequence that lerps the color out, then</span>
+            <span class="s5"># parents the fade to hidden</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getFadeInIval</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finishTransition</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span>
+
+    <span class="s4">def </span><span class="s1">fadeOut</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Play a fade out transition over t seconds. 
+        Places a polygon on the aspect2d plane then lerps the color 
+        from transparent to full black. When the color lerp is finished, 
+        it leaves the fade polygon covering the aspect2d plane until you 
+        fadeIn or call noFade. 
+        lerp 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s5"># Fade out immediately with no lerp</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'no-loading-screen'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">finishIval</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Create a sequence that lerps the color out, then</span>
+            <span class="s5"># parents the fade to hidden</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getFadeOutIval</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finishTransition</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span>
+
+        <span class="s5"># Immediately done, so return a dummy future.</span>
+        <span class="s1">fut </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+        <span class="s1">fut</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">fut</span>
+
+    <span class="s4">def </span><span class="s1">fadeOutActive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">getColor</span><span class="s2">()[</span><span class="s6">3</span><span class="s2">] &gt; </span><span class="s6">0</span>
+
+    <span class="s4">def </span><span class="s1">fadeScreen</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">alpha</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Put a semitransparent screen over the camera plane 
+        to darken out the world. Useful for drawing attention to 
+        a dialog box for instance 
+        &quot;&quot;&quot;</span>
+        <span class="s5">#print &quot;transitiosn: fadeScreen&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn</span><span class="s2">[</span><span class="s6">1</span><span class="s2">],</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn</span><span class="s2">[</span><span class="s6">2</span><span class="s2">],</span>
+                           <span class="s1">alpha</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">fadeScreenColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">color</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Put a semitransparent screen over the camera plane 
+        to darken out the world. Useful for drawing attention to 
+        a dialog box for instance 
+        &quot;&quot;&quot;</span>
+        <span class="s5">#print &quot;transitiosn: fadeScreenColor&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">color</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">noFade</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Removes any current fade tasks and parents the fade polygon away 
+        &quot;&quot;&quot;</span>
+        <span class="s5">#print &quot;transitiosn: noFade&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">:</span>
+            <span class="s5"># Make sure to reset the color, since fadeOutActive() is looking at it</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOff</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fade</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setFadeColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOn</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">alphaOff</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">r</span><span class="s2">, </span><span class="s1">g</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+
+    <span class="s5">##################################################</span>
+    <span class="s5"># Iris</span>
+    <span class="s5">##################################################</span>
+
+    <span class="s4">def </span><span class="s1">loadIris</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iris </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">IrisModelName</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">irisIn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType </span><span class="s2">= </span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Play an iris in transition over t seconds. 
+        Places a polygon on the aspect2d plane then lerps the scale 
+        of the iris polygon up so it looks like we iris in. When the 
+        scale lerp is finished, it parents the iris polygon to hidden. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadIris</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+            <span class="s1">fut </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">fut</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">fut</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">)</span>
+
+            <span class="s1">scale </span><span class="s2">= </span><span class="s6">0.18 </span><span class="s2">* </span><span class="s1">max</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">a2dRight</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">a2dTop</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">LerpScaleInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">, </span><span class="s1">t</span><span class="s2">,</span>
+                                                   <span class="s1">scale </span><span class="s2">= </span><span class="s1">scale</span><span class="s2">,</span>
+                                                   <span class="s1">startScale </span><span class="s2">= </span><span class="s6">0.01</span><span class="s2">,</span>
+                                                   <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span><span class="s2">),</span>
+                                 <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">),</span>
+                                 <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finishTransition</span><span class="s2">),</span>
+                                 <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">irisTaskName</span><span class="s2">,</span>
+                                 <span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">finishIval</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span>
+
+    <span class="s4">def </span><span class="s1">irisOut</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.5</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Play an iris out transition over t seconds. 
+        Places a polygon on the aspect2d plane then lerps the scale 
+        of the iris down so it looks like we iris out. When the scale 
+        lerp is finished, it leaves the iris polygon covering the 
+        aspect2d plane until you irisIn or call noIris. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noTransitions</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadIris</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadFade</span><span class="s2">()  </span><span class="s5"># we need this to cover up the hole.</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fadeOut</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">fut </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">fut</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">fut</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">aspect2d</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FADE_SORT_INDEX</span><span class="s2">)</span>
+
+            <span class="s1">scale </span><span class="s2">= </span><span class="s6">0.18 </span><span class="s2">* </span><span class="s1">max</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">a2dRight</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">a2dTop</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">LerpScaleInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">, </span><span class="s1">t</span><span class="s2">,</span>
+                                                   <span class="s1">scale </span><span class="s2">= </span><span class="s6">0.01</span><span class="s2">,</span>
+                                                   <span class="s1">startScale </span><span class="s2">= </span><span class="s1">scale</span><span class="s2">,</span>
+                                                   <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span><span class="s2">),</span>
+                                 <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">),</span>
+                                 <span class="s5"># Use the fade to cover up the hole that the iris would leave</span>
+                                 <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">fadeOut</span><span class="s2">, </span><span class="s6">0</span><span class="s2">),</span>
+                                 <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finishTransition</span><span class="s2">),</span>
+                                 <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">irisTaskName</span><span class="s2">,</span>
+                                 <span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">finishIval</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span>
+
+    <span class="s4">def </span><span class="s1">noIris</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Removes any current iris tasks and parents the iris polygon away 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">transitionIval </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">iris </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">iris</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+        <span class="s5"># Actually we need to remove the fade too,</span>
+        <span class="s5"># because the iris effect uses it.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noFade</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">noTransitions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        This call should immediately remove any and all transitions running 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noFade</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noIris</span><span class="s2">()</span>
+        <span class="s5"># Letterbox is not really a transition, it is a screen overlay</span>
+        <span class="s5"># self.noLetterbox()</span>
+
+    <span class="s4">def </span><span class="s1">__finishTransition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transitionFuture </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s5">##################################################</span>
+    <span class="s5"># Letterbox</span>
+    <span class="s5">##################################################</span>
+
+    <span class="s4">def </span><span class="s1">loadLetterbox</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">:</span>
+            <span class="s5"># We create a DirectFrame for the fade polygon, instead of</span>
+            <span class="s5"># simply loading the polygon model and using it directly,</span>
+            <span class="s5"># so that it will also obscure mouse events for objects</span>
+            <span class="s5"># positioned behind it.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s3">&quot;letterbox&quot;</span><span class="s2">)</span>
+            <span class="s5"># Allow fade in and out of the bars</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s6">1</span><span class="s2">)</span>
+
+            <span class="s5"># Allow DirectLabels to be parented to the letterbox sensibly</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'unsorted'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+
+            <span class="s5"># Allow a custom look to the letterbox graphic.</span>
+
+            <span class="s5"># TODO: This model isn't available everywhere.  We should</span>
+            <span class="s5"># pass it in as a parameter.</span>
+            <span class="s1">button </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s3">'models/gui/toplevel_gui'</span><span class="s2">,</span>
+                                      <span class="s1">okMissing </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+            <span class="s1">barImage </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">if </span><span class="s1">button</span><span class="s2">:</span>
+                <span class="s1">barImage </span><span class="s2">= </span><span class="s1">button</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'**/generic_button'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTop </span><span class="s2">= </span><span class="s1">DirectFrame</span><span class="s2">(</span>
+                <span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">,</span>
+                <span class="s1">guiId </span><span class="s2">= </span><span class="s3">'letterboxTop'</span><span class="s2">,</span>
+                <span class="s1">relief </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FLAT</span><span class="s2">,</span>
+                <span class="s1">state </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">,</span>
+                <span class="s1">frameColor </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">1</span><span class="s2">),</span>
+                <span class="s1">borderWidth </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">),</span>
+                <span class="s1">frameSize </span><span class="s2">= (-</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0.2</span><span class="s2">),</span>
+                <span class="s1">pos </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">1.0</span><span class="s2">),</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">barImage</span><span class="s2">,</span>
+                <span class="s1">image_scale </span><span class="s2">= (</span><span class="s6">2.25</span><span class="s2">,</span><span class="s6">1</span><span class="s2">,</span><span class="s6">.5</span><span class="s2">),</span>
+                <span class="s1">image_pos </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">,</span><span class="s6">0</span><span class="s2">,</span><span class="s6">.1</span><span class="s2">),</span>
+                <span class="s1">image_color </span><span class="s2">= (</span><span class="s6">0.3</span><span class="s2">,</span><span class="s6">0.3</span><span class="s2">,</span><span class="s6">0.3</span><span class="s2">,</span><span class="s6">1</span><span class="s2">),</span>
+                <span class="s1">sortOrder </span><span class="s2">= </span><span class="s6">0</span><span class="s2">,</span>
+                <span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxBottom </span><span class="s2">= </span><span class="s1">DirectFrame</span><span class="s2">(</span>
+                <span class="s1">parent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">,</span>
+                <span class="s1">guiId </span><span class="s2">= </span><span class="s3">'letterboxBottom'</span><span class="s2">,</span>
+                <span class="s1">relief </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FLAT</span><span class="s2">,</span>
+                <span class="s1">state </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">,</span>
+                <span class="s1">frameColor </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">1</span><span class="s2">),</span>
+                <span class="s1">borderWidth </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">),</span>
+                <span class="s1">frameSize </span><span class="s2">= (-</span><span class="s6">1</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0.2</span><span class="s2">),</span>
+                <span class="s1">pos </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s6">1.2</span><span class="s2">),</span>
+                <span class="s1">image </span><span class="s2">= </span><span class="s1">barImage</span><span class="s2">,</span>
+                <span class="s1">image_scale </span><span class="s2">= (</span><span class="s6">2.25</span><span class="s2">,</span><span class="s6">1</span><span class="s2">,</span><span class="s6">.5</span><span class="s2">),</span>
+                <span class="s1">image_pos </span><span class="s2">= (</span><span class="s6">0</span><span class="s2">,</span><span class="s6">0</span><span class="s2">,</span><span class="s6">.1</span><span class="s2">),</span>
+                <span class="s1">image_color </span><span class="s2">= (</span><span class="s6">0.3</span><span class="s2">,</span><span class="s6">0.3</span><span class="s2">,</span><span class="s6">0.3</span><span class="s2">,</span><span class="s6">1</span><span class="s2">),</span>
+                <span class="s1">sortOrder </span><span class="s2">= </span><span class="s6">0</span><span class="s2">,</span>
+                <span class="s2">)</span>
+
+            <span class="s5"># masad: always place these at the bottom of render</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTop</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'sorted'</span><span class="s2">,</span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxBottom</span><span class="s2">.</span><span class="s1">setBin</span><span class="s2">(</span><span class="s3">'sorted'</span><span class="s2">,</span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render2d</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxOff</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">noLetterbox</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Removes any current letterbox tasks and parents the letterbox polygon away 
+        &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval</span><span class="s2">.</span><span class="s1">pause</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture</span><span class="s2">.</span><span class="s1">cancel</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__finishLetterbox</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s4">def </span><span class="s1">letterboxOn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.25</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Move black bars in over t seconds. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noLetterbox</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadLetterbox</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">unstash</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxBottom</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTop</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0.8</span><span class="s2">)</span>
+            <span class="s1">fut </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">fut</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">fut</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">Parallel</span><span class="s2">(</span>
+                <span class="s1">LerpPosInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxBottom</span><span class="s2">,</span>
+                                <span class="s1">t</span><span class="s2">,</span>
+                                <span class="s1">pos </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s6">1</span><span class="s2">),</span>
+                                <span class="s5">#startPos = Vec3(0, 0, -1.2),</span>
+                                <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span>
+                                <span class="s2">),</span>
+                <span class="s1">LerpPosInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTop</span><span class="s2">,</span>
+                                <span class="s1">t</span><span class="s2">,</span>
+                                <span class="s1">pos </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0.8</span><span class="s2">),</span>
+                                <span class="s5"># startPos = Vec3(0, 0, 1),</span>
+                                <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span>
+                                <span class="s2">),</span>
+                <span class="s2">),</span>
+                                          <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finishLetterbox</span><span class="s2">),</span>
+                                          <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTaskName</span><span class="s2">,</span>
+                                          <span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">finishIval</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture</span>
+
+    <span class="s4">def </span><span class="s1">letterboxOff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">=</span><span class="s6">0.25</span><span class="s2">, </span><span class="s1">finishIval</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">=</span><span class="s3">'noBlend'</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Move black bars away over t seconds. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noLetterbox</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loadLetterbox</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">unstash</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">()</span>
+            <span class="s1">fut </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">fut</span><span class="s2">.</span><span class="s1">setResult</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">fut</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture </span><span class="s2">= </span><span class="s1">AsyncFuture</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">Parallel</span><span class="s2">(</span>
+                <span class="s1">LerpPosInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxBottom</span><span class="s2">,</span>
+                                <span class="s1">t</span><span class="s2">,</span>
+                                <span class="s1">pos </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s6">1.2</span><span class="s2">),</span>
+                                <span class="s5"># startPos = Vec3(0, 0, -1),</span>
+                                <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span>
+                                <span class="s2">),</span>
+                <span class="s1">LerpPosInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTop</span><span class="s2">,</span>
+                                <span class="s1">t</span><span class="s2">,</span>
+                                <span class="s1">pos </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">1</span><span class="s2">),</span>
+                                <span class="s5"># startPos = Vec3(0, 0, 0.8),</span>
+                                <span class="s1">blendType</span><span class="s2">=</span><span class="s1">blendType</span>
+                                <span class="s2">),</span>
+                <span class="s2">),</span>
+                                          <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterbox</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">),</span>
+                                          <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finishLetterbox</span><span class="s2">),</span>
+                                          <span class="s1">Func</span><span class="s2">(</span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">,</span><span class="s3">'letterboxOff'</span><span class="s2">),</span>
+                                          <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxTaskName</span><span class="s2">,</span>
+                                          <span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">finishIval</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">finishIval</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">letterboxIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__letterboxFuture</span>
+</pre>
+</body>
+</html>

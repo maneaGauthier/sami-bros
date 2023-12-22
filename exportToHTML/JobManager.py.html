@@ -1,0 +1,263 @@
+<html>
+<head>
+<title>JobManager.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+JobManager.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s0">import </span><span class="s1">taskMgr</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">Job </span><span class="s0">import </span><span class="s1">Job</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s0">import </span><span class="s1">getBase</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">MessengerGlobal </span><span class="s0">import </span><span class="s1">messenger</span>
+
+
+<span class="s0">class </span><span class="s1">JobManager</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; 
+    Similar to the taskMgr but designed for tasks that are CPU-intensive and/or 
+    not time-critical. Jobs run in a fixed timeslice that the JobManager is 
+    allotted each frame. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;JobManager&quot;</span><span class="s2">)</span>
+
+    <span class="s5"># there's one task for the JobManager, all jobs run in this task</span>
+    <span class="s1">TaskName </span><span class="s2">= </span><span class="s4">'jobManager'</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">timeslice</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s5"># how long do we run per frame</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_timeslice </span><span class="s2">= </span><span class="s1">timeslice</span>
+        <span class="s5"># store the jobs in these structures to allow fast lookup by various keys</span>
+        <span class="s5"># priority -&gt; jobId -&gt; job</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job </span><span class="s2">= {}</span>
+        <span class="s5"># priority -&gt; chronological list of jobIds</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobIds </span><span class="s2">= {}</span>
+        <span class="s5"># jobId -&gt; priority</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri </span><span class="s2">= {}</span>
+        <span class="s5"># how many timeslices to give each job; this is used to efficiently implement</span>
+        <span class="s5"># the relative job priorities</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2timeslices </span><span class="s2">= {}</span>
+        <span class="s5"># how much time did the job use beyond the allotted timeslice, used to balance</span>
+        <span class="s5"># out CPU usage</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2overflowTime </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_useOverflowTime </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s5"># this is a generator that we use to give high-priority jobs more timeslices,</span>
+        <span class="s5"># it yields jobIds in a sequence that includes high-priority jobIds more often</span>
+        <span class="s5"># than low-priority</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobIdGenerator </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority </span><span class="s2">= </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Priorities</span><span class="s2">.</span><span class="s1">Normal</span>
+
+    <span class="s0">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">JobManager</span><span class="s2">.</span><span class="s1">TaskName</span><span class="s2">)</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span>
+
+    <span class="s0">def </span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">job</span><span class="s2">):</span>
+        <span class="s1">pri </span><span class="s2">= </span><span class="s1">job</span><span class="s2">.</span><span class="s1">getPriority</span><span class="s2">()</span>
+        <span class="s1">jobId </span><span class="s2">= </span><span class="s1">job</span><span class="s2">.</span><span class="s1">_getJobId</span><span class="s2">()</span>
+        <span class="s5"># store the job in the main table</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">pri</span><span class="s2">, {})</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">][</span><span class="s1">jobId</span><span class="s2">] = </span><span class="s1">job</span>
+        <span class="s5"># and also store a direct mapping from the job's ID to its priority</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">] = </span><span class="s1">pri</span>
+        <span class="s5"># add the jobId onto the end of the list of jobIds for this priority</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobIds</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">pri</span><span class="s2">, [])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobIds</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">].</span><span class="s1">append</span><span class="s2">(</span><span class="s1">jobId</span><span class="s2">)</span>
+        <span class="s5"># record the job's relative timeslice count</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2timeslices</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">] = </span><span class="s1">pri</span>
+        <span class="s5"># init the overflow time tracking</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2overflowTime</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">] = </span><span class="s6">0.</span>
+        <span class="s5"># reset the jobId round-robin</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobIdGenerator </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri</span><span class="s2">) == </span><span class="s6">1</span><span class="s2">:</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_process</span><span class="s2">, </span><span class="s1">JobManager</span><span class="s2">.</span><span class="s1">TaskName</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority </span><span class="s2">= </span><span class="s1">pri</span>
+        <span class="s0">elif </span><span class="s1">pri </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority </span><span class="s2">= </span><span class="s1">pri</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'added job: %s' </span><span class="s2">% </span><span class="s1">job</span><span class="s2">.</span><span class="s1">getJobName</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">job</span><span class="s2">):</span>
+        <span class="s1">jobId </span><span class="s2">= </span><span class="s1">job</span><span class="s2">.</span><span class="s1">_getJobId</span><span class="s2">()</span>
+        <span class="s5"># look up the job's priority</span>
+        <span class="s1">pri </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">jobId</span><span class="s2">)</span>
+        <span class="s5"># TODO: this removal is a linear search</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobIds</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">].</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">jobId</span><span class="s2">)</span>
+        <span class="s5"># remove the job from the main table</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">][</span><span class="s1">jobId</span><span class="s2">]</span>
+        <span class="s5"># clean up the job's generator, if any</span>
+        <span class="s1">job</span><span class="s2">.</span><span class="s1">_cleanupGenerator</span><span class="s2">()</span>
+        <span class="s5"># remove the job's timeslice count</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2timeslices</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">jobId</span><span class="s2">)</span>
+        <span class="s5"># remove the overflow time</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2overflowTime</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">jobId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">]) == </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">]</span>
+            <span class="s0">if </span><span class="s1">pri </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri</span><span class="s2">) &gt; </span><span class="s6">0</span><span class="s2">:</span>
+                    <span class="s5"># calculate a new highest priority</span>
+                    <span class="s5"># TODO: this is not very fast</span>
+                    <span class="s1">priorities </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getSortedPriorities</span><span class="s2">()</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority </span><span class="s2">= </span><span class="s1">priorities</span><span class="s2">[-</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">JobManager</span><span class="s2">.</span><span class="s1">TaskName</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_highestPriority </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'removed job: %s' </span><span class="s2">% </span><span class="s1">job</span><span class="s2">.</span><span class="s1">getJobName</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">finish</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">job</span><span class="s2">):</span>
+        <span class="s5"># run this job, right now, until it finishes</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s1">jobId </span><span class="s2">= </span><span class="s1">job</span><span class="s2">.</span><span class="s1">_getJobId</span><span class="s2">()</span>
+        <span class="s5"># look up the job's priority</span>
+        <span class="s1">pri </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">]</span>
+        <span class="s5"># grab the job</span>
+        <span class="s1">job </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">][</span><span class="s1">jobId</span><span class="s2">]</span>
+        <span class="s1">gen </span><span class="s2">= </span><span class="s1">job</span><span class="s2">.</span><span class="s1">_getGenerator</span><span class="s2">()</span>
+        <span class="s0">if __debug__</span><span class="s2">:</span>
+            <span class="s1">job</span><span class="s2">.</span><span class="s1">_pstats</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+        <span class="s1">job</span><span class="s2">.</span><span class="s1">resume</span><span class="s2">()</span>
+        <span class="s0">while True</span><span class="s2">:</span>
+            <span class="s0">try</span><span class="s2">:</span>
+                <span class="s1">result </span><span class="s2">= </span><span class="s1">next</span><span class="s2">(</span><span class="s1">gen</span><span class="s2">)</span>
+            <span class="s0">except </span><span class="s1">StopIteration</span><span class="s2">:</span>
+                <span class="s5"># Job didn't yield Job.Done, it ran off the end and returned</span>
+                <span class="s5"># treat it as if it returned Job.Done</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">'job %s never yielded Job.Done' </span><span class="s2">% </span><span class="s1">job</span><span class="s2">)</span>
+                <span class="s1">result </span><span class="s2">= </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Done</span>
+            <span class="s0">if </span><span class="s1">result </span><span class="s0">is </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Done</span><span class="s2">:</span>
+                <span class="s1">job</span><span class="s2">.</span><span class="s1">suspend</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">job</span><span class="s2">)</span>
+                <span class="s1">job</span><span class="s2">.</span><span class="s1">_setFinished</span><span class="s2">()</span>
+                <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">job</span><span class="s2">.</span><span class="s1">getFinishedEvent</span><span class="s2">())</span>
+                <span class="s5"># job is done.</span>
+                <span class="s0">break</span>
+        <span class="s0">if __debug__</span><span class="s2">:</span>
+            <span class="s1">job</span><span class="s2">.</span><span class="s1">_pstats</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+    <span class="s5"># how long should we run per frame?</span>
+    <span class="s2">@</span><span class="s1">staticmethod</span>
+    <span class="s0">def </span><span class="s1">getDefaultTimeslice</span><span class="s2">():</span>
+        <span class="s5"># run for 1/2 millisecond per frame by default</span>
+        <span class="s5"># config is in milliseconds, this func returns value in seconds</span>
+        <span class="s0">return </span><span class="s1">getBase</span><span class="s2">().</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetFloat</span><span class="s2">(</span><span class="s4">'job-manager-timeslice-ms'</span><span class="s2">, </span><span class="s6">.5</span><span class="s2">) / </span><span class="s6">1000.</span>
+    <span class="s0">def </span><span class="s1">getTimeslice</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_timeslice</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_timeslice</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDefaultTimeslice</span><span class="s2">()</span>
+    <span class="s0">def </span><span class="s1">setTimeslice</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">timeslice</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_timeslice </span><span class="s2">= </span><span class="s1">timeslice</span>
+
+    <span class="s0">def </span><span class="s1">_getSortedPriorities</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># returns all job priorities in ascending order</span>
+        <span class="s1">priorities </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">priorities</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s0">return </span><span class="s1">priorities</span>
+
+    <span class="s0">def </span><span class="s1">_process</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_useOverflowTime </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_useOverflowTime </span><span class="s2">= </span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s4">'job-use-overflow-time'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">):</span>
+            <span class="s5">#assert self.notify.debugCall()</span>
+            <span class="s5"># figure out how long we can run</span>
+            <span class="s1">endT </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">() + (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getTimeslice</span><span class="s2">() * </span><span class="s6">.9</span><span class="s2">)</span>
+            <span class="s0">while True</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobIdGenerator </span><span class="s0">is None</span><span class="s2">:</span>
+                    <span class="s5"># round-robin the jobs, giving high-priority jobs more timeslices</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobIdGenerator </span><span class="s2">= </span><span class="s1">flywheel</span><span class="s2">(</span>
+                        <span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2timeslices</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()),</span>
+                        <span class="s1">countFunc </span><span class="s2">= </span><span class="s0">lambda </span><span class="s1">jobId</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2timeslices</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">])</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s5"># grab the next jobId in the sequence</span>
+                    <span class="s1">jobId </span><span class="s2">= </span><span class="s1">next</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobIdGenerator</span><span class="s2">)</span>
+                <span class="s0">except </span><span class="s1">StopIteration</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobIdGenerator </span><span class="s2">= </span><span class="s0">None</span>
+                    <span class="s0">continue</span>
+                <span class="s5"># OK, we've selected a job to run</span>
+                <span class="s1">pri </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2pri</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">jobId</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">pri </span><span class="s0">is None</span><span class="s2">:</span>
+                    <span class="s5"># this job is no longer present</span>
+                    <span class="s0">continue</span>
+                <span class="s5"># check if there's overflow time that we need to make up for</span>
+                <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_useOverflowTime</span><span class="s2">:</span>
+                    <span class="s1">overflowTime </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2overflowTime</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">]</span>
+                    <span class="s1">timeLeft </span><span class="s2">= </span><span class="s1">endT </span><span class="s2">- </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">()</span>
+                    <span class="s0">if </span><span class="s1">overflowTime </span><span class="s2">&gt;= </span><span class="s1">timeLeft</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2overflowTime</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">] = </span><span class="s1">max</span><span class="s2">(</span><span class="s6">0.</span><span class="s2">, </span><span class="s1">overflowTime</span><span class="s2">-</span><span class="s1">timeLeft</span><span class="s2">)</span>
+                        <span class="s5"># don't run any more jobs this frame, this makes up</span>
+                        <span class="s5"># for the extra overflow time that was used before</span>
+                        <span class="s0">break</span>
+                <span class="s1">job </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">][</span><span class="s1">jobId</span><span class="s2">]</span>
+                <span class="s1">gen </span><span class="s2">= </span><span class="s1">job</span><span class="s2">.</span><span class="s1">_getGenerator</span><span class="s2">()</span>
+                <span class="s0">if __debug__</span><span class="s2">:</span>
+                    <span class="s1">job</span><span class="s2">.</span><span class="s1">_pstats</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+                <span class="s1">job</span><span class="s2">.</span><span class="s1">resume</span><span class="s2">()</span>
+                <span class="s0">while </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">() &lt; </span><span class="s1">endT</span><span class="s2">:</span>
+                    <span class="s0">try</span><span class="s2">:</span>
+                        <span class="s1">result </span><span class="s2">= </span><span class="s1">next</span><span class="s2">(</span><span class="s1">gen</span><span class="s2">)</span>
+                    <span class="s0">except </span><span class="s1">StopIteration</span><span class="s2">:</span>
+                        <span class="s5"># Job didn't yield Job.Done, it ran off the end and returned</span>
+                        <span class="s5"># treat it as if it returned Job.Done</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">'job %s never yielded Job.Done' </span><span class="s2">% </span><span class="s1">job</span><span class="s2">)</span>
+                        <span class="s1">result </span><span class="s2">= </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Done</span>
+
+                    <span class="s0">if </span><span class="s1">result </span><span class="s0">is </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Sleep</span><span class="s2">:</span>
+                        <span class="s1">job</span><span class="s2">.</span><span class="s1">suspend</span><span class="s2">()</span>
+                        <span class="s0">if __debug__</span><span class="s2">:</span>
+                            <span class="s1">job</span><span class="s2">.</span><span class="s1">_pstats</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                        <span class="s5"># grab the next job if there's time left</span>
+                        <span class="s0">break</span>
+                    <span class="s0">elif </span><span class="s1">result </span><span class="s0">is </span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Done</span><span class="s2">:</span>
+                        <span class="s1">job</span><span class="s2">.</span><span class="s1">suspend</span><span class="s2">()</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">job</span><span class="s2">)</span>
+                        <span class="s1">job</span><span class="s2">.</span><span class="s1">_setFinished</span><span class="s2">()</span>
+                        <span class="s0">if __debug__</span><span class="s2">:</span>
+                            <span class="s1">job</span><span class="s2">.</span><span class="s1">_pstats</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">job</span><span class="s2">.</span><span class="s1">getFinishedEvent</span><span class="s2">())</span>
+                        <span class="s5"># grab the next job if there's time left</span>
+                        <span class="s0">break</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s5"># we've run out of time</span>
+                    <span class="s5">#assert self.notify.debug('timeslice end: %s, %s' % (endT, globalClock.getRealTime()))</span>
+                    <span class="s1">job</span><span class="s2">.</span><span class="s1">suspend</span><span class="s2">()</span>
+                    <span class="s1">overflowTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">() - </span><span class="s1">endT</span>
+                    <span class="s0">if </span><span class="s1">overflowTime </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getTimeslice</span><span class="s2">():</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">_jobId2overflowTime</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">] += </span><span class="s1">overflowTime</span>
+                    <span class="s0">if __debug__</span><span class="s2">:</span>
+                        <span class="s1">job</span><span class="s2">.</span><span class="s1">_pstats</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                    <span class="s0">break</span>
+
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">:</span>
+                    <span class="s5"># there's nothing left to do, all the jobs are done!</span>
+                    <span class="s0">break</span>
+        <span class="s0">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">s  </span><span class="s2">=   </span><span class="s4">'======================================================='</span>
+        <span class="s1">s </span><span class="s2">+= </span><span class="s4">'</span><span class="s0">\n</span><span class="s4">JobManager: active jobs in descending order of priority'</span>
+        <span class="s1">s </span><span class="s2">+= </span><span class="s4">'</span><span class="s0">\n</span><span class="s4">======================================================='</span>
+        <span class="s1">pris </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_getSortedPriorities</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">pris</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">s </span><span class="s2">+= </span><span class="s4">'</span><span class="s0">\n    </span><span class="s4">no jobs running'</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">pris</span><span class="s2">.</span><span class="s1">reverse</span><span class="s2">()</span>
+            <span class="s0">for </span><span class="s1">pri </span><span class="s0">in </span><span class="s1">pris</span><span class="s2">:</span>
+                <span class="s1">jobId2job </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobId2job</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">]</span>
+                <span class="s5"># run through the jobs at this priority in the order that they will run</span>
+                <span class="s0">for </span><span class="s1">jobId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_pri2jobIds</span><span class="s2">[</span><span class="s1">pri</span><span class="s2">]:</span>
+                    <span class="s1">job </span><span class="s2">= </span><span class="s1">jobId2job</span><span class="s2">[</span><span class="s1">jobId</span><span class="s2">]</span>
+                    <span class="s1">s </span><span class="s2">+= </span><span class="s4">'</span><span class="s0">\n</span><span class="s4">%5d: %s (jobId %s)' </span><span class="s2">% (</span><span class="s1">pri</span><span class="s2">, </span><span class="s1">job</span><span class="s2">.</span><span class="s1">getJobName</span><span class="s2">(), </span><span class="s1">jobId</span><span class="s2">)</span>
+        <span class="s1">s </span><span class="s2">+= </span><span class="s4">'</span><span class="s0">\n</span><span class="s4">'</span>
+        <span class="s0">return </span><span class="s1">s</span>
+</pre>
+</body>
+</html>

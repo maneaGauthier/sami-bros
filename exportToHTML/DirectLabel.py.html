@@ -1,0 +1,70 @@
+<html>
+<head>
+<title>DirectLabel.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectLabel.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the DirectLabel class. 
+ 
+See the :ref:`directlabel` page in the programming manual for a more in-depth 
+explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectLabel'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectFrame </span><span class="s4">import </span><span class="s2">*</span>
+
+<span class="s4">class </span><span class="s1">DirectLabel</span><span class="s2">(</span><span class="s1">DirectFrame</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    DirectLabel(parent) - Create a DirectGuiWidget which has multiple 
+    states.  User explicitly chooses a state to display 
+    &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s5"># A Direct Frame can have:</span>
+        <span class="s5"># - A background texture (pass in path to image, or Texture Card)</span>
+        <span class="s5"># - A midground geometry item (pass in geometry)</span>
+        <span class="s5"># - A foreground text Node (pass in text string or Onscreen Text)</span>
+        <span class="s5"># For a direct label:</span>
+        <span class="s5"># Each label has 1 or more states</span>
+        <span class="s5"># The same image/geom/text can be used for all states or each</span>
+        <span class="s5"># state can have a different text/geom/image</span>
+        <span class="s5"># State transitions happen under user control</span>
+
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'pgFunc'</span><span class="s2">,          </span><span class="s1">PGItem</span><span class="s2">,    </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numStates'</span><span class="s2">,       </span><span class="s6">1</span><span class="s2">,         </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'state'</span><span class="s2">,           </span><span class="s1">self</span><span class="s2">.</span><span class="s1">inactiveInitState</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'activeState'</span><span class="s2">,     </span><span class="s6">0</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setActiveState</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s5"># Initialize superclasses</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s5"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectLabel</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setActiveState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; setActiveState - change label to specifed state &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'activeState'</span><span class="s2">])</span>
+</pre>
+</body>
+</html>

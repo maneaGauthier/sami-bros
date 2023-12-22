@@ -1,0 +1,1121 @@
+<html>
+<head>
+<title>DirectGuiBase.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectGuiBase.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Base class for all DirectGui items.  Handles composite widgets and 
+command line argument parsing. 
+ 
+Code overview: 
+ 
+1)  Each widget defines a set of options (optiondefs) as a list of tuples 
+    of the form ``('name', defaultValue, handler)``. 
+    'name' is the name of the option (used during construction of configure) 
+    handler can be: None, method, or INITOPT.  If a method is specified, it 
+    will be called during widget construction (via initialiseoptions), if the 
+    Handler is specified as an INITOPT, this is an option that can only be set 
+    during widget construction. 
+ 
+2)  :func:`~DirectGuiBase.defineoptions` is called.  defineoption creates: 
+ 
+    self._constructorKeywords = { keyword: [value, useFlag] } 
+        A dictionary of the keyword options specified as part of the 
+        constructor keywords can be of the form 'component_option', where 
+        component is the name of a widget's component, a component group or a 
+        component alias. 
+ 
+    self._dynamicGroups 
+        A list of group names for which it is permissible to specify options 
+        before components of that group are created. 
+        If a widget is a derived class the order of execution would be:: 
+ 
+          foo.optiondefs = {} 
+          foo.defineoptions() 
+            fooParent() 
+               fooParent.optiondefs = {} 
+               fooParent.defineoptions() 
+ 
+3)  :func:`~DirectGuiBase.addoptions` is called.  This combines options 
+    specified as keywords to the widget constructor (stored in 
+    self._constructorKeywords) with the default options (stored in optiondefs). 
+    Results are stored in 
+    ``self._optionInfo = { keyword: [default, current, handler] }``. 
+    If a keyword is of the form 'component_option' it is left in the 
+    self._constructorKeywords dictionary (for use by component constructors), 
+    otherwise it is 'used', and deleted from self._constructorKeywords. 
+ 
+    Notes: 
+ 
+    - constructor keywords override the defaults. 
+    - derived class default values override parent class defaults 
+    - derived class handler functions override parent class functions 
+ 
+4)  Superclass initialization methods are called (resulting in nested calls 
+    to define options (see 2 above) 
+ 
+5)  Widget components are created via calls to 
+    :func:`~DirectGuiBase.createcomponent`.  User can specify aliases and groups 
+    for each component created. 
+ 
+    Aliases are alternate names for components, e.g. a widget may have a 
+    component with a name 'entryField', which itself may have a component 
+    named 'entry', you could add an alias 'entry' for the 'entryField_entry' 
+    These are stored in self.__componentAliases.  If an alias is found, 
+    all keyword entries which use that alias are expanded to their full 
+    form (to avoid conversion later) 
+ 
+    Groups allow option specifications that apply to all members of the group. 
+    If a widget has components: 'text1', 'text2', and 'text3' which all belong 
+    to the 'text' group, they can be all configured with keywords of the form: 
+    'text_keyword' (e.g. ``text_font='comic.rgb'``).  A component's group 
+    is stored as the fourth element of its entry in self.__componentInfo. 
+ 
+    Note: the widget constructors have access to all remaining keywords in 
+    _constructorKeywords (those not transferred to _optionInfo by 
+    define/addoptions).  If a component defines an alias that applies to 
+    one of the keywords, that keyword is replaced with a new keyword with 
+    the alias expanded. 
+ 
+    If a keyword (or substituted alias keyword) is used during creation of the 
+    component, it is deleted from self._constructorKeywords.  If a group 
+    keyword applies to the component, that keyword is marked as used, but is 
+    not deleted from self._constructorKeywords, in case it applies to another 
+    component.  If any constructor keywords remain at the end of component 
+    construction (and initialisation), an error is raised. 
+ 
+5)  :func:`~DirectGuiBase.initialiseoptions` is called.  This method calls any 
+    option handlers to respond to any keyword/default values, then checks to 
+    see if any keywords are left unused.  If so, an error is raised. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectGuiBase'</span><span class="s2">, </span><span class="s3">'DirectGuiWidget'</span><span class="s2">]</span>
+
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">ShowBaseGlobal</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s4">import </span><span class="s1">ShowBase</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenText </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenGeom </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">OnscreenImage </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directtools</span><span class="s2">.</span><span class="s1">DirectUtil </span><span class="s4">import </span><span class="s1">ROUND_TO</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+    <span class="s1">stringType </span><span class="s2">= </span><span class="s1">str</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s1">stringType </span><span class="s2">= </span><span class="s1">basestring</span>
+
+<span class="s1">guiObjectCollector </span><span class="s2">= </span><span class="s1">PStatCollector</span><span class="s2">(</span><span class="s3">&quot;Client::GuiObjects&quot;</span><span class="s2">)</span>
+
+
+<span class="s4">class </span><span class="s1">DirectGuiBase</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;Base class of all DirectGUI widgets.&quot;&quot;&quot;</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Default id of all gui object, subclasses should override this</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiId </span><span class="s2">= </span><span class="s3">'guiObject'</span>
+        <span class="s6"># List of all post initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">postInitialiseFuncList </span><span class="s2">= []</span>
+        <span class="s6"># To avoid doing things redundantly during initialisation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fInit </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s6"># Mapping from each megawidget option to a list of information</span>
+        <span class="s6"># about the option</span>
+        <span class="s6">#   - default value</span>
+        <span class="s6">#   - current value</span>
+        <span class="s6">#   - function to call when the option is initialised in the</span>
+        <span class="s6">#     call to initialiseoptions() in the constructor or</span>
+        <span class="s6">#     modified via configure().  If this is INITOPT, the</span>
+        <span class="s6">#     option is an initialisation option (an option that can</span>
+        <span class="s6">#     be set by the call to the constructor but can not be</span>
+        <span class="s6">#     used with configure).</span>
+        <span class="s6"># This mapping is not initialised here, but in the call to</span>
+        <span class="s6"># defineoptions() which precedes construction of this base class.</span>
+        <span class="s6">#</span>
+        <span class="s6"># self._optionInfo = {}</span>
+
+        <span class="s6"># Mapping from each component name to a tuple of information</span>
+        <span class="s6"># about the component.</span>
+        <span class="s6">#   - component widget instance</span>
+        <span class="s6">#   - configure function of widget instance</span>
+        <span class="s6">#   - the class of the widget (Frame, EntryField, etc)</span>
+        <span class="s6">#   - cget function of widget instance</span>
+        <span class="s6">#   - the name of the component group of this component, if any</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo </span><span class="s2">= {}</span>
+
+        <span class="s6"># Mapping from alias names to the names of components or</span>
+        <span class="s6"># sub-components.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases </span><span class="s2">= {}</span>
+
+        <span class="s6"># Contains information about the keywords provided to the</span>
+        <span class="s6"># constructor.  It is a mapping from the keyword to a tuple</span>
+        <span class="s6"># containing:</span>
+        <span class="s6">#    - value of keyword</span>
+        <span class="s6">#    - a boolean indicating if the keyword has been used.</span>
+        <span class="s6"># A keyword is used if, during the construction of a megawidget,</span>
+        <span class="s6">#    - it is defined in a call to defineoptions() or addoptions(), or</span>
+        <span class="s6">#    - it references, by name, a component of the megawidget, or</span>
+        <span class="s6">#    - it references, by group, at least one component</span>
+        <span class="s6"># At the end of megawidget construction, a call is made to</span>
+        <span class="s6"># initialiseoptions() which reports an error if there are</span>
+        <span class="s6"># unused options given to the constructor.</span>
+        <span class="s6">#</span>
+        <span class="s6"># self._constructorKeywords = {}</span>
+
+        <span class="s6"># List of dynamic component groups.  If a group is included in</span>
+        <span class="s6"># this list, then it not an error if a keyword argument for</span>
+        <span class="s6"># the group is given to the constructor or to configure(), but</span>
+        <span class="s6"># no components with this group have been created.</span>
+        <span class="s6"># self._dynamicGroups = ()</span>
+
+    <span class="s4">def </span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">keywords</span><span class="s2">, </span><span class="s1">optionDefs</span><span class="s2">, </span><span class="s1">dynamicGroups </span><span class="s2">= ()):</span>
+        <span class="s0">&quot;&quot;&quot; defineoptions(keywords, optionDefs, dynamicGroups = {}) &quot;&quot;&quot;</span>
+        <span class="s6"># Create options, providing the default value and the method</span>
+        <span class="s6"># to call when the value is changed.  If any option created by</span>
+        <span class="s6"># base classes has the same name as one in &lt;optionDefs&gt;, the</span>
+        <span class="s6"># base class's value and function will be overriden.</span>
+
+        <span class="s6"># keywords is a dictionary of keyword/value pairs from the constructor</span>
+        <span class="s6"># optionDefs is a dictionary of default options for the widget</span>
+        <span class="s6"># dynamicGroups is a tuple of component groups for which you can</span>
+        <span class="s6"># specify options even though no components of this group have</span>
+        <span class="s6"># been created</span>
+
+        <span class="s6"># This should be called before the constructor of the base</span>
+        <span class="s6"># class, so that default values defined in the derived class</span>
+        <span class="s6"># override those in the base class.</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_constructorKeywords'</span><span class="s2">):</span>
+            <span class="s1">tmp </span><span class="s2">= {}</span>
+            <span class="s4">for </span><span class="s1">option</span><span class="s2">, </span><span class="s1">value </span><span class="s4">in </span><span class="s1">keywords</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                <span class="s1">tmp</span><span class="s2">[</span><span class="s1">option</span><span class="s2">] = [</span><span class="s1">value</span><span class="s2">, </span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_constructorKeywords </span><span class="s2">= </span><span class="s1">tmp</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo </span><span class="s2">= {}</span>
+        <span class="s6"># Initialize dictionary of dynamic groups</span>
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_dynamicGroups'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_dynamicGroups </span><span class="s2">= ()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_dynamicGroups </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_dynamicGroups </span><span class="s2">+ </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">dynamicGroups</span><span class="s2">)</span>
+        <span class="s6"># Reconcile command line and default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">addoptions</span><span class="s2">(</span><span class="s1">optionDefs</span><span class="s2">, </span><span class="s1">keywords</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">addoptions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">optionDefs</span><span class="s2">, </span><span class="s1">optionkeywords</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; addoptions(optionDefs) - add option def to option info &quot;&quot;&quot;</span>
+        <span class="s6"># Add additional options, providing the default value and the</span>
+        <span class="s6"># method to call when the value is changed.  See</span>
+        <span class="s6"># &quot;defineoptions&quot; for more details</span>
+
+        <span class="s6"># optimisations:</span>
+        <span class="s1">optionInfo </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span>
+        <span class="s1">optionInfo_has_key </span><span class="s2">= </span><span class="s1">optionInfo</span><span class="s2">.</span><span class="s1">__contains__</span>
+        <span class="s1">keywords </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_constructorKeywords</span>
+        <span class="s1">keywords_has_key </span><span class="s2">= </span><span class="s1">keywords</span><span class="s2">.</span><span class="s1">__contains__</span>
+        <span class="s1">FUNCTION </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_FUNCTION</span>
+
+        <span class="s4">for </span><span class="s1">name</span><span class="s2">, </span><span class="s1">default</span><span class="s2">, </span><span class="s1">function </span><span class="s4">in </span><span class="s1">optionDefs</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s3">'_' </span><span class="s4">not in </span><span class="s1">name</span><span class="s2">:</span>
+                <span class="s1">default </span><span class="s2">= </span><span class="s1">optionkeywords</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">default</span><span class="s2">)</span>
+                <span class="s6"># The option will already exist if it has been defined</span>
+                <span class="s6"># in a derived class.  In this case, do not override the</span>
+                <span class="s6"># default value of the option or the callback function</span>
+                <span class="s6"># if it is not None.</span>
+                <span class="s4">if not </span><span class="s1">optionInfo_has_key</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+                    <span class="s4">if </span><span class="s1">keywords_has_key</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+                        <span class="s6"># Overridden by keyword, use keyword value</span>
+                        <span class="s1">value </span><span class="s2">= </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">name</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+                        <span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = [</span><span class="s1">default</span><span class="s2">, </span><span class="s1">value</span><span class="s2">, </span><span class="s1">function</span><span class="s2">]</span>
+                        <span class="s6"># Delete it from self._constructorKeywords</span>
+                        <span class="s4">del </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">name</span><span class="s2">]</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s6"># Use optionDefs value</span>
+                        <span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = [</span><span class="s1">default</span><span class="s2">, </span><span class="s1">default</span><span class="s2">, </span><span class="s1">function</span><span class="s2">]</span>
+                <span class="s4">elif </span><span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">name</span><span class="s2">][</span><span class="s1">FUNCTION</span><span class="s2">] </span><span class="s4">is None</span><span class="s2">:</span>
+                    <span class="s6"># Only override function if not defined by derived class</span>
+                    <span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">name</span><span class="s2">][</span><span class="s1">FUNCTION</span><span class="s2">] = </span><span class="s1">function</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s6"># This option is of the form &quot;component_option&quot;.  If this is</span>
+                <span class="s6"># not already defined in self._constructorKeywords add it.</span>
+                <span class="s6"># This allows a derived class to override the default value</span>
+                <span class="s6"># of an option of a component of a base class.</span>
+                <span class="s4">if not </span><span class="s1">keywords_has_key</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+                    <span class="s1">keywords</span><span class="s2">[</span><span class="s1">name</span><span class="s2">] = [</span><span class="s1">default</span><span class="s2">, </span><span class="s5">0</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">myClass</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Call all initialisation functions to initialize widget 
+        options to default of keyword value 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># This is to make sure this method class is only called by</span>
+        <span class="s6"># the most specific class in the class hierarchy</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__ </span><span class="s4">is </span><span class="s1">myClass</span><span class="s2">:</span>
+            <span class="s6"># Call the configuration callback function for every option.</span>
+            <span class="s1">FUNCTION </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_FUNCTION</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fInit </span><span class="s2">= </span><span class="s5">1</span>
+            <span class="s4">for </span><span class="s1">info </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+                <span class="s1">func </span><span class="s2">= </span><span class="s1">info</span><span class="s2">[</span><span class="s1">FUNCTION</span><span class="s2">]</span>
+                <span class="s4">if </span><span class="s1">func </span><span class="s4">is not None and </span><span class="s1">func </span><span class="s4">is not </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">:</span>
+                    <span class="s1">func</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">fInit </span><span class="s2">= </span><span class="s5">0</span>
+
+            <span class="s6"># Now check if anything is left over</span>
+            <span class="s1">unusedOptions </span><span class="s2">= []</span>
+            <span class="s1">keywords </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_constructorKeywords</span>
+            <span class="s4">for </span><span class="s1">name </span><span class="s4">in </span><span class="s1">keywords</span><span class="s2">:</span>
+                <span class="s1">used </span><span class="s2">= </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">name</span><span class="s2">][</span><span class="s5">1</span><span class="s2">]</span>
+                <span class="s4">if not </span><span class="s1">used</span><span class="s2">:</span>
+                    <span class="s6"># This keyword argument has not been used.  If it</span>
+                    <span class="s6"># does not refer to a dynamic group, mark it as</span>
+                    <span class="s6"># unused.</span>
+                    <span class="s1">index </span><span class="s2">= </span><span class="s1">name</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'_'</span><span class="s2">)</span>
+                    <span class="s4">if </span><span class="s1">index </span><span class="s2">&lt; </span><span class="s5">0 </span><span class="s4">or </span><span class="s1">name</span><span class="s2">[:</span><span class="s1">index</span><span class="s2">] </span><span class="s4">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_dynamicGroups</span><span class="s2">:</span>
+                        <span class="s1">unusedOptions</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_constructorKeywords </span><span class="s2">= {}</span>
+            <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">unusedOptions</span><span class="s2">) &gt; </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">unusedOptions</span><span class="s2">) == </span><span class="s5">1</span><span class="s2">:</span>
+                    <span class="s1">text </span><span class="s2">= </span><span class="s3">'Unknown option &quot;'</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">text </span><span class="s2">= </span><span class="s3">'Unknown options &quot;'</span>
+                <span class="s4">raise </span><span class="s1">KeyError</span><span class="s2">(</span><span class="s1">text </span><span class="s2">+ </span><span class="s3">', '</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">unusedOptions</span><span class="s2">) + </span><span class="s1">\</span>
+                        <span class="s3">'&quot; for ' </span><span class="s2">+ </span><span class="s1">myClass</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">)</span>
+            <span class="s6"># Can now call post init func</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">postInitialiseFunc</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">postInitialiseFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">func </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">postInitialiseFuncList</span><span class="s2">:</span>
+            <span class="s1">func</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">isinitoption</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">option</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Is this opition one that can only be specified at construction? 
+        &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_FUNCTION</span><span class="s2">] </span><span class="s4">is </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span>
+
+    <span class="s4">def </span><span class="s1">options</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Print out a list of available widget options. 
+        Does not include subcomponent options. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">options </span><span class="s2">= []</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_optionInfo'</span><span class="s2">):</span>
+            <span class="s4">for </span><span class="s1">option</span><span class="s2">, </span><span class="s1">info </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                <span class="s1">isinit </span><span class="s2">= </span><span class="s1">info</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_FUNCTION</span><span class="s2">] </span><span class="s4">is </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span>
+                <span class="s1">default </span><span class="s2">= </span><span class="s1">info</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_DEFAULT</span><span class="s2">]</span>
+                <span class="s1">options</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">option</span><span class="s2">, </span><span class="s1">default</span><span class="s2">, </span><span class="s1">isinit</span><span class="s2">))</span>
+            <span class="s1">options</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">options</span>
+
+    <span class="s4">def </span><span class="s1">configure</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">option</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        configure(option = None) 
+        Query or configure the megawidget options. 
+        &quot;&quot;&quot;</span>
+        <span class="s6">#</span>
+        <span class="s6"># If not empty, *kw* is a dictionary giving new</span>
+        <span class="s6"># values for some of the options of this gui item</span>
+        <span class="s6"># For options defined for this widget, set</span>
+        <span class="s6"># the value of the option to the new value and call the</span>
+        <span class="s6"># configuration callback function, if any.</span>
+        <span class="s6">#</span>
+        <span class="s6"># If *option* is None, return all gui item configuration</span>
+        <span class="s6"># options and settings.  Options are returned as standard 3</span>
+        <span class="s6"># element tuples</span>
+        <span class="s6">#</span>
+        <span class="s6"># If *option* is a string, return the 3 element tuple for the</span>
+        <span class="s6"># given configuration option.</span>
+
+        <span class="s6"># First, deal with the option queries.</span>
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">) == </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s6"># This configure call is querying the values of one or all options.</span>
+            <span class="s6"># Return 3-tuples:</span>
+            <span class="s6">#     (optionName, default, value)</span>
+            <span class="s4">if </span><span class="s1">option </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">rtn </span><span class="s2">= {}</span>
+                <span class="s4">for </span><span class="s1">option</span><span class="s2">, </span><span class="s1">config </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                    <span class="s1">rtn</span><span class="s2">[</span><span class="s1">option</span><span class="s2">] = (</span><span class="s1">option</span><span class="s2">,</span>
+                                   <span class="s1">config</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_DEFAULT</span><span class="s2">],</span>
+                                   <span class="s1">config</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_VALUE</span><span class="s2">])</span>
+                <span class="s4">return </span><span class="s1">rtn</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">config </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">[</span><span class="s1">option</span><span class="s2">]</span>
+                <span class="s4">return </span><span class="s2">(</span><span class="s1">option</span><span class="s2">, </span><span class="s1">config</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_DEFAULT</span><span class="s2">], </span><span class="s1">config</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_VALUE</span><span class="s2">])</span>
+
+        <span class="s6"># optimizations:</span>
+        <span class="s1">optionInfo </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span>
+        <span class="s1">optionInfo_has_key </span><span class="s2">= </span><span class="s1">optionInfo</span><span class="s2">.</span><span class="s1">__contains__</span>
+        <span class="s1">componentInfo </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span>
+        <span class="s1">componentInfo_has_key </span><span class="s2">= </span><span class="s1">componentInfo</span><span class="s2">.</span><span class="s1">__contains__</span>
+        <span class="s1">componentAliases </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span>
+        <span class="s1">componentAliases_has_key </span><span class="s2">= </span><span class="s1">componentAliases</span><span class="s2">.</span><span class="s1">__contains__</span>
+        <span class="s1">VALUE </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_VALUE</span>
+        <span class="s1">FUNCTION </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_FUNCTION</span>
+
+        <span class="s6"># This will contain a list of options in *kw* which</span>
+        <span class="s6"># are known to this gui item.</span>
+        <span class="s1">directOptions </span><span class="s2">= []</span>
+
+        <span class="s6"># This will contain information about the options in</span>
+        <span class="s6"># *kw* of the form &lt;component&gt;_&lt;option&gt;, where</span>
+        <span class="s6"># &lt;component&gt; is a component of this megawidget.  It is a</span>
+        <span class="s6"># dictionary whose keys are the configure method of each</span>
+        <span class="s6"># component and whose values are a dictionary of options and</span>
+        <span class="s6"># values for the component.</span>
+        <span class="s1">indirectOptions </span><span class="s2">= {}</span>
+        <span class="s1">indirectOptions_has_key </span><span class="s2">= </span><span class="s1">indirectOptions</span><span class="s2">.</span><span class="s1">__contains__</span>
+
+        <span class="s4">for </span><span class="s1">option</span><span class="s2">, </span><span class="s1">value </span><span class="s4">in </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s4">if </span><span class="s1">optionInfo_has_key</span><span class="s2">(</span><span class="s1">option</span><span class="s2">):</span>
+                <span class="s6"># This is one of the options of this gui item.</span>
+                <span class="s6"># Check it is an initialisation option.</span>
+                <span class="s4">if </span><span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s1">FUNCTION</span><span class="s2">] </span><span class="s4">is </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s3">'Cannot configure initialisation option &quot;' </span><span class="s1">\</span>
+                          <span class="s2">+ </span><span class="s1">option </span><span class="s2">+ </span><span class="s3">'&quot; for ' </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">)</span>
+                    <span class="s4">break</span>
+                    <span class="s6">#raise KeyError, \</span>
+                <span class="s6">#           'Cannot configure initialisation option &quot;' \</span>
+                <span class="s6">#           + option + '&quot; for ' + self.__class__.__name__</span>
+                <span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s1">VALUE</span><span class="s2">] = </span><span class="s1">value</span>
+                <span class="s1">directOptions</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">option</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">index </span><span class="s2">= </span><span class="s1">option</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'_'</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">index </span><span class="s2">&gt;= </span><span class="s5">0</span><span class="s2">:</span>
+                    <span class="s6"># This option may be of the form &lt;component&gt;_&lt;option&gt;.</span>
+                    <span class="s6"># e.g. if alias ('efEntry', 'entryField_entry')</span>
+                    <span class="s6"># and option = efEntry_width</span>
+                    <span class="s6"># component = efEntry, componentOption = width</span>
+                    <span class="s1">component </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[:</span><span class="s1">index</span><span class="s2">]</span>
+                    <span class="s1">componentOption </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[(</span><span class="s1">index </span><span class="s2">+ </span><span class="s5">1</span><span class="s2">):]</span>
+
+                    <span class="s6"># Expand component alias</span>
+                    <span class="s4">if </span><span class="s1">componentAliases_has_key</span><span class="s2">(</span><span class="s1">component</span><span class="s2">):</span>
+                        <span class="s6"># component = entryField, subcomponent = entry</span>
+                        <span class="s1">component</span><span class="s2">, </span><span class="s1">subComponent </span><span class="s2">= </span><span class="s1">componentAliases</span><span class="s2">[</span><span class="s1">component</span><span class="s2">]</span>
+                        <span class="s4">if </span><span class="s1">subComponent </span><span class="s4">is not None</span><span class="s2">:</span>
+                            <span class="s6"># componentOption becomes entry_width</span>
+                            <span class="s1">componentOption </span><span class="s2">= </span><span class="s1">subComponent </span><span class="s2">+ </span><span class="s3">'_' </span><span class="s1">\</span>
+                                    <span class="s2">+ </span><span class="s1">componentOption</span>
+
+                        <span class="s6"># Expand option string to write on error</span>
+                        <span class="s6"># option = entryField_entry_width</span>
+                        <span class="s1">option </span><span class="s2">= </span><span class="s1">component </span><span class="s2">+ </span><span class="s3">'_' </span><span class="s2">+ </span><span class="s1">componentOption</span>
+
+                    <span class="s6"># Does this component exist</span>
+                    <span class="s4">if </span><span class="s1">componentInfo_has_key</span><span class="s2">(</span><span class="s1">component</span><span class="s2">):</span>
+                        <span class="s6"># Get the configure func for the named component</span>
+                        <span class="s6"># component = entryField</span>
+                        <span class="s1">componentConfigFuncs </span><span class="s2">= [</span><span class="s1">componentInfo</span><span class="s2">[</span><span class="s1">component</span><span class="s2">][</span><span class="s5">1</span><span class="s2">]]</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s6"># Check if this is a group name and configure all</span>
+                        <span class="s6"># components in the group.</span>
+                        <span class="s1">componentConfigFuncs </span><span class="s2">= []</span>
+                        <span class="s6"># For each component</span>
+                        <span class="s4">for </span><span class="s1">info </span><span class="s4">in </span><span class="s1">componentInfo</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+                            <span class="s6"># Check if it is a member of this group</span>
+                            <span class="s4">if </span><span class="s1">info</span><span class="s2">[</span><span class="s5">4</span><span class="s2">] == </span><span class="s1">component</span><span class="s2">:</span>
+                                <span class="s6"># Yes, append its config func</span>
+                                <span class="s1">componentConfigFuncs</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">info</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+
+                        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">componentConfigFuncs</span><span class="s2">) == </span><span class="s5">0 </span><span class="s4">and </span><span class="s1">\</span>
+                                <span class="s1">component </span><span class="s4">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_dynamicGroups</span><span class="s2">:</span>
+                            <span class="s4">raise </span><span class="s1">KeyError</span><span class="s2">(</span><span class="s3">'Unknown option &quot;' </span><span class="s2">+ </span><span class="s1">option </span><span class="s2">+ </span><span class="s1">\</span>
+                                    <span class="s3">'&quot; for ' </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">)</span>
+
+                    <span class="s6"># Add the configure method(s) (may be more than</span>
+                    <span class="s6"># one if this is configuring a component group)</span>
+                    <span class="s6"># and option/value to dictionary.</span>
+                    <span class="s4">for </span><span class="s1">componentConfigFunc </span><span class="s4">in </span><span class="s1">componentConfigFuncs</span><span class="s2">:</span>
+                        <span class="s4">if not </span><span class="s1">indirectOptions_has_key</span><span class="s2">(</span><span class="s1">componentConfigFunc</span><span class="s2">):</span>
+                            <span class="s1">indirectOptions</span><span class="s2">[</span><span class="s1">componentConfigFunc</span><span class="s2">] = {}</span>
+                        <span class="s6"># Create a dictionary of keyword/values keyed</span>
+                        <span class="s6"># on configuration function</span>
+                        <span class="s1">indirectOptions</span><span class="s2">[</span><span class="s1">componentConfigFunc</span><span class="s2">][</span><span class="s1">componentOption</span><span class="s2">] </span><span class="s1">\</span>
+                                <span class="s2">= </span><span class="s1">value</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">raise </span><span class="s1">KeyError</span><span class="s2">(</span><span class="s3">'Unknown option &quot;' </span><span class="s2">+ </span><span class="s1">option </span><span class="s2">+ </span><span class="s1">\</span>
+                            <span class="s3">'&quot; for ' </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">)</span>
+
+        <span class="s6"># Call the configure methods for any components.</span>
+        <span class="s6"># Pass in the dictionary of keyword/values created above</span>
+        <span class="s4">for </span><span class="s1">func</span><span class="s2">, </span><span class="s1">options </span><span class="s4">in </span><span class="s1">indirectOptions</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">func</span><span class="s2">(**</span><span class="s1">options</span><span class="s2">)</span>
+
+        <span class="s6"># Call the configuration callback function for each option.</span>
+        <span class="s4">for </span><span class="s1">option </span><span class="s4">in </span><span class="s1">directOptions</span><span class="s2">:</span>
+            <span class="s1">info </span><span class="s2">= </span><span class="s1">optionInfo</span><span class="s2">[</span><span class="s1">option</span><span class="s2">]</span>
+            <span class="s1">func </span><span class="s2">= </span><span class="s1">info</span><span class="s2">[</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_FUNCTION</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">func </span><span class="s4">is not None</span><span class="s2">:</span>
+              <span class="s1">func</span><span class="s2">()</span>
+
+    <span class="s6"># Allow index style references</span>
+    <span class="s4">def </span><span class="s1">__setitem__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">(**{</span><span class="s1">key</span><span class="s2">: </span><span class="s1">value</span><span class="s2">})</span>
+
+    <span class="s4">def </span><span class="s1">cget</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">option</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Get current configuration setting for this option 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Return the value of an option, for example myWidget['font'].</span>
+        <span class="s4">if </span><span class="s1">option </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">_OPT_VALUE</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">index </span><span class="s2">= </span><span class="s1">option</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'_'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">index </span><span class="s2">&gt;= </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s1">component </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[:</span><span class="s1">index</span><span class="s2">]</span>
+                <span class="s1">componentOption </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[(</span><span class="s1">index </span><span class="s2">+ </span><span class="s5">1</span><span class="s2">):]</span>
+
+                <span class="s6"># Expand component alias</span>
+                <span class="s4">if </span><span class="s1">component </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span><span class="s2">:</span>
+                    <span class="s1">component</span><span class="s2">, </span><span class="s1">subComponent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span><span class="s2">[</span>
+                        <span class="s1">component</span><span class="s2">]</span>
+                    <span class="s4">if </span><span class="s1">subComponent </span><span class="s4">is not None</span><span class="s2">:</span>
+                        <span class="s1">componentOption </span><span class="s2">= </span><span class="s1">subComponent </span><span class="s2">+ </span><span class="s3">'_' </span><span class="s2">+ </span><span class="s1">componentOption</span>
+
+                    <span class="s6"># Expand option string to write on error</span>
+                    <span class="s1">option </span><span class="s2">= </span><span class="s1">component </span><span class="s2">+ </span><span class="s3">'_' </span><span class="s2">+ </span><span class="s1">componentOption</span>
+
+                <span class="s4">if </span><span class="s1">component </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">:</span>
+                    <span class="s6"># Call cget on the component.</span>
+                    <span class="s1">componentCget </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">[</span><span class="s1">component</span><span class="s2">][</span><span class="s5">3</span><span class="s2">]</span>
+                    <span class="s4">return </span><span class="s1">componentCget</span><span class="s2">(</span><span class="s1">componentOption</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s6"># If this is a group name, call cget for one of</span>
+                    <span class="s6"># the components in the group.</span>
+                    <span class="s4">for </span><span class="s1">info </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+                        <span class="s4">if </span><span class="s1">info</span><span class="s2">[</span><span class="s5">4</span><span class="s2">] == </span><span class="s1">component</span><span class="s2">:</span>
+                            <span class="s1">componentCget </span><span class="s2">= </span><span class="s1">info</span><span class="s2">[</span><span class="s5">3</span><span class="s2">]</span>
+                            <span class="s4">return </span><span class="s1">componentCget</span><span class="s2">(</span><span class="s1">componentOption</span><span class="s2">)</span>
+
+        <span class="s6"># Option not found</span>
+        <span class="s4">raise </span><span class="s1">KeyError</span><span class="s2">(</span><span class="s3">'Unknown option &quot;' </span><span class="s2">+ </span><span class="s1">option </span><span class="s2">+ </span><span class="s1">\</span>
+                <span class="s3">'&quot; for ' </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">)</span>
+
+    <span class="s6"># Allow index style refererences</span>
+    <span class="s1">__getitem__ </span><span class="s2">= </span><span class="s1">cget</span>
+
+    <span class="s4">def </span><span class="s1">createcomponent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">componentName</span><span class="s2">, </span><span class="s1">componentAliases</span><span class="s2">, </span><span class="s1">componentGroup</span><span class="s2">,</span>
+                        <span class="s1">widgetClass</span><span class="s2">, *</span><span class="s1">widgetArgs</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Create a component (during construction or later) for this widget. 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Check for invalid component name</span>
+        <span class="s4">if </span><span class="s3">'_' </span><span class="s4">in </span><span class="s1">componentName</span><span class="s2">:</span>
+            <span class="s4">raise </span><span class="s1">ValueError</span><span class="s2">(</span><span class="s3">'Component name &quot;%s&quot; must not contain &quot;_&quot;' </span><span class="s2">% </span><span class="s1">componentName</span><span class="s2">)</span>
+
+        <span class="s6"># Get construction keywords</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_constructorKeywords'</span><span class="s2">):</span>
+            <span class="s1">keywords </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_constructorKeywords</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">keywords </span><span class="s2">= {}</span>
+
+        <span class="s4">for </span><span class="s1">alias</span><span class="s2">, </span><span class="s1">component </span><span class="s4">in </span><span class="s1">componentAliases</span><span class="s2">:</span>
+            <span class="s6"># Create aliases to the component and its sub-components.</span>
+            <span class="s1">index </span><span class="s2">= </span><span class="s1">component</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'_'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">index </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s6"># Just a shorter name for one of this widget's components</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span><span class="s2">[</span><span class="s1">alias</span><span class="s2">] = (</span><span class="s1">component</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s6"># An alias for a component of one of this widget's components</span>
+                <span class="s1">mainComponent </span><span class="s2">= </span><span class="s1">component</span><span class="s2">[:</span><span class="s1">index</span><span class="s2">]</span>
+                <span class="s1">subComponent </span><span class="s2">= </span><span class="s1">component</span><span class="s2">[(</span><span class="s1">index </span><span class="s2">+ </span><span class="s5">1</span><span class="s2">):]</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span><span class="s2">[</span><span class="s1">alias</span><span class="s2">] = (</span><span class="s1">mainComponent</span><span class="s2">, </span><span class="s1">subComponent</span><span class="s2">)</span>
+
+            <span class="s6"># Remove aliases from the constructor keyword arguments by</span>
+            <span class="s6"># replacing any keyword arguments that begin with *alias*</span>
+            <span class="s6"># with corresponding keys beginning with *component*.</span>
+            <span class="s1">alias </span><span class="s2">= </span><span class="s1">alias </span><span class="s2">+ </span><span class="s3">'_'</span>
+            <span class="s1">aliasLen </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">alias</span><span class="s2">)</span>
+            <span class="s4">for </span><span class="s1">option </span><span class="s4">in </span><span class="s1">keywords</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">():</span>
+                <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">option</span><span class="s2">) &gt; </span><span class="s1">aliasLen </span><span class="s4">and </span><span class="s1">option</span><span class="s2">[:</span><span class="s1">aliasLen</span><span class="s2">] == </span><span class="s1">alias</span><span class="s2">:</span>
+                    <span class="s1">newkey </span><span class="s2">= </span><span class="s1">component </span><span class="s2">+ </span><span class="s3">'_' </span><span class="s2">+ </span><span class="s1">option</span><span class="s2">[</span><span class="s1">aliasLen</span><span class="s2">:]</span>
+                    <span class="s1">keywords</span><span class="s2">[</span><span class="s1">newkey</span><span class="s2">] = </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">option</span><span class="s2">]</span>
+                    <span class="s4">del </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">option</span><span class="s2">]</span>
+
+        <span class="s6"># Find any keyword arguments for this component</span>
+        <span class="s1">componentPrefix </span><span class="s2">= </span><span class="s1">componentName </span><span class="s2">+ </span><span class="s3">'_'</span>
+        <span class="s1">nameLen </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">componentPrefix</span><span class="s2">)</span>
+
+        <span class="s6"># First, walk through the option list looking for arguments</span>
+        <span class="s6"># than refer to this component's group.</span>
+
+        <span class="s4">for </span><span class="s1">option </span><span class="s4">in </span><span class="s1">keywords</span><span class="s2">:</span>
+            <span class="s6"># Check if this keyword argument refers to the group</span>
+            <span class="s6"># of this component.  If so, add this to the options</span>
+            <span class="s6"># to use when constructing the widget.  Mark the</span>
+            <span class="s6"># keyword argument as being used, but do not remove it</span>
+            <span class="s6"># since it may be required when creating another</span>
+            <span class="s6"># component.</span>
+            <span class="s1">index </span><span class="s2">= </span><span class="s1">option</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'_'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">index </span><span class="s2">&gt;= </span><span class="s5">0 </span><span class="s4">and </span><span class="s1">componentGroup </span><span class="s2">== </span><span class="s1">option</span><span class="s2">[:</span><span class="s1">index</span><span class="s2">]:</span>
+                <span class="s1">rest </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[(</span><span class="s1">index </span><span class="s2">+ </span><span class="s5">1</span><span class="s2">):]</span>
+                <span class="s1">kw</span><span class="s2">[</span><span class="s1">rest</span><span class="s2">] = </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+                <span class="s1">keywords</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s5">1</span><span class="s2">] = </span><span class="s5">1</span>
+
+        <span class="s6"># Now that we've got the group arguments, walk through the</span>
+        <span class="s6"># option list again and get out the arguments that refer to</span>
+        <span class="s6"># this component specifically by name.  These are more</span>
+        <span class="s6"># specific than the group arguments, above; we walk through</span>
+        <span class="s6"># the list afterwards so they will override.</span>
+
+        <span class="s4">for </span><span class="s1">option </span><span class="s4">in </span><span class="s1">keywords</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">():</span>
+            <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">option</span><span class="s2">) &gt; </span><span class="s1">nameLen </span><span class="s4">and </span><span class="s1">option</span><span class="s2">[:</span><span class="s1">nameLen</span><span class="s2">] == </span><span class="s1">componentPrefix</span><span class="s2">:</span>
+                <span class="s6"># The keyword argument refers to this component, so add</span>
+                <span class="s6"># this to the options to use when constructing the widget.</span>
+                <span class="s1">kw</span><span class="s2">[</span><span class="s1">option</span><span class="s2">[</span><span class="s1">nameLen</span><span class="s2">:]] = </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">option</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+                <span class="s6"># And delete it from main construction keywords</span>
+                <span class="s4">del </span><span class="s1">keywords</span><span class="s2">[</span><span class="s1">option</span><span class="s2">]</span>
+
+        <span class="s6"># Return None if no widget class is specified</span>
+        <span class="s4">if </span><span class="s1">widgetClass </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s4">return None</span>
+        <span class="s6"># Get arguments for widget constructor</span>
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">widgetArgs</span><span class="s2">) == </span><span class="s5">1 </span><span class="s4">and </span><span class="s1">type</span><span class="s2">(</span><span class="s1">widgetArgs</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]) == </span><span class="s1">tuple</span><span class="s2">:</span>
+            <span class="s6"># Arguments to the constructor can be specified as either</span>
+            <span class="s6"># multiple trailing arguments to createcomponent() or as a</span>
+            <span class="s6"># single tuple argument.</span>
+            <span class="s1">widgetArgs </span><span class="s2">= </span><span class="s1">widgetArgs</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s6"># Create the widget</span>
+        <span class="s1">widget </span><span class="s2">= </span><span class="s1">widgetClass</span><span class="s2">(*</span><span class="s1">widgetArgs</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">)</span>
+        <span class="s1">componentClass </span><span class="s2">= </span><span class="s1">widget</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">[</span><span class="s1">componentName</span><span class="s2">] = (</span><span class="s1">widget</span><span class="s2">, </span><span class="s1">widget</span><span class="s2">.</span><span class="s1">configure</span><span class="s2">,</span>
+                <span class="s1">componentClass</span><span class="s2">, </span><span class="s1">widget</span><span class="s2">.</span><span class="s1">cget</span><span class="s2">, </span><span class="s1">componentGroup</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">widget</span>
+
+    <span class="s4">def </span><span class="s1">component</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s6"># Return a component widget of the megawidget given the</span>
+        <span class="s6"># component's name</span>
+        <span class="s6"># This allows the user of a megawidget to access and configure</span>
+        <span class="s6"># widget components directly.</span>
+
+        <span class="s6"># Find the main component and any subcomponents</span>
+        <span class="s1">index </span><span class="s2">= </span><span class="s1">name</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'_'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">index </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s1">component </span><span class="s2">= </span><span class="s1">name</span>
+            <span class="s1">remainingComponents </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">component </span><span class="s2">= </span><span class="s1">name</span><span class="s2">[:</span><span class="s1">index</span><span class="s2">]</span>
+            <span class="s1">remainingComponents </span><span class="s2">= </span><span class="s1">name</span><span class="s2">[(</span><span class="s1">index </span><span class="s2">+ </span><span class="s5">1</span><span class="s2">):]</span>
+
+        <span class="s6"># Expand component alias</span>
+        <span class="s6"># Example entry which is an alias for entryField_entry</span>
+        <span class="s4">if </span><span class="s1">component </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span><span class="s2">:</span>
+            <span class="s6"># component = entryField, subComponent = entry</span>
+            <span class="s1">component</span><span class="s2">, </span><span class="s1">subComponent </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentAliases</span><span class="s2">[</span><span class="s1">component</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">subComponent </span><span class="s4">is not None</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">remainingComponents </span><span class="s4">is None</span><span class="s2">:</span>
+                    <span class="s6"># remainingComponents = entry</span>
+                    <span class="s1">remainingComponents </span><span class="s2">= </span><span class="s1">subComponent</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">remainingComponents </span><span class="s2">= </span><span class="s1">subComponent </span><span class="s2">+ </span><span class="s3">'_' </span><span class="s1">\</span>
+                            <span class="s2">+ </span><span class="s1">remainingComponents</span>
+        <span class="s6"># Get the component from __componentInfo dictionary</span>
+        <span class="s1">widget </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">[</span><span class="s1">component</span><span class="s2">][</span><span class="s5">0</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">remainingComponents </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s6"># Not looking for subcomponent</span>
+            <span class="s4">return </span><span class="s1">widget</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s6"># Recursive call on subcomponent</span>
+            <span class="s4">return </span><span class="s1">widget</span><span class="s2">.</span><span class="s1">component</span><span class="s2">(</span><span class="s1">remainingComponents</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">components</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Return a list of all components.</span>
+        <span class="s1">names </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">names</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">names</span>
+
+    <span class="s4">def </span><span class="s1">hascomponent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">component</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">component </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span>
+
+    <span class="s4">def </span><span class="s1">destroycomponent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s6"># Remove a megawidget component.</span>
+        <span class="s6"># This command is for use by megawidget designers to destroy a</span>
+        <span class="s6"># megawidget component.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">[</span><span class="s1">name</span><span class="s2">][</span><span class="s5">0</span><span class="s2">].</span><span class="s1">destroy</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span><span class="s2">[</span><span class="s1">name</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Clean out any hooks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_optionInfo</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__componentInfo</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">postInitialiseFuncList</span>
+
+    <span class="s4">def </span><span class="s1">bind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s1">extraArgs </span><span class="s2">= []):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Bind the command (which should expect one arg) to the specified 
+        event (such as ENTER, EXIT, B1PRESS, B1CLICK, etc.) 
+        See DirectGuiGlobals for possible events 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Need to tack on gui item specific id</span>
+        <span class="s1">gEvent </span><span class="s2">= </span><span class="s1">event </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span>
+        <span class="s4">if </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s3">'debug-directgui-msgs'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">):</span>
+            <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s4">import </span><span class="s1">StackTrace</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">gEvent</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">StackTrace</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">gEvent</span><span class="s2">, </span><span class="s1">command</span><span class="s2">, </span><span class="s1">extraArgs </span><span class="s2">= </span><span class="s1">extraArgs</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Unbind the specified event 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Need to tack on gui item specific id</span>
+        <span class="s1">gEvent </span><span class="s2">= </span><span class="s1">event </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">gEvent</span><span class="s2">)</span>
+
+<span class="s4">def </span><span class="s1">toggleGuiGridSnap</span><span class="s2">():</span>
+    <span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">snapToGrid </span><span class="s2">= </span><span class="s5">1 </span><span class="s2">- </span><span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">snapToGrid</span>
+
+<span class="s4">def </span><span class="s1">setGuiGridSpacing</span><span class="s2">(</span><span class="s1">spacing</span><span class="s2">):</span>
+    <span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">gridSpacing </span><span class="s2">= </span><span class="s1">spacing</span>
+
+
+<span class="s4">class </span><span class="s1">DirectGuiWidget</span><span class="s2">(</span><span class="s1">DirectGuiBase</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+    <span class="s6"># Toggle if you wish widget's to snap to grid when draggin</span>
+    <span class="s1">snapToGrid </span><span class="s2">= </span><span class="s5">0</span>
+    <span class="s1">gridSpacing </span><span class="s2">= </span><span class="s5">0.05</span>
+
+    <span class="s6"># Determine the default initial state for inactive (or</span>
+    <span class="s6"># unclickable) components.  If we are in edit mode, these are</span>
+    <span class="s6"># actually clickable by default.</span>
+    <span class="s1">guiEdit </span><span class="s2">= </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s3">'direct-gui-edit'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">)</span>
+    <span class="s4">if </span><span class="s1">guiEdit</span><span class="s2">:</span>
+        <span class="s1">inactiveInitState </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span>
+    <span class="s4">else</span><span class="s2">:</span>
+        <span class="s1">inactiveInitState </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">DISABLED</span>
+
+    <span class="s1">guiDict </span><span class="s2">= {}</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s6"># Direct gui widgets are node paths</span>
+        <span class="s6"># Direct gui widgets have:</span>
+        <span class="s6"># -  stateNodePaths (to hold visible representation of widget)</span>
+        <span class="s6"># State node paths can have:</span>
+        <span class="s6"># -  a frame of type (None, FLAT, RAISED, GROOVE, RIDGE)</span>
+        <span class="s6"># -  arbitrary geometry for each state</span>
+        <span class="s6"># They inherit from DirectGuiWidget</span>
+        <span class="s6"># -  Can create components (with aliases and groups)</span>
+        <span class="s6"># -  Can bind to mouse events</span>
+        <span class="s6"># They inherit from NodePath</span>
+        <span class="s6"># -  Can position/scale them</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s6"># Widget's constructor</span>
+            <span class="s2">(</span><span class="s3">'pgFunc'</span><span class="s2">,         </span><span class="s1">PGItem</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numStates'</span><span class="s2">,      </span><span class="s5">1</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'invertedFrames'</span><span class="s2">, (),           </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'sortOrder'</span><span class="s2">,      </span><span class="s5">0</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s6"># Widget's initial state</span>
+            <span class="s2">(</span><span class="s3">'state'</span><span class="s2">,          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">,   </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setState</span><span class="s2">),</span>
+            <span class="s6"># Widget's frame characteristics</span>
+            <span class="s2">(</span><span class="s3">'relief'</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FLAT</span><span class="s2">,     </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setRelief</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderWidth'</span><span class="s2">,    (</span><span class="s5">.1</span><span class="s2">, </span><span class="s5">.1</span><span class="s2">),     </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBorderWidth</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'borderUvWidth'</span><span class="s2">,  (</span><span class="s5">.1</span><span class="s2">, </span><span class="s5">.1</span><span class="s2">),     </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setBorderUvWidth</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'frameSize'</span><span class="s2">,      </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setFrameSize</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'frameColor'</span><span class="s2">,     (</span><span class="s5">.8</span><span class="s2">, </span><span class="s5">.8</span><span class="s2">, </span><span class="s5">.8</span><span class="s2">, </span><span class="s5">1</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setFrameColor</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'frameTexture'</span><span class="s2">,   </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setFrameTexture</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'frameVisibleScale'</span><span class="s2">, (</span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">),     </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setFrameVisibleScale</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'pad'</span><span class="s2">,            (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">),        </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resetFrameSize</span><span class="s2">),</span>
+            <span class="s6"># Override button id (beware! your name may not be unique!)</span>
+            <span class="s2">(</span><span class="s3">'guiId'</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s6"># Initial pos/scale of the widget</span>
+            <span class="s2">(</span><span class="s3">'pos'</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'hpr'</span><span class="s2">,            </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'scale'</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'color'</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s6"># Do events pass through this widget?</span>
+            <span class="s2">(</span><span class="s3">'suppressMouse'</span><span class="s2">,  </span><span class="s5">1</span><span class="s2">,            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'suppressKeys'</span><span class="s2">,   </span><span class="s5">0</span><span class="s2">,            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'enableEdit'</span><span class="s2">,     </span><span class="s5">1</span><span class="s2">,            </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s6"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s6"># Initialize the base classes (after defining the options).</span>
+        <span class="s1">DirectGuiBase</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">NodePath</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s6"># Create a button</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pgFunc'</span><span class="s2">](</span><span class="s3">''</span><span class="s2">)</span>
+        <span class="s6"># Override automatically generated guiId</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'guiId'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'guiId'</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiId </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getId</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">__dev__</span><span class="s2">:</span>
+            <span class="s1">guiObjectCollector</span><span class="s2">.</span><span class="s1">addLevel</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s1">guiObjectCollector</span><span class="s2">.</span><span class="s1">flushLevel</span><span class="s2">()</span>
+            <span class="s6"># track gui items by guiId for tracking down leaks</span>
+            <span class="s4">if </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s3">'track-gui-items'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">):</span>
+                <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">ShowBase</span><span class="s2">, </span><span class="s3">'guiItems'</span><span class="s2">):</span>
+                    <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">guiItems </span><span class="s2">= {}</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId </span><span class="s4">in </span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">guiItems</span><span class="s2">:</span>
+                    <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">'duplicate guiId: %s (%s stomping %s)' </span><span class="s2">%</span>
+                                            <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">self</span><span class="s2">,</span>
+                                             <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">guiItems</span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">]))</span>
+                <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">guiItems</span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">] = </span><span class="s1">self</span>
+
+        <span class="s6"># Attach button to parent and make that self</span>
+        <span class="s4">if </span><span class="s1">parent </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">parent </span><span class="s2">= </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">aspect2d</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">, </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'sortOrder'</span><span class="s2">]))</span>
+        <span class="s6"># Update pose to initial values</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pos'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pos'</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'hpr'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'hpr'</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'scale'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'scale'</span><span class="s2">])</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'color'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'color'</span><span class="s2">])</span>
+        <span class="s6"># Initialize names</span>
+        <span class="s6"># Putting the class name in helps with debugging.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setName</span><span class="s2">(</span><span class="s3">&quot;%s-%s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">))</span>
+        <span class="s6"># Create</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getStateDef</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)))</span>
+        <span class="s6"># Initialize frame style</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">PGFrameStyle</span><span class="s2">())</span>
+        <span class="s6"># For holding bounds info</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ll </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ur </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s6"># Is drag and drop enabled?</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'enableEdit'</span><span class="s2">] </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiEdit</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">enableEdit</span><span class="s2">()</span>
+
+        <span class="s6"># Set up event handling</span>
+        <span class="s1">suppressFlags </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'suppressMouse'</span><span class="s2">]:</span>
+            <span class="s1">suppressFlags </span><span class="s2">|= </span><span class="s1">MouseWatcherRegion</span><span class="s2">.</span><span class="s1">SFMouseButton</span>
+            <span class="s1">suppressFlags </span><span class="s2">|= </span><span class="s1">MouseWatcherRegion</span><span class="s2">.</span><span class="s1">SFMousePosition</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'suppressKeys'</span><span class="s2">]:</span>
+            <span class="s1">suppressFlags </span><span class="s2">|= </span><span class="s1">MouseWatcherRegion</span><span class="s2">.</span><span class="s1">SFOtherButton</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSuppressFlags</span><span class="s2">(</span><span class="s1">suppressFlags</span><span class="s2">)</span>
+
+        <span class="s6"># Bind destroy hook</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiDict</span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">] = </span><span class="s1">self</span>
+        <span class="s6"># self.bind(DGG.DESTROY, self.destroy)</span>
+
+        <span class="s6"># Update frame when everything has been initialized</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">postInitialiseFuncList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameInitialiseFunc</span><span class="s2">)</span>
+
+        <span class="s6"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectGuiWidget</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">frameInitialiseFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Now allow changes to take effect</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">resetFrameSize</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">enableEdit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2PRESS</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">editStart</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2RELEASE</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">editStop</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">PRINT</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">printConfig</span><span class="s2">)</span>
+        <span class="s6"># Can we move this to showbase</span>
+        <span class="s6"># Certainly we don't need to do this for every button!</span>
+        <span class="s6">#mb = base.mouseWatcherNode.getModifierButtons()</span>
+        <span class="s6">#mb.addButton(KeyboardButton.control())</span>
+        <span class="s6">#base.mouseWatcherNode.setModifierButtons(mb)</span>
+
+    <span class="s4">def </span><span class="s1">disableEdit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2PRESS</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2RELEASE</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">PRINT</span><span class="s2">)</span>
+        <span class="s6">#mb = base.mouseWatcherNode.getModifierButtons()</span>
+        <span class="s6">#mb.removeButton(KeyboardButton.control())</span>
+        <span class="s6">#base.mouseWatcherNode.setModifierButtons(mb)</span>
+
+    <span class="s4">def </span><span class="s1">editStart</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'guiEditTask'</span><span class="s2">)</span>
+        <span class="s1">vWidget2render2d </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">render2d</span><span class="s2">)</span>
+        <span class="s1">vMouse2render2d </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">event</span><span class="s2">.</span><span class="s1">getMouse</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">], </span><span class="s5">0</span><span class="s2">, </span><span class="s1">event</span><span class="s2">.</span><span class="s1">getMouse</span><span class="s2">()[</span><span class="s5">1</span><span class="s2">])</span>
+        <span class="s1">editVec </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">vWidget2render2d </span><span class="s2">- </span><span class="s1">vMouse2render2d</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">mouseWatcherNode</span><span class="s2">.</span><span class="s1">getModifierButtons</span><span class="s2">().</span><span class="s1">isDown</span><span class="s2">(</span>
+            <span class="s1">KeyboardButton</span><span class="s2">.</span><span class="s1">control</span><span class="s2">()):</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiScaleTask</span><span class="s2">, </span><span class="s3">'guiEditTask'</span><span class="s2">)</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">refPos </span><span class="s2">= </span><span class="s1">vWidget2render2d</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">editVecLen </span><span class="s2">= </span><span class="s1">editVec</span><span class="s2">.</span><span class="s1">length</span><span class="s2">()</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">initScale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiDragTask</span><span class="s2">, </span><span class="s3">'guiEditTask'</span><span class="s2">)</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">editVec </span><span class="s2">= </span><span class="s1">editVec</span>
+
+    <span class="s4">def </span><span class="s1">guiScaleTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">mwn </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">mouseWatcherNode</span>
+        <span class="s4">if </span><span class="s1">mwn</span><span class="s2">.</span><span class="s1">hasMouse</span><span class="s2">():</span>
+            <span class="s1">vMouse2render2d </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">mwn</span><span class="s2">.</span><span class="s1">getMouse</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">], </span><span class="s5">0</span><span class="s2">, </span><span class="s1">mwn</span><span class="s2">.</span><span class="s1">getMouse</span><span class="s2">()[</span><span class="s5">1</span><span class="s2">])</span>
+            <span class="s1">newEditVecLen </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">state</span><span class="s2">.</span><span class="s1">refPos </span><span class="s2">- </span><span class="s1">vMouse2render2d</span><span class="s2">).</span><span class="s1">length</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">state</span><span class="s2">.</span><span class="s1">initScale </span><span class="s2">* (</span><span class="s1">newEditVecLen</span><span class="s2">/</span><span class="s1">state</span><span class="s2">.</span><span class="s1">editVecLen</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s4">def </span><span class="s1">guiDragTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">mwn </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">mouseWatcherNode</span>
+        <span class="s4">if </span><span class="s1">mwn</span><span class="s2">.</span><span class="s1">hasMouse</span><span class="s2">():</span>
+            <span class="s1">vMouse2render2d </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">mwn</span><span class="s2">.</span><span class="s1">getMouse</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">], </span><span class="s5">0</span><span class="s2">, </span><span class="s1">mwn</span><span class="s2">.</span><span class="s1">getMouse</span><span class="s2">()[</span><span class="s5">1</span><span class="s2">])</span>
+            <span class="s1">newPos </span><span class="s2">= </span><span class="s1">vMouse2render2d </span><span class="s2">+ </span><span class="s1">state</span><span class="s2">.</span><span class="s1">editVec</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">render2d</span><span class="s2">, </span><span class="s1">newPos</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">snapToGrid</span><span class="s2">:</span>
+                <span class="s1">newPos </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">()</span>
+                <span class="s1">newPos</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span>
+                    <span class="s1">ROUND_TO</span><span class="s2">(</span><span class="s1">newPos</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">gridSpacing</span><span class="s2">),</span>
+                    <span class="s1">ROUND_TO</span><span class="s2">(</span><span class="s1">newPos</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">gridSpacing</span><span class="s2">),</span>
+                    <span class="s1">ROUND_TO</span><span class="s2">(</span><span class="s1">newPos</span><span class="s2">[</span><span class="s5">2</span><span class="s2">], </span><span class="s1">DirectGuiWidget</span><span class="s2">.</span><span class="s1">gridSpacing</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">newPos</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s4">def </span><span class="s1">editStop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'guiEditTask'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">]) == </span><span class="s1">type</span><span class="s2">(</span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setActive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">])</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] == </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">) </span><span class="s4">or </span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'state'</span><span class="s2">] == </span><span class="s3">'normal'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setActive</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setActive</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">resetFrameSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fInit</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setFrameSize</span><span class="s2">(</span><span class="s1">fClearFrame </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setFrameSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fClearFrame </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s6"># Use ready state to determine frame Type</span>
+        <span class="s1">frameType </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getFrameType</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">]:</span>
+            <span class="s6"># Use user specified bounds</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameSize'</span><span class="s2">]</span>
+            <span class="s6">#print &quot;%s bounds = %s&quot; % (self.getName(), self.bounds)</span>
+            <span class="s1">bw </span><span class="s2">= (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">fClearFrame </span><span class="s4">and </span><span class="s2">(</span><span class="s1">frameType </span><span class="s2">!= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TNone</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TNone</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setFrameStyle</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+                <span class="s6"># To force an update of the button</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">getStateDef</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+            <span class="s6"># Clear out frame before computing bounds</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">getBounds</span><span class="s2">()</span>
+            <span class="s6"># Restore frame style if necessary</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">frameType </span><span class="s2">!= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TNone</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">frameType</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setFrameStyle</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])</span>
+
+            <span class="s4">if </span><span class="s2">((</span><span class="s1">frameType </span><span class="s2">!= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TNone</span><span class="s2">) </span><span class="s4">and</span>
+                <span class="s2">(</span><span class="s1">frameType </span><span class="s2">!= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TFlat</span><span class="s2">)):</span>
+                <span class="s1">bw </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderWidth'</span><span class="s2">]</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">bw </span><span class="s2">= (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s6"># Set frame to new dimensions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setFrame</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] - </span><span class="s1">bw</span><span class="s2">[</span><span class="s5">0</span><span class="s2">],</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] + </span><span class="s1">bw</span><span class="s2">[</span><span class="s5">0</span><span class="s2">],</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] - </span><span class="s1">bw</span><span class="s2">[</span><span class="s5">1</span><span class="s2">],</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">3</span><span class="s2">] + </span><span class="s1">bw</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+
+
+    <span class="s4">def </span><span class="s1">getBounds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s1">state</span><span class="s2">].</span><span class="s1">calcTightBounds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">)</span>
+        <span class="s6"># Scale bounds to give a pad around graphics</span>
+        <span class="s1">vec_right </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">.</span><span class="s1">right</span><span class="s2">()</span>
+        <span class="s1">vec_up </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">.</span><span class="s1">up</span><span class="s2">()</span>
+        <span class="s1">left </span><span class="s2">= (</span><span class="s1">vec_right</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+              <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+              <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])</span>
+        <span class="s1">right </span><span class="s2">= (</span><span class="s1">vec_right</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+               <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+               <span class="s2">+ </span><span class="s1">vec_right</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])</span>
+        <span class="s1">bottom </span><span class="s2">= (</span><span class="s1">vec_up</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+                <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+                <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])</span>
+        <span class="s1">top </span><span class="s2">= (</span><span class="s1">vec_up</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+             <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+             <span class="s2">+ </span><span class="s1">vec_up</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ll </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">left</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s1">bottom</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ur </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s1">right</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s1">top</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bounds </span><span class="s2">= [</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] - </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pad'</span><span class="s2">][</span><span class="s5">0</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pad'</span><span class="s2">][</span><span class="s5">0</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">.</span><span class="s1">ll</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] - </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pad'</span><span class="s2">][</span><span class="s5">1</span><span class="s2">],</span>
+                       <span class="s1">self</span><span class="s2">.</span><span class="s1">ur</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] + </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pad'</span><span class="s2">][</span><span class="s5">1</span><span class="s2">]]</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span>
+
+    <span class="s4">def </span><span class="s1">getWidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">getHeight</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">3</span><span class="s2">] - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">getCenter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] + (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">1</span><span class="s2">] - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">0</span><span class="s2">])/</span><span class="s5">2.0</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">2</span><span class="s2">] + (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">3</span><span class="s2">] - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bounds</span><span class="s2">[</span><span class="s5">2</span><span class="s2">])/</span><span class="s5">2.0</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getFrameType</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">state</span><span class="s2">].</span><span class="s1">getType</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">updateFrameStyle</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fInit</span><span class="s2">:</span>
+            <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setFrameStyle</span><span class="s2">(</span><span class="s1">i</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setRelief</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fSetStyle </span><span class="s2">= </span><span class="s5">1</span><span class="s2">):</span>
+        <span class="s1">relief </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'relief'</span><span class="s2">]</span>
+        <span class="s6"># Convert None, and string arguments</span>
+        <span class="s4">if </span><span class="s1">relief </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">relief </span><span class="s2">= </span><span class="s1">PGFrameStyle</span><span class="s2">.</span><span class="s1">TNone</span>
+        <span class="s4">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">relief</span><span class="s2">, </span><span class="s1">stringType</span><span class="s2">):</span>
+            <span class="s6"># Convert string to frame style int</span>
+            <span class="s1">relief </span><span class="s2">= </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">FrameStyleDict</span><span class="s2">[</span><span class="s1">relief</span><span class="s2">]</span>
+        <span class="s6"># Set style</span>
+        <span class="s4">if </span><span class="s1">relief </span><span class="s2">== </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RAISED</span><span class="s2">:</span>
+            <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+                <span class="s4">if </span><span class="s1">i </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'invertedFrames'</span><span class="s2">]:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s5">1</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">SUNKEN</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RAISED</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">relief </span><span class="s2">== </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">SUNKEN</span><span class="s2">:</span>
+            <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+                <span class="s4">if </span><span class="s1">i </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'invertedFrames'</span><span class="s2">]:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s5">1</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RAISED</span><span class="s2">)</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">SUNKEN</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setType</span><span class="s2">(</span><span class="s1">relief</span><span class="s2">)</span>
+        <span class="s6"># Apply styles</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setFrameColor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># this might be a single color or a list of colors</span>
+        <span class="s1">colors </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameColor'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">colors</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]) == </span><span class="s1">int </span><span class="s4">or </span><span class="s1">\</span>
+           <span class="s1">type</span><span class="s2">(</span><span class="s1">colors</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]) == </span><span class="s1">float</span><span class="s2">:</span>
+            <span class="s1">colors </span><span class="s2">= (</span><span class="s1">colors</span><span class="s2">,)</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s4">if </span><span class="s1">i </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">colors</span><span class="s2">):</span>
+                <span class="s1">color </span><span class="s2">= </span><span class="s1">colors</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">]</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">color </span><span class="s2">= </span><span class="s1">colors</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setColor</span><span class="s2">(</span><span class="s1">color</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">2</span><span class="s2">], </span><span class="s1">color</span><span class="s2">[</span><span class="s5">3</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setFrameTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># this might be a single texture or a list of textures</span>
+        <span class="s1">textures </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameTexture'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">textures </span><span class="s2">== </span><span class="s4">None or </span><span class="s1">\</span>
+           <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">textures</span><span class="s2">, </span><span class="s1">Texture</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+           <span class="s1">isinstance</span><span class="s2">(</span><span class="s1">textures</span><span class="s2">, </span><span class="s1">stringType</span><span class="s2">):</span>
+            <span class="s1">textures </span><span class="s2">= (</span><span class="s1">textures</span><span class="s2">,) * </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s4">if </span><span class="s1">i </span><span class="s2">&gt;= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">textures</span><span class="s2">):</span>
+                <span class="s1">texture </span><span class="s2">= </span><span class="s1">textures</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">]</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">texture </span><span class="s2">= </span><span class="s1">textures</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">texture</span><span class="s2">, </span><span class="s1">stringType</span><span class="s2">):</span>
+                <span class="s1">texture </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadTexture</span><span class="s2">(</span><span class="s1">texture</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">texture</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setTexture</span><span class="s2">(</span><span class="s1">texture</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">clearTexture</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setFrameVisibleScale</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">scale </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'frameVisibleScale'</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setVisibleScale</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">scale</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setBorderWidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">width </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderWidth'</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setWidth</span><span class="s2">(</span><span class="s1">width</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">width</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setBorderUvWidth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">uvWidth </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'borderUvWidth'</span><span class="s2">]</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'numStates'</span><span class="s2">]):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">setUvWidth</span><span class="s2">(</span><span class="s1">uvWidth</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s1">uvWidth</span><span class="s2">[</span><span class="s5">1</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateFrameStyle</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;frameStyle&quot;</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">ShowBaseGlobal</span><span class="s2">.</span><span class="s1">__dev__</span><span class="s2">:</span>
+                <span class="s1">guiObjectCollector</span><span class="s2">.</span><span class="s1">subLevel</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+                <span class="s1">guiObjectCollector</span><span class="s2">.</span><span class="s1">flushLevel</span><span class="s2">()</span>
+                <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">ShowBase</span><span class="s2">, </span><span class="s3">'guiItems'</span><span class="s2">):</span>
+                    <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">guiItems</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+
+            <span class="s6"># Destroy children</span>
+            <span class="s4">for </span><span class="s1">child </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getChildren</span><span class="s2">():</span>
+                <span class="s1">childGui </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">child</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">())</span>
+                <span class="s4">if </span><span class="s1">childGui</span><span class="s2">:</span>
+                    <span class="s1">childGui</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s6"># RAU since we added the class to the name, try</span>
+                    <span class="s6"># it with the original name</span>
+                    <span class="s1">parts </span><span class="s2">= </span><span class="s1">child</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'-'</span><span class="s2">)</span>
+                    <span class="s1">simpleChildGui </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">parts</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">])</span>
+                    <span class="s4">if </span><span class="s1">simpleChildGui</span><span class="s2">:</span>
+                        <span class="s1">simpleChildGui</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+                <span class="s6"># messenger.send(DESTROY + child.getName())</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiDict</span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">]</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameStyle</span>
+            <span class="s6"># Get rid of node path</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+            <span class="s4">for </span><span class="s1">nodePath </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">:</span>
+                <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span>
+            <span class="s6"># Call superclass destruction method (clears out hooks)</span>
+            <span class="s1">DirectGuiBase</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">printConfig</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">indent </span><span class="s2">= </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s1">space </span><span class="s2">= </span><span class="s3">' ' </span><span class="s2">* </span><span class="s1">indent</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'%s%s - %s' </span><span class="s2">% (</span><span class="s1">space</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'%sPos:   %s' </span><span class="s2">% (</span><span class="s1">space</span><span class="s2">, </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">())))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'%sScale: %s' </span><span class="s2">% (</span><span class="s1">space</span><span class="s2">, </span><span class="s1">tuple</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">())))</span>
+        <span class="s6"># Print out children info</span>
+        <span class="s4">for </span><span class="s1">child </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getChildren</span><span class="s2">():</span>
+            <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">PRINT </span><span class="s2">+ </span><span class="s1">child</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(), [</span><span class="s1">indent </span><span class="s2">+ </span><span class="s5">2</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">copyOptions</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">other</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Copy other's options into our self so we look and feel like other 
+        &quot;&quot;&quot;</span>
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s4">in </span><span class="s1">other</span><span class="s2">.</span><span class="s1">_optionInfo</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s1">key</span><span class="s2">] = </span><span class="s1">value</span><span class="s2">[</span><span class="s5">1</span><span class="s2">]</span>
+
+    <span class="s4">def </span><span class="s1">taskName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">idString</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">idString </span><span class="s2">+ </span><span class="s3">&quot;-&quot; </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">uniqueName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">idString</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">idString </span><span class="s2">+ </span><span class="s3">&quot;-&quot; </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">setProp</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">propString</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Allows you to set a property like frame['text'] = 'Joe' in 
+        a function instead of an assignment. 
+        This is useful for setting properties inside function intervals 
+        where must input a function and extraArgs, not an assignment. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">[</span><span class="s1">propString</span><span class="s2">] = </span><span class="s1">value</span>
+</pre>
+</body>
+</html>

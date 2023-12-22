@@ -1,0 +1,262 @@
+<html>
+<head>
+<title>ActorInterval.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ActorInterval.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;ActorInterval module: contains the ActorInterval class. 
+ 
+See the :ref:`actor-intervals` page in the programming manual for explanation 
+of this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ActorInterval'</span><span class="s2">, </span><span class="s3">'LerpAnimInterval'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Interval</span>
+<span class="s4">import </span><span class="s1">math</span>
+
+<span class="s4">class </span><span class="s1">ActorInterval</span><span class="s2">(</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">):</span>
+
+    <span class="s5"># create ActorInterval DirectNotify category</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'ActorInterval'</span><span class="s2">)</span>
+
+    <span class="s5"># Name counter</span>
+    <span class="s1">animNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Class methods</span>
+
+    <span class="s5"># Plays an animation on an Actor.  The subrange of the animation</span>
+    <span class="s5"># to be played may be specified via frames (startFrame up to and</span>
+    <span class="s5"># including endFrame) or seconds (startTime up to and including</span>
+    <span class="s5"># endTime).  If neither is specified, the default is the entire</span>
+    <span class="s5"># range of the animation.</span>
+
+    <span class="s5"># The duration may be implicit or explicit.  If it is omitted, it</span>
+    <span class="s5"># is taken to be endTime - startTime.  There's not much point in</span>
+    <span class="s5"># specifying otherwise unless you also specify loop=1, which will</span>
+    <span class="s5"># loop the animation over its frame range during the duration of</span>
+    <span class="s5"># the interval.</span>
+
+    <span class="s5"># Note: if loop == 0 and duration &gt; anim duration then the</span>
+    <span class="s5"># animation will play once and then hold its final pose for the</span>
+    <span class="s5"># remainder of the interval.</span>
+
+    <span class="s5"># loop = 1 implies a loop within the entire range of animation,</span>
+    <span class="s5"># while constrainedLoop = 1 implies a loop within startFrame and</span>
+    <span class="s5"># endFrame only.</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">actor</span><span class="s2">, </span><span class="s1">animName</span><span class="s2">, </span><span class="s1">loop</span><span class="s2">=</span><span class="s6">0</span><span class="s2">, </span><span class="s1">constrainedLoop</span><span class="s2">=</span><span class="s6">0</span><span class="s2">,</span>
+                 <span class="s1">duration</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">startTime</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">endTime</span><span class="s2">=</span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">startFrame</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">endFrame</span><span class="s2">=</span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">playRate</span><span class="s2">=</span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">forceUpdate</span><span class="s2">=</span><span class="s6">0</span><span class="s2">,</span>
+                 <span class="s1">partName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">lodName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s5"># Generate unique id</span>
+        <span class="s1">id </span><span class="s2">= </span><span class="s3">'Actor-%s-%d' </span><span class="s2">% (</span><span class="s1">animName</span><span class="s2">, </span><span class="s1">ActorInterval</span><span class="s2">.</span><span class="s1">animNum</span><span class="s2">)</span>
+        <span class="s1">ActorInterval</span><span class="s2">.</span><span class="s1">animNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Record class specific variables</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">actor </span><span class="s2">= </span><span class="s1">actor</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">animName </span><span class="s2">= </span><span class="s1">animName</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">controls </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actor</span><span class="s2">.</span><span class="s1">getAnimControls</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">animName</span><span class="s2">, </span><span class="s1">partName </span><span class="s2">= </span><span class="s1">partName</span><span class="s2">, </span><span class="s1">lodName </span><span class="s2">= </span><span class="s1">lodName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">loopAnim </span><span class="s2">= </span><span class="s1">loop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">constrainedLoop </span><span class="s2">= </span><span class="s1">constrainedLoop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">forceUpdate </span><span class="s2">= </span><span class="s1">forceUpdate</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">playRate </span><span class="s2">= </span><span class="s1">playRate</span>
+
+        <span class="s5"># If no name specified, use id as name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">id</span>
+
+        <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Unknown animation for actor: %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">animName</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate </span><span class="s2">= </span><span class="s6">1.0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">else</span><span class="s2">:</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">[</span><span class="s6">0</span><span class="s2">].</span><span class="s1">getFrameRate</span><span class="s2">() * </span><span class="s1">abs</span><span class="s2">(</span><span class="s1">playRate</span><span class="s2">)</span>
+            <span class="s5"># Compute start and end frames.</span>
+            <span class="s4">if </span><span class="s1">startFrame </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">= </span><span class="s1">startFrame</span>
+            <span class="s4">elif </span><span class="s1">startTime </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">= </span><span class="s1">startTime </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">= </span><span class="s6">0</span>
+
+            <span class="s4">if </span><span class="s1">endFrame </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">= </span><span class="s1">endFrame</span>
+            <span class="s4">elif </span><span class="s1">endTime </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">= </span><span class="s1">endTime </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate</span>
+            <span class="s4">elif </span><span class="s1">duration </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">startTime </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+                    <span class="s1">startTime </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate</span><span class="s2">)</span>
+                <span class="s1">endTime </span><span class="s2">= </span><span class="s1">startTime </span><span class="s2">+ </span><span class="s1">duration</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">= </span><span class="s1">endTime </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># No end frame specified.  Choose the maximum of all</span>
+                <span class="s5"># of the controls' numbers of frames.</span>
+                <span class="s1">maxFrames </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">[</span><span class="s6">0</span><span class="s2">].</span><span class="s1">getNumFrames</span><span class="s2">()</span>
+                <span class="s1">warned </span><span class="s2">= </span><span class="s6">0</span>
+                <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s6">1</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">)):</span>
+                    <span class="s1">numFrames </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">getNumFrames</span><span class="s2">()</span>
+                    <span class="s4">if </span><span class="s1">numFrames </span><span class="s2">!= </span><span class="s1">maxFrames </span><span class="s4">and </span><span class="s1">numFrames </span><span class="s2">!= </span><span class="s6">1 </span><span class="s4">and not </span><span class="s1">warned</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Animations '%s' on %s have an inconsistent number of frames.&quot; </span><span class="s2">% (</span><span class="s1">animName</span><span class="s2">, </span><span class="s1">actor</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+                        <span class="s1">warned </span><span class="s2">= </span><span class="s6">1</span>
+                    <span class="s1">maxFrames </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">maxFrames</span><span class="s2">, </span><span class="s1">numFrames</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">= </span><span class="s1">maxFrames </span><span class="s2">- </span><span class="s6">1</span>
+
+        <span class="s5"># Must we play the animation backwards?  We play backwards if</span>
+        <span class="s5"># either (or both) of the following is true: the playRate is</span>
+        <span class="s5"># negative, or endFrame is before startFrame.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reverse </span><span class="s2">= (</span><span class="s1">playRate </span><span class="s2">&lt; </span><span class="s6">0</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">reverse </span><span class="s2">= </span><span class="s6">1</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">= </span><span class="s1">t</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">numFrames </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">+ </span><span class="s6">1</span>
+
+        <span class="s5"># Compute duration if no duration specified</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">implicitDuration </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">if </span><span class="s1">duration </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">implicitDuration </span><span class="s2">= </span><span class="s6">1</span>
+            <span class="s1">duration </span><span class="s2">= </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">numFrames</span><span class="s2">) / </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate</span>
+
+        <span class="s5"># Initialize superclass</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getCurrentFrame</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Calculate the current frame playing in this interval. 
+ 
+        returns a float value between startFrame and endFrame, inclusive 
+        returns None if there are any problems 
+        &quot;&quot;&quot;</span>
+        <span class="s1">retval </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isStopped</span><span class="s2">():</span>
+            <span class="s1">framesPlayed </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">numFrames </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currT</span>
+            <span class="s1">retval </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">+ </span><span class="s1">framesPlayed</span>
+        <span class="s4">return </span><span class="s1">retval</span>
+
+    <span class="s4">def </span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">frameCount </span><span class="s2">= </span><span class="s1">t </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">frameRate</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">constrainedLoop</span><span class="s2">:</span>
+            <span class="s1">frameCount </span><span class="s2">= </span><span class="s1">frameCount </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">numFrames</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">reverse</span><span class="s2">:</span>
+            <span class="s1">absFrame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame </span><span class="s2">- </span><span class="s1">frameCount</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">absFrame </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame </span><span class="s2">+ </span><span class="s1">frameCount</span>
+
+        <span class="s5"># Calc integer frame number</span>
+        <span class="s1">intFrame </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">floor</span><span class="s2">(</span><span class="s1">absFrame </span><span class="s2">+ </span><span class="s6">0.0001</span><span class="s2">))</span>
+
+        <span class="s5"># Pose anim</span>
+
+        <span class="s5"># We use our pre-computed list of animControls for</span>
+        <span class="s5"># efficiency's sake, rather than going through the relatively</span>
+        <span class="s5"># expensive Actor interface every frame.</span>
+        <span class="s4">for </span><span class="s1">control </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">:</span>
+            <span class="s5"># Each animControl might have a different number of frames.</span>
+            <span class="s1">numFrames </span><span class="s2">= </span><span class="s1">control</span><span class="s2">.</span><span class="s1">getNumFrames</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">loopAnim</span><span class="s2">:</span>
+                <span class="s1">frame </span><span class="s2">= (</span><span class="s1">intFrame </span><span class="s2">% </span><span class="s1">numFrames</span><span class="s2">) + (</span><span class="s1">absFrame </span><span class="s2">- </span><span class="s1">intFrame</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">frame </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">absFrame</span><span class="s2">, </span><span class="s1">numFrames </span><span class="s2">- </span><span class="s6">1</span><span class="s2">), </span><span class="s6">0</span><span class="s2">)</span>
+
+            <span class="s1">control</span><span class="s2">.</span><span class="s1">pose</span><span class="s2">(</span><span class="s1">frame</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">forceUpdate</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">actor</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s1">t</span>
+
+    <span class="s4">def </span><span class="s1">privFinalize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">implicitDuration </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">loopAnim</span><span class="s2">:</span>
+            <span class="s5"># As a special case, we ensure we end up posed to the last</span>
+            <span class="s5"># frame of the animation if the original duration was</span>
+            <span class="s5"># implicit.  This is necessary only to guard against</span>
+            <span class="s5"># possible roundoff error in computing the final frame</span>
+            <span class="s5"># from the duration.  We don't do this in the case of a</span>
+            <span class="s5"># looping animation, however, because this would introduce</span>
+            <span class="s5"># a hitch in the animation when it plays back-to-back with</span>
+            <span class="s5"># the next cycle.</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">reverse</span><span class="s2">:</span>
+                <span class="s4">for </span><span class="s1">control </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">:</span>
+                    <span class="s1">control</span><span class="s2">.</span><span class="s1">pose</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startFrame</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">for </span><span class="s1">control </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">:</span>
+                    <span class="s1">control</span><span class="s2">.</span><span class="s1">pose</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">endFrame</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">forceUpdate</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">actor</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Otherwise, the user-specified duration determines which</span>
+            <span class="s5"># is our final frame.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">())</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">intervalDone</span><span class="s2">()</span>
+
+    <span class="s5"># If we want to change what part this interval is playing on after</span>
+    <span class="s5"># the interval has been created, call resetControls and pass in a partName</span>
+    <span class="s5"># and optional lod param</span>
+    <span class="s4">def </span><span class="s1">resetControls</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">partName</span><span class="s2">, </span><span class="s1">lodName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">controls </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actor</span><span class="s2">.</span><span class="s1">getAnimControls</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">animName</span><span class="s2">, </span><span class="s1">partName </span><span class="s2">= </span><span class="s1">partName</span><span class="s2">, </span><span class="s1">lodName </span><span class="s2">= </span><span class="s1">lodName</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">LerpAnimInterval</span><span class="s2">(</span><span class="s1">CLerpAnimEffectInterval</span><span class="s2">):</span>
+    <span class="s5"># Blends between two anims.  Start both anims first (or use</span>
+    <span class="s5"># parallel ActorIntervals), then invoke LerpAnimInterval to</span>
+    <span class="s5"># smoothly blend the control effect from the first to the second.</span>
+    <span class="s1">lerpAnimNum </span><span class="s2">= </span><span class="s6">1</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">actor</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">, </span><span class="s1">startAnim</span><span class="s2">, </span><span class="s1">endAnim</span><span class="s2">,</span>
+                 <span class="s1">startWeight </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">endWeight </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">,</span>
+                 <span class="s1">blendType </span><span class="s2">= </span><span class="s3">'noBlend'</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">partName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">lodName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s5"># Generate unique name if necessary</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'LerpAnimInterval-%d' </span><span class="s2">% </span><span class="s1">LerpAnimInterval</span><span class="s2">.</span><span class="s1">lerpAnimNum</span>
+            <span class="s1">LerpAnimInterval</span><span class="s2">.</span><span class="s1">lerpAnimNum </span><span class="s2">+= </span><span class="s6">1</span>
+
+        <span class="s1">blendType </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stringBlendType</span><span class="s2">(</span><span class="s1">blendType</span><span class="s2">)</span>
+        <span class="s4">assert </span><span class="s1">blendType </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">BTInvalid</span>
+
+        <span class="s5"># Initialize superclass</span>
+        <span class="s1">CLerpAnimEffectInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">, </span><span class="s1">blendType</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">startAnim </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">controls </span><span class="s2">= </span><span class="s1">actor</span><span class="s2">.</span><span class="s1">getAnimControls</span><span class="s2">(</span>
+                <span class="s1">startAnim</span><span class="s2">, </span><span class="s1">partName </span><span class="s2">= </span><span class="s1">partName</span><span class="s2">, </span><span class="s1">lodName </span><span class="s2">= </span><span class="s1">lodName</span><span class="s2">)</span>
+            <span class="s5">#controls = actor.getAnimControls(startAnim)</span>
+            <span class="s4">for </span><span class="s1">control </span><span class="s4">in </span><span class="s1">controls</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">addControl</span><span class="s2">(</span><span class="s1">control</span><span class="s2">, </span><span class="s1">startAnim</span><span class="s2">,</span>
+                                <span class="s6">1.0 </span><span class="s2">- </span><span class="s1">startWeight</span><span class="s2">, </span><span class="s6">1.0 </span><span class="s2">- </span><span class="s1">endWeight</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">endAnim </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">controls </span><span class="s2">= </span><span class="s1">actor</span><span class="s2">.</span><span class="s1">getAnimControls</span><span class="s2">(</span>
+                <span class="s1">endAnim</span><span class="s2">, </span><span class="s1">partName </span><span class="s2">= </span><span class="s1">partName</span><span class="s2">, </span><span class="s1">lodName </span><span class="s2">= </span><span class="s1">lodName</span><span class="s2">)</span>
+            <span class="s5">#controls = actor.getAnimControls(endAnim)</span>
+            <span class="s4">for </span><span class="s1">control </span><span class="s4">in </span><span class="s1">controls</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">addControl</span><span class="s2">(</span><span class="s1">control</span><span class="s2">, </span><span class="s1">endAnim</span><span class="s2">,</span>
+                                <span class="s1">startWeight</span><span class="s2">, </span><span class="s1">endWeight</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

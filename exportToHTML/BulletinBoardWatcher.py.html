@@ -1,0 +1,77 @@
+<html>
+<head>
+<title>BulletinBoardWatcher.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+BulletinBoardWatcher.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Contains the BulletinBoardWatcher class.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'BulletinBoardWatcher'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s4">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s4">import </span><span class="s1">Functor</span><span class="s2">, </span><span class="s1">makeList</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">DirectObject</span>
+
+<span class="s4">class </span><span class="s1">BulletinBoardWatcher</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; This class allows you to wait for a set of posts to be made to (or 
+    removed from) the bulletin board, and gives you a notification when all 
+    posts have been made. Values of posts are not examined.&quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'BulletinBoardWatcher'</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">postNames</span><span class="s2">, </span><span class="s1">callback</span><span class="s2">, </span><span class="s1">removeNames</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'__init__: %s, %s, %s' </span><span class="s2">% (</span><span class="s1">name</span><span class="s2">, </span><span class="s1">postNames</span><span class="s2">, </span><span class="s1">callback</span><span class="s2">))</span>
+        <span class="s4">if </span><span class="s1">removeNames </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">removeNames </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">postNames </span><span class="s2">= </span><span class="s1">makeList</span><span class="s2">(</span><span class="s1">postNames</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeNames </span><span class="s2">= </span><span class="s1">makeList</span><span class="s2">(</span><span class="s1">removeNames</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">callback </span><span class="s2">= </span><span class="s1">callback</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">name </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">postNames</span><span class="s2">:</span>
+            <span class="s4">if not </span><span class="s1">bboard</span><span class="s2">.</span><span class="s1">has</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+                <span class="s1">eventName </span><span class="s2">= </span><span class="s1">bboard</span><span class="s2">.</span><span class="s1">getEvent</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">acceptOnce</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">, </span><span class="s1">Functor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleEvent</span><span class="s2">, </span><span class="s1">eventName</span><span class="s2">))</span>
+        <span class="s4">for </span><span class="s1">name </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeNames</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">bboard</span><span class="s2">.</span><span class="s1">has</span><span class="s2">(</span><span class="s1">name</span><span class="s2">):</span>
+                <span class="s1">eventName </span><span class="s2">= </span><span class="s1">bboard</span><span class="s2">.</span><span class="s1">getRemoveEvent</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">acceptOnce</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">, </span><span class="s1">Functor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleEvent</span><span class="s2">, </span><span class="s1">eventName</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_checkDone</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignoreAll</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'callback'</span><span class="s2">):</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">callback</span>
+            <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn</span>
+
+    <span class="s4">def </span><span class="s1">isDone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn</span><span class="s2">) == </span><span class="s5">0</span>
+
+    <span class="s4">def </span><span class="s1">_checkDone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isDone</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'%s: done' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">callback</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_handleEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">eventName</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'%s: handlePost(%s)' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">, </span><span class="s1">eventName</span><span class="s2">))</span>
+        <span class="s4">assert </span><span class="s1">eventName </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">waitingOn</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">eventName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_checkDone</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

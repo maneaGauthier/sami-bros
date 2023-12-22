@@ -1,0 +1,33 @@
+<html>
+<head>
+<title>nailergun.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+nailergun.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">behaviorshootlikepistol </span><span class="s0">import </span><span class="s1">BehaviorShootLikePistol</span>
+<span class="s0">from </span><span class="s1">weapon </span><span class="s0">import </span><span class="s1">Weapon</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">NailerGun</span><span class="s2">(</span><span class="s1">Weapon</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">BehaviorShootLikePistol</span><span class="s2">(), </span><span class="s1">model</span><span class="s2">=</span><span class="s3">'assets/3D/silent_nail_gun.glb'</span><span class="s2">,</span>
+                         <span class="s1">rotation</span><span class="s2">=(</span><span class="s4">0</span><span class="s2">,</span><span class="s4">90</span><span class="s2">,</span><span class="s4">0</span><span class="s2">),</span>
+                         <span class="s1">position</span><span class="s2">=(</span><span class="s4">1</span><span class="s2">,-</span><span class="s4">0.2</span><span class="s2">,</span><span class="s4">1</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">0.05</span><span class="s2">, </span><span class="s1">texture</span><span class="s2">=</span><span class="s3">'assets/textures/Body_baseColor.png'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">held_keys</span><span class="s2">[</span><span class="s3">'left mouse'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">shoot</span><span class="s2">()</span></pre>
+</body>
+</html>

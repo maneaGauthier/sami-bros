@@ -1,0 +1,318 @@
+<html>
+<head>
+<title>ProjectileInterval.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ProjectileInterval.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;ProjectileInterval module: contains the ProjectileInterval class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ProjectileInterval'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">Interval </span><span class="s4">import </span><span class="s1">Interval</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">PythonUtil</span>
+
+<span class="s4">class </span><span class="s1">ProjectileInterval</span><span class="s2">(</span><span class="s1">Interval</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot;ProjectileInterval class: moves a nodepath through the trajectory 
+    of a projectile under the influence of gravity&quot;&quot;&quot;</span>
+
+    <span class="s5"># create ProjectileInterval DirectNotify category</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'ProjectileInterval'</span><span class="s2">)</span>
+
+    <span class="s5"># serial num for unnamed intervals</span>
+    <span class="s1">projectileIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+
+    <span class="s5"># g ~ 9.8 m/s^2 ~ 32 ft/s^2</span>
+    <span class="s1">gravity </span><span class="s2">= </span><span class="s6">32.</span>
+
+    <span class="s5"># the projectile's velocity is constant in the X and Y directions.</span>
+    <span class="s5"># the projectile's motion in the Z (up) direction is parabolic</span>
+    <span class="s5"># due to the constant force of gravity, which acts in the -Z direction</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">node</span><span class="s2">, </span><span class="s1">startPos </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">endPos </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">startVel </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">endZ </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">wayPoint </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">timeToWayPoint </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">gravityMult </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">collNode </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        You may specify several different sets of input parameters. 
+        (If startPos is not provided, it will be obtained from the node's 
+        position at the time that the interval is first started. Note that 
+        in this case you must provide a duration of some kind.) 
+ 
+        # go from startPos to endPos in duration seconds 
+        startPos, endPos, duration 
+        # given a starting velocity, go for a specific time period 
+        startPos, startVel, duration 
+        # given a starting velocity, go until you hit a given Z plane 
+        startPos, startVel, endZ 
+        # pass through wayPoint at time 'timeToWayPoint'. Go until 
+        # you hit a given Z plane 
+        startPos, wayPoint, timeToWayPoint, endZ 
+ 
+        You may alter gravity by providing a multiplier in 'gravityMult'. 
+        '2.' will make gravity twice as strong, '.5' half as strong. 
+        '-1.' will reverse gravity 
+ 
+        If collNode is not None, it should be an empty CollisionNode 
+        which will be filled with an appropriate CollisionParabola 
+        when the interval starts.  This CollisionParabola will be set 
+        to match the interval's parabola, and its t1, t2 values will 
+        be updated automatically as the interval plays.  It will *not* 
+        be automatically removed from the node when the interval 
+        finishes. 
+ 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">node </span><span class="s2">= </span><span class="s1">node</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">collNode </span><span class="s2">= </span><span class="s1">collNode</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">, </span><span class="s1">NodePath</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">collNode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">node</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">getNumSolids</span><span class="s2">() == </span><span class="s6">0</span>
+
+        <span class="s4">if </span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'%s-%s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">,</span>
+                              <span class="s1">self</span><span class="s2">.</span><span class="s1">projectileIntervalNum</span><span class="s2">)</span>
+            <span class="s1">ProjectileInterval</span><span class="s2">.</span><span class="s1">projectileIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+
+        <span class="s1">args </span><span class="s2">= (</span><span class="s1">startPos</span><span class="s2">, </span><span class="s1">endPos</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">, </span><span class="s1">startVel</span><span class="s2">, </span><span class="s1">endZ</span><span class="s2">,</span>
+                <span class="s1">wayPoint</span><span class="s2">, </span><span class="s1">timeToWayPoint</span><span class="s2">, </span><span class="s1">gravityMult</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">implicitStartPos </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">if </span><span class="s1">startPos </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">duration </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'must provide either startPos or duration'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">duration </span><span class="s2">= </span><span class="s1">duration</span>
+            <span class="s5"># we can't calc the trajectory until we know our starting</span>
+            <span class="s5"># position; delay until the interval is actually started</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">trajectoryArgs </span><span class="s2">= </span><span class="s1">args</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">implicitStartPos </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">trajectoryArgs </span><span class="s2">= </span><span class="s1">args</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__calcTrajectory</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">)</span>
+
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__calcTrajectory</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startPos </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                         <span class="s1">endPos </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                         <span class="s1">startVel </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">endZ </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                         <span class="s1">wayPoint </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">timeToWayPoint </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                         <span class="s1">gravityMult </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">startPos </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">startPos </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">()</span>
+
+        <span class="s4">def </span><span class="s1">doIndirections</span><span class="s2">(*</span><span class="s1">items</span><span class="s2">):</span>
+            <span class="s1">result </span><span class="s2">= []</span>
+            <span class="s4">for </span><span class="s1">item </span><span class="s4">in </span><span class="s1">items</span><span class="s2">:</span>
+                <span class="s4">if </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">item</span><span class="s2">):</span>
+                    <span class="s1">item </span><span class="s2">= </span><span class="s1">item</span><span class="s2">()</span>
+                <span class="s1">result</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">item</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">result</span>
+
+        <span class="s1">startPos</span><span class="s2">, </span><span class="s1">endPos</span><span class="s2">, </span><span class="s1">startVel</span><span class="s2">, </span><span class="s1">endZ</span><span class="s2">, </span><span class="s1">gravityMult</span><span class="s2">, </span><span class="s1">wayPoint</span><span class="s2">, </span><span class="s1">\</span>
+                  <span class="s1">timeToWayPoint </span><span class="s2">= </span><span class="s1">\</span>
+                  <span class="s1">doIndirections</span><span class="s2">(</span><span class="s1">startPos</span><span class="s2">, </span><span class="s1">endPos</span><span class="s2">, </span><span class="s1">startVel</span><span class="s2">, </span><span class="s1">endZ</span><span class="s2">, </span><span class="s1">gravityMult</span><span class="s2">,</span>
+                                 <span class="s1">wayPoint</span><span class="s2">, </span><span class="s1">timeToWayPoint</span><span class="s2">)</span>
+
+        <span class="s5"># we're guaranteed to know the starting position at this point</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">startPos </span><span class="s2">= </span><span class="s1">startPos</span>
+
+        <span class="s5"># gravity is applied in the -Z direction</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc </span><span class="s2">= -</span><span class="s1">self</span><span class="s2">.</span><span class="s1">gravity</span>
+        <span class="s4">if </span><span class="s1">gravityMult</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc </span><span class="s2">*= </span><span class="s1">gravityMult</span>
+
+        <span class="s4">def </span><span class="s1">calcStartVel</span><span class="s2">(</span><span class="s1">startPos</span><span class="s2">, </span><span class="s1">endPos</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">, </span><span class="s1">zAccel</span><span class="s2">):</span>
+            <span class="s5"># p(t) = p_0 + t*v_0 + .5*a*t^2</span>
+            <span class="s5"># v_0 = [p(t) - p_0 - .5*a*t^2] / t</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">duration </span><span class="s2">== </span><span class="s6">0</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">Point3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s1">Point3</span><span class="s2">((</span><span class="s1">endPos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] - </span><span class="s1">startPos</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]) / </span><span class="s1">duration</span><span class="s2">,</span>
+                          <span class="s2">(</span><span class="s1">endPos</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] - </span><span class="s1">startPos</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]) / </span><span class="s1">duration</span><span class="s2">,</span>
+                          <span class="s2">(</span><span class="s1">endPos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] - </span><span class="s1">startPos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] - (</span><span class="s6">.5</span><span class="s2">*</span><span class="s1">zAccel</span><span class="s2">*</span><span class="s1">duration</span><span class="s2">*</span><span class="s1">duration</span><span class="s2">)) / </span><span class="s1">duration</span><span class="s2">)</span>
+
+        <span class="s4">def </span><span class="s1">calcTimeOfImpactOnPlane</span><span class="s2">(</span><span class="s1">startHeight</span><span class="s2">, </span><span class="s1">endHeight</span><span class="s2">, </span><span class="s1">startVel</span><span class="s2">, </span><span class="s1">accel</span><span class="s2">):</span>
+            <span class="s4">return </span><span class="s1">PythonUtil</span><span class="s2">.</span><span class="s1">solveQuadratic</span><span class="s2">(</span><span class="s1">accel </span><span class="s2">* </span><span class="s6">.5</span><span class="s2">, </span><span class="s1">startVel</span><span class="s2">,</span>
+                                             <span class="s1">startHeight</span><span class="s2">-</span><span class="s1">endHeight</span><span class="s2">)</span>
+
+        <span class="s4">def </span><span class="s1">calcTimeOfLastImpactOnPlane</span><span class="s2">(</span><span class="s1">startHeight</span><span class="s2">, </span><span class="s1">endHeight</span><span class="s2">,</span>
+                                        <span class="s1">startVel</span><span class="s2">, </span><span class="s1">accel</span><span class="s2">):</span>
+            <span class="s1">time </span><span class="s2">= </span><span class="s1">calcTimeOfImpactOnPlane</span><span class="s2">(</span><span class="s1">startHeight</span><span class="s2">, </span><span class="s1">endHeight</span><span class="s2">,</span>
+                                           <span class="s1">startVel</span><span class="s2">, </span><span class="s1">accel</span><span class="s2">)</span>
+            <span class="s4">if not </span><span class="s1">time</span><span class="s2">:</span>
+                <span class="s4">return None</span>
+            <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">time</span><span class="s2">) == </span><span class="s1">type</span><span class="s2">([]):</span>
+                <span class="s5"># projectile hits plane once going up, once going down</span>
+                <span class="s5"># assume they want the one on the way down</span>
+                <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'projectile hits plane twice at times: %s' </span><span class="s2">%</span>
+                                  <span class="s1">time</span><span class="s2">)</span>
+                <span class="s1">time </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(*</span><span class="s1">time</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'projectile hits plane once at time: %s' </span><span class="s2">%</span>
+                                  <span class="s1">time</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">time</span>
+
+        <span class="s5"># now all we need is startVel, duration, and endPos.</span>
+
+        <span class="s5"># which set of input parameters do we have?</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s4">None not in </span><span class="s2">(</span><span class="s1">endPos</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">)):</span>
+            <span class="s4">assert not </span><span class="s1">startVel</span>
+            <span class="s4">assert not </span><span class="s1">endZ</span>
+            <span class="s4">assert not </span><span class="s1">wayPoint</span>
+            <span class="s4">assert not </span><span class="s1">timeToWayPoint</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">duration </span><span class="s2">= </span><span class="s1">duration</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endPos </span><span class="s2">= </span><span class="s1">endPos</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startVel </span><span class="s2">= </span><span class="s1">calcStartVel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startPos</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">endPos</span><span class="s2">,</span>
+                                         <span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s4">None not in </span><span class="s2">(</span><span class="s1">startVel</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">)):</span>
+            <span class="s4">assert not </span><span class="s1">endPos</span>
+            <span class="s4">assert not </span><span class="s1">endZ</span>
+            <span class="s4">assert not </span><span class="s1">wayPoint</span>
+            <span class="s4">assert not </span><span class="s1">timeToWayPoint</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">duration </span><span class="s2">= </span><span class="s1">duration</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startVel </span><span class="s2">= </span><span class="s1">startVel</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endPos </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s4">None not in </span><span class="s2">(</span><span class="s1">startVel</span><span class="s2">, </span><span class="s1">endZ</span><span class="s2">)):</span>
+            <span class="s4">assert not </span><span class="s1">endPos</span>
+            <span class="s4">assert not </span><span class="s1">duration</span>
+            <span class="s4">assert not </span><span class="s1">wayPoint</span>
+            <span class="s4">assert not </span><span class="s1">timeToWayPoint</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startVel </span><span class="s2">= </span><span class="s1">startVel</span>
+            <span class="s1">time </span><span class="s2">= </span><span class="s1">calcTimeOfLastImpactOnPlane</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startPos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">endZ</span><span class="s2">,</span>
+                                               <span class="s1">self</span><span class="s2">.</span><span class="s1">startVel</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">time </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                    <span class="s3">'projectile never reaches plane Z=%s' </span><span class="s2">% </span><span class="s1">endZ</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">duration </span><span class="s2">= </span><span class="s1">time</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endPos </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s4">None not in </span><span class="s2">(</span><span class="s1">wayPoint</span><span class="s2">, </span><span class="s1">timeToWayPoint</span><span class="s2">, </span><span class="s1">endZ</span><span class="s2">)):</span>
+            <span class="s4">assert not </span><span class="s1">endPos</span>
+            <span class="s4">assert not </span><span class="s1">duration</span>
+            <span class="s4">assert not </span><span class="s1">startVel</span>
+            <span class="s5"># we pass through wayPoint at time 'timeToWayPoint', and we</span>
+            <span class="s5"># stop when we reach endZ</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startVel </span><span class="s2">= </span><span class="s1">calcStartVel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startPos</span><span class="s2">, </span><span class="s1">wayPoint</span><span class="s2">,</span>
+                                         <span class="s1">timeToWayPoint</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc</span><span class="s2">)</span>
+            <span class="s1">time </span><span class="s2">= </span><span class="s1">calcTimeOfLastImpactOnPlane</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">startPos</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">endZ</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startVel</span><span class="s2">[</span><span class="s6">2</span><span class="s2">], </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">time </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                    <span class="s3">'projectile never reaches plane Z=%s' </span><span class="s2">% </span><span class="s1">endZ</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">duration </span><span class="s2">= </span><span class="s1">time</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endPos </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'invalid set of inputs to ProjectileInterval'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parabola </span><span class="s2">= </span><span class="s1">LParabola</span><span class="s2">(</span><span class="s1">VBase3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0.5 </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc</span><span class="s2">),</span>
+                                  <span class="s1">self</span><span class="s2">.</span><span class="s1">startVel</span><span class="s2">,</span>
+                                  <span class="s1">self</span><span class="s2">.</span><span class="s1">startPos</span><span class="s2">)</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">endPos</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">endPos </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__calcPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">)</span>
+
+        <span class="s5"># these are the parameters that we need to know:</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'startPos: %s' </span><span class="s2">% </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startPos</span><span class="s2">))</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'endPos:   %s' </span><span class="s2">% </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">endPos</span><span class="s2">))</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'duration: %s' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">)</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'startVel: %s' </span><span class="s2">% </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">startVel</span><span class="s2">))</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">'z-accel:  %s' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zAcc</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__initialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">implicitStartPos</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__calcTrajectory</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">trajectoryArgs</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">testTrajectory</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__calcTrajectory</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">trajectoryArgs</span><span class="s2">)</span>
+        <span class="s4">except </span><span class="s1">Exception</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">'invalid projectile parameters'</span><span class="s2">)</span>
+            <span class="s4">return False</span>
+        <span class="s4">return True</span>
+
+    <span class="s4">def </span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__initialize</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">clearSolids</span><span class="s2">()</span>
+            <span class="s1">csolid </span><span class="s2">= </span><span class="s1">CollisionParabola</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">parabola</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">addSolid</span><span class="s2">(</span><span class="s1">csolid</span><span class="s2">)</span>
+
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">privInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__initialize</span><span class="s2">()</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">privInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">clearSolids</span><span class="s2">()</span>
+            <span class="s1">csolid </span><span class="s2">= </span><span class="s1">CollisionParabola</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">parabola</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">addSolid</span><span class="s2">(</span><span class="s1">csolid</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__calcPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parabola</span><span class="s2">.</span><span class="s1">calcPoint</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">.</span><span class="s1">setFluidPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__calcPos</span><span class="s2">(</span><span class="s1">t</span><span class="s2">))</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">getNumSolids</span><span class="s2">() &gt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">csolid </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">collNode</span><span class="s2">.</span><span class="s1">modifySolid</span><span class="s2">(</span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s1">csolid</span><span class="s2">.</span><span class="s1">setT1</span><span class="s2">(</span><span class="s1">csolid</span><span class="s2">.</span><span class="s1">getT2</span><span class="s2">())</span>
+            <span class="s1">csolid</span><span class="s2">.</span><span class="s1">setT2</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+
+<span class="s3">&quot;&quot;&quot; 
+        ################################################################## 
+          TODO: support arbitrary sets of inputs 
+        ################################################################## 
+        You must provide a few of the parameters, and the others will be 
+        computed. The input parameters in question are: 
+          duration, endZ, endPos, startVel, gravityMult 
+ 
+        Valid sets of input parameters (AA), 
+        (trivially computed/default parameters) (BB), 
+        non-trivial computed parameters (CC): 
+        AA &amp;&amp; BB =&gt; CC 
+ 
+        # one parameter 
+        duration &amp;&amp; (startVel, gravityMult) =&gt; endZ, endPos 
+        endZ     &amp;&amp; (startVel, gravityMult) =&gt; duration, endPos 
+        endPos   &amp;&amp; (endZ, gravityMult    ) =&gt; duration, startVel 
+ 
+        # two parameters 
+        duration, endZ        &amp;&amp; (endPos, gravityMult) =&gt; startVel 
+        duration, endPos      &amp;&amp; (endZ, gravityMult  ) =&gt; startVel 
+        duration, startVel    &amp;&amp; (gravityMult        ) =&gt; endZ, endPos 
+        duration, gravityMult &amp;&amp; (startVel           ) =&gt; endZ, endPos 
+        endZ, startVel        &amp;&amp; (gravityMult        ) =&gt; duration, endPos 
+        endZ, gravityMult     &amp;&amp; (endPos, startVel   ) =&gt; duration 
+        endPos, gravityMult   &amp;&amp; (endZ               ) =&gt; duration, startVel 
+ 
+        # three parameters 
+        duration, endZ, startVel        &amp;&amp; (      ) =&gt; endPos, gravityMult 
+        duration, endZ, gravityMult     &amp;&amp; (endPos) =&gt; startVel 
+        duration, endPos, gravityMult   &amp;&amp; (endZ  ) =&gt; startVel 
+        duration, startVel, gravityMult &amp;&amp; (      ) =&gt; endZ, endPos 
+        endZ, startVel, gravityMult     &amp;&amp; (      ) =&gt; duration, endPos 
+ 
+        # four parameters 
+        duration, endZ, startVel, gravityMult &amp;&amp; () =&gt; endPos 
+        ################################################################## 
+        ################################################################## 
+&quot;&quot;&quot;</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<html>
+<head>
+<title>AppRunnerGlobal.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #bcbec4;}
+.s4 { color: #cf8e6d;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+AppRunnerGlobal.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; This module serves as a placeholder for the global AppRunner 
+object, which only exists when we are running a .p3d file via 
+runp3d.py or via the Panda3D plugin or standalone executable. 
+ 
+This is needed for apps that start themselves by importing 
+DirectStart; it provides a place for these apps to look for 
+the AppRunner at startup. 
+ 
+.. deprecated:: 1.10.0 
+   The p3d packaging system has been replaced with the new setuptools-based 
+   system.  See the :ref:`distribution` manual section. 
+&quot;&quot;&quot;</span>
+
+<span class="s2">#: Contains the global :class:`~.AppRunner.AppRunner` instance, or None</span>
+<span class="s2">#: if this application was not run from the runtime environment.</span>
+<span class="s1">appRunner </span><span class="s3">= </span><span class="s4">None</span>
+</pre>
+</body>
+</html>

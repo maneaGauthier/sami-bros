@@ -1,0 +1,524 @@
+<html>
+<head>
+<title>DistributedObjectUD.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #7a7e85;}
+.s5 { color: #6aab73;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedObjectUD.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;DistributedObjectUD module: contains the DistributedObjectUD class&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directnotify</span><span class="s3">.</span><span class="s1">DirectNotifyGlobal </span><span class="s2">import </span><span class="s1">directNotify</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">distributed</span><span class="s3">.</span><span class="s1">DistributedObjectBase </span><span class="s2">import </span><span class="s1">DistributedObjectBase</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase </span><span class="s2">import </span><span class="s1">PythonUtil</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">direct </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s4">#from PyDatagram import PyDatagram</span>
+<span class="s4">#from PyDatagramIterator import PyDatagramIterator</span>
+
+<span class="s2">class </span><span class="s1">DistributedObjectUD</span><span class="s3">(</span><span class="s1">DistributedObjectBase</span><span class="s3">):</span>
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s5">&quot;DistributedObjectUD&quot;</span><span class="s3">)</span>
+    <span class="s1">QuietZone </span><span class="s3">= </span><span class="s6">1</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">air</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">DistributedObjectUD_initialized</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">DistributedObjectUD_initialized </span><span class="s3">= </span><span class="s6">1</span>
+            <span class="s1">DistributedObjectBase</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">air</span><span class="s3">)</span>
+
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">accountName </span><span class="s3">= </span><span class="s5">''</span>
+            <span class="s4"># Record the repository</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air </span><span class="s3">= </span><span class="s1">air</span>
+
+            <span class="s4"># Record our distributed class</span>
+            <span class="s1">className </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">dclass </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">dclassesByName</span><span class="s3">[</span><span class="s1">className</span><span class="s3">]</span>
+            <span class="s4"># init doId pre-allocated flag</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId </span><span class="s3">= </span><span class="s6">0</span>
+
+            <span class="s4"># used to track zone changes across the quiet zone</span>
+            <span class="s4"># NOTE: the quiet zone is defined in OTP, but we need it</span>
+            <span class="s4"># here.</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">lastNonQuietZone </span><span class="s3">= </span><span class="s2">None</span>
+
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_DOUD_requestedDelete </span><span class="s3">= </span><span class="s2">False</span>
+
+            <span class="s4"># These are used to implement beginBarrier().</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__nextBarrierContext </span><span class="s3">= </span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers </span><span class="s3">= {}</span>
+
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__generated </span><span class="s3">= </span><span class="s2">False</span>
+            <span class="s4"># reference count for multiple inheritance</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__generates </span><span class="s3">= </span><span class="s6">0</span>
+
+    <span class="s4"># Uncomment if you want to debug DO leaks</span>
+    <span class="s4">#def __del__(self):</span>
+    <span class="s4">#    &quot;&quot;&quot;</span>
+    <span class="s4">#    For debugging purposes, this just prints out what got deleted</span>
+    <span class="s4">#    &quot;&quot;&quot;</span>
+    <span class="s4">#    print (&quot;Destructing: &quot; + self.__class__.__name__)</span>
+
+    <span class="s2">if __debug__</span><span class="s3">:</span>
+        <span class="s2">def </span><span class="s1">status</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">indent</span><span class="s3">=</span><span class="s6">0</span><span class="s3">):</span>
+            <span class="s0">&quot;&quot;&quot; 
+            print out doId(parentId, zoneId) className 
+                and conditionally show generated or deleted 
+            &quot;&quot;&quot;</span>
+            <span class="s1">spaces </span><span class="s3">= </span><span class="s5">' ' </span><span class="s3">* (</span><span class="s1">indent </span><span class="s3">+ </span><span class="s6">2</span><span class="s3">)</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;%s%s:&quot; </span><span class="s3">% (</span><span class="s5">' ' </span><span class="s3">* </span><span class="s1">indent</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">.</span><span class="s1">__name__</span><span class="s3">))</span>
+
+                <span class="s1">flags </span><span class="s3">= []</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__generated</span><span class="s3">:</span>
+                    <span class="s1">flags</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s5">&quot;generated&quot;</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+                    <span class="s1">flags</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s5">&quot;deleted&quot;</span><span class="s3">)</span>
+
+                <span class="s1">flagStr </span><span class="s3">= </span><span class="s5">&quot;&quot;</span>
+                <span class="s2">if </span><span class="s1">len</span><span class="s3">(</span><span class="s1">flags</span><span class="s3">):</span>
+                    <span class="s1">flagStr </span><span class="s3">= </span><span class="s5">&quot; (%s)&quot; </span><span class="s3">% (</span><span class="s5">&quot; &quot;</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">flags</span><span class="s3">))</span>
+
+                <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;%sfrom DistributedObject doId:%s, parent:%s, zone:%s%s&quot; </span><span class="s3">% (</span>
+                    <span class="s1">spaces</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">flagStr</span><span class="s3">))</span>
+            <span class="s2">except </span><span class="s1">Exception </span><span class="s2">as </span><span class="s1">e</span><span class="s3">:</span>
+                <span class="s1">print</span><span class="s3">(</span><span class="s5">&quot;%serror printing status %s&quot; </span><span class="s3">% (</span><span class="s1">spaces</span><span class="s3">, </span><span class="s1">e</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">getDeleteEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># this is sent just before we get deleted</span>
+        <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s5">'doId'</span><span class="s3">):</span>
+            <span class="s2">return </span><span class="s5">'distObjDelete-%s' </span><span class="s3">% </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span>
+        <span class="s2">return None</span>
+
+    <span class="s2">def </span><span class="s1">sendDeleteEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># this is called just before we get deleted</span>
+        <span class="s1">delEvent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getDeleteEvent</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">delEvent</span><span class="s3">:</span>
+            <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s1">delEvent</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">delete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Inheritors should redefine this to take appropriate action on delete 
+        Note that this may be called multiple times if a class inherits 
+        from DistributedObjectUD more than once. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__generates </span><span class="s3">-= </span><span class="s6">1</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__generates </span><span class="s3">&lt; </span><span class="s6">0</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">'DistributedObjectUD: delete() called more times than generate()'</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__generates </span><span class="s3">== </span><span class="s6">0</span><span class="s3">:</span>
+            <span class="s4"># prevent this code from executing multiple times</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air </span><span class="s2">is not None</span><span class="s3">:</span>
+                <span class="s4"># self.doId may not exist.  The __dict__ syntax works around that.</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">'delete(): %s' </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s5">&quot;doId&quot;</span><span class="s3">)))</span>
+
+                <span class="s2">if not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_DOUD_requestedDelete</span><span class="s3">:</span>
+                    <span class="s4"># this logs every delete that was not requested by us.</span>
+                    <span class="s4"># TODO: this currently prints warnings for deletes of objects</span>
+                    <span class="s4"># that we did not create. We need to add a 'locally created'</span>
+                    <span class="s4"># flag to every object to filter these out.</span>
+                    <span class="s5">&quot;&quot;&quot; 
+                    DistributedObjectUD.notify.warning( 
+                        'delete() called but requestDelete never called for %s: %s' 
+                        % (self.__dict__.get('doId'), self.__class__.__name__)) 
+                        &quot;&quot;&quot;</span>
+                    <span class="s5">&quot;&quot;&quot; 
+                    # print a stack trace so we can detect whether this is the 
+                    # result of a network msg. 
+                    # this is slow. 
+                    from direct.showbase.PythonUtil import StackTrace 
+                    DistributedObjectUD.notify.warning( 
+                        'stack trace: %s' % StackTrace()) 
+                        &quot;&quot;&quot;</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_DOUD_requestedDelete </span><span class="s3">= </span><span class="s2">False</span>
+
+                <span class="s4"># Clean up all the pending barriers.</span>
+                <span class="s2">for </span><span class="s1">barrier </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">.</span><span class="s1">values</span><span class="s3">():</span>
+                    <span class="s1">barrier</span><span class="s3">.</span><span class="s1">cleanup</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers </span><span class="s3">= {}</span>
+
+                <span class="s4"># Asad: As per Roger's suggestion, turn off the following block until a solution is</span>
+                <span class="s4"># Thought out of how to prevent this delete message or to handle this message better</span>
+<span class="s4">##              if not hasattr(self, &quot;doNotDeallocateChannel&quot;):</span>
+<span class="s4">##                  if self.air:</span>
+<span class="s4">##                      self.air.deallocateChannel(self.doId)</span>
+<span class="s4">##              self.air = None</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">parentId </span><span class="s3">= </span><span class="s2">None</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId </span><span class="s3">= </span><span class="s2">None</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">__generated </span><span class="s3">= </span><span class="s2">False</span>
+
+    <span class="s2">def </span><span class="s1">isDeleted</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Returns true if the object has been deleted, 
+        or if it is brand new and hasnt yet been generated. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air </span><span class="s3">== </span><span class="s2">None</span>
+
+    <span class="s2">def </span><span class="s1">isGenerated</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Returns true if the object has been generated 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__generated</span>
+
+    <span class="s2">def </span><span class="s1">getDoId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return the distributed object id 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span>
+
+    <span class="s2">def </span><span class="s1">preAllocateDoId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        objects that need to have a doId before they are generated 
+        can call this to pre-allocate a doId for the object 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">doId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateChannel</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId </span><span class="s3">= </span><span class="s6">1</span>
+
+    <span class="s2">def </span><span class="s1">announceGenerate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Called after the object has been generated and all 
+        of its required fields filled in. Overwrite when needed. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__generated </span><span class="s3">= </span><span class="s2">True</span>
+
+    <span class="s2">def </span><span class="s1">postGenerateMessage</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s5">&quot;generate&quot;</span><span class="s3">), [</span><span class="s1">self</span><span class="s3">])</span>
+
+    <span class="s2">def </span><span class="s1">addInterest</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">note</span><span class="s3">=</span><span class="s5">&quot;&quot;</span><span class="s3">, </span><span class="s1">event</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">addInterest</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getDoId</span><span class="s3">(), </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">note</span><span class="s3">, </span><span class="s1">event</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">b_setLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">d_setLocation</span><span class="s3">(</span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setLocation</span><span class="s3">(</span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">d_setLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">sendSetLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">storeObjectLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">parentId </span><span class="s3">&lt;= </span><span class="s6">0 </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId </span><span class="s3">&lt;= </span><span class="s6">0</span><span class="s3">:</span>
+                <span class="s2">return None</span>
+            <span class="s4"># This is a -1 stuffed into a uint32</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">parentId </span><span class="s3">== </span><span class="s6">0xffffffff </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId </span><span class="s3">== </span><span class="s6">0xffffffff</span><span class="s3">:</span>
+                <span class="s2">return None</span>
+            <span class="s2">return </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">)</span>
+        <span class="s2">except </span><span class="s1">AttributeError</span><span class="s3">:</span>
+            <span class="s2">return None</span>
+
+    <span class="s2">def </span><span class="s1">updateRequiredFields</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">dclass</span><span class="s3">, </span><span class="s1">di</span><span class="s3">):</span>
+        <span class="s1">dclass</span><span class="s3">.</span><span class="s1">receiveUpdateBroadcastRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">di</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">announceGenerate</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">postGenerateMessage</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">updateAllRequiredFields</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">dclass</span><span class="s3">, </span><span class="s1">di</span><span class="s3">):</span>
+        <span class="s1">dclass</span><span class="s3">.</span><span class="s1">receiveUpdateAllRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">di</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">announceGenerate</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">postGenerateMessage</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">updateRequiredOtherFields</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">dclass</span><span class="s3">, </span><span class="s1">di</span><span class="s3">):</span>
+        <span class="s1">dclass</span><span class="s3">.</span><span class="s1">receiveUpdateBroadcastRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">di</span><span class="s3">)</span>
+        <span class="s4"># Announce generate after updating all the required fields,</span>
+        <span class="s4"># but before we update the non-required fields.</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">announceGenerate</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">postGenerateMessage</span><span class="s3">()</span>
+
+        <span class="s1">dclass</span><span class="s3">.</span><span class="s1">receiveUpdateOther</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">di</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">updateAllRequiredOtherFields</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">dclass</span><span class="s3">, </span><span class="s1">di</span><span class="s3">):</span>
+        <span class="s1">dclass</span><span class="s3">.</span><span class="s1">receiveUpdateAllRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">di</span><span class="s3">)</span>
+        <span class="s4"># Announce generate after updating all the required fields,</span>
+        <span class="s4"># but before we update the non-required fields.</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">announceGenerate</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">postGenerateMessage</span><span class="s3">()</span>
+
+        <span class="s1">dclass</span><span class="s3">.</span><span class="s1">receiveUpdateOther</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">di</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">sendSetZone</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">sendSetZone</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getZoneChangeEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># this event is generated whenever this object changes zones.</span>
+        <span class="s4"># arguments are newZoneId, oldZoneId</span>
+        <span class="s4"># includes the quiet zone.</span>
+        <span class="s2">return </span><span class="s5">'DOChangeZone-%s' </span><span class="s3">% </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span>
+
+    <span class="s2">def </span><span class="s1">getLogicalZoneChangeEvent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># this event is generated whenever this object changes to a</span>
+        <span class="s4"># non-quiet-zone zone.</span>
+        <span class="s4"># arguments are newZoneId, oldZoneId</span>
+        <span class="s4"># does not include the quiet zone.</span>
+        <span class="s2">return </span><span class="s5">'DOLogicalChangeZone-%s' </span><span class="s3">% </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span>
+
+    <span class="s2">def </span><span class="s1">handleLogicalZoneChange</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">newZoneId</span><span class="s3">, </span><span class="s1">oldZoneId</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;this function gets called as if we never go through the 
+        quiet zone. Note that it is called once you reach the newZone, 
+        and not at the time that you leave the oldZone.&quot;&quot;&quot;</span>
+        <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getLogicalZoneChangeEvent</span><span class="s3">(),</span>
+                       <span class="s3">[</span><span class="s1">newZoneId</span><span class="s3">, </span><span class="s1">oldZoneId</span><span class="s3">])</span>
+
+    <span class="s2">def </span><span class="s1">getRender</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># note that this will return a different node if we change zones</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getRender</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getNonCollidableParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getNonCollidableParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getParentMgr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getParentMgr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getCollTrav</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, *</span><span class="s1">args</span><span class="s3">, **</span><span class="s1">kArgs</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getCollTrav</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">, *</span><span class="s1">args</span><span class="s3">, **</span><span class="s1">kArgs</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">sendUpdate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args </span><span class="s3">= []):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">sendUpdate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">GetPuppetConnectionChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">doId </span><span class="s3">+ (</span><span class="s6">1001 </span><span class="s3">&lt;&lt; </span><span class="s6">32</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">GetAccountConnectionChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">doId </span><span class="s3">+ (</span><span class="s6">1003 </span><span class="s3">&lt;&lt; </span><span class="s6">32</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">GetAccountIDFromChannelCode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">channel</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">channel </span><span class="s3">&gt;&gt; </span><span class="s6">32</span>
+
+    <span class="s2">def </span><span class="s1">GetAvatarIDFromChannelCode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">channel</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">channel </span><span class="s3">&amp; </span><span class="s6">0xffffffff</span>
+
+    <span class="s2">def </span><span class="s1">sendUpdateToAvatarId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">avId</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">channelId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetPuppetConnectionChannel</span><span class="s3">(</span><span class="s1">avId</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">sendUpdateToChannel</span><span class="s3">(</span><span class="s1">channelId</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">sendUpdateToAccountId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">accountId</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">channelId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetAccountConnectionChannel</span><span class="s3">(</span><span class="s1">accountId</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">sendUpdateToChannel</span><span class="s3">(</span><span class="s1">channelId</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">sendUpdateToChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">channelId</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">sendUpdateToChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">channelId</span><span class="s3">, </span><span class="s1">fieldName</span><span class="s3">, </span><span class="s1">args</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">generateWithRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">=[]):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s4"># have we already allocated a doId?</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId </span><span class="s3">= </span><span class="s6">0</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">generateWithRequiredAndId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">,</span>
+                                                  <span class="s1">optionalFields</span><span class="s3">)</span>
+
+        <span class="s4"># The repository is the one that really does the work</span>
+        <span class="s1">parentId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">districtId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">parentId </span><span class="s3">= </span><span class="s1">parentId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId </span><span class="s3">= </span><span class="s1">zoneId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">generateWithRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">generate</span><span class="s3">()</span>
+
+    <span class="s4"># this is a special generate used for estates, or anything else that</span>
+    <span class="s4"># needs to have a hard coded doId as assigned by the server</span>
+    <span class="s2">def </span><span class="s1">generateWithRequiredAndId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">=[]):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s4"># have we already allocated a doId?</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span><span class="s3">:</span>
+            <span class="s2">assert </span><span class="s1">doId </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId </span><span class="s3">= </span><span class="s6">0</span>
+
+        <span class="s4"># The repository is the one that really does the work</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">generateWithRequiredAndId</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">)</span>
+        <span class="s4">## self.parentId = parentId</span>
+        <span class="s4">## self.zoneId = zoneId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">generate</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">announceGenerate</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">postGenerateMessage</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">generateOtpObject</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">=[], </span><span class="s1">doId</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s4"># have we already allocated a doId?</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span><span class="s3">:</span>
+            <span class="s2">assert </span><span class="s1">doId </span><span class="s2">is None or </span><span class="s1">doId </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span>
+            <span class="s1">doId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__preallocDoId </span><span class="s3">= </span><span class="s6">0</span>
+
+        <span class="s4"># Assign it an id</span>
+        <span class="s2">if </span><span class="s1">doId </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">doId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">allocateChannel</span><span class="s3">()</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">doId </span><span class="s3">= </span><span class="s1">doId</span>
+        <span class="s4"># Put the new DO in the dictionaries</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">addDOToTables</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">location </span><span class="s3">= (</span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">))</span>
+        <span class="s4"># Send a generate message</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">sendGenerateWithRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">)</span>
+
+        <span class="s4">## assert not hasattr(self, 'parentId') or self.parentId is None</span>
+        <span class="s4">## self.parentId = parentId</span>
+        <span class="s4">## self.zoneId = zoneId</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">generate</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">generate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Inheritors should put functions that require self.zoneId or 
+        other networked info in this function. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__generates </span><span class="s3">+= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">storeObjectLocation</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">zoneId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">generateInit</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">repository</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        First generate (not from cache). 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">generateTargetChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">repository</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Who to send this to for generate messages 
+        &quot;&quot;&quot;</span>
+        <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s5">&quot;dbObject&quot;</span><span class="s3">):</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span>
+        <span class="s2">return </span><span class="s1">repository</span><span class="s3">.</span><span class="s1">serverId</span>
+
+    <span class="s2">def </span><span class="s1">sendGenerateWithRequired</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">repository</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">, </span><span class="s1">optionalFields</span><span class="s3">=[]):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">dg </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">dclass</span><span class="s3">.</span><span class="s1">aiFormatGenerate</span><span class="s3">(</span>
+            <span class="s1">self</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">, </span><span class="s1">parentId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">,</span>
+            <span class="s4">#repository.serverId,</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">generateTargetChannel</span><span class="s3">(</span><span class="s1">repository</span><span class="s3">),</span>
+            <span class="s1">repository</span><span class="s3">.</span><span class="s1">ourChannel</span><span class="s3">,</span>
+            <span class="s1">optionalFields</span><span class="s3">)</span>
+        <span class="s1">repository</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s1">dg</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">initFromServerResponse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">valDict</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s4"># This is a special method used for estates, etc., which get</span>
+        <span class="s4"># their fields set from the database indirectly by way of the</span>
+        <span class="s4"># UD.  The input parameter is a dictionary of field names to</span>
+        <span class="s4"># datagrams that describes the initial field values from the</span>
+        <span class="s4"># database.</span>
+
+        <span class="s1">dclass </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">dclass</span>
+        <span class="s2">for </span><span class="s1">key</span><span class="s3">, </span><span class="s1">value </span><span class="s2">in </span><span class="s1">valDict</span><span class="s3">.</span><span class="s1">items</span><span class="s3">():</span>
+            <span class="s4"># Update the field</span>
+            <span class="s1">dclass</span><span class="s3">.</span><span class="s1">directUpdate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">key</span><span class="s3">, </span><span class="s1">value</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">requestDelete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">:</span>
+            <span class="s1">doId </span><span class="s3">= </span><span class="s5">&quot;none&quot;</span>
+            <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s5">&quot;doId&quot;</span><span class="s3">):</span>
+                <span class="s1">doId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">warning</span><span class="s3">(</span><span class="s5">&quot;Tried to delete a %s (doId %s) that is already deleted&quot; </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__class__</span><span class="s3">, </span><span class="s1">doId</span><span class="s3">))</span>
+            <span class="s2">return</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">requestDelete</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_DOUD_requestedDelete </span><span class="s3">= </span><span class="s2">True</span>
+
+    <span class="s2">def </span><span class="s1">taskName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">taskString</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s5">&quot;%s-%s&quot; </span><span class="s3">% (</span><span class="s1">taskString</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">idString</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s5">&quot;%s-%s&quot; </span><span class="s3">% (</span><span class="s1">idString</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">doId</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">validate</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">avId</span><span class="s3">, </span><span class="s1">bool</span><span class="s3">, </span><span class="s1">msg</span><span class="s3">):</span>
+        <span class="s2">if not </span><span class="s1">bool</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">writeServerEvent</span><span class="s3">(</span><span class="s5">'suspicious'</span><span class="s3">, </span><span class="s1">avId</span><span class="s3">, </span><span class="s1">msg</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">warning</span><span class="s3">(</span><span class="s5">'validate error: avId: %s -- %s' </span><span class="s3">% (</span><span class="s1">avId</span><span class="s3">, </span><span class="s1">msg</span><span class="s3">))</span>
+        <span class="s2">return </span><span class="s1">bool</span>
+
+    <span class="s2">def </span><span class="s1">beginBarrier</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">avIds</span><span class="s3">, </span><span class="s1">timeout</span><span class="s3">, </span><span class="s1">callback</span><span class="s3">):</span>
+        <span class="s4"># Begins waiting for a set of avatars.  When all avatars in</span>
+        <span class="s4"># the list have reported back in or the callback has expired,</span>
+        <span class="s4"># calls the indicated callback with the list of toons that</span>
+        <span class="s4"># made it through.  There may be multiple barriers waiting</span>
+        <span class="s4"># simultaneously on different lists of avatars, although they</span>
+        <span class="s4"># should have different names.</span>
+
+        <span class="s2">from </span><span class="s1">otp</span><span class="s3">.</span><span class="s1">ai </span><span class="s2">import </span><span class="s1">Barrier</span>
+        <span class="s1">context </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__nextBarrierContext</span>
+        <span class="s4"># We assume the context number is passed as a uint16.</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__nextBarrierContext </span><span class="s3">= (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__nextBarrierContext </span><span class="s3">+ </span><span class="s6">1</span><span class="s3">) &amp; </span><span class="s6">0xffff</span>
+
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">'beginBarrier(%s, %s, %s, %s)' </span><span class="s3">% (</span><span class="s1">context</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">avIds</span><span class="s3">, </span><span class="s1">timeout</span><span class="s3">))</span>
+
+        <span class="s2">if </span><span class="s1">avIds</span><span class="s3">:</span>
+            <span class="s1">barrier </span><span class="s3">= </span><span class="s1">Barrier</span><span class="s3">.</span><span class="s1">Barrier</span><span class="s3">(</span>
+                <span class="s1">name</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">uniqueName</span><span class="s3">(</span><span class="s1">name</span><span class="s3">), </span><span class="s1">avIds</span><span class="s3">, </span><span class="s1">timeout</span><span class="s3">,</span>
+                <span class="s1">doneFunc </span><span class="s3">= </span><span class="s1">PythonUtil</span><span class="s3">.</span><span class="s1">Functor</span><span class="s3">(</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">__barrierCallback</span><span class="s3">, </span><span class="s1">context</span><span class="s3">, </span><span class="s1">callback</span><span class="s3">))</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">[</span><span class="s1">context</span><span class="s3">] = </span><span class="s1">barrier</span>
+
+            <span class="s4"># Send the context number to each involved client.</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">sendUpdate</span><span class="s3">(</span><span class="s5">&quot;setBarrierData&quot;</span><span class="s3">, [</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__getBarrierData</span><span class="s3">()])</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s4"># No avatars; just call the callback immediately.</span>
+            <span class="s1">callback</span><span class="s3">(</span><span class="s1">avIds</span><span class="s3">)</span>
+
+        <span class="s2">return </span><span class="s1">context</span>
+
+    <span class="s2">def </span><span class="s1">__getBarrierData</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># Returns the barrier data formatted for sending to the</span>
+        <span class="s4"># clients.  This lists all of the current outstanding barriers</span>
+        <span class="s4"># and the avIds waiting for them.</span>
+        <span class="s1">data </span><span class="s3">= []</span>
+        <span class="s2">for </span><span class="s1">context</span><span class="s3">, </span><span class="s1">barrier </span><span class="s2">in </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">.</span><span class="s1">items</span><span class="s3">():</span>
+            <span class="s1">toons </span><span class="s3">= </span><span class="s1">barrier</span><span class="s3">.</span><span class="s1">pendingToons</span>
+            <span class="s2">if </span><span class="s1">toons</span><span class="s3">:</span>
+                <span class="s1">data</span><span class="s3">.</span><span class="s1">append</span><span class="s3">((</span><span class="s1">context</span><span class="s3">, </span><span class="s1">barrier</span><span class="s3">.</span><span class="s1">name</span><span class="s3">, </span><span class="s1">toons</span><span class="s3">))</span>
+        <span class="s2">return </span><span class="s1">data</span>
+
+    <span class="s2">def </span><span class="s1">ignoreBarrier</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">context</span><span class="s3">):</span>
+        <span class="s4"># Aborts a previously-set barrier.  The context is the return</span>
+        <span class="s4"># value from the previous call to beginBarrier().</span>
+        <span class="s1">barrier </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">barrier</span><span class="s3">:</span>
+            <span class="s1">barrier</span><span class="s3">.</span><span class="s1">cleanup</span><span class="s3">()</span>
+            <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">[</span><span class="s1">context</span><span class="s3">]</span>
+
+    <span class="s2">def </span><span class="s1">setBarrierReady</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">context</span><span class="s3">):</span>
+        <span class="s4"># Generated by the clients to check in after a beginBarrier()</span>
+        <span class="s4"># call.</span>
+        <span class="s1">avId </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">air</span><span class="s3">.</span><span class="s1">getAvatarIdFromSender</span><span class="s3">()</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">'setBarrierReady(%s, %s)' </span><span class="s3">% (</span><span class="s1">context</span><span class="s3">, </span><span class="s1">avId</span><span class="s3">))</span>
+        <span class="s1">barrier </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">barrier </span><span class="s3">== </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s4"># This may be None if a client was slow and missed an</span>
+            <span class="s4"># earlier timeout.  Too bad.</span>
+            <span class="s2">return</span>
+
+        <span class="s1">barrier</span><span class="s3">.</span><span class="s1">clear</span><span class="s3">(</span><span class="s1">avId</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__barrierCallback</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">context</span><span class="s3">, </span><span class="s1">callback</span><span class="s3">, </span><span class="s1">avIds</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span><span class="s5">'barrierCallback(%s, %s)' </span><span class="s3">% (</span><span class="s1">context</span><span class="s3">, </span><span class="s1">avIds</span><span class="s3">))</span>
+        <span class="s4"># The callback that is generated when a barrier is completed.</span>
+        <span class="s1">barrier </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">.</span><span class="s1">get</span><span class="s3">(</span><span class="s1">context</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">barrier</span><span class="s3">:</span>
+            <span class="s1">barrier</span><span class="s3">.</span><span class="s1">cleanup</span><span class="s3">()</span>
+            <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__barriers</span><span class="s3">[</span><span class="s1">context</span><span class="s3">]</span>
+            <span class="s1">callback</span><span class="s3">(</span><span class="s1">avIds</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">warning</span><span class="s3">(</span><span class="s5">&quot;Unexpected completion from barrier %s&quot; </span><span class="s3">% (</span><span class="s1">context</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">isGridParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s4"># If this distributed object is a DistributedGrid return 1.  0 by default</span>
+        <span class="s2">return </span><span class="s6">0</span>
+
+    <span class="s2">def </span><span class="s1">execCommand</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">string</span><span class="s3">, </span><span class="s1">mwMgrId</span><span class="s3">, </span><span class="s1">avId</span><span class="s3">, </span><span class="s1">zoneId</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+</pre>
+</body>
+</html>

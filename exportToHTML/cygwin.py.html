@@ -1,0 +1,86 @@
+<html>
+<head>
+<title>cygwin.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+cygwin.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">typing </span><span class="s0">as </span><span class="s1">T</span>
+
+<span class="s0">from </span><span class="s1">screeninfo</span><span class="s2">.</span><span class="s1">common </span><span class="s0">import </span><span class="s1">Monitor</span>
+
+
+<span class="s0">def </span><span class="s1">enumerate_monitors</span><span class="s2">() </span><span class="s1">-&gt; T</span><span class="s2">.</span><span class="s1">Iterable</span><span class="s2">[</span><span class="s1">Monitor</span><span class="s2">]:</span>
+    <span class="s0">import </span><span class="s1">ctypes</span>
+
+    <span class="s1">LONG </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_int32</span>
+    <span class="s1">BOOL </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_int</span>
+    <span class="s1">HANDLE </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_void_p</span>
+    <span class="s1">HMONITOR </span><span class="s2">= </span><span class="s1">HANDLE</span>
+    <span class="s1">HDC </span><span class="s2">= </span><span class="s1">HANDLE</span>
+
+    <span class="s0">class </span><span class="s1">RECT</span><span class="s2">(</span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">Structure</span><span class="s2">):</span>
+        <span class="s1">_fields_ </span><span class="s2">= [</span>
+            <span class="s2">(</span><span class="s3">&quot;left&quot;</span><span class="s2">, </span><span class="s1">LONG</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">&quot;top&quot;</span><span class="s2">, </span><span class="s1">LONG</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">&quot;right&quot;</span><span class="s2">, </span><span class="s1">LONG</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">&quot;bottom&quot;</span><span class="s2">, </span><span class="s1">LONG</span><span class="s2">),</span>
+        <span class="s2">]</span>
+
+    <span class="s1">user32 </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">cdll</span><span class="s2">.</span><span class="s1">LoadLibrary</span><span class="s2">(</span><span class="s3">&quot;user32.dll&quot;</span><span class="s2">)</span>
+
+    <span class="s1">ptr_size </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">sizeof</span><span class="s2">(</span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_void_p</span><span class="s2">)</span>
+    <span class="s0">if </span><span class="s1">ptr_size </span><span class="s2">== </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">sizeof</span><span class="s2">(</span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_long</span><span class="s2">):</span>
+        <span class="s1">WPARAM </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_ulong</span>
+        <span class="s1">LPARAM </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_long</span>
+    <span class="s0">elif </span><span class="s1">ptr_size </span><span class="s2">== </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">sizeof</span><span class="s2">(</span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_longlong</span><span class="s2">):</span>
+        <span class="s1">WPARAM </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_ulonglong</span>
+        <span class="s1">LPARAM </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_longlong</span>
+
+    <span class="s1">MonitorEnumProc </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">CFUNCTYPE</span><span class="s2">(</span>
+        <span class="s1">BOOL</span><span class="s2">, </span><span class="s1">HMONITOR</span><span class="s2">, </span><span class="s1">HDC</span><span class="s2">, </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">POINTER</span><span class="s2">(</span><span class="s1">RECT</span><span class="s2">), </span><span class="s1">LPARAM</span>
+    <span class="s2">)</span>
+
+    <span class="s1">user32</span><span class="s2">.</span><span class="s1">EnumDisplayMonitors</span><span class="s2">.</span><span class="s1">argtypes </span><span class="s2">= [</span>
+        <span class="s1">HANDLE</span><span class="s2">,</span>
+        <span class="s1">ctypes</span><span class="s2">.</span><span class="s1">POINTER</span><span class="s2">(</span><span class="s1">RECT</span><span class="s2">),</span>
+        <span class="s1">MonitorEnumProc</span><span class="s2">,</span>
+        <span class="s1">LPARAM</span><span class="s2">,</span>
+    <span class="s2">]</span>
+    <span class="s1">user32</span><span class="s2">.</span><span class="s1">EnumDisplayMonitors</span><span class="s2">.</span><span class="s1">restype </span><span class="s2">= </span><span class="s1">ctypes</span><span class="s2">.</span><span class="s1">c_bool</span>
+
+    <span class="s1">monitors </span><span class="s2">= []</span>
+
+    <span class="s0">def </span><span class="s1">check_primary</span><span class="s2">(</span><span class="s1">rct</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">) </span><span class="s1">-&gt; bool</span><span class="s2">:</span>
+        <span class="s0">return </span><span class="s1">rct</span><span class="s2">.</span><span class="s1">left </span><span class="s2">== </span><span class="s4">0 </span><span class="s0">and </span><span class="s1">rct</span><span class="s2">.</span><span class="s1">top </span><span class="s2">== </span><span class="s4">0</span>
+
+    <span class="s0">def </span><span class="s1">callback</span><span class="s2">(</span><span class="s1">monitor</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">, </span><span class="s1">dc</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">, </span><span class="s1">rect</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">, </span><span class="s1">data</span><span class="s2">: </span><span class="s1">T</span><span class="s2">.</span><span class="s1">Any</span><span class="s2">) </span><span class="s1">-&gt; int</span><span class="s2">:</span>
+        <span class="s1">rct </span><span class="s2">= </span><span class="s1">rect</span><span class="s2">.</span><span class="s1">contents</span>
+        <span class="s1">monitors</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span>
+            <span class="s1">Monitor</span><span class="s2">(</span>
+                <span class="s1">x</span><span class="s2">=</span><span class="s1">rct</span><span class="s2">.</span><span class="s1">left</span><span class="s2">,</span>
+                <span class="s1">y</span><span class="s2">=</span><span class="s1">rct</span><span class="s2">.</span><span class="s1">top</span><span class="s2">,</span>
+                <span class="s1">width</span><span class="s2">=</span><span class="s1">rct</span><span class="s2">.</span><span class="s1">right </span><span class="s2">- </span><span class="s1">rct</span><span class="s2">.</span><span class="s1">left</span><span class="s2">,</span>
+                <span class="s1">height</span><span class="s2">=</span><span class="s1">rct</span><span class="s2">.</span><span class="s1">bottom </span><span class="s2">- </span><span class="s1">rct</span><span class="s2">.</span><span class="s1">top</span><span class="s2">,</span>
+                <span class="s1">is_primary</span><span class="s2">=</span><span class="s1">check_primary</span><span class="s2">(</span><span class="s1">rct</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s2">)</span>
+        <span class="s0">return </span><span class="s4">1</span>
+
+    <span class="s1">user32</span><span class="s2">.</span><span class="s1">EnumDisplayMonitors</span><span class="s2">(</span><span class="s0">None</span><span class="s2">, </span><span class="s0">None</span><span class="s2">, </span><span class="s1">MonitorEnumProc</span><span class="s2">(</span><span class="s1">callback</span><span class="s2">), </span><span class="s4">0</span><span class="s2">)</span>
+
+    <span class="s0">yield from </span><span class="s1">monitors</span>
+</pre>
+</body>
+</html>

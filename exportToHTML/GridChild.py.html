@@ -1,0 +1,179 @@
+<html>
+<head>
+<title>GridChild.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+GridChild.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">DistributedSmoothNodeBase </span><span class="s0">import </span><span class="s1">DistributedSmoothNodeBase</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">GridParent </span><span class="s0">import </span><span class="s1">GridParent</span>
+
+<span class="s0">class </span><span class="s1">GridChild</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; 
+    Any object that expects to be parented to a grid should inherit from this. 
+    It works with GridParent to manage its grid cell hierarchy in the scenegraph. 
+    &quot;&quot;&quot;</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__initiallized</span>
+        <span class="s0">except </span><span class="s1">AttributeError</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent </span><span class="s2">= </span><span class="s0">None</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterestEnabled </span><span class="s2">= </span><span class="s0">False</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests </span><span class="s2">= {}</span>
+
+    <span class="s0">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__setGridParent</span><span class="s2">(</span><span class="s0">None</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">enableGridInterest</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s1">report</span><span class="s2">(</span><span class="s1">types </span><span class="s2">= [</span><span class="s4">'args'</span><span class="s2">], </span><span class="s1">dConfigParam </span><span class="s2">= </span><span class="s4">'smoothnode'</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">setGridCell</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s4">'getParent'</span><span class="s2">):</span>
+            <span class="s0">return</span>
+        <span class="s0">if </span><span class="s1">grid </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__setGridParent</span><span class="s2">(</span><span class="s0">None</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__clearGridInterest</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__setGridParent</span><span class="s2">(</span><span class="s1">GridParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">))</span>
+
+            <span class="s5"># Does the (wrt)ReparentTo() operation</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">.</span><span class="s1">setGridCell</span><span class="s2">(</span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+
+            <span class="s5"># Moves the grid interest along with this child</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updateGridInterest</span><span class="s2">(</span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">updateGridInterest</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s5"># add additional grid interests (sometimes we want more</span>
+        <span class="s5"># than just one)</span>
+        <span class="s5">#if self._gridInterestEnabled:</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__setGridInterest</span><span class="s2">(</span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">enableGridInterest</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">True</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterestEnabled </span><span class="s2">= </span><span class="s1">enabled</span>
+        <span class="s0">if </span><span class="s1">enabled </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isOnAGrid</span><span class="s2">():</span>
+            <span class="s5"># enable all grid interests I may have</span>
+            <span class="s0">for </span><span class="s1">currGridId</span><span class="s2">, </span><span class="s1">interestInfo </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                <span class="s1">currGrid </span><span class="s2">= </span><span class="s1">getBase</span><span class="s2">().</span><span class="s1">getRepository</span><span class="s2">().</span><span class="s1">doId2do</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">currGridId</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">currGrid</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__setGridInterest</span><span class="s2">(</span><span class="s1">currGrid</span><span class="s2">, </span><span class="s1">interestInfo</span><span class="s2">[</span><span class="s6">1</span><span class="s2">])</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">&quot;unknown grid interest %s&quot;</span><span class="s2">%</span><span class="s1">currGridId</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">currGridId</span><span class="s2">, </span><span class="s1">interestInfo </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">removeTaggedInterest</span><span class="s2">(</span><span class="s1">interestInfo</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])</span>
+            <span class="s5">#self.__clearGridInterest()</span>
+            <span class="s0">pass</span>
+
+    <span class="s0">def </span><span class="s1">isOnAGrid</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent </span><span class="s0">is not None</span>
+
+    <span class="s0">def </span><span class="s1">getGrid</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">.</span><span class="s1">getGrid</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">return None</span>
+
+    <span class="s0">def </span><span class="s1">getGridZone</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">.</span><span class="s1">getGridZone</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">return None</span>
+
+    <span class="s0">def </span><span class="s1">__setGridParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">gridParent</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent </span><span class="s0">is not </span><span class="s1">gridParent</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent</span><span class="s2">.</span><span class="s1">delete</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridParent </span><span class="s2">= </span><span class="s1">gridParent</span>
+
+
+    <span class="s0">def </span><span class="s1">__setGridInterest</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s0">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">noNewInterests</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">noNewInterests</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                <span class="s4">'startProcessVisibility(%s): tried to open a new interest during logout'</span>
+                <span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId</span><span class="s2">)</span>
+            <span class="s0">return</span>
+
+        <span class="s1">gridDoId </span><span class="s2">= </span><span class="s1">grid</span><span class="s2">.</span><span class="s1">getDoId</span><span class="s2">()</span>
+        <span class="s1">existingInterest </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">gridDoId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterestEnabled</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">existingInterest </span><span class="s0">and </span><span class="s1">existingInterest</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">alterInterest</span><span class="s2">(</span><span class="s1">existingInterest</span><span class="s2">[</span><span class="s6">0</span><span class="s2">],</span>
+                                      <span class="s1">grid</span><span class="s2">.</span><span class="s1">getDoId</span><span class="s2">(), </span><span class="s1">zoneId</span><span class="s2">)</span>
+                <span class="s1">existingInterest</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] = </span><span class="s1">zoneId</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">newInterest </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">addTaggedInterest</span><span class="s2">(</span><span class="s1">gridDoId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">,</span>
+                                                        <span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">ITAG_GAME</span><span class="s2">,</span>
+                                                        <span class="s1">self</span><span class="s2">.</span><span class="s1">uniqueName</span><span class="s2">(</span><span class="s4">'gridvis'</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">[</span><span class="s1">gridDoId</span><span class="s2">] = [</span><span class="s1">newInterest</span><span class="s2">,</span><span class="s1">zoneId</span><span class="s2">]</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s5"># indicate we want this grid interest once gridInterestEnabled is True</span>
+            <span class="s0">if </span><span class="s1">game</span><span class="s2">.</span><span class="s1">process </span><span class="s2">== </span><span class="s4">'client'</span><span class="s2">:</span>
+                <span class="s5"># we only care about interests on the client</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">[</span><span class="s1">gridDoId</span><span class="s2">] = [</span><span class="s0">None</span><span class="s2">,</span><span class="s1">zoneId</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">getGridInterestIds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">getGridInterestZoneId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">,</span><span class="s1">gridDoId</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">gridDoId</span><span class="s2">,[</span><span class="s0">None</span><span class="s2">,</span><span class="s0">None</span><span class="s2">])[</span><span class="s6">1</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">__clearGridInterest</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterestEnabled</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">currGridId</span><span class="s2">, </span><span class="s1">interestInfo </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">removeTaggedInterest</span><span class="s2">(</span><span class="s1">interestInfo</span><span class="s2">[</span><span class="s6">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_gridInterests </span><span class="s2">= {}</span>
+
+
+
+
+
+
+<span class="s0">class </span><span class="s1">SmoothGridChild</span><span class="s2">(</span><span class="s1">GridChild</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    SmoothNodes have a special requirement in that they need to send 
+    their current cell along with their telemetry data stream. This 
+    allows the distributed receiving objects to update their grid parent 
+    according to this value, rather than the setLocation() data. 
+ 
+    Use this instead of GridNode when you expect this object to send its 
+    telemetry data out. 
+    &quot;&quot;&quot;</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">GridChild</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s0">assert </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">DistributedSmoothNodeBase</span><span class="s2">), </span><span class="s1">\</span>
+               <span class="s4">'All GridChild objects must be instances of DistributedSmoothNodeBase'</span>
+
+    <span class="s2">@</span><span class="s1">report</span><span class="s2">(</span><span class="s1">types </span><span class="s2">= [</span><span class="s4">'args'</span><span class="s2">], </span><span class="s1">dConfigParam </span><span class="s2">= </span><span class="s4">'smoothnode'</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">setGridCell</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s1">GridChild</span><span class="s2">.</span><span class="s1">setGridCell</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">grid</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">grid </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isGenerated</span><span class="s2">(): </span><span class="s5"># we get our cnode in DistributedSmoothNodeBase.generate()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cnode</span><span class="s2">.</span><span class="s1">setEmbeddedVal</span><span class="s2">(</span><span class="s1">zoneId</span><span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s1">report</span><span class="s2">(</span><span class="s1">types </span><span class="s2">= [</span><span class="s4">'args'</span><span class="s2">], </span><span class="s1">dConfigParam </span><span class="s2">= </span><span class="s4">'smoothnode'</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">transformTelemetry</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">e</span><span class="s2">):</span>
+        <span class="s5"># We don't really need to transform telemetry, but</span>
+        <span class="s5"># we do update our grid cell such that the new</span>
+        <span class="s5"># telemetry is correct now.</span>
+        <span class="s5"># We do this instead of overriding setSmPosHprE()</span>
+        <span class="s5"># because we're a mixin class.</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isOnAGrid</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setGridCell</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getGrid</span><span class="s2">(), </span><span class="s1">e</span><span class="s2">) </span><span class="s5"># causes a wrtReparent() which updates</span>
+                                                <span class="s5"># all previous smooth positions</span>
+        <span class="s0">return </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span>
+</pre>
+</body>
+</html>

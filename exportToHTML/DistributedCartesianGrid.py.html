@@ -1,0 +1,444 @@
+<html>
+<head>
+<title>DistributedCartesianGrid.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedCartesianGrid.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core </span><span class="s1">import </span><span class="s2">*</span>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">direct </span><span class="s1">import </span><span class="s2">*</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">interval</span><span class="s2">.</span><span class="s0">IntervalGlobal </span><span class="s1">import </span><span class="s2">*</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directnotify</span><span class="s2">.</span><span class="s0">DirectNotifyGlobal </span><span class="s1">import </span><span class="s0">directNotify</span>
+
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">distributed</span><span class="s2">.</span><span class="s0">DistributedNode </span><span class="s1">import </span><span class="s0">DistributedNode</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">task </span><span class="s1">import </span><span class="s0">Task</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">gui </span><span class="s1">import </span><span class="s0">DirectGuiGlobals</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">showbase</span><span class="s2">.</span><span class="s0">EventGroup </span><span class="s1">import </span><span class="s0">EventGroup</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">showbase</span><span class="s2">.</span><span class="s0">PythonUtil </span><span class="s1">import </span><span class="s0">report</span>
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">distributed</span><span class="s2">.</span><span class="s0">GridParent </span><span class="s1">import </span><span class="s0">GridParent</span>
+
+<span class="s1">if __debug__</span><span class="s2">:</span>
+    <span class="s3"># For grid drawing</span>
+    <span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directtools</span><span class="s2">.</span><span class="s0">DirectGeometry </span><span class="s1">import </span><span class="s2">*</span>
+    <span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">showbase</span><span class="s2">.</span><span class="s0">PythonUtil </span><span class="s1">import </span><span class="s0">randFloat</span>
+
+<span class="s1">from </span><span class="s2">.</span><span class="s0">CartesianGridBase </span><span class="s1">import </span><span class="s0">CartesianGridBase</span>
+
+<span class="s3"># increase this number if you want to visualize the grid lines</span>
+<span class="s3"># above water level</span>
+<span class="s0">GRID_Z_OFFSET </span><span class="s2">= </span><span class="s4">0.0</span>
+
+<span class="s1">class </span><span class="s0">DistributedCartesianGrid</span><span class="s2">(</span><span class="s0">DistributedNode</span><span class="s2">, </span><span class="s0">CartesianGridBase</span><span class="s2">):</span>
+    <span class="s0">notify </span><span class="s2">= </span><span class="s0">directNotify</span><span class="s2">.</span><span class="s0">newCategory</span><span class="s2">(</span><span class="s5">&quot;DistributedCartesianGrid&quot;</span><span class="s2">)</span>
+    <span class="s0">notify</span><span class="s2">.</span><span class="s0">setDebug</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+
+    <span class="s0">VisualizeGrid </span><span class="s2">= </span><span class="s0">ConfigVariableBool</span><span class="s2">(</span><span class="s5">&quot;visualize-cartesian-grid&quot;</span><span class="s2">, </span><span class="s1">False</span><span class="s2">)</span>
+
+    <span class="s0">RuleSeparator </span><span class="s2">= </span><span class="s5">&quot;:&quot;</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">cr</span><span class="s2">):</span>
+        <span class="s0">DistributedNode</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">cr</span><span class="s2">)</span>
+        <span class="s3"># Let the derived classes instantiate the NodePath</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar </span><span class="s2">= </span><span class="s1">None</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext </span><span class="s2">= </span><span class="s1">None</span>
+        <span class="s3"># Do we have grid lines visualized?</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">_onOffState </span><span class="s2">= </span><span class="s1">False</span>
+        <span class="s1">if __debug__</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">haveGridLines </span><span class="s2">= </span><span class="s4">0</span>
+
+    <span class="s1">def </span><span class="s0">generate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">DistributedNode</span><span class="s2">.</span><span class="s0">generate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">disable</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">DistributedNode</span><span class="s2">.</span><span class="s0">disable</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">stopProcessVisibility</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">DistributedNode</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s3"># TODO: when teleporting off an island...</span>
+        <span class="s0">taskMgr</span><span class="s2">.</span><span class="s0">remove</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">taskName</span><span class="s2">(</span><span class="s5">&quot;processVisibility&quot;</span><span class="s2">))</span>
+
+    <span class="s1">def </span><span class="s0">isGridParent</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># If this distributed object is a DistributedGrid return 1.  0 by default</span>
+        <span class="s1">return </span><span class="s4">1</span>
+
+    <span class="s1">def </span><span class="s0">setCellWidth</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">width</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">= </span><span class="s0">width</span>
+
+    <span class="s1">def </span><span class="s0">setParentingRules</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">style</span><span class="s2">, </span><span class="s0">rule</span><span class="s2">):</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s5">&quot;setParentingRules: style: %s, rule: %s&quot; </span><span class="s2">% (</span><span class="s0">style</span><span class="s2">, </span><span class="s0">rule</span><span class="s2">))</span>
+        <span class="s0">rules </span><span class="s2">= </span><span class="s0">rule</span><span class="s2">.</span><span class="s0">split</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">RuleSeparator</span><span class="s2">)</span>
+        <span class="s1">assert </span><span class="s0">len</span><span class="s2">(</span><span class="s0">rules</span><span class="s2">) == </span><span class="s4">3</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">style </span><span class="s2">= </span><span class="s0">style</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone </span><span class="s2">= </span><span class="s0">int</span><span class="s2">(</span><span class="s0">rules</span><span class="s2">[</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize </span><span class="s2">= </span><span class="s0">int</span><span class="s2">(</span><span class="s0">rules</span><span class="s2">[</span><span class="s4">1</span><span class="s2">])</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">viewingRadius </span><span class="s2">= </span><span class="s0">int</span><span class="s2">(</span><span class="s0">rules</span><span class="s2">[</span><span class="s4">2</span><span class="s2">])</span>
+
+        <span class="s3"># Store the center of the grid</span>
+        <span class="s0">cx </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">/</span><span class="s4">2.0</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">centerPos </span><span class="s2">= </span><span class="s0">Vec3</span><span class="s2">(</span><span class="s0">cx</span><span class="s2">, </span><span class="s0">cx</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s1">if __debug__</span><span class="s2">:</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">VisualizeGrid</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">visualizeGrid</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">getCenterPos</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">centerPos</span>
+
+    <span class="s1">def </span><span class="s0">handleChildArrive</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">child</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">):</span>
+        <span class="s0">DistributedNode</span><span class="s2">.</span><span class="s0">handleChildArrive</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">child</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">)</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">zoneId </span><span class="s2">&gt;= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone</span><span class="s2">):</span>
+            <span class="s1">if not </span><span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">:</span>
+                <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent </span><span class="s2">= </span><span class="s0">GridParent</span><span class="s2">(</span><span class="s0">child</span><span class="s2">)</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">.</span><span class="s0">setGridParent</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">)</span>
+        <span class="s1">elif </span><span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">:</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">()</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent </span><span class="s2">= </span><span class="s1">None</span>
+
+    <span class="s1">def </span><span class="s0">handleChildArriveZone</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">child</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">):</span>
+        <span class="s0">DistributedNode</span><span class="s2">.</span><span class="s0">handleChildArrive</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">child</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">)</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">zoneId </span><span class="s2">&gt;= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone</span><span class="s2">):</span>
+            <span class="s1">if not </span><span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">:</span>
+                <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent </span><span class="s2">= </span><span class="s0">GridParent</span><span class="s2">(</span><span class="s0">child</span><span class="s2">)</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">.</span><span class="s0">setGridParent</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">)</span>
+        <span class="s1">elif </span><span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">:</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">()</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent </span><span class="s2">= </span><span class="s1">None</span>
+
+    <span class="s1">def </span><span class="s0">handleChildLeave</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">child</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">:</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent</span><span class="s2">.</span><span class="s0">delete</span><span class="s2">()</span>
+            <span class="s0">child</span><span class="s2">.</span><span class="s0">gridParent </span><span class="s2">= </span><span class="s1">None</span>
+
+    <span class="s2">@</span><span class="s0">report</span><span class="s2">(</span><span class="s0">types </span><span class="s2">= [</span><span class="s5">'deltaStamp'</span><span class="s2">, </span><span class="s5">'avLocation'</span><span class="s2">, </span><span class="s5">'args'</span><span class="s2">], </span><span class="s0">dConfigParam </span><span class="s2">= [</span><span class="s5">'connector'</span><span class="s2">,</span><span class="s5">'shipboard'</span><span class="s2">])</span>
+    <span class="s1">def </span><span class="s0">startProcessVisibility</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">avatar</span><span class="s2">):</span>
+        <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">_onOffState</span><span class="s2">:</span>
+            <span class="s3"># if we've been told that we're OFF, don't try</span>
+            <span class="s3"># to process visibilty</span>
+            <span class="s1">return</span>
+
+        <span class="s1">assert not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">_noNewInterests</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">noNewInterests</span><span class="s2">():</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">warning</span><span class="s2">(</span>
+                <span class="s5">'startProcessVisibility(%s): tried to open a new interest during logout'</span>
+                <span class="s2">% </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+            <span class="s1">return</span>
+        <span class="s0">taskMgr</span><span class="s2">.</span><span class="s0">remove</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">taskName</span><span class="s2">(</span><span class="s5">&quot;processVisibility&quot;</span><span class="s2">))</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">acceptOnce</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">StopVisibilityEvent</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">stopProcessVisibility</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar </span><span class="s2">= </span><span class="s0">avatar</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">visZone </span><span class="s2">= </span><span class="s1">None</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">visDirty </span><span class="s2">= </span><span class="s1">True</span>
+        <span class="s0">taskMgr</span><span class="s2">.</span><span class="s0">add</span><span class="s2">(</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">processVisibility</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">taskName</span><span class="s2">(</span><span class="s5">&quot;processVisibility&quot;</span><span class="s2">))</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">processVisibility</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s0">report</span><span class="s2">(</span><span class="s0">types </span><span class="s2">= [</span><span class="s5">'deltaStamp'</span><span class="s2">, </span><span class="s5">'avLocation'</span><span class="s2">, </span><span class="s5">'args'</span><span class="s2">], </span><span class="s0">dConfigParam </span><span class="s2">= [</span><span class="s5">'connector'</span><span class="s2">,</span><span class="s5">'shipboard'</span><span class="s2">])</span>
+    <span class="s1">def </span><span class="s0">stopProcessVisibility</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">clearAll</span><span class="s2">=</span><span class="s1">False</span><span class="s2">, </span><span class="s0">event</span><span class="s2">=</span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">ignore</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">StopVisibilityEvent</span><span class="s2">)</span>
+        <span class="s0">taskMgr</span><span class="s2">.</span><span class="s0">remove</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">taskName</span><span class="s2">(</span><span class="s5">&quot;processVisibility&quot;</span><span class="s2">))</span>
+        <span class="s1">if </span><span class="s0">event </span><span class="s1">is not None</span><span class="s2">:</span>
+            <span class="s0">eventGroup </span><span class="s2">= </span><span class="s0">EventGroup</span><span class="s2">(</span><span class="s5">'DistCartesianGrid.stopProcessVis'</span><span class="s2">,</span>
+                                    <span class="s0">doneEvent</span><span class="s2">=</span><span class="s0">event</span><span class="s2">)</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext </span><span class="s1">is not None</span><span class="s2">:</span>
+            <span class="s1">if </span><span class="s0">event </span><span class="s1">is not None</span><span class="s2">:</span>
+                <span class="s0">removeEvent </span><span class="s2">= </span><span class="s0">eventGroup</span><span class="s2">.</span><span class="s0">newEvent</span><span class="s2">(</span><span class="s5">'%s.removeInterest' </span><span class="s2">% </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+            <span class="s1">else</span><span class="s2">:</span>
+                <span class="s0">removeEvent </span><span class="s2">= </span><span class="s1">None</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">removeInterest</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext</span><span class="s2">, </span><span class="s0">removeEvent</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext </span><span class="s2">= </span><span class="s1">None</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s3"># if we were given an event but we have not interest open,</span>
+            <span class="s3"># just send the event right away</span>
+            <span class="s1">if </span><span class="s0">event </span><span class="s1">is not None</span><span class="s2">:</span>
+                <span class="s0">messenger</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s0">event</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar </span><span class="s2">= </span><span class="s1">None</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">visZone </span><span class="s2">= </span><span class="s1">None</span>
+
+        <span class="s3"># sometimes we also need to remove vis avatar from</span>
+        <span class="s3"># my parent if it is also a grid</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">clearAll</span><span class="s2">):</span>
+            <span class="s1">if </span><span class="s0">event </span><span class="s1">is not None</span><span class="s2">:</span>
+                <span class="s0">parentEvent </span><span class="s2">= </span><span class="s0">eventGroup</span><span class="s2">.</span><span class="s0">newEvent</span><span class="s2">(</span><span class="s5">'%s.parent.removeInterest' </span><span class="s2">% </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">)</span>
+            <span class="s1">else</span><span class="s2">:</span>
+                <span class="s0">parentEvent </span><span class="s2">= </span><span class="s1">None</span>
+
+            <span class="s3">##HACK BANDAID FOR PVP INSTANCES</span>
+            <span class="s1">if</span><span class="s2">(</span><span class="s0">hasattr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">doId2do</span><span class="s2">[</span><span class="s0">self</span><span class="s2">.</span><span class="s0">parentId</span><span class="s2">],</span><span class="s5">&quot;worldGrid&quot;</span><span class="s2">)):</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">doId2do</span><span class="s2">[</span><span class="s0">self</span><span class="s2">.</span><span class="s0">parentId</span><span class="s2">].</span><span class="s0">worldGrid</span><span class="s2">.</span><span class="s0">stopProcessVisibility</span><span class="s2">(</span><span class="s0">event</span><span class="s2">=</span><span class="s0">parentEvent</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">processVisibility</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">task</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar </span><span class="s2">== </span><span class="s1">None</span><span class="s2">:</span>
+            <span class="s3"># no avatar to process visibility for</span>
+            <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">done</span>
+        <span class="s1">if</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar</span><span class="s2">.</span><span class="s0">isDisabled</span><span class="s2">()):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar </span><span class="s2">= </span><span class="s1">None</span>
+            <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">done</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar</span><span class="s2">.</span><span class="s0">gameFSM</span><span class="s2">.</span><span class="s0">state </span><span class="s2">== </span><span class="s5">'Cutscene'</span><span class="s2">:</span>
+            <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">cont</span>
+
+        <span class="s0">pos </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar</span><span class="s2">.</span><span class="s0">getPos</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s3"># Check to make sure our x and y are positive</span>
+        <span class="s0">dx </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize </span><span class="s2">* </span><span class="s4">.5</span>
+        <span class="s0">x </span><span class="s2">= </span><span class="s0">pos</span><span class="s2">[</span><span class="s4">0</span><span class="s2">] + </span><span class="s0">dx</span>
+        <span class="s0">y </span><span class="s2">= </span><span class="s0">pos</span><span class="s2">[</span><span class="s4">1</span><span class="s2">] + </span><span class="s0">dx</span>
+        <span class="s0">col </span><span class="s2">= </span><span class="s0">x </span><span class="s2">// </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth</span>
+        <span class="s0">row </span><span class="s2">= </span><span class="s0">y </span><span class="s2">// </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span>
+            <span class="s5">&quot;processVisibility: %s: avatar pos: %s %s&quot; </span><span class="s2">% (</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">x</span><span class="s2">, </span><span class="s0">y</span><span class="s2">))</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">row </span><span class="s2">&lt; </span><span class="s4">0</span><span class="s2">) </span><span class="s1">or </span><span class="s2">(</span><span class="s0">col </span><span class="s2">&lt; </span><span class="s4">0</span><span class="s2">) </span><span class="s1">or </span><span class="s2">(</span><span class="s0">row </span><span class="s2">&gt; </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">) </span><span class="s1">or </span><span class="s2">(</span><span class="s0">col </span><span class="s2">&gt; </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">):</span>
+            <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s5">&quot;processVisibility: %s: not on the grid&quot; </span><span class="s2">% (</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">))</span>
+            <span class="s3"># If we are viewingRadius away from this entire grid,</span>
+            <span class="s3"># remove interest in any current visZone we may have</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">removeInterest</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext</span><span class="s2">)</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">visZone </span><span class="s2">= </span><span class="s1">None</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext </span><span class="s2">= </span><span class="s1">None</span>
+            <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">cont</span>
+        <span class="s3"># Compute which zone we are in</span>
+        <span class="s0">zoneId </span><span class="s2">= </span><span class="s0">int</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone </span><span class="s2">+ ((</span><span class="s0">row </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">) + </span><span class="s0">col</span><span class="s2">))</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s5">&quot;processVisibility: %s: row: %s col: %s zoneId: %s&quot; </span><span class="s2">%</span>
+                                 <span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">row</span><span class="s2">, </span><span class="s0">col</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">))</span>
+        <span class="s1">if </span><span class="s2">(</span><span class="s0">zoneId </span><span class="s2">== </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visZone</span><span class="s2">):</span>
+            <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span>
+                <span class="s5">&quot;processVisibility: %s: interest did not change&quot; </span><span class="s2">% (</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">))</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visDirty</span><span class="s2">:</span>
+                <span class="s0">messenger</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">uniqueName</span><span class="s2">(</span><span class="s5">&quot;visibility&quot;</span><span class="s2">))</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">visDirty </span><span class="s2">= </span><span class="s1">False</span>
+            <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">cont</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span>
+                <span class="s5">&quot;processVisibility: %s: new interest&quot; </span><span class="s2">% (</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">))</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">visZone </span><span class="s2">= </span><span class="s0">zoneId</span>
+            <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">addInterest</span><span class="s2">(</span>
+                    <span class="s0">self</span><span class="s2">.</span><span class="s0">getDoId</span><span class="s2">(), </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visZone</span><span class="s2">,</span>
+                    <span class="s0">self</span><span class="s2">.</span><span class="s0">uniqueName</span><span class="s2">(</span><span class="s5">&quot;visibility&quot;</span><span class="s2">),</span>
+                    <span class="s0">event </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">uniqueName</span><span class="s2">(</span><span class="s5">&quot;visibility&quot;</span><span class="s2">))</span>
+            <span class="s1">else</span><span class="s2">:</span>
+                <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span>
+                    <span class="s5">&quot;processVisibility: %s: altering interest to zoneId: %s&quot; </span><span class="s2">%</span>
+                    <span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">))</span>
+
+                <span class="s0">event </span><span class="s2">= </span><span class="s1">None</span>
+                <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visDirty</span><span class="s2">:</span>
+                    <span class="s0">event </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">uniqueName</span><span class="s2">(</span><span class="s5">&quot;visibility&quot;</span><span class="s2">)</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">cr</span><span class="s2">.</span><span class="s0">alterInterest</span><span class="s2">(</span>
+                    <span class="s0">self</span><span class="s2">.</span><span class="s0">gridVisContext</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getDoId</span><span class="s2">(), </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visZone</span><span class="s2">,</span>
+                    <span class="s0">event </span><span class="s2">= </span><span class="s0">event</span><span class="s2">)</span>
+
+                <span class="s3"># If the visAvatar is parented to this grid, also do a</span>
+                <span class="s3"># setLocation</span>
+                <span class="s0">parentId </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar</span><span class="s2">.</span><span class="s0">parentId</span>
+                <span class="s0">oldZoneId </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar</span><span class="s2">.</span><span class="s0">zoneId</span>
+                <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span>
+                    <span class="s5">&quot;processVisibility: %s: parentId: %s oldZoneId: %s&quot; </span><span class="s2">%</span>
+                    <span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">parentId</span><span class="s2">, </span><span class="s0">oldZoneId</span><span class="s2">))</span>
+                <span class="s1">if </span><span class="s0">parentId </span><span class="s2">== </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">:</span>
+                    <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span>
+                        <span class="s5">&quot;processVisibility: %s: changing location&quot; </span><span class="s2">%</span>
+                        <span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">))</span>
+                    <span class="s0">messenger</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s5">&quot;avatarZoneChanged&quot;</span><span class="s2">, [</span><span class="s0">self</span><span class="s2">.</span><span class="s0">visAvatar</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">])</span>
+                    <span class="s3">#self.handleAvatarZoneChange(self.visAvatar, zoneId)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">visDirty </span><span class="s2">= </span><span class="s1">False</span>
+            <span class="s1">return </span><span class="s0">Task</span><span class="s2">.</span><span class="s0">cont</span>
+
+    <span class="s3"># Update our location based on our avatar's position on the grid</span>
+    <span class="s3"># Assumes our position is correct, relative to the grid</span>
+    <span class="s1">def </span><span class="s0">addObjectToGrid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">):</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s5">&quot;addObjectToGrid %s&quot; </span><span class="s2">% </span><span class="s0">av</span><span class="s2">)</span>
+        <span class="s3"># Get our pos relative to the island grid</span>
+        <span class="s0">pos </span><span class="s2">= </span><span class="s0">av</span><span class="s2">.</span><span class="s0">getPos</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s3"># Figure out what zone in that island grid</span>
+        <span class="s0">zoneId </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getZoneFromXYZ</span><span class="s2">(</span><span class="s0">pos</span><span class="s2">)</span>
+        <span class="s3"># Do the wrtReparenting to the grid node</span>
+        <span class="s0">messenger</span><span class="s2">.</span><span class="s0">send</span><span class="s2">(</span><span class="s5">&quot;avatarZoneChanged&quot;</span><span class="s2">, [</span><span class="s0">av</span><span class="s2">, </span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">])</span>
+        <span class="s3">#self.handleAvatarZoneChange(av, zoneId)</span>
+
+    <span class="s1">def </span><span class="s0">removeObjectFromGrid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">):</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s5">&quot;removeObjectFromGrid %s&quot; </span><span class="s2">% </span><span class="s0">av</span><span class="s2">)</span>
+        <span class="s3"># TODO: WHAT LOCATION SHOULD WE SET THIS TO?</span>
+        <span class="s3">#av.reparentTo(hidden)</span>
+        <span class="s1">if </span><span class="s0">av</span><span class="s2">.</span><span class="s0">getParent</span><span class="s2">() == </span><span class="s0">self</span><span class="s2">:</span>
+            <span class="s3"># only detach if object is directly parented</span>
+            <span class="s0">av</span><span class="s2">.</span><span class="s0">detachNode</span><span class="s2">()</span>
+        <span class="s3">#av.b_setLocation(0, 0)</span>
+
+
+    <span class="s1">def </span><span class="s0">handleAvatarZoneChange</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">):</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s5">&quot;handleAvatarZoneChange(%s, %s)&quot; </span><span class="s2">% (</span><span class="s0">av</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">))</span>
+        <span class="s3"># This method can be overridden by derived classes that</span>
+        <span class="s3"># want to do some special management when the avatar changes</span>
+        <span class="s3"># zones.</span>
+        <span class="s3"># Make sure this is a valid zone</span>
+        <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">isValidZone</span><span class="s2">(</span><span class="s0">zoneId</span><span class="s2">):</span>
+            <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">warning</span><span class="s2">(</span><span class="s5">&quot;handleAvatarZoneChange: not a valid zone (%s)&quot; </span><span class="s2">% </span><span class="s0">zoneId</span><span class="s2">)</span>
+            <span class="s1">return</span>
+
+        <span class="s3"># Set the location on the server</span>
+        <span class="s0">av</span><span class="s2">.</span><span class="s0">b_setLocation</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">doId</span><span class="s2">, </span><span class="s0">zoneId</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">turnOff</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">_onOffState </span><span class="s2">= </span><span class="s1">False</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">stopProcessVisibility</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">turnOn</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">av </span><span class="s2">= </span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">_onOffState </span><span class="s2">= </span><span class="s1">True</span>
+        <span class="s1">if </span><span class="s0">av</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">startProcessVisibility</span><span class="s2">(</span><span class="s0">av</span><span class="s2">)</span>
+
+    <span class="s3">##################################################</span>
+    <span class="s3"># Visualization Tools</span>
+    <span class="s3">##################################################</span>
+
+    <span class="s1">if __debug__</span><span class="s2">:</span>
+
+        <span class="s1">def </span><span class="s0">initializeGridLines</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s3"># Grid Lines</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">gridColor </span><span class="s2">= </span><span class="s0">VBase4</span><span class="s2">(</span><span class="s4">0.4 </span><span class="s2">+ </span><span class="s0">randFloat</span><span class="s2">(</span><span class="s4">0.4</span><span class="s2">),</span>
+                                    <span class="s4">0.4 </span><span class="s2">+ </span><span class="s0">randFloat</span><span class="s2">(</span><span class="s4">0.4</span><span class="s2">),</span>
+                                    <span class="s4">0.4 </span><span class="s2">+ </span><span class="s0">randFloat</span><span class="s2">(</span><span class="s4">0.4</span><span class="s2">),</span>
+                                    <span class="s4">1</span><span class="s2">)</span>
+            <span class="s3"># A Dark version of the grid color</span>
+            <span class="s0">color </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridColor </span><span class="s2">* </span><span class="s4">0.5</span>
+            <span class="s0">color</span><span class="s2">.</span><span class="s0">setW</span><span class="s2">(</span><span class="s4">1</span><span class="s2">)</span>
+
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">lines </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">attachNewNode</span><span class="s2">(</span><span class="s5">'gridLines'</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">minorLines </span><span class="s2">= </span><span class="s0">LineNodePath</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">lines</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">minorLines</span><span class="s2">.</span><span class="s0">lineNode</span><span class="s2">.</span><span class="s0">setName</span><span class="s2">(</span><span class="s5">'minorLines'</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">minorLines</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">color</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">minorLines</span><span class="s2">.</span><span class="s0">setThickness</span><span class="s2">(</span><span class="s4">1</span><span class="s2">)</span>
+
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">majorLines </span><span class="s2">= </span><span class="s0">LineNodePath</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">lines</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">majorLines</span><span class="s2">.</span><span class="s0">lineNode</span><span class="s2">.</span><span class="s0">setName</span><span class="s2">(</span><span class="s5">'majorLines'</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">majorLines</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">color</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">majorLines</span><span class="s2">.</span><span class="s0">setThickness</span><span class="s2">(</span><span class="s4">5</span><span class="s2">)</span>
+
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">centerLines </span><span class="s2">= </span><span class="s0">LineNodePath</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">lines</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">centerLines</span><span class="s2">.</span><span class="s0">lineNode</span><span class="s2">.</span><span class="s0">setName</span><span class="s2">(</span><span class="s5">'centerLines'</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">centerLines</span><span class="s2">.</span><span class="s0">setColor</span><span class="s2">(</span><span class="s0">VBase4</span><span class="s2">(</span><span class="s4">1</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s4">0</span><span class="s2">))</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">centerLines</span><span class="s2">.</span><span class="s0">setThickness</span><span class="s2">(</span><span class="s4">3</span><span class="s2">)</span>
+
+            <span class="s3"># Load up grid parts to initialize grid object</span>
+            <span class="s3"># Polygon used to mark grid plane</span>
+            <span class="s3"># self.gridBack = loader.loadModel('models/misc/gridBack')</span>
+            <span class="s3"># self.gridBack.reparentTo(self)</span>
+            <span class="s3"># self.gridBack.setColor(0.2, 0.2, 0.2, 0.5)</span>
+
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">cellLabelParent </span><span class="s2">= </span><span class="s1">None</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent </span><span class="s2">= </span><span class="s1">None</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">haveGridLines </span><span class="s2">= </span><span class="s4">1</span>
+
+        <span class="s1">def </span><span class="s0">updateGrid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s3"># Update grid lines based upon current grid spacing and grid size</span>
+            <span class="s3"># First reset existing grid lines</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">minorLines</span><span class="s2">.</span><span class="s0">reset</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">majorLines</span><span class="s2">.</span><span class="s0">reset</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">centerLines</span><span class="s2">.</span><span class="s0">reset</span><span class="s2">()</span>
+            <span class="s3"># Now redraw lines</span>
+            <span class="s0">numLines </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span>
+            <span class="s0">scaledSize </span><span class="s2">= </span><span class="s0">numLines </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">/ </span><span class="s4">2.0</span>
+            <span class="s0">center </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">centerLines</span>
+            <span class="s0">minor </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">minorLines</span>
+            <span class="s0">major </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">majorLines</span>
+            <span class="s0">cw </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth</span>
+            <span class="s0">dx </span><span class="s2">= </span><span class="s0">cw </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize </span><span class="s2">* </span><span class="s4">.5</span>
+            <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">numLines</span><span class="s2">+</span><span class="s4">1</span><span class="s2">):</span>
+                <span class="s0">icw </span><span class="s2">= </span><span class="s0">i </span><span class="s2">* </span><span class="s0">cw </span><span class="s2">- </span><span class="s0">dx</span>
+                <span class="s1">if </span><span class="s0">i </span><span class="s2">== </span><span class="s0">numLines</span><span class="s2">/</span><span class="s4">2</span><span class="s2">:</span>
+                    <span class="s0">center</span><span class="s2">.</span><span class="s0">moveTo</span><span class="s2">(</span><span class="s0">icw</span><span class="s2">, -</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                    <span class="s0">center</span><span class="s2">.</span><span class="s0">drawTo</span><span class="s2">(</span><span class="s0">icw</span><span class="s2">, </span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                    <span class="s0">center</span><span class="s2">.</span><span class="s0">moveTo</span><span class="s2">(-</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">icw</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                    <span class="s0">center</span><span class="s2">.</span><span class="s0">drawTo</span><span class="s2">(</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">icw</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                <span class="s1">else</span><span class="s2">:</span>
+                    <span class="s1">if </span><span class="s2">(</span><span class="s0">i </span><span class="s2">% </span><span class="s4">5</span><span class="s2">) == </span><span class="s4">0</span><span class="s2">:</span>
+                        <span class="s0">major</span><span class="s2">.</span><span class="s0">moveTo</span><span class="s2">(</span><span class="s0">icw</span><span class="s2">, -</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                        <span class="s0">major</span><span class="s2">.</span><span class="s0">drawTo</span><span class="s2">(</span><span class="s0">icw</span><span class="s2">, </span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                        <span class="s0">major</span><span class="s2">.</span><span class="s0">moveTo</span><span class="s2">(-</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">icw</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                        <span class="s0">major</span><span class="s2">.</span><span class="s0">drawTo</span><span class="s2">(</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">icw</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                    <span class="s1">else</span><span class="s2">:</span>
+                        <span class="s0">minor</span><span class="s2">.</span><span class="s0">moveTo</span><span class="s2">(</span><span class="s0">icw</span><span class="s2">, -</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                        <span class="s0">minor</span><span class="s2">.</span><span class="s0">drawTo</span><span class="s2">(</span><span class="s0">icw</span><span class="s2">, </span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                        <span class="s0">minor</span><span class="s2">.</span><span class="s0">moveTo</span><span class="s2">(-</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">icw</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+                        <span class="s0">minor</span><span class="s2">.</span><span class="s0">drawTo</span><span class="s2">(</span><span class="s0">scaledSize</span><span class="s2">, </span><span class="s0">icw</span><span class="s2">, </span><span class="s0">GRID_Z_OFFSET</span><span class="s2">)</span>
+            <span class="s0">center</span><span class="s2">.</span><span class="s0">create</span><span class="s2">()</span>
+            <span class="s0">minor</span><span class="s2">.</span><span class="s0">create</span><span class="s2">()</span>
+            <span class="s0">major</span><span class="s2">.</span><span class="s0">create</span><span class="s2">()</span>
+            <span class="s3"># self.gridBack.setScale(scaledSize)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">labelCells</span><span class="s2">()</span>
+
+        <span class="s1">def </span><span class="s0">labelCells</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellLabelParent</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">cellLabelParent</span><span class="s2">.</span><span class="s0">removeNode</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">cellLabelParent </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">attachNewNode</span><span class="s2">(</span><span class="s5">'cellLabels'</span><span class="s2">)</span>
+            <span class="s0">cw </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth</span>
+            <span class="s0">scale </span><span class="s2">= </span><span class="s0">cw </span><span class="s2">/ </span><span class="s4">10.0</span>
+            <span class="s0">dx </span><span class="s2">= </span><span class="s0">cw </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize </span><span class="s2">* </span><span class="s4">.5</span>
+            <span class="s0">font </span><span class="s2">= </span><span class="s0">DirectGuiGlobals</span><span class="s2">.</span><span class="s0">getDefaultFont</span><span class="s2">()</span>
+            <span class="s0">color </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridColor</span>
+            <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">):</span>
+                <span class="s1">for </span><span class="s0">j </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">):</span>
+                    <span class="s0">zoneId </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">startingZone </span><span class="s2">+ ((</span><span class="s0">j </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">) + </span><span class="s0">i</span><span class="s2">)</span>
+                    <span class="s0">zoneStr </span><span class="s2">= </span><span class="s0">str</span><span class="s2">(</span><span class="s0">zoneId</span><span class="s2">)</span>
+                    <span class="s0">textNode </span><span class="s2">= </span><span class="s0">TextNode</span><span class="s2">(</span><span class="s0">zoneStr</span><span class="s2">)</span>
+                    <span class="s0">textNode</span><span class="s2">.</span><span class="s0">setText</span><span class="s2">(</span><span class="s0">zoneStr</span><span class="s2">)</span>
+                    <span class="s0">textNode</span><span class="s2">.</span><span class="s0">setFont</span><span class="s2">(</span><span class="s0">font</span><span class="s2">)</span>
+                    <span class="s0">textNode</span><span class="s2">.</span><span class="s0">setTextColor</span><span class="s2">(</span><span class="s0">color</span><span class="s2">)</span>
+                    <span class="s0">textNode</span><span class="s2">.</span><span class="s0">setAlign</span><span class="s2">(</span><span class="s0">TextNode</span><span class="s2">.</span><span class="s0">ACenter</span><span class="s2">)</span>
+                    <span class="s0">genTextNode </span><span class="s2">= </span><span class="s0">textNode</span><span class="s2">.</span><span class="s0">generate</span><span class="s2">()</span>
+                    <span class="s0">textNodePath </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellLabelParent</span><span class="s2">.</span><span class="s0">attachNewNode</span><span class="s2">(</span><span class="s0">genTextNode</span><span class="s2">)</span>
+                    <span class="s3"># Place the text node in the center of the cell</span>
+                    <span class="s0">textNodePath</span><span class="s2">.</span><span class="s0">setPosHprScale</span><span class="s2">((</span><span class="s0">i </span><span class="s2">* </span><span class="s0">cw </span><span class="s2">- </span><span class="s0">dx</span><span class="s2">) + (</span><span class="s0">cw </span><span class="s2">* </span><span class="s4">0.5</span><span class="s2">), </span><span class="s3"># x</span>
+                                                <span class="s2">(</span><span class="s0">j </span><span class="s2">* </span><span class="s0">cw </span><span class="s2">- </span><span class="s0">dx</span><span class="s2">) + (</span><span class="s0">cw </span><span class="s2">* </span><span class="s4">0.5</span><span class="s2">), </span><span class="s3"># y</span>
+                                                <span class="s0">GRID_Z_OFFSET</span><span class="s2">+</span><span class="s4">3.0</span><span class="s2">, </span><span class="s3"># z</span>
+                                                <span class="s3"># Lay them down flat</span>
+                                                <span class="s4">0</span><span class="s2">, -</span><span class="s4">90</span><span class="s2">, </span><span class="s4">0</span><span class="s2">, </span><span class="s3"># hpr</span>
+                                                <span class="s0">scale</span><span class="s2">, </span><span class="s0">scale</span><span class="s2">, </span><span class="s0">scale</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">cellLabelParent</span><span class="s2">.</span><span class="s0">flattenLight</span><span class="s2">()</span>
+
+        <span class="s1">def </span><span class="s0">markCells</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent</span><span class="s2">.</span><span class="s0">removeNode</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">attachNewNode</span><span class="s2">(</span><span class="s5">'markers'</span><span class="s2">)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">cellMarkers </span><span class="s2">= []</span>
+            <span class="s0">dx </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize </span><span class="s2">* </span><span class="s4">.5</span>
+            <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">):</span>
+                <span class="s1">for </span><span class="s0">j </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">gridSize</span><span class="s2">):</span>
+                    <span class="s0">marker </span><span class="s2">= </span><span class="s0">loader</span><span class="s2">.</span><span class="s0">loadModel</span><span class="s2">(</span><span class="s5">&quot;models/misc/smiley&quot;</span><span class="s2">)</span>
+                    <span class="s0">marker</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent</span><span class="s2">)</span>
+                    <span class="s0">marker</span><span class="s2">.</span><span class="s0">setPos</span><span class="s2">(</span><span class="s0">i </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">- </span><span class="s0">dx</span><span class="s2">,</span>
+                                  <span class="s0">j </span><span class="s2">* </span><span class="s0">self</span><span class="s2">.</span><span class="s0">cellWidth </span><span class="s2">- </span><span class="s0">dx</span><span class="s2">,</span>
+                                  <span class="s0">GRID_Z_OFFSET </span><span class="s2">+ </span><span class="s4">1.0</span><span class="s2">)</span>
+                    <span class="s0">marker</span><span class="s2">.</span><span class="s0">setScale</span><span class="s2">(</span><span class="s4">5</span><span class="s2">)</span>
+                    <span class="s0">self</span><span class="s2">.</span><span class="s0">cellMarkers</span><span class="s2">.</span><span class="s0">append</span><span class="s2">(</span><span class="s0">marker</span><span class="s2">)</span>
+
+        <span class="s1">def </span><span class="s0">unmarkCells</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent</span><span class="s2">.</span><span class="s0">removeNode</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">markerParent </span><span class="s2">= </span><span class="s1">None</span>
+
+        <span class="s1">def </span><span class="s0">visualizeGrid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+            <span class="s1">if not </span><span class="s0">self</span><span class="s2">.</span><span class="s0">haveGridLines</span><span class="s2">:</span>
+                <span class="s0">self</span><span class="s2">.</span><span class="s0">initializeGridLines</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">updateGrid</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">setWorldContext</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">worldContext</span><span class="s2">):</span>
+        <span class="s1">pass</span>
+
+    <span class="s1">def </span><span class="s0">clearWorldContext</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">event </span><span class="s2">= </span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s1">pass</span>
+</pre>
+</body>
+</html>

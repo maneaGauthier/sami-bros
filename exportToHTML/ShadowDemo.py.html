@@ -1,0 +1,244 @@
+<html>
+<head>
+<title>ShadowDemo.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ShadowDemo.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Create a cheesy shadow effect by rendering the view of an 
+object (e.g. the local avatar) from a special camera as seen from 
+above (as if from the sun), using a solid gray foreground and a 
+solid white background, and then multitexturing that view onto the 
+world. 
+ 
+This is meant primarily as a demonstration of multipass and 
+multitexture rendering techniques.  It's not a particularly great 
+way to do shadows. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ShadowCaster'</span><span class="s2">, </span><span class="s3">'avatarShadow'</span><span class="s2">, </span><span class="s3">'piratesAvatarShadow'</span><span class="s2">, </span><span class="s3">'arbitraryShadow'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s4">import </span><span class="s1">Task</span>
+
+<span class="s1">sc </span><span class="s2">= </span><span class="s4">None</span>
+
+<span class="s4">class </span><span class="s1">ShadowCaster</span><span class="s2">:</span>
+    <span class="s1">texXSize </span><span class="s2">= </span><span class="s5">128</span>
+    <span class="s1">texYSize </span><span class="s2">= </span><span class="s5">128</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">lightPath</span><span class="s2">, </span><span class="s1">objectPath</span><span class="s2">, </span><span class="s1">filmX</span><span class="s2">, </span><span class="s1">filmY</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lightPath </span><span class="s2">= </span><span class="s1">lightPath</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">objectPath </span><span class="s2">= </span><span class="s1">objectPath</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s6"># Create an offscreen buffer to render the view of the avatar</span>
+        <span class="s6"># into a texture.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">buffer </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">win</span><span class="s2">.</span><span class="s1">makeTextureBuffer</span><span class="s2">(</span>
+            <span class="s3">'shadowBuffer'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texXSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">texYSize</span><span class="s2">)</span>
+
+        <span class="s6"># The background of this buffer--and the border of the</span>
+        <span class="s6"># texture--is pure white.</span>
+        <span class="s1">clearColor </span><span class="s2">= </span><span class="s1">VBase4</span><span class="s2">(</span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">buffer</span><span class="s2">.</span><span class="s1">setClearColor</span><span class="s2">(</span><span class="s1">clearColor</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tex </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buffer</span><span class="s2">.</span><span class="s1">getTexture</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">setBorderColor</span><span class="s2">(</span><span class="s1">clearColor</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">setWrapU</span><span class="s2">(</span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">WMBorderColor</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">.</span><span class="s1">setWrapV</span><span class="s2">(</span><span class="s1">Texture</span><span class="s2">.</span><span class="s1">WMBorderColor</span><span class="s2">)</span>
+
+        <span class="s6"># Set up a display region on this buffer, and create a camera.</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buffer</span><span class="s2">.</span><span class="s1">makeDisplayRegion</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camera </span><span class="s2">= </span><span class="s1">Camera</span><span class="s2">(</span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cameraPath </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightPath</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setScene</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">objectPath</span><span class="s2">)</span>
+        <span class="s1">dr</span><span class="s2">.</span><span class="s1">setCamera</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cameraPath</span><span class="s2">)</span>
+
+        <span class="s6"># Use a temporary NodePath to define the initial state for the</span>
+        <span class="s6"># camera.  The initial state will render everything in a</span>
+        <span class="s6"># flat-shaded gray, as if it were a shadow.</span>
+        <span class="s1">initial </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s3">'initial'</span><span class="s2">)</span>
+        <span class="s1">initial</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s5">0.6</span><span class="s2">, </span><span class="s5">0.6</span><span class="s2">, </span><span class="s5">0.6</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s1">initial</span><span class="s2">.</span><span class="s1">setTextureOff</span><span class="s2">(</span><span class="s5">2</span><span class="s2">)</span>
+        <span class="s1">initial</span><span class="s2">.</span><span class="s1">setLightOff</span><span class="s2">(</span><span class="s5">2</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setInitialState</span><span class="s2">(</span><span class="s1">initial</span><span class="s2">.</span><span class="s1">getState</span><span class="s2">())</span>
+
+        <span class="s6"># Use an orthographic lens for this camera instead of the</span>
+        <span class="s6"># usual perspective lens.  An orthographic lens is better to</span>
+        <span class="s6"># simulate sunlight, which is (almost) orthographic.  We set</span>
+        <span class="s6"># the film size large enough to render a typical avatar (but</span>
+        <span class="s6"># not so large that we lose detail in the texture).</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens </span><span class="s2">= </span><span class="s1">OrthographicLens</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">.</span><span class="s1">setFilmSize</span><span class="s2">(</span><span class="s1">filmX</span><span class="s2">, </span><span class="s1">filmY</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setLens</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lens</span><span class="s2">)</span>
+
+        <span class="s6"># Finally, we'll need a unique TextureStage to apply this</span>
+        <span class="s6"># shadow texture to the world.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stage </span><span class="s2">= </span><span class="s1">TextureStage</span><span class="s2">(</span><span class="s3">'shadow'</span><span class="s2">)</span>
+
+        <span class="s6"># Make sure the shadowing object doesn't get its own shadow</span>
+        <span class="s6"># applied to it.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">objectPath</span><span class="s2">.</span><span class="s1">setTextureOff</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stage</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setGround</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">groundPath</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Specifies the part of the world that is to be considered 
+        the ground: this is the part onto which the rendered texture 
+        will be applied. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath</span><span class="s2">.</span><span class="s1">clearProjectTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stage</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath </span><span class="s2">= </span><span class="s1">groundPath</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath</span><span class="s2">.</span><span class="s1">projectTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stage</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">tex</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cameraPath</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">clear</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Undoes the effect of the ShadowCaster. &quot;&quot;&quot;</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath</span><span class="s2">.</span><span class="s1">clearProjectTexture</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stage</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">groundPath </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lightPath</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lightPath</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lightPath </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cameraPath</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cameraPath</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cameraPath </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">camera </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">lens </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buffer</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">graphicsEngine</span><span class="s2">.</span><span class="s1">removeWindow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">buffer</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">tex </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buffer </span><span class="s2">= </span><span class="s4">None</span>
+
+<span class="s4">def </span><span class="s1">avatarShadow</span><span class="s2">():</span>
+    <span class="s6"># Turn off the existing drop shadow.</span>
+    <span class="s6"># stash it so that when the game hides and shows it, it will still be gone</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">localAvatar</span><span class="s2">.</span><span class="s1">dropShadow</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">()</span>
+
+    <span class="s6"># Set up a new node to hold the &quot;light&quot;: this is an abitrary point</span>
+    <span class="s6"># somewhere above the avatar, looking down, as if from the sun.</span>
+    <span class="s1">objectPath </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">localAvatar</span><span class="s2">.</span><span class="s1">getGeomNode</span><span class="s2">()</span>
+    <span class="s1">shadowCamera </span><span class="s2">= </span><span class="s1">objectPath</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+    <span class="s1">lightPath </span><span class="s2">= </span><span class="s1">shadowCamera</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'lightPath'</span><span class="s2">)</span>
+
+    <span class="s6"># We can change this position at will to change the angle of the</span>
+    <span class="s6"># sun.</span>
+    <span class="s1">lightPath</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s5">5</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">7</span><span class="s2">)</span>
+
+    <span class="s6"># We need a task to keep the shadowCamera rotated in the same</span>
+    <span class="s6"># direction relative to render (otherwise, the shadow seems to</span>
+    <span class="s6"># rotate when you rotate your avatar, which is strange).  We can't</span>
+    <span class="s6"># just use a compass effect, since that doesn't work on cameras.</span>
+    <span class="s4">def </span><span class="s1">shadowCameraRotate</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">shadowCamera </span><span class="s2">= </span><span class="s1">shadowCamera</span><span class="s2">):</span>
+        <span class="s1">shadowCamera</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">render</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">lightPath</span><span class="s2">.</span><span class="s1">lookAt</span><span class="s2">(</span><span class="s1">shadowCamera</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">3</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">shadowCameraRotate</span><span class="s2">, </span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+
+    <span class="s4">global </span><span class="s1">sc</span>
+    <span class="s4">if </span><span class="s1">sc </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+        <span class="s1">sc</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+
+    <span class="s1">sc </span><span class="s2">= </span><span class="s1">ShadowCaster</span><span class="s2">(</span><span class="s1">lightPath</span><span class="s2">, </span><span class="s1">objectPath</span><span class="s2">, </span><span class="s5">4</span><span class="s2">, </span><span class="s5">6</span><span class="s2">)</span>
+
+    <span class="s6"># Naively, just apply the shadow to everything in the world.  It</span>
+    <span class="s6"># would probably be better to use a little restraint.</span>
+    <span class="s1">sc</span><span class="s2">.</span><span class="s1">setGround</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s4">return </span><span class="s1">sc</span>
+
+<span class="s4">def </span><span class="s1">piratesAvatarShadow</span><span class="s2">():</span>
+    <span class="s1">a </span><span class="s2">= </span><span class="s1">avatarShadow</span><span class="s2">()</span>
+    <span class="s6"># Force the lod to be 0 at all times</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">localAvatar</span><span class="s2">.</span><span class="s1">getGeomNode</span><span class="s2">().</span><span class="s1">getChild</span><span class="s2">(</span><span class="s5">0</span><span class="s2">).</span><span class="s1">node</span><span class="s2">().</span><span class="s1">forceSwitch</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+    <span class="s4">return </span><span class="s1">a</span>
+
+<span class="s4">def </span><span class="s1">arbitraryShadow</span><span class="s2">(</span><span class="s1">node</span><span class="s2">):</span>
+    <span class="s6"># Turn off the existing drop shadow, if any</span>
+    <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">node</span><span class="s2">, </span><span class="s3">&quot;dropShadow&quot;</span><span class="s2">):</span>
+        <span class="s6"># stash it so that when the game hides and shows it, it will still be gone</span>
+        <span class="s1">node</span><span class="s2">.</span><span class="s1">dropShadow</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">()</span>
+
+    <span class="s6"># Set up a new node to hold the &quot;light&quot;: this is an abitrary point</span>
+    <span class="s6"># somewhere above the node, looking down, as if from the sun.</span>
+    <span class="s1">objectPath </span><span class="s2">= </span><span class="s1">node</span>
+    <span class="s1">shadowCamera </span><span class="s2">= </span><span class="s1">objectPath</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+    <span class="s1">lightPath </span><span class="s2">= </span><span class="s1">shadowCamera</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'lightPath'</span><span class="s2">)</span>
+
+    <span class="s6"># We can change this position at will to change the angle of the</span>
+    <span class="s6"># sun.</span>
+    <span class="s1">lightPath</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s5">50</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">50</span><span class="s2">)</span>
+
+    <span class="s6"># We need a task to keep the shadowCamera rotated in the same</span>
+    <span class="s6"># direction relative to render (otherwise, the shadow seems to</span>
+    <span class="s6"># rotate when you rotate your avatar, which is strange).  We can't</span>
+    <span class="s6"># just use a compass effect, since that doesn't work on cameras.</span>
+    <span class="s4">def </span><span class="s1">shadowCameraRotate</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">shadowCamera </span><span class="s2">= </span><span class="s1">shadowCamera</span><span class="s2">):</span>
+        <span class="s1">shadowCamera</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">render</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s1">lightPath</span><span class="s2">.</span><span class="s1">lookAt</span><span class="s2">(</span><span class="s1">shadowCamera</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">3</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+    <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">shadowCameraRotate</span><span class="s2">, </span><span class="s3">'shadowCamera'</span><span class="s2">)</span>
+
+    <span class="s4">global </span><span class="s1">sc</span>
+    <span class="s4">if </span><span class="s1">sc </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+        <span class="s1">sc</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+
+    <span class="s1">sc </span><span class="s2">= </span><span class="s1">ShadowCaster</span><span class="s2">(</span><span class="s1">lightPath</span><span class="s2">, </span><span class="s1">objectPath</span><span class="s2">, </span><span class="s5">100</span><span class="s2">, </span><span class="s5">100</span><span class="s2">)</span>
+
+    <span class="s6"># Naively, just apply the shadow to everything in the world.  It</span>
+    <span class="s6"># would probably be better to use a little restraint.</span>
+    <span class="s1">sc</span><span class="s2">.</span><span class="s1">setGround</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s4">return </span><span class="s1">sc</span>
+
+<span class="s6">##def testShadow():</span>
+<span class="s6">##    a = piratesAvatarShadow()</span>
+<span class="s6">##</span>
+<span class="s6">##from direct.showbase.ShadowDemo import *</span>
+<span class="s6">##from direct.interval.IntervalGlobal import *</span>
+<span class="s6">##b = loader.loadModel('/i/beta/PotC/Maya/Pirates/scenes/models/sets/buildings/spanish_buildings/TavernIntExt/tavern_ext/bar.egg')</span>
+<span class="s6">##bs = arbitraryShadow(b)</span>
+<span class="s6">##s = loader.loadModel('smiley')</span>
+<span class="s6">##s.reparentTo(bs.lightPath)</span>
+<span class="s6">##b.reparentTo((base.localAvatar))</span>
+<span class="s6">##a = AmbientLight('cloudAmbientHi')</span>
+<span class="s6">##a.setColor(Vec4(0.9, 0.9, 0.9, 1.000))</span>
+<span class="s6">##aNP = s.attachNewNode(a)</span>
+<span class="s6">##b.setLight(aNP)</span>
+<span class="s6">##d = DirectionalLight(&quot;chernabogDirectionalLight&quot;)</span>
+<span class="s6">##d.setDirection(Vec3(0, 1, 0))</span>
+<span class="s6">##d.setColor(Vec4(1))</span>
+<span class="s6">###d.setColor(Vec4(0.9, 0.7, 0.7, 1.000))</span>
+<span class="s6">##dNP = s.attachNewNode(d)</span>
+<span class="s6">##b.setLight(dNP)</span>
+<span class="s6">##</span>
+<span class="s6">##ival = Sequence(LerpPosInterval(bs.lightPath, 0.0, Vec3(-200, 0, 50)),</span>
+<span class="s6">##                LerpPosInterval(bs.lightPath, 10.0, Vec3(-200, 0, 200)),</span>
+<span class="s6">##                LerpPosInterval(bs.lightPath, 10.0, Vec3(200, 0, 200)),</span>
+<span class="s6">##                LerpPosInterval(bs.lightPath, 10.0, Vec3(200, 0, 50)),</span>
+<span class="s6">##)</span>
+<span class="s6">##ival.loop()</span>
+
+
+
+</pre>
+</body>
+</html>

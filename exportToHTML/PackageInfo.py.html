@@ -1,0 +1,1265 @@
+<html>
+<head>
+<title>PackageInfo.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+PackageInfo.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+.. deprecated:: 1.10.0 
+   The p3d packaging system has been replaced with the new setuptools-based 
+   system.  See the :ref:`distribution` manual section. 
+&quot;&quot;&quot;</span>
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">&quot;PackageInfo&quot;</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s1">Filename</span><span class="s2">, </span><span class="s1">DocumentSpec</span><span class="s2">, </span><span class="s1">Multifile</span><span class="s2">, </span><span class="s1">Decompressor</span><span class="s2">, </span><span class="s1">EUOk</span><span class="s2">, </span><span class="s1">EUSuccess</span><span class="s2">, </span><span class="s1">VirtualFileSystem</span><span class="s2">, </span><span class="s1">Thread</span><span class="s2">, </span><span class="s1">getModelPath</span><span class="s2">, </span><span class="s1">ExecutionEnvironment</span><span class="s2">, </span><span class="s1">PStatCollector</span><span class="s2">, </span><span class="s1">TiXmlDocument</span><span class="s2">, </span><span class="s1">TiXmlDeclaration</span><span class="s2">, </span><span class="s1">TiXmlElement</span>
+<span class="s4">import </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">as </span><span class="s1">core</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">FileSpec </span><span class="s4">import </span><span class="s1">FileSpec</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">ScanDirectoryNode </span><span class="s4">import </span><span class="s1">ScanDirectoryNode</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">VFSImporter</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">TaskManagerGlobal </span><span class="s4">import </span><span class="s1">taskMgr</span>
+<span class="s4">import </span><span class="s1">os</span>
+<span class="s4">import </span><span class="s1">sys</span>
+<span class="s4">import </span><span class="s1">random</span>
+<span class="s4">import </span><span class="s1">time</span>
+<span class="s4">import </span><span class="s1">copy</span>
+
+<span class="s4">class </span><span class="s1">PackageInfo</span><span class="s2">:</span>
+
+    <span class="s0">&quot;&quot;&quot; This class represents a downloadable Panda3D package file that 
+    can be (or has been) installed into the current runtime.  It is 
+    the Python equivalent of the P3DPackage class in the core API. &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;PackageInfo&quot;</span><span class="s2">)</span>
+
+    <span class="s5"># Weight factors for computing download progress.  This</span>
+    <span class="s5"># attempts to reflect the relative time-per-byte of each of</span>
+    <span class="s5"># these operations.</span>
+    <span class="s1">downloadFactor </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s1">uncompressFactor </span><span class="s2">= </span><span class="s6">0.01</span>
+    <span class="s1">unpackFactor </span><span class="s2">= </span><span class="s6">0.01</span>
+    <span class="s1">patchFactor </span><span class="s2">= </span><span class="s6">0.01</span>
+
+    <span class="s5"># These tokens are yielded (not returned) by __downloadFile() and</span>
+    <span class="s5"># other InstallStep functions.</span>
+    <span class="s1">stepComplete </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s1">stepFailed </span><span class="s2">= </span><span class="s6">2</span>
+    <span class="s1">restartDownload </span><span class="s2">= </span><span class="s6">3</span>
+    <span class="s1">stepContinue </span><span class="s2">= </span><span class="s6">4</span>
+
+    <span class="s1">UsageBasename </span><span class="s2">= </span><span class="s3">'usage.xml'</span>
+
+    <span class="s4">class </span><span class="s1">InstallStep</span><span class="s2">:</span>
+        <span class="s0">&quot;&quot;&quot; This class is one step of the installPlan list; it 
+        represents a single atomic piece of the installation step, and 
+        the relative effort of that piece.  When the plan is executed, 
+        it will call the saved function pointer here. &quot;&quot;&quot;</span>
+        <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">func</span><span class="s2">, </span><span class="s1">bytes</span><span class="s2">, </span><span class="s1">factor</span><span class="s2">, </span><span class="s1">stepType</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__funcPtr </span><span class="s2">= </span><span class="s1">func</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bytesNeeded </span><span class="s2">= </span><span class="s1">bytes</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bytesFactor </span><span class="s2">= </span><span class="s1">factor</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">stepType </span><span class="s2">= </span><span class="s1">stepType</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pStatCol </span><span class="s2">= </span><span class="s1">PStatCollector</span><span class="s2">(</span><span class="s3">':App:PackageInstaller:%s' </span><span class="s2">% (</span><span class="s1">stepType</span><span class="s2">))</span>
+
+        <span class="s4">def </span><span class="s1">func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; self.__funcPtr(self) will return a generator of 
+            tokens.  This function defines a new generator that yields 
+            each of those tokens, but wraps each call into the nested 
+            generator within a pair of start/stop collector calls. &quot;&quot;&quot;</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pStatCol</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__funcPtr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pStatCol</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                <span class="s4">yield </span><span class="s1">token</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pStatCol</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+
+            <span class="s5"># Shouldn't ever get here.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">pStatCol</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s4">raise </span><span class="s1">StopIteration</span>
+
+        <span class="s4">def </span><span class="s1">getEffort</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; Returns the relative amount of effort of this step. &quot;&quot;&quot;</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bytesNeeded </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bytesFactor</span>
+
+        <span class="s4">def </span><span class="s1">getProgress</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot; Returns the progress of this step, in the range 
+            0..1. &quot;&quot;&quot;</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bytesNeeded </span><span class="s2">== </span><span class="s6">0</span><span class="s2">:</span>
+                <span class="s4">return </span><span class="s6">1</span>
+            <span class="s4">return </span><span class="s1">min</span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bytesDone</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bytesNeeded</span><span class="s2">), </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">host</span><span class="s2">, </span><span class="s1">packageName</span><span class="s2">, </span><span class="s1">packageVersion</span><span class="s2">, </span><span class="s1">platform </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">solo </span><span class="s2">= </span><span class="s4">False</span><span class="s2">, </span><span class="s1">asMirror </span><span class="s2">= </span><span class="s4">False</span><span class="s2">, </span><span class="s1">perPlatform </span><span class="s2">= </span><span class="s4">False</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">host </span><span class="s2">= </span><span class="s1">host</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">packageName </span><span class="s2">= </span><span class="s1">packageName</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">packageVersion </span><span class="s2">= </span><span class="s1">packageVersion</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">platform </span><span class="s2">= </span><span class="s1">platform</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">solo </span><span class="s2">= </span><span class="s1">solo</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">asMirror </span><span class="s2">= </span><span class="s1">asMirror</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">perPlatform</span>
+
+        <span class="s5"># This will be active while we are in the middle of a download</span>
+        <span class="s5"># cycle.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">http </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># This will be filled in when the host's contents.xml file is</span>
+        <span class="s5"># read.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># These will be filled in by HostInfo when the package is read</span>
+        <span class="s5"># from contents.xml.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">descFile </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">importDescFile </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># These are filled in when the desc file is successfully read.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">patchVersion </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">displayName </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiApp </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">extracts </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">requires </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># This is updated during downloadPackage().  It is in the</span>
+        <span class="s5"># range 0..1.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadProgress </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s5"># This is set true when the package file has been fully</span>
+        <span class="s5"># downloaded and unpacked.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">False</span>
+
+        <span class="s5"># This is set true when the package has been &quot;installed&quot;,</span>
+        <span class="s5"># meaning it's been added to the paths and all.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">installed </span><span class="s2">= </span><span class="s4">False</span>
+
+        <span class="s5"># This is set true when the package has been updated in this</span>
+        <span class="s5"># session, but not yet written to usage.xml.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">diskSpace </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s4">def </span><span class="s1">getPackageDir</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the directory in which this package is installed. 
+        This may not be known until the host's contents.xml file has 
+        been downloaded, which informs us of the host's own install 
+        directory. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir</span><span class="s2">:</span>
+            <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">hasContentsFile</span><span class="s2">:</span>
+                <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">readContentsFile</span><span class="s2">():</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">downloadContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">http</span><span class="s2">)</span>
+
+            <span class="s5"># Derive the packageDir from the hostDir.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">hostDir</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageVersion</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageVersion</span><span class="s2">)</span>
+
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">perPlatform</span><span class="s2">:</span>
+                <span class="s5"># If we're running on a special host that wants us to</span>
+                <span class="s5"># include the platform, we include it.</span>
+                <span class="s1">includePlatform </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">respectPerPlatform</span><span class="s2">:</span>
+                <span class="s5"># Otherwise, if our package spec wants us to include</span>
+                <span class="s5"># the platform (and our plugin knows about this), then</span>
+                <span class="s5"># we also include it.</span>
+                <span class="s1">includePlatform </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Otherwise, we must be running legacy code</span>
+                <span class="s5"># somewhere--either an old package or an old</span>
+                <span class="s5"># plugin--and we therefore shouldn't include the</span>
+                <span class="s5"># platform in the directory hierarchy.</span>
+                <span class="s1">includePlatform </span><span class="s2">= </span><span class="s4">False</span>
+
+            <span class="s4">if </span><span class="s1">includePlatform </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">platform</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">platform</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageDir</span>
+
+    <span class="s4">def </span><span class="s1">getDownloadEffort</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the relative amount of effort it will take to 
+        download this package.  The units are meaningless, except 
+        relative to other packges.&quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s6">0</span>
+
+        <span class="s5"># Return the size of plan A, assuming it will work.</span>
+        <span class="s1">plan </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">size </span><span class="s2">= </span><span class="s1">sum</span><span class="s2">([</span><span class="s1">step</span><span class="s2">.</span><span class="s1">getEffort</span><span class="s2">() </span><span class="s4">for </span><span class="s1">step </span><span class="s4">in </span><span class="s1">plan</span><span class="s2">])</span>
+
+        <span class="s4">return </span><span class="s1">size</span>
+
+    <span class="s4">def </span><span class="s1">getPrevDownloadedEffort</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns a rough estimate of this package's total download 
+        effort, even if it is already downloaded. &quot;&quot;&quot;</span>
+
+        <span class="s1">effort </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">:</span>
+            <span class="s1">effort </span><span class="s2">+= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">size </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadFactor</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">:</span>
+            <span class="s1">effort </span><span class="s2">+= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">size </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressFactor</span>
+        <span class="s5"># Don't bother counting unpacking.</span>
+
+        <span class="s4">return </span><span class="s1">effort</span>
+
+    <span class="s4">def </span><span class="s1">getFormattedName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the name of this package, for output to the user. 
+        This will be the &quot;public&quot; name of the package, as formatted 
+        for user consumption; it will include capital letters and 
+        spaces where appropriate. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">displayName</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">displayName</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageVersion</span><span class="s2">:</span>
+                <span class="s1">name </span><span class="s2">+= </span><span class="s3">' %s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageVersion</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">patchVersion</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">+= </span><span class="s3">' rev %s' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">patchVersion</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">name</span>
+
+
+    <span class="s4">def </span><span class="s1">setupFilenames</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; This is called by the HostInfo when the package is read 
+        from contents.xml, to set up the internal filenames and such 
+        that rely on some of the information from contents.xml. &quot;&quot;&quot;</span>
+
+        <span class="s1">dirname</span><span class="s2">, </span><span class="s1">basename </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">rsplit</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">descFileDirname </span><span class="s2">= </span><span class="s1">dirname</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename </span><span class="s2">= </span><span class="s1">basename</span>
+
+    <span class="s4">def </span><span class="s1">checkStatus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Checks the current status of the desc file and the package 
+        contents on disk. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage</span><span class="s2">:</span>
+            <span class="s4">return True</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile</span><span class="s2">:</span>
+            <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">pathname </span><span class="s2">= </span><span class="s1">filename</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__readDescFile</span><span class="s2">():</span>
+                    <span class="s5"># Successfully read.  We don't need to call</span>
+                    <span class="s5"># checkArchiveStatus again, since readDescFile()</span>
+                    <span class="s5"># has just done it.</span>
+                    <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__checkArchiveStatus</span><span class="s2">():</span>
+                <span class="s5"># It's all good.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage</span>
+
+    <span class="s4">def </span><span class="s1">hasCurrentDescFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns true if a desc file file has been successfully 
+        read for this package and is still current, false 
+        otherwise. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">hasCurrentContentsFile</span><span class="s2">():</span>
+            <span class="s4">return False</span>
+
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile</span>
+
+    <span class="s4">def </span><span class="s1">downloadDescFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Downloads the desc file for this particular package, 
+        synchronously, and then reads it.  Returns true on success, 
+        false on failure. &quot;&quot;&quot;</span>
+
+        <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadDescFileGenerator</span><span class="s2">(</span><span class="s1">http</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">token </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                <span class="s4">break</span>
+            <span class="s1">Thread</span><span class="s2">.</span><span class="s1">considerYield</span><span class="s2">()</span>
+
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">downloadDescFileGenerator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; A generator function that implements downloadDescFile() 
+        one piece at a time.  It yields one of stepComplete, 
+        stepFailed, or stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile</span><span class="s2">:</span>
+            <span class="s5"># We've already got one.</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">or </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># We're allowed to download it.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">http </span><span class="s2">= </span><span class="s1">http</span>
+
+            <span class="s1">func </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">step</span><span class="s2">, </span><span class="s1">self </span><span class="s2">= </span><span class="s1">self</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__downloadFile</span><span class="s2">(</span>
+                <span class="s4">None</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">,</span>
+                <span class="s1">urlbase </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">,</span>
+                <span class="s1">filename </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+            <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">size</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadFactor</span><span class="s2">, </span><span class="s3">'downloadDesc'</span><span class="s2">)</span>
+
+            <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">step</span><span class="s2">.</span><span class="s1">func</span><span class="s2">():</span>
+                <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                    <span class="s4">yield </span><span class="s1">token</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">break</span>
+
+            <span class="s4">while </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restartDownload</span><span class="s2">:</span>
+                <span class="s5"># Try again.</span>
+                <span class="s1">func </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">step</span><span class="s2">, </span><span class="s1">self </span><span class="s2">= </span><span class="s1">self</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__downloadFile</span><span class="s2">(</span>
+                    <span class="s4">None</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">,</span>
+                    <span class="s1">urlbase </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">,</span>
+                    <span class="s1">filename </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+                <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFile</span><span class="s2">.</span><span class="s1">size</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadFactor</span><span class="s2">, </span><span class="s3">'downloadDesc'</span><span class="s2">)</span>
+                <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">step</span><span class="s2">.</span><span class="s1">func</span><span class="s2">():</span>
+                    <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                        <span class="s4">yield </span><span class="s1">token</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s4">break</span>
+
+            <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed</span><span class="s2">:</span>
+                <span class="s5"># Couldn't download the desc file.</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+            <span class="s4">assert </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete</span>
+
+            <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+            <span class="s5"># Now that we've written the desc file, make it read-only.</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">chmod</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">(), </span><span class="s6">0o444</span><span class="s2">)</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__readDescFile</span><span class="s2">():</span>
+            <span class="s5"># Weird, it passed the hash check, but we still can't read</span>
+            <span class="s5"># it.</span>
+            <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Failure reading %s&quot; </span><span class="s2">% (</span><span class="s1">filename</span><span class="s2">))</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+    <span class="s4">def </span><span class="s1">__readDescFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Reads the desc xml file for this particular package, 
+        assuming it's been already downloaded and verified.  Returns 
+        true on success, false on failure. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile</span><span class="s2">:</span>
+            <span class="s5"># No need to read it again.</span>
+            <span class="s4">return True</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">solo</span><span class="s2">:</span>
+            <span class="s5"># If this is a &quot;solo&quot; package, we don't actually &quot;read&quot;</span>
+            <span class="s5"># the desc file; that's the entire contents of the</span>
+            <span class="s5"># package.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">return True</span>
+
+        <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">core</span><span class="s2">, </span><span class="s3">'TiXmlDocument'</span><span class="s2">):</span>
+            <span class="s4">return False</span>
+        <span class="s1">doc </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+        <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">LoadFile</span><span class="s2">():</span>
+            <span class="s4">return False</span>
+
+        <span class="s1">xpackage </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'package'</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">xpackage</span><span class="s2">:</span>
+            <span class="s4">return False</span>
+
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">patchVersion </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'patch_version'</span><span class="s2">) </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+        <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">patchVersion </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">perPlatform </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'per_platform'</span><span class="s2">) </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+        <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+            <span class="s1">perPlatform </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s4">if </span><span class="s1">perPlatform </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perPlatform</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;per_platform disagreement on package %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">displayName </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">xconfig </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'config'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">xconfig</span><span class="s2">:</span>
+            <span class="s5"># The name for display to an English-speaking user.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">displayName </span><span class="s2">= </span><span class="s1">xconfig</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'display_name'</span><span class="s2">)</span>
+
+            <span class="s5"># True if any apps that use this package must be GUI apps.</span>
+            <span class="s1">guiApp </span><span class="s2">= </span><span class="s1">xconfig</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'gui_app'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">guiApp</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiApp </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">guiApp</span><span class="s2">)</span>
+
+        <span class="s5"># The uncompressed archive, which will be mounted directly,</span>
+        <span class="s5"># and also used for patching.</span>
+        <span class="s1">xuncompressedArchive </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'uncompressed_archive'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">xuncompressedArchive</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xuncompressedArchive</span><span class="s2">)</span>
+
+        <span class="s5"># The compressed archive, which is what is downloaded.</span>
+        <span class="s1">xcompressedArchive </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'compressed_archive'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">xcompressedArchive</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xcompressedArchive</span><span class="s2">)</span>
+
+        <span class="s5"># The list of files that should be extracted to disk.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">extracts </span><span class="s2">= []</span>
+        <span class="s1">xextract </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'extract'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xextract</span><span class="s2">:</span>
+            <span class="s1">file </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+            <span class="s1">file</span><span class="s2">.</span><span class="s1">loadXml</span><span class="s2">(</span><span class="s1">xextract</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">file</span><span class="s2">)</span>
+            <span class="s1">xextract </span><span class="s2">= </span><span class="s1">xextract</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'extract'</span><span class="s2">)</span>
+
+        <span class="s5"># The list of additional packages that must be installed for</span>
+        <span class="s5"># this package to function properly.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">requires </span><span class="s2">= []</span>
+        <span class="s1">xrequires </span><span class="s2">= </span><span class="s1">xpackage</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'requires'</span><span class="s2">)</span>
+        <span class="s4">while </span><span class="s1">xrequires</span><span class="s2">:</span>
+            <span class="s1">packageName </span><span class="s2">= </span><span class="s1">xrequires</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'name'</span><span class="s2">)</span>
+            <span class="s1">version </span><span class="s2">= </span><span class="s1">xrequires</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'version'</span><span class="s2">)</span>
+            <span class="s1">hostUrl </span><span class="s2">= </span><span class="s1">xrequires</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'host'</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">packageName </span><span class="s4">and </span><span class="s1">hostUrl</span><span class="s2">:</span>
+                <span class="s1">host </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">getHostWithAlt</span><span class="s2">(</span><span class="s1">hostUrl</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">requires</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">packageName</span><span class="s2">, </span><span class="s1">version</span><span class="s2">, </span><span class="s1">host</span><span class="s2">))</span>
+            <span class="s1">xrequires </span><span class="s2">= </span><span class="s1">xrequires</span><span class="s2">.</span><span class="s1">NextSiblingElement</span><span class="s2">(</span><span class="s3">'requires'</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s5"># Now that we've read the desc file, go ahead and use it to</span>
+        <span class="s5"># verify the download status.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__checkArchiveStatus</span><span class="s2">():</span>
+            <span class="s5"># It's all fully downloaded, unpacked, and ready.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">return True</span>
+
+        <span class="s5"># Still have to download it.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__buildInstallPlans</span><span class="s2">()</span>
+        <span class="s4">return True</span>
+
+    <span class="s4">def </span><span class="s1">__buildInstallPlans</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Sets up self.installPlans, a list of one or more &quot;plans&quot; 
+        to download and install the package. &quot;&quot;&quot;</span>
+
+        <span class="s1">pc </span><span class="s2">= </span><span class="s1">PStatCollector</span><span class="s2">(</span><span class="s3">':App:PackageInstaller:buildInstallPlans'</span><span class="s2">)</span>
+        <span class="s1">pc</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">False</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># We're not allowed to download anything.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= []</span>
+            <span class="s1">pc</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s4">return</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">asMirror</span><span class="s2">:</span>
+            <span class="s5"># If we're just downloading a mirror archive, we only need</span>
+            <span class="s5"># to get the compressed archive file.</span>
+
+            <span class="s5"># Build a one-item install plan to download the compressed</span>
+            <span class="s5"># archive.</span>
+            <span class="s1">downloadSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">size</span>
+            <span class="s1">func </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__downloadFile</span><span class="s2">(</span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">, </span><span class="s1">allowPartial </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+            <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">downloadSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadFactor</span><span class="s2">, </span><span class="s3">'download'</span><span class="s2">)</span>
+            <span class="s1">installPlan </span><span class="s2">= [</span><span class="s1">step</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= [</span><span class="s1">installPlan</span><span class="s2">]</span>
+            <span class="s1">pc</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s4">return</span>
+
+        <span class="s5"># The normal download process.  Determine what we will need to</span>
+        <span class="s5"># download, and build a plan (or two) to download it all.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># We know we will at least need to unpack the archive contents</span>
+        <span class="s5"># at the end.</span>
+        <span class="s1">unpackSize </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">for </span><span class="s1">file </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">:</span>
+            <span class="s1">unpackSize </span><span class="s2">+= </span><span class="s1">file</span><span class="s2">.</span><span class="s1">size</span>
+        <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__unpackArchive</span><span class="s2">, </span><span class="s1">unpackSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">unpackFactor</span><span class="s2">, </span><span class="s3">'unpack'</span><span class="s2">)</span>
+        <span class="s1">planA </span><span class="s2">= [</span><span class="s1">step</span><span class="s2">]</span>
+
+        <span class="s5"># If the uncompressed archive file is good, that's all we'll</span>
+        <span class="s5"># need to do.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">actualFile </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= [</span><span class="s1">planA</span><span class="s2">]</span>
+            <span class="s1">pc</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s4">return</span>
+
+        <span class="s5"># Maybe the compressed archive file is good.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+            <span class="s1">uncompressSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">size</span>
+            <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__uncompressArchive</span><span class="s2">, </span><span class="s1">uncompressSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressFactor</span><span class="s2">, </span><span class="s3">'uncompress'</span><span class="s2">)</span>
+            <span class="s1">planA </span><span class="s2">= [</span><span class="s1">step</span><span class="s2">] + </span><span class="s1">planA</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= [</span><span class="s1">planA</span><span class="s2">]</span>
+            <span class="s1">pc</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s4">return</span>
+
+        <span class="s5"># Maybe we can download one or more patches.  We'll come back</span>
+        <span class="s5"># to that in a minute as plan A.  For now, construct plan B,</span>
+        <span class="s5"># which will be to download the whole archive.</span>
+        <span class="s1">planB </span><span class="s2">= </span><span class="s1">planA</span><span class="s2">[:]</span>
+
+        <span class="s1">uncompressSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">size</span>
+        <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__uncompressArchive</span><span class="s2">, </span><span class="s1">uncompressSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressFactor</span><span class="s2">, </span><span class="s3">'uncompress'</span><span class="s2">)</span>
+        <span class="s1">planB </span><span class="s2">= [</span><span class="s1">step</span><span class="s2">] + </span><span class="s1">planB</span>
+
+        <span class="s1">downloadSize </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">size</span>
+        <span class="s1">func </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__downloadFile</span><span class="s2">(</span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">, </span><span class="s1">allowPartial </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+        <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">downloadSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadFactor</span><span class="s2">, </span><span class="s3">'download'</span><span class="s2">)</span>
+        <span class="s1">planB </span><span class="s2">= [</span><span class="s1">step</span><span class="s2">] + </span><span class="s1">planB</span>
+
+        <span class="s5"># Now look for patches.  Start with the md5 hash from the</span>
+        <span class="s5"># uncompressedArchive file we have on disk, and see if we can</span>
+        <span class="s5"># find a patch chain from this file to our target.</span>
+        <span class="s1">pathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">fileSpec </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">actualFile</span>
+        <span class="s4">if </span><span class="s1">fileSpec </span><span class="s4">is None and </span><span class="s1">pathname</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+            <span class="s1">fileSpec </span><span class="s2">= </span><span class="s1">FileSpec</span><span class="s2">()</span>
+            <span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">fromFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">plan </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">fileSpec</span><span class="s2">:</span>
+            <span class="s1">plan </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__findPatchChain</span><span class="s2">(</span><span class="s1">fileSpec</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">plan</span><span class="s2">:</span>
+            <span class="s5"># We can download patches.  Great!  That means this is</span>
+            <span class="s5"># plan A, and the full download is plan B (in case</span>
+            <span class="s5"># something goes wrong with the patching).</span>
+            <span class="s1">planA </span><span class="s2">= </span><span class="s1">plan </span><span class="s2">+ </span><span class="s1">planA</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= [</span><span class="s1">planA</span><span class="s2">, </span><span class="s1">planB</span><span class="s2">]</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># There are no patches to download, oh well.  Stick with</span>
+            <span class="s5"># plan B as the only plan.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= [</span><span class="s1">planB</span><span class="s2">]</span>
+
+        <span class="s5"># In case of unexpected failures on the internet, we will retry</span>
+        <span class="s5"># the full download instead of just giving up.</span>
+        <span class="s1">retries </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">ConfigVariableInt</span><span class="s2">(</span><span class="s3">'package-full-dl-retries'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+        <span class="s4">for </span><span class="s1">retry </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">retries</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">planB</span><span class="s2">[:])</span>
+
+        <span class="s1">pc</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__scanDirectoryRecursively</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dirname</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Generates a list of Filename objects: all of the files 
+        (not directories) within and below the indicated dirname. &quot;&quot;&quot;</span>
+
+        <span class="s1">contents </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">dirpath</span><span class="s2">, </span><span class="s1">dirnames</span><span class="s2">, </span><span class="s1">filenames </span><span class="s4">in </span><span class="s1">os</span><span class="s2">.</span><span class="s1">walk</span><span class="s2">(</span><span class="s1">dirname</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">()):</span>
+            <span class="s1">dirpath </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">fromOsSpecific</span><span class="s2">(</span><span class="s1">dirpath</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">dirpath </span><span class="s2">== </span><span class="s1">dirname</span><span class="s2">:</span>
+                <span class="s1">dirpath </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">dirpath</span><span class="s2">.</span><span class="s1">makeRelativeTo</span><span class="s2">(</span><span class="s1">dirname</span><span class="s2">)</span>
+            <span class="s4">for </span><span class="s1">filename </span><span class="s4">in </span><span class="s1">filenames</span><span class="s2">:</span>
+                <span class="s1">contents</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">dirpath</span><span class="s2">, </span><span class="s1">filename</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">contents</span>
+
+    <span class="s4">def </span><span class="s1">__removeFileFromList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">contents</span><span class="s2">, </span><span class="s1">filename</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Removes the indicated filename from the given list, if it is 
+        present.  &quot;&quot;&quot;</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">contents</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">))</span>
+        <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+            <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">__checkArchiveStatus</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns true if the archive and all extractable files are 
+        already correct on disk, false otherwise. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># Assume that everything is just fine.</span>
+            <span class="s4">return True</span>
+
+        <span class="s5"># Get a list of all of the files in the directory, so we can</span>
+        <span class="s5"># remove files that don't belong.</span>
+        <span class="s1">contents </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__scanDirectoryRecursively</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeFileFromList</span><span class="s2">(</span><span class="s1">contents</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeFileFromList</span><span class="s2">(</span><span class="s1">contents</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeFileFromList</span><span class="s2">(</span><span class="s1">contents</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">UsageBasename</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">asMirror</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeFileFromList</span><span class="s2">(</span><span class="s1">contents</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s4">for </span><span class="s1">file </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__removeFileFromList</span><span class="s2">(</span><span class="s1">contents</span><span class="s2">, </span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+
+        <span class="s5"># Now, any files that are still in the contents list don't</span>
+        <span class="s5"># belong.  It's important to remove these files before we</span>
+        <span class="s5"># start verifying the files that we expect to find here, in</span>
+        <span class="s5"># case there is a problem with ambiguous filenames or</span>
+        <span class="s5"># something (e.g. case insensitivity).</span>
+        <span class="s4">for </span><span class="s1">filename </span><span class="s4">in </span><span class="s1">contents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Removing %s&quot; </span><span class="s2">% (</span><span class="s1">filename</span><span class="s2">))</span>
+            <span class="s1">pathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">pathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">asMirror</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">)</span>
+
+        <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;File is incorrect: %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+            <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">False</span>
+
+        <span class="s4">if </span><span class="s1">allExtractsOk</span><span class="s2">:</span>
+            <span class="s5"># OK, the uncompressed archive is good; that means there</span>
+            <span class="s5"># shouldn't be a compressed archive file here.</span>
+            <span class="s1">pathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">pathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+
+            <span class="s4">for </span><span class="s1">file </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">:</span>
+                <span class="s4">if not </span><span class="s1">file</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;File is incorrect: %s&quot; </span><span class="s2">% (</span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+                    <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">False</span>
+                    <span class="s4">break</span>
+
+        <span class="s4">if </span><span class="s1">allExtractsOk</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;All %s extracts of %s seem good.&quot; </span><span class="s2">% (</span>
+                <span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">))</span>
+
+        <span class="s4">return </span><span class="s1">allExtractsOk</span>
+
+    <span class="s4">def </span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">step</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; This callback is made from within the several step 
+        functions as the download step proceeds.  It updates 
+        self.downloadProgress with the current progress, so the caller 
+        can asynchronously query this value. &quot;&quot;&quot;</span>
+
+        <span class="s1">size </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">totalPlanCompleted </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currentStepEffort </span><span class="s2">* </span><span class="s1">step</span><span class="s2">.</span><span class="s1">getProgress</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadProgress </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">float</span><span class="s2">(</span><span class="s1">size</span><span class="s2">) / </span><span class="s1">float</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">totalPlanSize</span><span class="s2">), </span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">downloadPackage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Downloads the package file, synchronously, then 
+        uncompresses and unpacks it.  Returns true on success, false 
+        on failure. 
+ 
+        This assumes that self.installPlans has already been filled 
+        in, which will have been done by self.__readDescFile(). 
+        &quot;&quot;&quot;</span>
+
+        <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadPackageGenerator</span><span class="s2">(</span><span class="s1">http</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">token </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                <span class="s4">break</span>
+            <span class="s1">Thread</span><span class="s2">.</span><span class="s1">considerYield</span><span class="s2">()</span>
+
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">downloadPackageGenerator</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">http</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; A generator function that implements downloadPackage() one 
+        piece at a time.  It yields one of stepComplete, stepFailed, 
+        or stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasDescFile</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage</span><span class="s2">:</span>
+            <span class="s5"># We've already got one.</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># We're not allowed to download anything. Assume it's already downloaded.</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+        <span class="s5"># We should have an install plan by the time we get here.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">http </span><span class="s2">= </span><span class="s1">http</span>
+        <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__followInstallPlans</span><span class="s2">():</span>
+            <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                <span class="s4">yield </span><span class="s1">token</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s4">break</span>
+
+        <span class="s4">while </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restartDownload</span><span class="s2">:</span>
+            <span class="s5"># Try again.</span>
+            <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadDescFileGenerator</span><span class="s2">(</span><span class="s1">http</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                    <span class="s4">yield </span><span class="s1">token</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">break</span>
+            <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete</span><span class="s2">:</span>
+                <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__followInstallPlans</span><span class="s2">():</span>
+                    <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                        <span class="s4">yield </span><span class="s1">token</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s4">break</span>
+
+        <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed</span><span class="s2">:</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s4">assert </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete</span>
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+
+    <span class="s4">def </span><span class="s1">__followInstallPlans</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Performs all of the steps in self.installPlans.  Yields 
+        one of stepComplete, stepFailed, restartDownload, or 
+        stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__buildInstallPlans</span><span class="s2">()</span>
+
+        <span class="s1">installPlans </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">installPlans </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">for </span><span class="s1">plan </span><span class="s4">in </span><span class="s1">installPlans</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">totalPlanSize </span><span class="s2">= </span><span class="s1">sum</span><span class="s2">([</span><span class="s1">step</span><span class="s2">.</span><span class="s1">getEffort</span><span class="s2">() </span><span class="s4">for </span><span class="s1">step </span><span class="s4">in </span><span class="s1">plan</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">totalPlanCompleted </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">downloadProgress </span><span class="s2">= </span><span class="s6">0</span>
+
+            <span class="s1">planFailed </span><span class="s2">= </span><span class="s4">False</span>
+            <span class="s4">for </span><span class="s1">step </span><span class="s4">in </span><span class="s1">plan</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">currentStepEffort </span><span class="s2">= </span><span class="s1">step</span><span class="s2">.</span><span class="s1">getEffort</span><span class="s2">()</span>
+
+                <span class="s4">for </span><span class="s1">token </span><span class="s4">in </span><span class="s1">step</span><span class="s2">.</span><span class="s1">func</span><span class="s2">():</span>
+                    <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span><span class="s2">:</span>
+                        <span class="s4">yield </span><span class="s1">token</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s4">break</span>
+
+                <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restartDownload</span><span class="s2">:</span>
+                    <span class="s4">yield </span><span class="s1">token</span>
+                <span class="s4">if </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed</span><span class="s2">:</span>
+                    <span class="s1">planFailed </span><span class="s2">= </span><span class="s4">True</span>
+                    <span class="s4">break</span>
+                <span class="s4">assert </span><span class="s1">token </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete</span>
+
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">totalPlanCompleted </span><span class="s2">+= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">currentStepEffort</span>
+
+            <span class="s4">if not </span><span class="s1">planFailed</span><span class="s2">:</span>
+                <span class="s5"># Successfully downloaded!</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+            <span class="s4">if </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">destroyed</span><span class="s2">:</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s5"># All plans failed.</span>
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+    <span class="s4">def </span><span class="s1">__findPatchChain</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Finds the chain of patches that leads from the indicated 
+        patch version to the current patch version.  If found, 
+        constructs an installPlan that represents the steps of the 
+        patch installation; otherwise, returns None. &quot;&quot;&quot;</span>
+
+        <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">PatchMaker </span><span class="s4">import </span><span class="s1">PatchMaker</span>
+
+        <span class="s1">patchMaker </span><span class="s2">= </span><span class="s1">PatchMaker</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">())</span>
+        <span class="s1">patchChain </span><span class="s2">= </span><span class="s1">patchMaker</span><span class="s2">.</span><span class="s1">getPatchChainToCurrent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileBasename</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">patchChain </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s5"># No path.</span>
+            <span class="s1">patchMaker</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+            <span class="s4">return None</span>
+
+        <span class="s1">plan </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">patchfile </span><span class="s4">in </span><span class="s1">patchChain</span><span class="s2">:</span>
+            <span class="s1">downloadSize </span><span class="s2">= </span><span class="s1">patchfile</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">size</span>
+            <span class="s1">func </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec </span><span class="s2">= </span><span class="s1">patchfile</span><span class="s2">.</span><span class="s1">file</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__downloadFile</span><span class="s2">(</span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">, </span><span class="s1">allowPartial </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+            <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">downloadSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">downloadFactor</span><span class="s2">, </span><span class="s3">'download'</span><span class="s2">)</span>
+            <span class="s1">plan</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+
+            <span class="s1">patchSize </span><span class="s2">= </span><span class="s1">patchfile</span><span class="s2">.</span><span class="s1">targetFile</span><span class="s2">.</span><span class="s1">size</span>
+            <span class="s1">func </span><span class="s2">= </span><span class="s4">lambda </span><span class="s1">step</span><span class="s2">, </span><span class="s1">patchfile </span><span class="s2">= </span><span class="s1">patchfile</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__applyPatch</span><span class="s2">(</span><span class="s1">step</span><span class="s2">, </span><span class="s1">patchfile</span><span class="s2">)</span>
+            <span class="s1">step </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">InstallStep</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">patchSize</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">patchFactor</span><span class="s2">, </span><span class="s3">'patch'</span><span class="s2">)</span>
+            <span class="s1">plan</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+
+        <span class="s1">patchMaker</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">plan</span>
+
+    <span class="s4">def </span><span class="s1">__downloadFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">step</span><span class="s2">, </span><span class="s1">fileSpec</span><span class="s2">, </span><span class="s1">urlbase </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">filename </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                       <span class="s1">allowPartial </span><span class="s2">= </span><span class="s4">False</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Downloads the indicated file from the host into 
+        packageDir.  Yields one of stepComplete, stepFailed, 
+        restartDownload, or stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># We're not allowed to download anything.</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s4">if not </span><span class="s1">urlbase</span><span class="s2">:</span>
+            <span class="s1">urlbase </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">descFileDirname </span><span class="s2">+ </span><span class="s3">'/' </span><span class="s2">+ </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">filename</span>
+
+        <span class="s5"># Build up a list of URL's to try downloading from.  Unlike</span>
+        <span class="s5"># the C++ implementation in P3DPackage.cxx, here we build the</span>
+        <span class="s5"># URL's in forward order.</span>
+        <span class="s1">tryUrls </span><span class="s2">= []</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">superMirrorUrl</span><span class="s2">:</span>
+            <span class="s5"># We start with the &quot;super mirror&quot;, if it's defined.</span>
+            <span class="s1">url </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">superMirrorUrl </span><span class="s2">+ </span><span class="s1">urlbase</span>
+            <span class="s1">tryUrls</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">url</span><span class="s2">, </span><span class="s4">False</span><span class="s2">))</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">mirrors</span><span class="s2">:</span>
+            <span class="s5"># Choose two mirrors at random.</span>
+            <span class="s1">mirrors </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">mirrors</span><span class="s2">[:]</span>
+            <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s6">2</span><span class="s2">):</span>
+                <span class="s1">mirror </span><span class="s2">= </span><span class="s1">random</span><span class="s2">.</span><span class="s1">choice</span><span class="s2">(</span><span class="s1">mirrors</span><span class="s2">)</span>
+                <span class="s1">mirrors</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">mirror</span><span class="s2">)</span>
+                <span class="s1">url </span><span class="s2">= </span><span class="s1">mirror </span><span class="s2">+ </span><span class="s1">urlbase</span>
+                <span class="s1">tryUrls</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">url</span><span class="s2">, </span><span class="s4">False</span><span class="s2">))</span>
+                <span class="s4">if not </span><span class="s1">mirrors</span><span class="s2">:</span>
+                    <span class="s4">break</span>
+
+        <span class="s5"># After trying two mirrors and failing (or if there are no</span>
+        <span class="s5"># mirrors), go get it from the original host.</span>
+        <span class="s1">url </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">downloadUrlPrefix </span><span class="s2">+ </span><span class="s1">urlbase</span>
+        <span class="s1">tryUrls</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">url</span><span class="s2">, </span><span class="s4">False</span><span class="s2">))</span>
+
+        <span class="s5"># And finally, if the original host also fails, try again with</span>
+        <span class="s5"># a cache-buster.</span>
+        <span class="s1">tryUrls</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">url</span><span class="s2">, </span><span class="s4">True</span><span class="s2">))</span>
+
+        <span class="s4">for </span><span class="s1">url</span><span class="s2">, </span><span class="s1">cacheBust </span><span class="s4">in </span><span class="s1">tryUrls</span><span class="s2">:</span>
+            <span class="s1">request </span><span class="s2">= </span><span class="s1">DocumentSpec</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+
+            <span class="s4">if </span><span class="s1">cacheBust</span><span class="s2">:</span>
+                <span class="s5"># On the last attempt to download a particular file,</span>
+                <span class="s5"># we bust through the cache: append a query string to</span>
+                <span class="s5"># do this.</span>
+                <span class="s1">url </span><span class="s2">+= </span><span class="s3">'?' </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">int</span><span class="s2">(</span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">()))</span>
+                <span class="s1">request </span><span class="s2">= </span><span class="s1">DocumentSpec</span><span class="s2">(</span><span class="s1">url</span><span class="s2">)</span>
+                <span class="s1">request</span><span class="s2">.</span><span class="s1">setCacheControl</span><span class="s2">(</span><span class="s1">DocumentSpec</span><span class="s2">.</span><span class="s1">CCNoCache</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;%s downloading %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">, </span><span class="s1">url</span><span class="s2">))</span>
+
+            <span class="s4">if not </span><span class="s1">filename</span><span class="s2">:</span>
+                <span class="s1">filename </span><span class="s2">= </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">filename</span>
+            <span class="s1">targetPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">setBinary</span><span class="s2">()</span>
+
+            <span class="s1">channel </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">http</span><span class="s2">.</span><span class="s1">makeChannel</span><span class="s2">(</span><span class="s4">False</span><span class="s2">)</span>
+
+            <span class="s5"># If there's a previous partial download, attempt to resume it.</span>
+            <span class="s1">bytesStarted </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s4">if </span><span class="s1">allowPartial </span><span class="s4">and not </span><span class="s1">cacheBust </span><span class="s4">and </span><span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">():</span>
+                <span class="s1">bytesStarted </span><span class="s2">= </span><span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">getFileSize</span><span class="s2">()</span>
+
+            <span class="s4">if </span><span class="s1">bytesStarted </span><span class="s2">&lt; </span><span class="s6">1024</span><span class="s2">*</span><span class="s6">1024</span><span class="s2">:</span>
+                <span class="s5"># Not enough bytes downloaded to be worth the risk of</span>
+                <span class="s5"># a partial download.</span>
+                <span class="s1">bytesStarted </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s4">elif </span><span class="s1">bytesStarted </span><span class="s2">&gt;= </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">size</span><span class="s2">:</span>
+                <span class="s5"># Couldn't possibly be our file.</span>
+                <span class="s1">bytesStarted </span><span class="s2">= </span><span class="s6">0</span>
+
+            <span class="s4">if </span><span class="s1">bytesStarted</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Resuming %s after %s bytes already downloaded&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">, </span><span class="s1">bytesStarted</span><span class="s2">))</span>
+                <span class="s5"># Make sure the file is writable.</span>
+                <span class="s1">os</span><span class="s2">.</span><span class="s1">chmod</span><span class="s2">(</span><span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">(), </span><span class="s6">0o644</span><span class="s2">)</span>
+                <span class="s1">channel</span><span class="s2">.</span><span class="s1">beginGetSubdocument</span><span class="s2">(</span><span class="s1">request</span><span class="s2">, </span><span class="s1">bytesStarted</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># No partial download possible; get the whole file.</span>
+                <span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">makeDir</span><span class="s2">()</span>
+                <span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+                <span class="s1">channel</span><span class="s2">.</span><span class="s1">beginGetDocument</span><span class="s2">(</span><span class="s1">request</span><span class="s2">)</span>
+
+            <span class="s1">channel</span><span class="s2">.</span><span class="s1">downloadToFile</span><span class="s2">(</span><span class="s1">targetPathname</span><span class="s2">)</span>
+            <span class="s4">while </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">run</span><span class="s2">():</span>
+                <span class="s4">if </span><span class="s1">step</span><span class="s2">:</span>
+                    <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">getBytesDownloaded</span><span class="s2">() + </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">getFirstByteDelivered</span><span class="s2">()</span>
+                    <span class="s4">if </span><span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">&gt; </span><span class="s1">step</span><span class="s2">.</span><span class="s1">bytesNeeded</span><span class="s2">:</span>
+                        <span class="s5"># Oops, too much data.  Might as well abort;</span>
+                        <span class="s5"># it's the wrong file.</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Got more data than expected for download %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+                        <span class="s4">break</span>
+
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+
+                <span class="s4">if </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">destroyed</span><span class="s2">:</span>
+                    <span class="s5"># If the task manager has been destroyed, we must</span>
+                    <span class="s5"># be shutting down.  Get out of here.</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Task Manager destroyed, aborting %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+                    <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span>
+
+            <span class="s4">if </span><span class="s1">step</span><span class="s2">:</span>
+                <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">getBytesDownloaded</span><span class="s2">() + </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">getFirstByteDelivered</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+
+            <span class="s4">if not </span><span class="s1">channel</span><span class="s2">.</span><span class="s1">isValid</span><span class="s2">():</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Failed to download %s&quot; </span><span class="s2">% (</span><span class="s1">url</span><span class="s2">))</span>
+
+            <span class="s4">elif not </span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">fullVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">pathname </span><span class="s2">= </span><span class="s1">targetPathname</span><span class="s2">, </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;After downloading, %s incorrect&quot; </span><span class="s2">% (</span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">fileSpec</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">).</span><span class="s1">getBasename</span><span class="s2">()))</span>
+
+                <span class="s5"># This attempt failed.  Maybe the original contents.xml</span>
+                <span class="s5"># file is stale.  Try re-downloading it now, just to be</span>
+                <span class="s5"># sure.</span>
+                <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">redownloadContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">http</span><span class="s2">):</span>
+                    <span class="s5"># Yes!  Go back and start over from the beginning.</span>
+                    <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restartDownload; </span><span class="s4">return</span>
+
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Success!</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+            <span class="s5"># Maybe the mirror is bad.  Go back and try the next</span>
+            <span class="s5"># mirror.</span>
+
+        <span class="s5"># All attempts failed.  Maybe the original contents.xml file</span>
+        <span class="s5"># is stale.  Try re-downloading it now, just to be sure.</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">redownloadContentsFile</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">http</span><span class="s2">):</span>
+            <span class="s5"># Yes!  Go back and start over from the beginning.</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">restartDownload; </span><span class="s4">return</span>
+
+        <span class="s5"># All mirrors failed; the server (or the internet connection)</span>
+        <span class="s5"># must be just fubar.</span>
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+    <span class="s4">def </span><span class="s1">__applyPatch</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">step</span><span class="s2">, </span><span class="s1">patchfile</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Applies the indicated patching in-place to the current 
+        uncompressed archive.  The patchfile is removed after the 
+        operation.  Yields one of stepComplete, stepFailed, 
+        restartDownload, or stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s1">origPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">patchPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">patchfile</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">result </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">temporary</span><span class="s2">(</span><span class="s3">''</span><span class="s2">, </span><span class="s3">'patch_'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Patching %s with %s&quot; </span><span class="s2">% (</span><span class="s1">origPathname</span><span class="s2">, </span><span class="s1">patchPathname</span><span class="s2">))</span>
+
+        <span class="s1">p </span><span class="s2">= </span><span class="s1">core</span><span class="s2">.</span><span class="s1">Patchfile</span><span class="s2">()  </span><span class="s5"># The C++ class</span>
+
+        <span class="s1">ret </span><span class="s2">= </span><span class="s1">p</span><span class="s2">.</span><span class="s1">initiate</span><span class="s2">(</span><span class="s1">patchPathname</span><span class="s2">, </span><span class="s1">origPathname</span><span class="s2">, </span><span class="s1">result</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">ret </span><span class="s2">== </span><span class="s1">EUSuccess</span><span class="s2">:</span>
+            <span class="s1">ret </span><span class="s2">= </span><span class="s1">p</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+        <span class="s4">while </span><span class="s1">ret </span><span class="s2">== </span><span class="s1">EUOk</span><span class="s2">:</span>
+            <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s1">step</span><span class="s2">.</span><span class="s1">bytesNeeded </span><span class="s2">* </span><span class="s1">p</span><span class="s2">.</span><span class="s1">getProgress</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">destroyed</span><span class="s2">:</span>
+                <span class="s5"># If the task manager has been destroyed, we must</span>
+                <span class="s5"># be shutting down.  Get out of here.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Task Manager destroyed, aborting patch %s&quot; </span><span class="s2">% (</span><span class="s1">origPathname</span><span class="s2">))</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span>
+            <span class="s1">ret </span><span class="s2">= </span><span class="s1">p</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">p</span>
+        <span class="s1">patchPathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">ret </span><span class="s2">&lt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Patching of %s failed.&quot; </span><span class="s2">% (</span><span class="s1">origPathname</span><span class="s2">))</span>
+            <span class="s1">result</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s4">if not </span><span class="s1">result</span><span class="s2">.</span><span class="s1">renameTo</span><span class="s2">(</span><span class="s1">origPathname</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Couldn't rename %s to %s&quot; </span><span class="s2">% (</span><span class="s1">result</span><span class="s2">, </span><span class="s1">origPathname</span><span class="s2">))</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+    <span class="s4">def </span><span class="s1">__uncompressArchive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">step</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Turns the compressed archive into the uncompressed 
+        archive.  Yields one of stepComplete, stepFailed, 
+        restartDownload, or stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># We're not allowed to!</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s1">sourcePathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">compressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">targetPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Uncompressing %s to %s&quot; </span><span class="s2">% (</span><span class="s1">sourcePathname</span><span class="s2">, </span><span class="s1">targetPathname</span><span class="s2">))</span>
+        <span class="s1">decompressor </span><span class="s2">= </span><span class="s1">Decompressor</span><span class="s2">()</span>
+        <span class="s1">decompressor</span><span class="s2">.</span><span class="s1">initiate</span><span class="s2">(</span><span class="s1">sourcePathname</span><span class="s2">, </span><span class="s1">targetPathname</span><span class="s2">)</span>
+        <span class="s1">totalBytes </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">size</span>
+        <span class="s1">result </span><span class="s2">= </span><span class="s1">decompressor</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+        <span class="s4">while </span><span class="s1">result </span><span class="s2">== </span><span class="s1">EUOk</span><span class="s2">:</span>
+            <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">totalBytes </span><span class="s2">* </span><span class="s1">decompressor</span><span class="s2">.</span><span class="s1">getProgress</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+            <span class="s1">result </span><span class="s2">= </span><span class="s1">decompressor</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+            <span class="s4">if </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">destroyed</span><span class="s2">:</span>
+                <span class="s5"># If the task manager has been destroyed, we must</span>
+                <span class="s5"># be shutting down.  Get out of here.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Task Manager destroyed, aborting decompresss %s&quot; </span><span class="s2">% (</span><span class="s1">sourcePathname</span><span class="s2">))</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span>
+
+        <span class="s4">if </span><span class="s1">result </span><span class="s2">!= </span><span class="s1">EUSuccess</span><span class="s2">:</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s1">totalBytes</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify</span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;after uncompressing, %s still incorrect&quot; </span><span class="s2">% (</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s5"># Now that we've verified the archive, make it read-only.</span>
+        <span class="s1">os</span><span class="s2">.</span><span class="s1">chmod</span><span class="s2">(</span><span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">(), </span><span class="s6">0o444</span><span class="s2">)</span>
+
+        <span class="s5"># Now we can safely remove the compressed archive.</span>
+        <span class="s1">sourcePathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+    <span class="s4">def </span><span class="s1">__unpackArchive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">step</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Unpacks any files in the archive that want to be unpacked 
+        to disk.  Yields one of stepComplete, stepFailed, 
+        restartDownload, or stepContinue. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">:</span>
+            <span class="s5"># Nothing to extract.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># We're not allowed to!</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s1">mfPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Unpacking %s&quot; </span><span class="s2">% (</span><span class="s1">mfPathname</span><span class="s2">))</span>
+        <span class="s1">mf </span><span class="s2">= </span><span class="s1">Multifile</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">mf</span><span class="s2">.</span><span class="s1">openRead</span><span class="s2">(</span><span class="s1">mfPathname</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Couldn't open %s&quot; </span><span class="s2">% (</span><span class="s1">mfPathname</span><span class="s2">))</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">for </span><span class="s1">file </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extracts</span><span class="s2">:</span>
+            <span class="s1">i </span><span class="s2">= </span><span class="s1">mf</span><span class="s2">.</span><span class="s1">findSubfile</span><span class="s2">(</span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">i </span><span class="s2">== -</span><span class="s6">1</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Not in Multifile: %s&quot; </span><span class="s2">% (</span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+                <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">False</span>
+                <span class="s4">continue</span>
+
+            <span class="s1">targetPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+            <span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">setBinary</span><span class="s2">()</span>
+            <span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">()</span>
+            <span class="s4">if not </span><span class="s1">mf</span><span class="s2">.</span><span class="s1">extractSubfile</span><span class="s2">(</span><span class="s1">i</span><span class="s2">, </span><span class="s1">targetPathname</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Couldn't extract: %s&quot; </span><span class="s2">% (</span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+                <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">False</span>
+                <span class="s4">continue</span>
+
+            <span class="s4">if not </span><span class="s1">file</span><span class="s2">.</span><span class="s1">quickVerify</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">notify </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;After extracting, still incorrect: %s&quot; </span><span class="s2">% (</span><span class="s1">file</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">))</span>
+                <span class="s1">allExtractsOk </span><span class="s2">= </span><span class="s4">False</span>
+                <span class="s4">continue</span>
+
+            <span class="s5"># Make sure it's executable, and not writable.</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">chmod</span><span class="s2">(</span><span class="s1">targetPathname</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">(), </span><span class="s6">0o555</span><span class="s2">)</span>
+
+            <span class="s1">step</span><span class="s2">.</span><span class="s1">bytesDone </span><span class="s2">+= </span><span class="s1">file</span><span class="s2">.</span><span class="s1">size</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__updateStepProgress</span><span class="s2">(</span><span class="s1">step</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">destroyed</span><span class="s2">:</span>
+                <span class="s5"># If the task manager has been destroyed, we must</span>
+                <span class="s5"># be shutting down.  Get out of here.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Task Manager destroyed, aborting unpacking %s&quot; </span><span class="s2">% (</span><span class="s1">mfPathname</span><span class="s2">))</span>
+                <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepContinue</span>
+
+        <span class="s4">if not </span><span class="s1">allExtractsOk</span><span class="s2">:</span>
+            <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepFailed; </span><span class="s4">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s4">yield </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepComplete; </span><span class="s4">return</span>
+
+    <span class="s4">def </span><span class="s1">installPackage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">appRunner</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Mounts the package and sets up system paths so it becomes 
+        available for use.  Returns true on success, false on failure. &quot;&quot;&quot;</span>
+
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">hasPackage</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">installed</span><span class="s2">:</span>
+            <span class="s5"># Already installed.</span>
+            <span class="s4">return True</span>
+        <span class="s4">assert </span><span class="s1">self </span><span class="s4">not in </span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">installedPackages</span>
+
+        <span class="s1">mfPathname </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uncompressedArchive</span><span class="s2">.</span><span class="s1">filename</span><span class="s2">)</span>
+        <span class="s1">mf </span><span class="s2">= </span><span class="s1">Multifile</span><span class="s2">()</span>
+        <span class="s4">if not </span><span class="s1">mf</span><span class="s2">.</span><span class="s1">openRead</span><span class="s2">(</span><span class="s1">mfPathname</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;Couldn't open %s&quot; </span><span class="s2">% (</span><span class="s1">mfPathname</span><span class="s2">))</span>
+            <span class="s4">return False</span>
+
+        <span class="s5"># We mount it under its actual location on disk.</span>
+        <span class="s1">root </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">()</span>
+
+        <span class="s1">vfs </span><span class="s2">= </span><span class="s1">VirtualFileSystem</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+        <span class="s1">vfs</span><span class="s2">.</span><span class="s1">mount</span><span class="s2">(</span><span class="s1">mf</span><span class="s2">, </span><span class="s1">root</span><span class="s2">, </span><span class="s1">vfs</span><span class="s2">.</span><span class="s1">MFReadOnly</span><span class="s2">)</span>
+
+        <span class="s5"># Add this to the Python search path, if it's not already</span>
+        <span class="s5"># there.  We have to take a bit of care to check if it's</span>
+        <span class="s5"># already there, since there can be some ambiguity in</span>
+        <span class="s5"># os-specific path strings.</span>
+        <span class="s1">osRoot </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">().</span><span class="s1">toOsSpecific</span><span class="s2">()</span>
+        <span class="s1">foundOnPath </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s4">for </span><span class="s1">p </span><span class="s4">in </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">osRoot </span><span class="s2">== </span><span class="s1">p</span><span class="s2">:</span>
+                <span class="s5"># Already here, exactly.</span>
+                <span class="s1">foundOnPath </span><span class="s2">= </span><span class="s4">True</span>
+                <span class="s4">break</span>
+            <span class="s4">elif </span><span class="s1">osRoot </span><span class="s2">== </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">fromOsSpecific</span><span class="s2">(</span><span class="s1">p</span><span class="s2">).</span><span class="s1">toOsSpecific</span><span class="s2">():</span>
+                <span class="s5"># Already here, with some futzing.</span>
+                <span class="s1">foundOnPath </span><span class="s2">= </span><span class="s4">True</span>
+                <span class="s4">break</span>
+
+        <span class="s4">if not </span><span class="s1">foundOnPath</span><span class="s2">:</span>
+            <span class="s5"># Not already here; add it.</span>
+            <span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">osRoot</span><span class="s2">)</span>
+
+        <span class="s5"># Put it on the model-path, too.  We do this indiscriminantly,</span>
+        <span class="s5"># because the Panda3D runtime won't be adding things to the</span>
+        <span class="s5"># model-path, so it shouldn't be already there.</span>
+        <span class="s1">getModelPath</span><span class="s2">().</span><span class="s1">appendDirectory</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">())</span>
+
+        <span class="s5"># Set the environment variable to reference the package root.</span>
+        <span class="s1">envvar </span><span class="s2">= </span><span class="s3">'%s_ROOT' </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">.</span><span class="s1">upper</span><span class="s2">())</span>
+        <span class="s1">ExecutionEnvironment</span><span class="s2">.</span><span class="s1">setEnvironmentVariable</span><span class="s2">(</span><span class="s1">envvar</span><span class="s2">, </span><span class="s1">osRoot</span><span class="s2">)</span>
+
+        <span class="s5"># Add the package root to the system paths.</span>
+        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">platform</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'win'</span><span class="s2">):</span>
+            <span class="s1">path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'PATH'</span><span class="s2">, </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">[</span><span class="s3">'PATH'</span><span class="s2">] = </span><span class="s3">&quot;%s;%s&quot; </span><span class="s2">% (</span><span class="s1">osRoot</span><span class="s2">, </span><span class="s1">path</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'PATH'</span><span class="s2">, </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">[</span><span class="s3">'PATH'</span><span class="s2">] = </span><span class="s3">&quot;%s:%s&quot; </span><span class="s2">% (</span><span class="s1">osRoot</span><span class="s2">, </span><span class="s1">path</span><span class="s2">)</span>
+            <span class="s1">path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'LD_LIBRARY_PATH'</span><span class="s2">, </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">[</span><span class="s3">'LD_LIBRARY_PATH'</span><span class="s2">] = </span><span class="s3">&quot;%s:%s&quot; </span><span class="s2">% (</span><span class="s1">osRoot</span><span class="s2">, </span><span class="s1">path</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">platform </span><span class="s2">== </span><span class="s3">&quot;darwin&quot;</span><span class="s2">:</span>
+            <span class="s1">path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">'DYLD_LIBRARY_PATH'</span><span class="s2">, </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">environ</span><span class="s2">[</span><span class="s3">'DYLD_LIBRARY_PATH'</span><span class="s2">] = </span><span class="s3">&quot;%s:%s&quot; </span><span class="s2">% (</span><span class="s1">osRoot</span><span class="s2">, </span><span class="s1">path</span><span class="s2">)</span>
+
+        <span class="s5"># Now that the environment variable is set, read all of the</span>
+        <span class="s5"># prc files in the package.</span>
+        <span class="s1">appRunner</span><span class="s2">.</span><span class="s1">loadMultifilePrcFiles</span><span class="s2">(</span><span class="s1">mf</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">())</span>
+
+        <span class="s5"># Also, find any toplevel Python packages, and add these as</span>
+        <span class="s5"># shared packages.  This will allow different packages</span>
+        <span class="s5"># installed in different directories to share Python files as</span>
+        <span class="s5"># if they were all in the same directory.</span>
+        <span class="s4">for </span><span class="s1">filename </span><span class="s4">in </span><span class="s1">mf</span><span class="s2">.</span><span class="s1">getSubfileNames</span><span class="s2">():</span>
+            <span class="s4">if </span><span class="s1">filename</span><span class="s2">.</span><span class="s1">endswith</span><span class="s2">(</span><span class="s3">'/__init__.pyc'</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+               <span class="s1">filename</span><span class="s2">.</span><span class="s1">endswith</span><span class="s2">(</span><span class="s3">'/__init__.pyo'</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+               <span class="s1">filename</span><span class="s2">.</span><span class="s1">endswith</span><span class="s2">(</span><span class="s3">'/__init__.py'</span><span class="s2">):</span>
+                <span class="s1">components </span><span class="s2">= </span><span class="s1">filename</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'/'</span><span class="s2">)[:-</span><span class="s6">1</span><span class="s2">]</span>
+                <span class="s1">moduleName </span><span class="s2">= </span><span class="s3">'.'</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">components</span><span class="s2">)</span>
+                <span class="s1">VFSImporter</span><span class="s2">.</span><span class="s1">sharedPackages</span><span class="s2">[</span><span class="s1">moduleName</span><span class="s2">] = </span><span class="s4">True</span>
+
+        <span class="s5"># Fix up any shared directories so we can load packages from</span>
+        <span class="s5"># disparate locations.</span>
+        <span class="s1">VFSImporter</span><span class="s2">.</span><span class="s1">reloadSharedPackages</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">installed </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s1">appRunner</span><span class="s2">.</span><span class="s1">installedPackages</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">markUsed</span><span class="s2">()</span>
+
+        <span class="s4">return True</span>
+
+    <span class="s4">def </span><span class="s1">__measureDiskSpace</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the amount of space used by this package, in 
+        bytes, as determined by examining the actual contents of the 
+        package directory and its subdirectories. &quot;&quot;&quot;</span>
+
+        <span class="s1">thisDir </span><span class="s2">= </span><span class="s1">ScanDirectoryNode</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">ignoreUsageXml </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+        <span class="s1">diskSpace </span><span class="s2">= </span><span class="s1">thisDir</span><span class="s2">.</span><span class="s1">getTotalSize</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;Package %s uses %s MB&quot; </span><span class="s2">% (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">packageName</span><span class="s2">, (</span><span class="s1">diskSpace </span><span class="s2">+ </span><span class="s6">524288</span><span class="s2">) // </span><span class="s6">1048576</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">diskSpace</span>
+
+    <span class="s4">def </span><span class="s1">markUsed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Marks the package as having been used.  This is normally 
+        called automatically by installPackage(). &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">core</span><span class="s2">, </span><span class="s3">'TiXmlDocument'</span><span class="s2">):</span>
+            <span class="s4">return</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">verifyContents </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">host</span><span class="s2">.</span><span class="s1">appRunner</span><span class="s2">.</span><span class="s1">P3DVCNever</span><span class="s2">:</span>
+            <span class="s5"># Not allowed to write any files to the package directory.</span>
+            <span class="s4">return</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updated</span><span class="s2">:</span>
+            <span class="s5"># If we've just installed a new version of the package,</span>
+            <span class="s5"># re-measure the actual disk space used.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">diskSpace </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__measureDiskSpace</span><span class="s2">()</span>
+
+        <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">UsageBasename</span><span class="s2">)</span>
+        <span class="s1">doc </span><span class="s2">= </span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+        <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">LoadFile</span><span class="s2">():</span>
+            <span class="s1">decl </span><span class="s2">= </span><span class="s1">TiXmlDeclaration</span><span class="s2">(</span><span class="s3">&quot;1.0&quot;</span><span class="s2">, </span><span class="s3">&quot;utf-8&quot;</span><span class="s2">, </span><span class="s3">&quot;&quot;</span><span class="s2">)</span>
+            <span class="s1">doc</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">decl</span><span class="s2">)</span>
+
+        <span class="s1">xusage </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'usage'</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">xusage</span><span class="s2">:</span>
+            <span class="s1">doc</span><span class="s2">.</span><span class="s1">InsertEndChild</span><span class="s2">(</span><span class="s1">TiXmlElement</span><span class="s2">(</span><span class="s3">'usage'</span><span class="s2">))</span>
+            <span class="s1">xusage </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'usage'</span><span class="s2">)</span>
+
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">())</span>
+
+        <span class="s1">count </span><span class="s2">= </span><span class="s1">xusage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'count_app'</span><span class="s2">)</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">count </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">count </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+        <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+            <span class="s1">count </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">xusage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'first_use'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">now</span><span class="s2">))</span>
+        <span class="s1">count </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s1">xusage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'count_app'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">count</span><span class="s2">))</span>
+
+        <span class="s1">xusage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'last_use'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">now</span><span class="s2">))</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updated</span><span class="s2">:</span>
+            <span class="s1">xusage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'last_update'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">now</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">updated </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Since we haven't changed the disk space, we can just</span>
+            <span class="s5"># read it from the previous xml file.</span>
+            <span class="s1">diskSpace </span><span class="s2">= </span><span class="s1">xusage</span><span class="s2">.</span><span class="s1">Attribute</span><span class="s2">(</span><span class="s3">'disk_space'</span><span class="s2">)</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">diskSpace </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">diskSpace </span><span class="s4">or </span><span class="s3">''</span><span class="s2">)</span>
+            <span class="s4">except </span><span class="s1">ValueError</span><span class="s2">:</span>
+                <span class="s5"># Unless it wasn't set already.</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">diskSpace </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__measureDiskSpace</span><span class="s2">()</span>
+
+        <span class="s1">xusage</span><span class="s2">.</span><span class="s1">SetAttribute</span><span class="s2">(</span><span class="s3">'disk_space'</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">diskSpace</span><span class="s2">))</span>
+
+        <span class="s5"># Write the file to a temporary filename, then atomically move</span>
+        <span class="s5"># it to its actual filename, to avoid race conditions when</span>
+        <span class="s5"># updating this file.</span>
+        <span class="s1">tfile </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">temporary</span><span class="s2">(</span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">()), </span><span class="s3">'.xml'</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">SaveFile</span><span class="s2">(</span><span class="s1">tfile</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">()):</span>
+            <span class="s1">tfile</span><span class="s2">.</span><span class="s1">renameTo</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getUsage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the xusage element that is read from the usage.xml 
+        file, or None if there is no usage.xml file. &quot;&quot;&quot;</span>
+
+        <span class="s4">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">core</span><span class="s2">, </span><span class="s3">'TiXmlDocument'</span><span class="s2">):</span>
+            <span class="s4">return None</span>
+
+        <span class="s1">filename </span><span class="s2">= </span><span class="s1">Filename</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getPackageDir</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">UsageBasename</span><span class="s2">)</span>
+        <span class="s1">doc </span><span class="s2">= </span><span class="s1">TiXmlDocument</span><span class="s2">(</span><span class="s1">filename</span><span class="s2">.</span><span class="s1">toOsSpecific</span><span class="s2">())</span>
+        <span class="s4">if not </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">LoadFile</span><span class="s2">():</span>
+            <span class="s4">return None</span>
+
+        <span class="s1">xusage </span><span class="s2">= </span><span class="s1">doc</span><span class="s2">.</span><span class="s1">FirstChildElement</span><span class="s2">(</span><span class="s3">'usage'</span><span class="s2">)</span>
+        <span class="s4">if not </span><span class="s1">xusage</span><span class="s2">:</span>
+            <span class="s4">return None</span>
+
+        <span class="s4">return </span><span class="s1">copy</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">(</span><span class="s1">xusage</span><span class="s2">)</span>
+
+</pre>
+</body>
+</html>

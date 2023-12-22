@@ -1,0 +1,65 @@
+<html>
+<head>
+<title>howto.PythonRedefine</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+howto.PythonRedefine</font>
+</center></td></tr></table>
+<pre><span class="s0">Python Redefine FAQ</span>
+
+<span class="s0">Q: So, what is Ctrl-C-Ctrl-V?</span>
+
+<span class="s0">A: Since Python is an interpreted language, you can redefine code on the</span>
+<span class="s0">fly. Lets say you have a class method that creates and plays a sword slash</span>
+<span class="s0">interval, carefully timing an animation, a particle effect, and a sound</span>
+<span class="s0">effect. If you could tweak the timing and properties of this interval in</span>
+<span class="s0">your code and magically hit a hotkey to see the change immediately in-game,</span>
+<span class="s0">it would cut your iteration time from a 5 minute restart down to 1</span>
+<span class="s0">second. ctrl-c-ctrl-v is that magic hotkey. Of course it works on arbitrary</span>
+<span class="s0">Python classes, not just intervals. If you are show-coding in Emacs, you</span>
+<span class="s0">really should try it -- it can save you lots of time!</span>
+
+
+<span class="s0">Q: How do I use it?</span>
+
+<span class="s0">A: In your Emacs buffer within your class definition, make a change to a</span>
+<span class="s0">function and hit control-c-control-v. This will redefine the function, and</span>
+<span class="s0">in fact the entire class and thus all objects that are defined by that</span>
+<span class="s0">class. Some feedback will be printed out at the Python prompt.</span>
+
+
+<span class="s0">Q: Does it only work in Emacs?</span>
+
+<span class="s0">A: Yes, unfortunately it only works from inside Emacs right now, but it can</span>
+<span class="s0">probably be adapted to any scriptable editor. Most of the code is in</span>
+<span class="s0">Python, not in emacs (lisp). Ask if you are curious about getting this</span>
+<span class="s0">working in your favorite editor.</span>
+ 
+
+<span class="s0">Q: Can I redefine code on the client and the AI?</span>
+
+<span class="s0">A: If you are using multi-python Emacs buffers, it will actually redefine</span>
+<span class="s0">this class on the AI, Uberdog, and client simultaneously. Otherwise, you</span>
+<span class="s0">must control-c-control-v from the Emacs where you are running the process</span>
+<span class="s0">you want the class redefined in. Note, if the class does not exist on the</span>
+<span class="s0">AI or client, it will safely ignore.</span>
+
+
+<span class="s0">Q: What about systems that store function callbacks?</span>
+
+<span class="s0">A: The common systems that store function callbacks are properly searched</span>
+<span class="s0">and replaced when you control-c-control-v. This includes the TaskManager,</span>
+<span class="s0">FunctionIntervals (new), ClassicFSMs, the Messenger, and DistributedObject</span>
+<span class="s0">dc updates. If you are storing a function pointer in your own code ad hoc,</span>
+<span class="s0">the Finder will not currently replace that; though I could imagine a brute</span>
+<span class="s0">force way to find those too.</span>
+</pre>
+</body>
+</html>

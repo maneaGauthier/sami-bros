@@ -1,0 +1,233 @@
+<html>
+<head>
+<title>IntervalTest.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+IntervalTest.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Undocumented Module&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= []</span>
+
+
+<span class="s3">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">&quot;__main__&quot;</span><span class="s2">:</span>
+    <span class="s3">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s3">import </span><span class="s1">ShowBase</span>
+    <span class="s3">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s3">import </span><span class="s2">*</span>
+    <span class="s3">from </span><span class="s2">.</span><span class="s1">IntervalGlobal </span><span class="s3">import </span><span class="s2">*</span>
+    <span class="s3">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">actor</span><span class="s2">.</span><span class="s1">Actor </span><span class="s3">import </span><span class="s2">*</span>
+
+    <span class="s3">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directutil </span><span class="s3">import </span><span class="s1">Mopath</span>
+
+    <span class="s1">base </span><span class="s2">= </span><span class="s1">ShowBase</span><span class="s2">()</span>
+
+    <span class="s1">boat </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s4">'models/misc/smiley'</span><span class="s2">)</span>
+    <span class="s1">boat</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s1">donald </span><span class="s2">= </span><span class="s1">Actor</span><span class="s2">()</span>
+    <span class="s1">donald</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s4">&quot;phase_6/models/char/donald-wheel-1000&quot;</span><span class="s2">)</span>
+    <span class="s1">donald</span><span class="s2">.</span><span class="s1">loadAnims</span><span class="s2">({</span><span class="s4">&quot;steer&quot;</span><span class="s2">:</span><span class="s4">&quot;phase_6/models/char/donald-wheel-wheel&quot;</span><span class="s2">})</span>
+    <span class="s1">donald</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">boat</span><span class="s2">)</span>
+
+    <span class="s1">dock </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s4">'models/misc/smiley'</span><span class="s2">)</span>
+    <span class="s1">dock</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s1">sound </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadSfx</span><span class="s2">(</span><span class="s4">'phase_6/audio/sfx/SZ_DD_waterlap.mp3'</span><span class="s2">)</span>
+    <span class="s1">foghorn </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadSfx</span><span class="s2">(</span><span class="s4">'phase_6/audio/sfx/SZ_DD_foghorn.mp3'</span><span class="s2">)</span>
+
+    <span class="s1">mp </span><span class="s2">= </span><span class="s1">Mopath</span><span class="s2">.</span><span class="s1">Mopath</span><span class="s2">()</span>
+    <span class="s1">mp</span><span class="s2">.</span><span class="s1">loadFile</span><span class="s2">(</span><span class="s1">Filename</span><span class="s2">(</span><span class="s4">'phase_6/paths/dd-e-w'</span><span class="s2">))</span>
+
+    <span class="s5"># Set up the boat</span>
+    <span class="s1">boatMopath </span><span class="s2">= </span><span class="s1">MopathInterval</span><span class="s2">(</span><span class="s1">mp</span><span class="s2">, </span><span class="s1">boat</span><span class="s2">, </span><span class="s4">'boatpath'</span><span class="s2">)</span>
+    <span class="s1">boatTrack </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([</span><span class="s1">boatMopath</span><span class="s2">], </span><span class="s4">'boattrack'</span><span class="s2">)</span>
+    <span class="s1">BOAT_START </span><span class="s2">= </span><span class="s1">boatTrack</span><span class="s2">.</span><span class="s1">getIntervalStartTime</span><span class="s2">(</span><span class="s4">'boatpath'</span><span class="s2">)</span>
+    <span class="s1">BOAT_END </span><span class="s2">= </span><span class="s1">boatTrack</span><span class="s2">.</span><span class="s1">getIntervalEndTime</span><span class="s2">(</span><span class="s4">'boatpath'</span><span class="s2">)</span>
+
+    <span class="s5"># This will create an anim interval that is posed every frame</span>
+    <span class="s1">donaldSteerInterval </span><span class="s2">= </span><span class="s1">ActorInterval</span><span class="s2">(</span><span class="s1">donald</span><span class="s2">, </span><span class="s4">'steer'</span><span class="s2">)</span>
+    <span class="s5"># This will create an anim interval that is started at t = 0 and then</span>
+    <span class="s5"># loops for 10 seconds</span>
+    <span class="s1">donaldLoopInterval </span><span class="s2">= </span><span class="s1">ActorInterval</span><span class="s2">(</span><span class="s1">donald</span><span class="s2">, </span><span class="s4">'steer'</span><span class="s2">, </span><span class="s1">loop</span><span class="s2">=</span><span class="s6">1</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">10.0</span><span class="s2">)</span>
+    <span class="s1">donaldSteerTrack </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([</span><span class="s1">donaldSteerInterval</span><span class="s2">, </span><span class="s1">donaldLoopInterval</span><span class="s2">],</span>
+                             <span class="s1">name </span><span class="s2">= </span><span class="s4">'steerTrack'</span><span class="s2">)</span>
+
+    <span class="s5"># Make the dock lerp up so that it's up when the boat reaches the end of</span>
+    <span class="s5"># its mopath</span>
+    <span class="s1">dockLerp </span><span class="s2">= </span><span class="s1">LerpPosHprInterval</span><span class="s2">(</span><span class="s1">dock</span><span class="s2">, </span><span class="s6">5.0</span><span class="s2">,</span>
+                                  <span class="s1">pos</span><span class="s2">=</span><span class="s1">Point3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s6">5</span><span class="s2">),</span>
+                                  <span class="s1">hpr</span><span class="s2">=</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">),</span>
+                                  <span class="s1">name</span><span class="s2">=</span><span class="s4">'dock-lerp'</span><span class="s2">)</span>
+    <span class="s5"># We need the dock's state to be defined before the lerp</span>
+    <span class="s1">dockPos </span><span class="s2">= </span><span class="s1">PosHprInterval</span><span class="s2">(</span><span class="s1">dock</span><span class="s2">, </span><span class="s1">dock</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(), </span><span class="s1">dock</span><span class="s2">.</span><span class="s1">getHpr</span><span class="s2">(), </span><span class="s6">1.0</span><span class="s2">, </span><span class="s4">'dockpos'</span><span class="s2">)</span>
+    <span class="s1">dockUpTime </span><span class="s2">= </span><span class="s1">BOAT_END </span><span class="s2">- </span><span class="s1">dockLerp</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">()</span>
+    <span class="s1">hpr2 </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">90.0</span><span class="s2">, </span><span class="s6">90.0</span><span class="s2">, </span><span class="s6">90.0</span><span class="s2">)</span>
+    <span class="s1">dockLerp2 </span><span class="s2">= </span><span class="s1">LerpHprInterval</span><span class="s2">(</span><span class="s1">dock</span><span class="s2">, </span><span class="s6">3.0</span><span class="s2">, </span><span class="s1">hpr2</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'hpr-lerp'</span><span class="s2">)</span>
+    <span class="s1">dockTrack </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([</span><span class="s1">dockLerp2</span><span class="s2">, </span><span class="s1">dockPos</span><span class="s2">, </span><span class="s1">dockLerp</span><span class="s2">], </span><span class="s4">'docktrack'</span><span class="s2">)</span>
+    <span class="s1">dockTrack</span><span class="s2">.</span><span class="s1">setIntervalStartTime</span><span class="s2">(</span><span class="s4">'dock-lerp'</span><span class="s2">, </span><span class="s1">dockUpTime</span><span class="s2">)</span>
+    <span class="s1">dockTrack</span><span class="s2">.</span><span class="s1">setIntervalStartTime</span><span class="s2">(</span><span class="s4">'hpr-lerp'</span><span class="s2">, </span><span class="s1">BOAT_START</span><span class="s2">)</span>
+
+    <span class="s5"># Start the water sound 5 seconds after the boat starts moving</span>
+    <span class="s1">waterStartTime </span><span class="s2">= </span><span class="s1">BOAT_START </span><span class="s2">+ </span><span class="s6">5.0</span>
+    <span class="s1">waterSound </span><span class="s2">= </span><span class="s1">SoundInterval</span><span class="s2">(</span><span class="s1">sound</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'watersound'</span><span class="s2">)</span>
+    <span class="s1">soundTrack </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([</span><span class="s1">waterSound</span><span class="s2">], </span><span class="s4">'soundtrack'</span><span class="s2">)</span>
+    <span class="s1">soundTrack</span><span class="s2">.</span><span class="s1">setIntervalStartTime</span><span class="s2">(</span><span class="s4">'watersound'</span><span class="s2">, </span><span class="s1">waterStartTime</span><span class="s2">)</span>
+
+    <span class="s5"># Throw an event when the water track ends</span>
+    <span class="s1">eventTime </span><span class="s2">= </span><span class="s1">soundTrack</span><span class="s2">.</span><span class="s1">getIntervalEndTime</span><span class="s2">(</span><span class="s4">'watersound'</span><span class="s2">)</span>
+    <span class="s1">waterDone </span><span class="s2">= </span><span class="s1">EventInterval</span><span class="s2">(</span><span class="s4">'water-is-done'</span><span class="s2">)</span>
+    <span class="s1">waterEventTrack </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([</span><span class="s1">waterDone</span><span class="s2">])</span>
+    <span class="s1">waterEventTrack</span><span class="s2">.</span><span class="s1">setIntervalStartTime</span><span class="s2">(</span><span class="s4">'water-is-done'</span><span class="s2">, </span><span class="s1">eventTime</span><span class="s2">)</span>
+
+    <span class="s3">def </span><span class="s1">handleWaterDone</span><span class="s2">():</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'water is done'</span><span class="s2">)</span>
+
+    <span class="s5"># Interval can handle its own event</span>
+    <span class="s1">messenger</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'water-is-done'</span><span class="s2">, </span><span class="s1">waterDone</span><span class="s2">, </span><span class="s1">handleWaterDone</span><span class="s2">)</span>
+
+    <span class="s1">foghornStartTime </span><span class="s2">= </span><span class="s1">BOAT_START </span><span class="s2">+ </span><span class="s6">4.0</span>
+    <span class="s1">foghornSound </span><span class="s2">= </span><span class="s1">SoundInterval</span><span class="s2">(</span><span class="s1">foghorn</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">'foghorn'</span><span class="s2">)</span>
+    <span class="s1">soundTrack2 </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([(</span><span class="s1">foghornStartTime</span><span class="s2">, </span><span class="s1">foghornSound</span><span class="s2">)], </span><span class="s4">'soundtrack2'</span><span class="s2">)</span>
+
+    <span class="s1">mtrack </span><span class="s2">= </span><span class="s1">MultiTrack</span><span class="s2">([</span><span class="s1">boatTrack</span><span class="s2">, </span><span class="s1">dockTrack</span><span class="s2">, </span><span class="s1">soundTrack</span><span class="s2">, </span><span class="s1">soundTrack2</span><span class="s2">, </span><span class="s1">waterEventTrack</span><span class="s2">,</span>
+                         <span class="s1">donaldSteerTrack</span><span class="s2">])</span>
+    <span class="s5"># Print out MultiTrack parameters</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s1">mtrack</span><span class="s2">)</span>
+
+    <span class="s5">### Using lambdas and functions ###</span>
+    <span class="s5"># Using a lambda</span>
+    <span class="s1">i1 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s3">lambda</span><span class="s2">: </span><span class="s1">base</span><span class="s2">.</span><span class="s1">transitions</span><span class="s2">.</span><span class="s1">fadeOut</span><span class="s2">())</span>
+    <span class="s1">i2 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s3">lambda</span><span class="s2">: </span><span class="s1">base</span><span class="s2">.</span><span class="s1">transitions</span><span class="s2">.</span><span class="s1">fadeIn</span><span class="s2">())</span>
+
+    <span class="s3">def </span><span class="s1">caughtIt</span><span class="s2">():</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'Caught here-is-an-event'</span><span class="s2">)</span>
+
+    <span class="s3">class </span><span class="s1">DummyAcceptor</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+        <span class="s3">pass</span>
+
+    <span class="s1">da </span><span class="s2">= </span><span class="s1">DummyAcceptor</span><span class="s2">()</span>
+    <span class="s1">i3 </span><span class="s2">= </span><span class="s1">AcceptInterval</span><span class="s2">(</span><span class="s1">da</span><span class="s2">, </span><span class="s4">'here-is-an-event'</span><span class="s2">, </span><span class="s1">caughtIt</span><span class="s2">)</span>
+
+    <span class="s1">i4 </span><span class="s2">= </span><span class="s1">EventInterval</span><span class="s2">(</span><span class="s4">'here-is-an-event'</span><span class="s2">)</span>
+
+    <span class="s1">i5 </span><span class="s2">= </span><span class="s1">IgnoreInterval</span><span class="s2">(</span><span class="s1">da</span><span class="s2">, </span><span class="s4">'here-is-an-event'</span><span class="s2">)</span>
+
+    <span class="s5"># Using a function</span>
+    <span class="s3">def </span><span class="s1">printDone</span><span class="s2">():</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'done'</span><span class="s2">)</span>
+
+    <span class="s1">i6 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">printDone</span><span class="s2">)</span>
+
+    <span class="s5"># Create track</span>
+    <span class="s1">t1 </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([</span>
+        <span class="s5"># Fade out</span>
+        <span class="s2">(</span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">i1</span><span class="s2">),</span>
+        <span class="s5"># Fade in</span>
+        <span class="s2">(</span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">i2</span><span class="s2">),</span>
+        <span class="s5"># Accept event</span>
+        <span class="s2">(</span><span class="s6">4.0</span><span class="s2">, </span><span class="s1">i3</span><span class="s2">),</span>
+        <span class="s5"># Throw it,</span>
+        <span class="s2">(</span><span class="s6">5.0</span><span class="s2">, </span><span class="s1">i4</span><span class="s2">),</span>
+        <span class="s5"># Ignore event</span>
+        <span class="s2">(</span><span class="s6">6.0</span><span class="s2">, </span><span class="s1">i5</span><span class="s2">),</span>
+        <span class="s5"># Throw event again and see if ignore worked</span>
+        <span class="s2">(</span><span class="s6">7.0</span><span class="s2">, </span><span class="s1">i4</span><span class="s2">),</span>
+        <span class="s5"># Print done</span>
+        <span class="s2">(</span><span class="s6">8.0</span><span class="s2">, </span><span class="s1">i6</span><span class="s2">)], </span><span class="s1">name </span><span class="s2">= </span><span class="s4">'demo'</span><span class="s2">)</span>
+
+    <span class="s1">print</span><span class="s2">(</span><span class="s1">t1</span><span class="s2">)</span>
+
+    <span class="s5">### Specifying interval start times during track construction ###</span>
+    <span class="s5"># Interval start time can be specified relative to three different points:</span>
+    <span class="s5"># PREVIOUS_END</span>
+    <span class="s5"># PREVIOUS_START</span>
+    <span class="s5"># TRACK_START</span>
+
+    <span class="s1">startTime </span><span class="s2">= </span><span class="s6">0.0</span>
+    <span class="s3">def </span><span class="s1">printStart</span><span class="s2">():</span>
+        <span class="s3">global </span><span class="s1">startTime</span>
+        <span class="s1">startTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'Start'</span><span class="s2">)</span>
+
+    <span class="s3">def </span><span class="s1">printPreviousStart</span><span class="s2">():</span>
+        <span class="s3">global </span><span class="s1">startTime</span>
+        <span class="s1">currTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'PREVIOUS_END %0.2f' </span><span class="s2">% (</span><span class="s1">currTime </span><span class="s2">- </span><span class="s1">startTime</span><span class="s2">))</span>
+
+    <span class="s3">def </span><span class="s1">printPreviousEnd</span><span class="s2">():</span>
+        <span class="s3">global </span><span class="s1">startTime</span>
+        <span class="s1">currTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'PREVIOUS_END %0.2f' </span><span class="s2">% (</span><span class="s1">currTime </span><span class="s2">- </span><span class="s1">startTime</span><span class="s2">))</span>
+
+    <span class="s3">def </span><span class="s1">printTrackStart</span><span class="s2">():</span>
+        <span class="s3">global </span><span class="s1">startTime</span>
+        <span class="s1">currTime </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'TRACK_START %0.2f' </span><span class="s2">% (</span><span class="s1">currTime </span><span class="s2">- </span><span class="s1">startTime</span><span class="s2">))</span>
+
+    <span class="s3">def </span><span class="s1">printArguments</span><span class="s2">(</span><span class="s1">a</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">c</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'My args were %d, %d, %d' </span><span class="s2">% (</span><span class="s1">a</span><span class="s2">, </span><span class="s1">b</span><span class="s2">, </span><span class="s1">c</span><span class="s2">))</span>
+
+    <span class="s1">i1 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">printStart</span><span class="s2">)</span>
+    <span class="s5"># Just to take time</span>
+    <span class="s1">i2 </span><span class="s2">= </span><span class="s1">LerpPosInterval</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">, </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">10</span><span class="s2">, </span><span class="s6">5</span><span class="s2">))</span>
+    <span class="s5"># This will be relative to end of camera move</span>
+    <span class="s1">i3 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">printPreviousEnd</span><span class="s2">)</span>
+    <span class="s5"># Just to take time</span>
+    <span class="s1">i4 </span><span class="s2">= </span><span class="s1">LerpPosInterval</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">, </span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">5</span><span class="s2">))</span>
+    <span class="s5"># This will be relative to the start of the camera move</span>
+    <span class="s1">i5 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">printPreviousStart</span><span class="s2">)</span>
+    <span class="s5"># This will be relative to track start</span>
+    <span class="s1">i6 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">printTrackStart</span><span class="s2">)</span>
+    <span class="s5"># This will print some arguments</span>
+    <span class="s5"># This will be relative to track start</span>
+    <span class="s1">i7 </span><span class="s2">= </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">printArguments</span><span class="s2">, </span><span class="s1">extraArgs </span><span class="s2">= [</span><span class="s6">1</span><span class="s2">, </span><span class="s6">10</span><span class="s2">, </span><span class="s6">100</span><span class="s2">])</span>
+    <span class="s5"># Create the track, if you don't specify offset type in tuple it defaults to</span>
+    <span class="s5"># relative to TRACK_START (first entry below)</span>
+    <span class="s1">t2 </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">([(</span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">i1</span><span class="s2">),                 </span><span class="s5"># i1 start at t = 0, duration = 0.0</span>
+                <span class="s2">(</span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">i2</span><span class="s2">, </span><span class="s1">TRACK_START</span><span class="s2">),    </span><span class="s5"># i2 start at t = 1, duration = 2.0</span>
+                <span class="s2">(</span><span class="s6">2.0</span><span class="s2">, </span><span class="s1">i3</span><span class="s2">, </span><span class="s1">PREVIOUS_END</span><span class="s2">),   </span><span class="s5"># i3 start at t = 5, duration = 0.0</span>
+                <span class="s2">(</span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">i4</span><span class="s2">, </span><span class="s1">PREVIOUS_END</span><span class="s2">),   </span><span class="s5"># i4 start at t = 6, duration = 2.0</span>
+                <span class="s2">(</span><span class="s6">3.0</span><span class="s2">, </span><span class="s1">i5</span><span class="s2">, </span><span class="s1">PREVIOUS_START</span><span class="s2">), </span><span class="s5"># i5 start at t = 9, duration = 0.0</span>
+                <span class="s2">(</span><span class="s6">10.0</span><span class="s2">, </span><span class="s1">i6</span><span class="s2">, </span><span class="s1">TRACK_START</span><span class="s2">),   </span><span class="s5"># i6 start at t = 10, duration = 0.0</span>
+                <span class="s2">(</span><span class="s6">12.0</span><span class="s2">, </span><span class="s1">i7</span><span class="s2">)],               </span><span class="s5"># i7 start at t = 12, duration = 0.0</span>
+               <span class="s1">name </span><span class="s2">= </span><span class="s4">'startTimeDemo'</span><span class="s2">)</span>
+
+    <span class="s1">print</span><span class="s2">(</span><span class="s1">t2</span><span class="s2">)</span>
+
+    <span class="s5"># Play tracks</span>
+    <span class="s5"># mtrack.play()</span>
+    <span class="s5"># t1.play()</span>
+    <span class="s5"># t2.play()</span>
+
+
+    <span class="s3">def </span><span class="s1">test</span><span class="s2">(</span><span class="s1">n</span><span class="s2">):</span>
+        <span class="s1">lerps </span><span class="s2">= []</span>
+        <span class="s3">for </span><span class="s1">i </span><span class="s3">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">n</span><span class="s2">):</span>
+            <span class="s1">lerps</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">LerpPosHprInterval</span><span class="s2">(</span><span class="s1">dock</span><span class="s2">, </span><span class="s6">5.0</span><span class="s2">,</span>
+                                            <span class="s1">pos</span><span class="s2">=</span><span class="s1">Point3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s6">5</span><span class="s2">),</span>
+                                            <span class="s1">hpr</span><span class="s2">=</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s6">0</span><span class="s2">),</span>
+                                            <span class="s1">startPos</span><span class="s2">=</span><span class="s1">dock</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(),</span>
+                                            <span class="s1">startHpr</span><span class="s2">=</span><span class="s1">dock</span><span class="s2">.</span><span class="s1">getHpr</span><span class="s2">(),</span>
+                                            <span class="s1">name</span><span class="s2">=</span><span class="s4">'dock-lerp'</span><span class="s2">))</span>
+            <span class="s1">lerps</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">EventInterval</span><span class="s2">(</span><span class="s4">&quot;joe&quot;</span><span class="s2">))</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">Track</span><span class="s2">(</span><span class="s1">lerps</span><span class="s2">)</span>
+        <span class="s1">mt </span><span class="s2">= </span><span class="s1">MultiTrack</span><span class="s2">([</span><span class="s1">t</span><span class="s2">])</span>
+        <span class="s5"># return mt</span>
+
+    <span class="s1">test</span><span class="s2">(</span><span class="s6">5</span><span class="s2">)</span>
+    <span class="s1">base</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<html>
+<head>
+<title>DirectButton.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectButton.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;This module contains the DirectButton class. 
+ 
+See the :ref:`directbutton` page in the programming manual for a more 
+in-depth explanation and an example of how to use this class. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'DirectButton'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectGuiGlobals </span><span class="s4">as </span><span class="s1">DGG</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">DirectFrame </span><span class="s4">import </span><span class="s2">*</span>
+
+<span class="s4">class </span><span class="s1">DirectButton</span><span class="s2">(</span><span class="s1">DirectFrame</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    DirectButton(parent) - Create a DirectGuiWidget which responds 
+    to mouse clicks and execute a callback function if defined 
+    &quot;&quot;&quot;</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s5"># Inherits from DirectFrame</span>
+        <span class="s5"># A Direct Frame can have:</span>
+        <span class="s5"># - A background texture (pass in path to image, or Texture Card)</span>
+        <span class="s5"># - A midground geometry item (pass in geometry)</span>
+        <span class="s5"># - A foreground text Node (pass in text string or Onscreen Text)</span>
+        <span class="s5"># For a direct button:</span>
+        <span class="s5"># Each button has 4 states (ready, press, rollover, disabled)</span>
+        <span class="s5"># The same image/geom/text can be used for all four states or each</span>
+        <span class="s5"># state can have a different text/geom/image</span>
+        <span class="s5"># State transitions happen automatically based upon mouse interaction</span>
+        <span class="s5"># Responds to click event and calls command if None</span>
+        <span class="s1">optiondefs </span><span class="s2">= (</span>
+            <span class="s5"># Define type of DirectGuiWidget</span>
+            <span class="s2">(</span><span class="s3">'pgFunc'</span><span class="s2">,         </span><span class="s1">PGButton</span><span class="s2">,   </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'numStates'</span><span class="s2">,      </span><span class="s6">4</span><span class="s2">,          </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'state'</span><span class="s2">,          </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">NORMAL</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'relief'</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RAISED</span><span class="s2">, </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'invertedFrames'</span><span class="s2">, (</span><span class="s6">1</span><span class="s2">,),       </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Command to be called on button click</span>
+            <span class="s2">(</span><span class="s3">'command'</span><span class="s2">,        </span><span class="s4">None</span><span class="s2">,       </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'extraArgs'</span><span class="s2">,      [],         </span><span class="s4">None</span><span class="s2">),</span>
+            <span class="s5"># Which mouse buttons can be used to click the button</span>
+            <span class="s2">(</span><span class="s3">'commandButtons'</span><span class="s2">, (</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">LMB</span><span class="s2">,),     </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setCommandButtons</span><span class="s2">),</span>
+            <span class="s5"># Sounds to be used for button events</span>
+            <span class="s2">(</span><span class="s3">'rolloverSound'</span><span class="s2">, </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultRolloverSound</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setRolloverSound</span><span class="s2">),</span>
+            <span class="s2">(</span><span class="s3">'clickSound'</span><span class="s2">,    </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">getDefaultClickSound</span><span class="s2">(),    </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setClickSound</span><span class="s2">),</span>
+            <span class="s5"># Can only be specified at time of widget contruction</span>
+            <span class="s5"># Do the text/graphics appear to move when the button is clicked</span>
+            <span class="s2">(</span><span class="s3">'pressEffect'</span><span class="s2">,     </span><span class="s6">1</span><span class="s2">,         </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">INITOPT</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s5"># Merge keyword options with default options</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">defineoptions</span><span class="s2">(</span><span class="s1">kw</span><span class="s2">, </span><span class="s1">optiondefs</span><span class="s2">)</span>
+
+        <span class="s5"># Initialize superclasses</span>
+        <span class="s1">DirectFrame</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">)</span>
+
+        <span class="s5"># If specifed, add scaling to the pressed state to make it</span>
+        <span class="s5"># look like the button is moving when you press it.  We have</span>
+        <span class="s5"># to set up the node first, before we call initialise options;</span>
+        <span class="s5"># but we can't actually apply the scale until we have the</span>
+        <span class="s5"># bounding volume (which happens during initialise options).</span>
+        <span class="s1">pressEffectNP </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'pressEffect'</span><span class="s2">]:</span>
+            <span class="s1">pressEffectNP </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s6">1</span><span class="s2">].</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s3">'pressEffect'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">stateNodePath</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] = </span><span class="s1">pressEffectNP</span>
+
+        <span class="s5"># Call option initialization functions</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">initialiseoptions</span><span class="s2">(</span><span class="s1">DirectButton</span><span class="s2">)</span>
+
+        <span class="s5"># Now apply the scale.</span>
+        <span class="s4">if </span><span class="s1">pressEffectNP</span><span class="s2">:</span>
+            <span class="s1">bounds </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getBounds</span><span class="s2">()</span>
+            <span class="s1">centerX </span><span class="s2">= (</span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">0</span><span class="s2">] + </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">1</span><span class="s2">]) / </span><span class="s6">2</span>
+            <span class="s1">centerY </span><span class="s2">= (</span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">2</span><span class="s2">] + </span><span class="s1">bounds</span><span class="s2">[</span><span class="s6">3</span><span class="s2">]) / </span><span class="s6">2</span>
+
+            <span class="s5"># Make a matrix that scales about the point</span>
+            <span class="s1">mat </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">.</span><span class="s1">translateMat</span><span class="s2">(-</span><span class="s1">centerX</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, -</span><span class="s1">centerY</span><span class="s2">) * </span><span class="s1">\</span>
+                  <span class="s1">Mat4</span><span class="s2">.</span><span class="s1">scaleMat</span><span class="s2">(</span><span class="s6">0.98</span><span class="s2">) * </span><span class="s1">\</span>
+                  <span class="s1">Mat4</span><span class="s2">.</span><span class="s1">translateMat</span><span class="s2">(</span><span class="s1">centerX</span><span class="s2">, </span><span class="s6">0</span><span class="s2">, </span><span class="s1">centerY</span><span class="s2">)</span>
+            <span class="s1">pressEffectNP</span><span class="s2">.</span><span class="s1">setMat</span><span class="s2">(</span><span class="s1">mat</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setCommandButtons</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Attach command function to specified buttons</span>
+        <span class="s5"># Left mouse button</span>
+        <span class="s4">if </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">LMB </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandButtons'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">addClickButton</span><span class="s2">(</span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">one</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1CLICK</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">commandFunc</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1CLICK</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">removeClickButton</span><span class="s2">(</span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">one</span><span class="s2">())</span>
+        <span class="s5"># Middle mouse button</span>
+        <span class="s4">if </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">MMB </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandButtons'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">addClickButton</span><span class="s2">(</span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">two</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2CLICK</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">commandFunc</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2CLICK</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">removeClickButton</span><span class="s2">(</span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">two</span><span class="s2">())</span>
+        <span class="s5"># Right mouse button</span>
+        <span class="s4">if </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RMB </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandButtons'</span><span class="s2">]:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">addClickButton</span><span class="s2">(</span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">three</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B3CLICK</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">commandFunc</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">unbind</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B3CLICK</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">removeClickButton</span><span class="s2">(</span><span class="s1">MouseButton</span><span class="s2">.</span><span class="s1">three</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">commandFunc</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">]:</span>
+            <span class="s5"># Pass any extra args to command</span>
+            <span class="s1">self</span><span class="s2">[</span><span class="s3">'command'</span><span class="s2">](*</span><span class="s1">self</span><span class="s2">[</span><span class="s3">'extraArgs'</span><span class="s2">])</span>
+
+    <span class="s4">def </span><span class="s1">setClickSound</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">clickSound </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'clickSound'</span><span class="s2">]</span>
+        <span class="s5"># Clear out sounds</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B3PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">clickSound</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">LMB </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandButtons'</span><span class="s2">]:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B1PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">clickSound</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">MMB </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandButtons'</span><span class="s2">]:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B2PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">clickSound</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">RMB </span><span class="s4">in </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'commandButtons'</span><span class="s2">]:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">B3PRESS </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">clickSound</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setRolloverSound</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">rolloverSound </span><span class="s2">= </span><span class="s1">self</span><span class="s2">[</span><span class="s3">'rolloverSound'</span><span class="s2">]</span>
+        <span class="s4">if </span><span class="s1">rolloverSound</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">setSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ENTER </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">, </span><span class="s1">rolloverSound</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">guiItem</span><span class="s2">.</span><span class="s1">clearSound</span><span class="s2">(</span><span class="s1">DGG</span><span class="s2">.</span><span class="s1">ENTER </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">guiId</span><span class="s2">)</span>
+
+
+</pre>
+</body>
+</html>

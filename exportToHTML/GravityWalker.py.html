@@ -1,0 +1,643 @@
+<html>
+<head>
+<title>GravityWalker.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+GravityWalker.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+GravityWalker.py is for avatars. 
+ 
+A walker control such as this one provides: 
+ 
+- creation of the collision nodes 
+- handling the keyboard and mouse input for avatar movement 
+- moving the avatar 
+ 
+it does not: 
+ 
+- play sounds 
+- play animations 
+ 
+although it does send messages that allow a listener to play sounds or 
+animations based on walker events. 
+&quot;&quot;&quot;</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directnotify</span><span class="s3">.</span><span class="s1">DirectNotifyGlobal </span><span class="s2">import </span><span class="s1">directNotify</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">controls</span><span class="s3">.</span><span class="s1">ControlManager </span><span class="s2">import </span><span class="s1">CollisionHandlerRayStart</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">InputStateGlobal </span><span class="s2">import </span><span class="s1">inputState</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">task</span><span class="s3">.</span><span class="s1">Task </span><span class="s2">import </span><span class="s1">Task</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">extensions_native </span><span class="s2">import </span><span class="s1">VBase3_extensions</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">extensions_native </span><span class="s2">import </span><span class="s1">VBase4_extensions</span>
+<span class="s2">import </span><span class="s1">math</span>
+
+
+<span class="s2">class </span><span class="s1">GravityWalker</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">.</span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s4">&quot;GravityWalker&quot;</span><span class="s3">)</span>
+    <span class="s1">wantDebugIndicator </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'want-avatar-physics-indicator'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+    <span class="s1">wantFloorSphere </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'want-floor-sphere'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+    <span class="s1">earlyEventSphere </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'early-event-sphere'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+
+    <span class="s1">DiagonalFactor </span><span class="s3">= </span><span class="s1">math</span><span class="s3">.</span><span class="s1">sqrt</span><span class="s3">(</span><span class="s5">2.</span><span class="s3">) / </span><span class="s5">2.</span>
+
+    <span class="s6"># special methods</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">gravity </span><span class="s3">= </span><span class="s5">64.348</span><span class="s3">, </span><span class="s1">standableGround</span><span class="s3">=</span><span class="s5">0.707</span><span class="s3">,</span>
+            <span class="s1">hardLandingForce</span><span class="s3">=</span><span class="s5">16.0</span><span class="s3">, </span><span class="s1">legacyLifter</span><span class="s3">=</span><span class="s2">False</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">DirectObject</span><span class="s3">.</span><span class="s1">DirectObject</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__gravity</span><span class="s3">=</span><span class="s1">gravity</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__standableGround</span><span class="s3">=</span><span class="s1">standableGround</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__hardLandingForce</span><span class="s3">=</span><span class="s1">hardLandingForce</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_legacyLifter </span><span class="s3">= </span><span class="s1">legacyLifter</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump </span><span class="s3">= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask </span><span class="s3">= </span><span class="s2">None</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask </span><span class="s3">= </span><span class="s2">None</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">falling </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">needToDeltaPos </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">physVelocityIndicator</span><span class="s3">=</span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">=</span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlJumpForce</span><span class="s3">=</span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">=</span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">=</span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">getAirborneHeight</span><span class="s3">=</span><span class="s2">None</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__oldPosDelta</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__oldDt</span><span class="s3">=</span><span class="s5">0</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">moving</span><span class="s3">=</span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">=</span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">=</span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">=</span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">collisionsActive </span><span class="s3">= </span><span class="s5">0</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">highMark </span><span class="s3">= </span><span class="s5">0</span>
+
+    <span class="s2">def </span><span class="s1">setWalkSpeed</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">forward</span><span class="s3">, </span><span class="s1">jump</span><span class="s3">, </span><span class="s1">reverse</span><span class="s3">, </span><span class="s1">rotate</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">=</span><span class="s1">forward</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlJumpForce</span><span class="s3">=</span><span class="s1">jump</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">=</span><span class="s1">reverse</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">=</span><span class="s1">rotate</span>
+
+    <span class="s2">def </span><span class="s1">getSpeeds</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s6">#assert self.debugPrint(&quot;getSpeeds()&quot;)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getIsAirborne</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne</span>
+
+    <span class="s2">def </span><span class="s1">setAvatar</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">avatar</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatar </span><span class="s3">= </span><span class="s1">avatar</span>
+        <span class="s2">if </span><span class="s1">avatar </span><span class="s2">is not None</span><span class="s3">:</span>
+            <span class="s2">pass </span><span class="s6"># setup the avatar</span>
+
+    <span class="s2">def </span><span class="s1">setupRay</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitmask</span><span class="s3">, </span><span class="s1">floorOffset</span><span class="s3">, </span><span class="s1">reach</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s6"># This is a ray cast from your head down to detect floor polygons.</span>
+        <span class="s6"># This ray start is arbitrarily high in the air.  Feel free to use</span>
+        <span class="s6"># a higher or lower value depending on whether you want an avatar</span>
+        <span class="s6"># that is outside of the world to step up to the floor when they</span>
+        <span class="s6"># get under valid floor:</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cRay </span><span class="s3">= </span><span class="s1">CollisionRay</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s1">CollisionHandlerRayStart</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, -</span><span class="s5">1.0</span><span class="s3">)</span>
+        <span class="s1">cRayNode </span><span class="s3">= </span><span class="s1">CollisionNode</span><span class="s3">(</span><span class="s4">'GW.cRayNode'</span><span class="s3">)</span>
+        <span class="s1">cRayNode</span><span class="s3">.</span><span class="s1">addSolid</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRay</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">cRayNode</span><span class="s3">)</span>
+        <span class="s1">cRayNode</span><span class="s3">.</span><span class="s1">setFromCollideMask</span><span class="s3">(</span><span class="s1">bitmask</span><span class="s3">)</span>
+        <span class="s1">cRayNode</span><span class="s3">.</span><span class="s1">setIntoCollideMask</span><span class="s3">(</span><span class="s1">BitMask32</span><span class="s3">.</span><span class="s1">allOff</span><span class="s3">())</span>
+
+        <span class="s6"># set up floor collision mechanism</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter </span><span class="s3">= </span><span class="s1">CollisionHandlerGravity</span><span class="s3">()</span>
+        <span class="s6">#self.lifter = CollisionHandlerHighestEvent()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">setLegacyMode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_legacyLifter</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">setGravity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__gravity</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addInPattern</span><span class="s3">(</span><span class="s4">&quot;enter%in&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addAgainPattern</span><span class="s3">(</span><span class="s4">&quot;again%in&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addOutPattern</span><span class="s3">(</span><span class="s4">&quot;exit%in&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">setOffset</span><span class="s3">(</span><span class="s1">floorOffset</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">setReach</span><span class="s3">(</span><span class="s1">reach</span><span class="s3">)</span>
+
+        <span class="s6"># Limit our rate-of-fall with the lifter.</span>
+        <span class="s6"># If this is too low, we actually &quot;fall&quot; off steep stairs</span>
+        <span class="s6"># and float above them as we go down. I increased this</span>
+        <span class="s6"># from 8.0 to 16.0 to prevent this</span>
+        <span class="s6">#self.lifter.setMaxVelocity(16.0)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setupWallSphere</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitmask</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Set up the collision sphere 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s6"># This is a sphere on the ground to detect collisions with</span>
+        <span class="s6"># walls, but not the floor.</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarRadius </span><span class="s3">= </span><span class="s1">avatarRadius</span>
+        <span class="s1">cSphere </span><span class="s3">= </span><span class="s1">CollisionSphere</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">)</span>
+        <span class="s1">cSphereNode </span><span class="s3">= </span><span class="s1">CollisionNode</span><span class="s3">(</span><span class="s4">'GW.cWallSphereNode'</span><span class="s3">)</span>
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">addSolid</span><span class="s3">(</span><span class="s1">cSphere</span><span class="s3">)</span>
+        <span class="s1">cSphereNodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">cSphereNode</span><span class="s3">)</span>
+
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">setFromCollideMask</span><span class="s3">(</span><span class="s1">bitmask</span><span class="s3">)</span>
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">setIntoCollideMask</span><span class="s3">(</span><span class="s1">BitMask32</span><span class="s3">.</span><span class="s1">allOff</span><span class="s3">())</span>
+
+        <span class="s6"># set up collision mechanism</span>
+        <span class="s2">if </span><span class="s1">config</span><span class="s3">.</span><span class="s1">GetBool</span><span class="s3">(</span><span class="s4">'want-fluid-pusher'</span><span class="s3">, </span><span class="s5">0</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pusher </span><span class="s3">= </span><span class="s1">CollisionHandlerFluidPusher</span><span class="s3">()</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pusher </span><span class="s3">= </span><span class="s1">CollisionHandlerPusher</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">pusher</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">cSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath </span><span class="s3">= </span><span class="s1">cSphereNodePath</span>
+
+    <span class="s2">def </span><span class="s1">setupEventSphere</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitmask</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Set up the collision sphere 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s6"># This is a sphere a little larger than the wall sphere to</span>
+        <span class="s6"># trigger events.</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarRadius </span><span class="s3">= </span><span class="s1">avatarRadius</span>
+        <span class="s1">cSphere </span><span class="s3">= </span><span class="s1">CollisionSphere</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">-</span><span class="s5">0.1</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">*</span><span class="s5">1.04</span><span class="s3">)</span>
+        <span class="s6"># Mark it intangible just to emphasize its non-physical purpose.</span>
+        <span class="s1">cSphere</span><span class="s3">.</span><span class="s1">setTangible</span><span class="s3">(</span><span class="s5">0</span><span class="s3">)</span>
+        <span class="s1">cSphereNode </span><span class="s3">= </span><span class="s1">CollisionNode</span><span class="s3">(</span><span class="s4">'GW.cEventSphereNode'</span><span class="s3">)</span>
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">addSolid</span><span class="s3">(</span><span class="s1">cSphere</span><span class="s3">)</span>
+        <span class="s1">cSphereNodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">cSphereNode</span><span class="s3">)</span>
+
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">setFromCollideMask</span><span class="s3">(</span><span class="s1">bitmask</span><span class="s3">)</span>
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">setIntoCollideMask</span><span class="s3">(</span><span class="s1">BitMask32</span><span class="s3">.</span><span class="s1">allOff</span><span class="s3">())</span>
+
+        <span class="s6"># set up collision mechanism</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">event </span><span class="s3">= </span><span class="s1">CollisionHandlerEvent</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">event</span><span class="s3">.</span><span class="s1">addInPattern</span><span class="s3">(</span><span class="s4">&quot;enter%in&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">event</span><span class="s3">.</span><span class="s1">addOutPattern</span><span class="s3">(</span><span class="s4">&quot;exit%in&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cEventSphereNodePath </span><span class="s3">= </span><span class="s1">cSphereNodePath</span>
+
+    <span class="s2">def </span><span class="s1">setupFloorSphere</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitmask</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Set up the collision sphere 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s6"># This is a tiny sphere concentric with the wallSphere to keep</span>
+        <span class="s6"># us from slipping through floors.</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarRadius </span><span class="s3">= </span><span class="s1">avatarRadius</span>
+        <span class="s1">cSphere </span><span class="s3">= </span><span class="s1">CollisionSphere</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">, </span><span class="s5">0.01</span><span class="s3">)</span>
+        <span class="s1">cSphereNode </span><span class="s3">= </span><span class="s1">CollisionNode</span><span class="s3">(</span><span class="s4">'GW.cFloorSphereNode'</span><span class="s3">)</span>
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">addSolid</span><span class="s3">(</span><span class="s1">cSphere</span><span class="s3">)</span>
+        <span class="s1">cSphereNodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">cSphereNode</span><span class="s3">)</span>
+
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">setFromCollideMask</span><span class="s3">(</span><span class="s1">bitmask</span><span class="s3">)</span>
+        <span class="s1">cSphereNode</span><span class="s3">.</span><span class="s1">setIntoCollideMask</span><span class="s3">(</span><span class="s1">BitMask32</span><span class="s3">.</span><span class="s1">allOff</span><span class="s3">())</span>
+
+        <span class="s6"># set up collision mechanism</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">pusherFloorhandler </span><span class="s3">= </span><span class="s1">CollisionHandlerPusher</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">pusherFloor</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">cSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cFloorSphereNodePath </span><span class="s3">= </span><span class="s1">cSphereNodePath</span>
+
+    <span class="s2">def </span><span class="s1">setWallBitMask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitMask</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">wallBitmask </span><span class="s3">= </span><span class="s1">bitMask</span>
+
+    <span class="s2">def </span><span class="s1">setFloorBitMask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitMask</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask </span><span class="s3">= </span><span class="s1">bitMask</span>
+
+    <span class="s2">def </span><span class="s1">swapFloorBitMask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">oldMask</span><span class="s3">, </span><span class="s1">newMask</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask </span><span class="s3">&amp;~ </span><span class="s1">oldMask</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask </span><span class="s3">|= </span><span class="s1">newMask</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath </span><span class="s2">and not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath</span><span class="s3">.</span><span class="s1">isEmpty</span><span class="s3">():</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath</span><span class="s3">.</span><span class="s1">node</span><span class="s3">().</span><span class="s1">setFromCollideMask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setGravity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">gravity</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__gravity </span><span class="s3">= </span><span class="s1">gravity</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">setGravity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__gravity</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getGravity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">gravity</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__gravity</span>
+
+    <span class="s2">def </span><span class="s1">initializeCollisions</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">collisionTraverser</span><span class="s3">, </span><span class="s1">avatarNodePath</span><span class="s3">,</span>
+            <span class="s1">avatarRadius </span><span class="s3">= </span><span class="s5">1.4</span><span class="s3">, </span><span class="s1">floorOffset </span><span class="s3">= </span><span class="s5">1.0</span><span class="s3">, </span><span class="s1">reach </span><span class="s3">= </span><span class="s5">1.0</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        floorOffset is how high the avatar can reach.  I.e. if the avatar 
+            walks under a ledge that is &lt;= floorOffset above the ground (a 
+            double floor situation), the avatar will step up on to the 
+            ledge (instantly). 
+ 
+        Set up the avatar collisions 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+        <span class="s2">assert not </span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">isEmpty</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath </span><span class="s3">= </span><span class="s1">avatarNodePath</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav </span><span class="s3">= </span><span class="s1">collisionTraverser</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setupRay</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask</span><span class="s3">, </span><span class="s1">floorOffset</span><span class="s3">, </span><span class="s1">reach</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setupWallSphere</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">wallBitmask</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setupEventSphere</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">wallBitmask</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantFloorSphere</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setupFloorSphere</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">floorBitmask</span><span class="s3">, </span><span class="s1">avatarRadius</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">setCollisionsActive</span><span class="s3">(</span><span class="s5">1</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setTag</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">key</span><span class="s3">, </span><span class="s1">value</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cEventSphereNodePath</span><span class="s3">.</span><span class="s1">setTag</span><span class="s3">(</span><span class="s1">key</span><span class="s3">, </span><span class="s1">value</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setAirborneHeightFunc</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">unused_parameter</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">getAirborneHeight </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getAirborneHeight</span>
+
+    <span class="s2">def </span><span class="s1">getAirborneHeight</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getAirborneHeight</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">setAvatarPhysicsIndicator</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">indicator</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        indicator is a NodePath 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath</span><span class="s3">.</span><span class="s1">show</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">deleteCollisions</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantFloorSphere</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">cFloorSphereNodePath</span><span class="s3">.</span><span class="s1">removeNode</span><span class="s3">()</span>
+            <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">cFloorSphereNodePath</span>
+
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pusher</span>
+        <span class="s6"># del self.pusherFloor</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">event</span>
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span>
+
+        <span class="s2">del </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getAirborneHeight</span>
+
+    <span class="s2">def </span><span class="s1">setCollisionsActive</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">active </span><span class="s3">= </span><span class="s5">1</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">collisionsActive </span><span class="s3">!= </span><span class="s1">active</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">collisionsActive </span><span class="s3">= </span><span class="s1">active</span>
+            <span class="s6"># Each time we change the collision geometry, make one</span>
+            <span class="s6"># more pass to ensure we aren't standing in a wall.</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">oneTimeCollide</span><span class="s3">()</span>
+            <span class="s6"># make sure we have a shadow traverser</span>
+            <span class="s1">base</span><span class="s3">.</span><span class="s1">initShadowTrav</span><span class="s3">()</span>
+            <span class="s2">if </span><span class="s1">active</span><span class="s3">:</span>
+                <span class="s2">if </span><span class="s5">1</span><span class="s3">:</span>
+                    <span class="s6"># Please let skyler or drose know if this is causing a problem</span>
+                    <span class="s6"># This is a bit of a hack fix:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setP</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setR</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pusher</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantFloorSphere</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cFloorSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pusherFloor</span><span class="s3">)</span>
+                <span class="s6"># Add the lifter to the shadow traverser, which runs after</span>
+                <span class="s6"># our traverser. This prevents the &quot;fall through wall and</span>
+                <span class="s6"># off ledge&quot; bug. The problem was that we couldn't control</span>
+                <span class="s6"># which collided first, the wall pusher or the lifter, if</span>
+                <span class="s6"># they're in the same collision traverser. If the lifter</span>
+                <span class="s6"># collided first, we'd start falling before getting pushed</span>
+                <span class="s6"># back behind the wall.</span>
+                <span class="s1">base</span><span class="s3">.</span><span class="s1">shadowTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">)</span>
+
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">earlyEventSphere</span><span class="s3">:</span>
+                    <span class="s6"># If we want to trigger the events at the same</span>
+                    <span class="s6"># time as we intersect walls (e.g. Toontown, for</span>
+                    <span class="s6"># backward compatibility issues), add the event</span>
+                    <span class="s6"># sphere to the main traverser.  This allows us to</span>
+                    <span class="s6"># hit door triggers that are just slightly behind</span>
+                    <span class="s6"># the door itself.</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cEventSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">event</span><span class="s3">)</span>
+                <span class="s2">else</span><span class="s3">:</span>
+                    <span class="s6"># Normally, we'd rather trigger the events after</span>
+                    <span class="s6"># the pusher has had a chance to fix up our</span>
+                    <span class="s6"># position, so we never trigger things that are</span>
+                    <span class="s6"># behind other polygons.</span>
+                    <span class="s1">base</span><span class="s3">.</span><span class="s1">shadowTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cEventSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">event</span><span class="s3">)</span>
+
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s4">'cTrav'</span><span class="s3">):</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span><span class="s3">.</span><span class="s1">removeCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath</span><span class="s3">)</span>
+                    <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantFloorSphere</span><span class="s3">:</span>
+                        <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span><span class="s3">.</span><span class="s1">removeCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cFloorSphereNodePath</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav</span><span class="s3">.</span><span class="s1">removeCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cEventSphereNodePath</span><span class="s3">)</span>
+                <span class="s1">base</span><span class="s3">.</span><span class="s1">shadowTrav</span><span class="s3">.</span><span class="s1">removeCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cEventSphereNodePath</span><span class="s3">)</span>
+                <span class="s1">base</span><span class="s3">.</span><span class="s1">shadowTrav</span><span class="s3">.</span><span class="s1">removeCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getCollisionsActive</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;getCollisionsActive() returning=%s&quot;</span><span class="s3">%(</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">collisionsActive</span><span class="s3">,))</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">collisionsActive</span>
+
+    <span class="s2">def </span><span class="s1">placeOnFloor</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Make a reasonable effor to place the avatar on the ground. 
+        For example, this is useful when switching away from the 
+        current walker. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">oneTimeCollide</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setZ</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getZ</span><span class="s3">()-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getAirborneHeight</span><span class="s3">())</span>
+
+    <span class="s2">def </span><span class="s1">oneTimeCollide</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Makes one quick collision pass for the avatar, for instance as 
+        a one-time straighten-things-up operation after collisions 
+        have been disabled. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s4">'cWallSphereNodePath'</span><span class="s3">):</span>
+            <span class="s2">return</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump </span><span class="s3">= </span><span class="s5">1</span>
+        <span class="s1">tempCTrav </span><span class="s3">= </span><span class="s1">CollisionTraverser</span><span class="s3">(</span><span class="s4">&quot;oneTimeCollide&quot;</span><span class="s3">)</span>
+        <span class="s1">tempCTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cWallSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">pusher</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantFloorSphere</span><span class="s3">:</span>
+            <span class="s1">tempCTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cFloorSphereNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">event</span><span class="s3">)</span>
+        <span class="s1">tempCTrav</span><span class="s3">.</span><span class="s1">addCollider</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">cRayNodePath</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">)</span>
+        <span class="s1">tempCTrav</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">render</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setMayJump</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        This function's use is internal to this class (maybe I'll add 
+        the __ someday).  Anyway, if you want to enable or disable 
+        jumping in a general way see the ControlManager (don't use this). 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump </span><span class="s3">= </span><span class="s5">1</span>
+        <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">done</span>
+
+    <span class="s2">def </span><span class="s1">startJumpDelay</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">delay</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask</span><span class="s3">=</span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">doMethodLater</span><span class="s3">(</span>
+            <span class="s1">delay</span><span class="s3">,</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setMayJump</span><span class="s3">,</span>
+            <span class="s4">&quot;jumpDelay-%s&quot;</span><span class="s3">%</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">))</span>
+
+    <span class="s2">def </span><span class="s1">addBlastForce</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vector</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addVelocity</span><span class="s3">(</span><span class="s1">vector</span><span class="s3">.</span><span class="s1">length</span><span class="s3">())</span>
+
+    <span class="s2">def </span><span class="s1">displayDebugInfo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        For debug use. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w controls&quot;</span><span class="s3">, </span><span class="s4">&quot;GravityWalker&quot;</span><span class="s3">)</span>
+
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w airborneHeight&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getAirborneHeight</span><span class="s3">())</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w falling&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">falling</span><span class="s3">)</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w isOnGround&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">isOnGround</span><span class="s3">())</span>
+        <span class="s6">#onScreenDebug.add(&quot;w gravity&quot;, self.lifter.getGravity())</span>
+        <span class="s6">#onScreenDebug.add(&quot;w jumpForce&quot;, self.avatarControlJumpForce)</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w contact normal&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getContactNormal</span><span class="s3">().</span><span class="s1">pPrintValues</span><span class="s3">())</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w mayJump&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump</span><span class="s3">)</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w impact&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getImpactVelocity</span><span class="s3">())</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w velocity&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getVelocity</span><span class="s3">())</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w isAirborne&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne</span><span class="s3">)</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w hasContact&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">hasContact</span><span class="s3">())</span>
+
+    <span class="s2">def </span><span class="s1">handleAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Check on the arrow keys and update the avatar. 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># get the button states:</span>
+        <span class="s1">run </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;run&quot;</span><span class="s3">)</span>
+        <span class="s1">forward </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;forward&quot;</span><span class="s3">)</span>
+        <span class="s1">reverse </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;reverse&quot;</span><span class="s3">)</span>
+        <span class="s1">turnLeft </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;turnLeft&quot;</span><span class="s3">)</span>
+        <span class="s1">turnRight </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;turnRight&quot;</span><span class="s3">)</span>
+        <span class="s1">slideLeft </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;slideLeft&quot;</span><span class="s3">)</span>
+        <span class="s1">slideRight </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;slideRight&quot;</span><span class="s3">)</span>
+        <span class="s1">jump </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;jump&quot;</span><span class="s3">)</span>
+
+        <span class="s6"># Check for Auto-Run</span>
+        <span class="s2">if </span><span class="s4">'localAvatar' </span><span class="s2">in </span><span class="s1">__builtins__</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">base</span><span class="s3">.</span><span class="s1">localAvatar </span><span class="s2">and </span><span class="s1">base</span><span class="s3">.</span><span class="s1">localAvatar</span><span class="s3">.</span><span class="s1">getAutoRun</span><span class="s3">():</span>
+                <span class="s1">forward </span><span class="s3">= </span><span class="s5">1</span>
+                <span class="s1">reverse </span><span class="s3">= </span><span class="s5">0</span>
+
+        <span class="s6"># Determine what the speeds are based on the buttons:</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">=(</span><span class="s1">forward </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed </span><span class="s2">or</span>
+                    <span class="s1">reverse </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">)</span>
+        <span class="s6"># Slide speed is a scaled down version of forward speed</span>
+        <span class="s6"># Note: you can multiply a factor in here if you want slide to</span>
+        <span class="s6"># be slower than normal walk/run. Let's try full speed.</span>
+        <span class="s6">#self.slideSpeed=(slideLeft and -self.avatarControlForwardSpeed*0.75 or</span>
+        <span class="s6">#                 slideRight and self.avatarControlForwardSpeed*0.75)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">=(</span><span class="s1">reverse </span><span class="s2">and </span><span class="s1">slideLeft </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">*</span><span class="s5">0.75 </span><span class="s2">or</span>
+                         <span class="s1">reverse </span><span class="s2">and </span><span class="s1">slideRight </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">*</span><span class="s5">0.75 </span><span class="s2">or</span>
+                         <span class="s1">slideLeft </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">*</span><span class="s5">0.75 </span><span class="s2">or</span>
+                         <span class="s1">slideRight </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">*</span><span class="s5">0.75</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">=</span><span class="s2">not </span><span class="s3">(</span><span class="s1">slideLeft </span><span class="s2">or </span><span class="s1">slideRight</span><span class="s3">) </span><span class="s2">and </span><span class="s3">(</span>
+                <span class="s3">(</span><span class="s1">turnLeft </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">) </span><span class="s2">or</span>
+                <span class="s3">(</span><span class="s1">turnRight </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">))</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">speed </span><span class="s3">*= </span><span class="s1">GravityWalker</span><span class="s3">.</span><span class="s1">DiagonalFactor</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed </span><span class="s3">*= </span><span class="s1">GravityWalker</span><span class="s3">.</span><span class="s1">DiagonalFactor</span>
+
+        <span class="s1">debugRunning </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;debugRunning&quot;</span><span class="s3">)</span>
+        <span class="s2">if</span><span class="s3">(</span><span class="s1">debugRunning</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">*=</span><span class="s1">base</span><span class="s3">.</span><span class="s1">debugRunningMultiplier</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">*=</span><span class="s1">base</span><span class="s3">.</span><span class="s1">debugRunningMultiplier</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">*=</span><span class="s5">1.25</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">needToDeltaPos</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setPriorParentVector</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">needToDeltaPos </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantDebugIndicator</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">displayDebugInfo</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">isOnGround</span><span class="s3">():</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s5">0</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;isAirborne 0 due to isOnGround() true&quot;</span><span class="s3">)</span>
+                <span class="s1">impact </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getImpactVelocity</span><span class="s3">()</span>
+                <span class="s2">if </span><span class="s1">impact </span><span class="s3">&lt; -</span><span class="s5">30.0</span><span class="s3">:</span>
+                    <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;jumpHardLand&quot;</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">startJumpDelay</span><span class="s3">(</span><span class="s5">0.3</span><span class="s3">)</span>
+                <span class="s2">else</span><span class="s3">:</span>
+                    <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;jumpLand&quot;</span><span class="s3">)</span>
+                    <span class="s2">if </span><span class="s1">impact </span><span class="s3">&lt; -</span><span class="s5">5.0</span><span class="s3">:</span>
+                        <span class="s1">self</span><span class="s3">.</span><span class="s1">startJumpDelay</span><span class="s3">(</span><span class="s5">0.2</span><span class="s3">)</span>
+                    <span class="s6"># else, ignore the little potholes.</span>
+            <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">== </span><span class="s5">0</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">zero</span><span class="s3">()</span>
+            <span class="s2">if </span><span class="s1">jump </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump</span><span class="s3">:</span>
+                <span class="s6"># The jump button is down and we're close</span>
+                <span class="s6"># enough to the ground to jump.</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">addVelocity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlJumpForce</span><span class="s3">)</span>
+                <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;jumpStart&quot;</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s5">1</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;isAirborne 1 due to jump&quot;</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">== </span><span class="s5">0</span><span class="s3">:</span>
+                <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;isAirborne 1 due to isOnGround() false&quot;</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s5">1</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__oldPosDelta </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getPosDelta</span><span class="s3">(</span><span class="s1">render</span><span class="s3">)</span>
+        <span class="s6"># How far did we move based on the amount of time elapsed?</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__oldDt </span><span class="s3">= </span><span class="s1">ClockObject</span><span class="s3">.</span><span class="s1">getGlobalClock</span><span class="s3">().</span><span class="s1">getDt</span><span class="s3">()</span>
+        <span class="s1">dt</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__oldDt</span>
+
+        <span class="s6"># Check to see if we're moving at all:</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">moving </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed </span><span class="s2">or </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed </span><span class="s2">or </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed </span><span class="s2">or </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent</span><span class="s3">!=</span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">zero</span><span class="s3">())</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">moving</span><span class="s3">:</span>
+            <span class="s1">distance </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span>
+            <span class="s1">slideDistance </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span>
+            <span class="s1">rotation </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span>
+
+            <span class="s6"># Take a step in the direction of our previous heading.</span>
+            <span class="s2">if </span><span class="s1">distance </span><span class="s2">or </span><span class="s1">slideDistance </span><span class="s2">or </span><span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent </span><span class="s3">!= </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">zero</span><span class="s3">():</span>
+                <span class="s6"># rotMat is the rotation matrix corresponding to</span>
+                <span class="s6"># our previous heading.</span>
+                <span class="s1">rotMat</span><span class="s3">=</span><span class="s1">Mat3</span><span class="s3">.</span><span class="s1">rotateMatNormaxis</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getH</span><span class="s3">(), </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">up</span><span class="s3">())</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne</span><span class="s3">:</span>
+                    <span class="s1">forward </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">forward</span><span class="s3">()</span>
+                <span class="s2">else</span><span class="s3">:</span>
+                    <span class="s1">contact </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">getContactNormal</span><span class="s3">()</span>
+                    <span class="s1">forward </span><span class="s3">= </span><span class="s1">contact</span><span class="s3">.</span><span class="s1">cross</span><span class="s3">(</span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">right</span><span class="s3">())</span>
+                    <span class="s6"># Consider commenting out this normalize.  If you do so</span>
+                    <span class="s6"># then going up and down slops is a touch slower and</span>
+                    <span class="s6"># steeper terrain can cut the movement in half.  Without</span>
+                    <span class="s6"># the normalize the movement is slowed by the cosine of</span>
+                    <span class="s6"># the slope (i.e. it is multiplied by the sign as a</span>
+                    <span class="s6"># side effect of the cross product above).</span>
+                    <span class="s1">forward</span><span class="s3">.</span><span class="s1">normalize</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">forward </span><span class="s3">* </span><span class="s1">distance</span><span class="s3">)</span>
+                <span class="s2">if </span><span class="s1">slideDistance</span><span class="s3">:</span>
+                    <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne</span><span class="s3">:</span>
+                        <span class="s1">right </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">right</span><span class="s3">()</span>
+                    <span class="s2">else</span><span class="s3">:</span>
+                        <span class="s1">right </span><span class="s3">= </span><span class="s1">forward</span><span class="s3">.</span><span class="s1">cross</span><span class="s3">(</span><span class="s1">contact</span><span class="s3">)</span>
+                        <span class="s6"># See note above for forward.normalize()</span>
+                        <span class="s1">right</span><span class="s3">.</span><span class="s1">normalize</span><span class="s3">()</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">vel </span><span class="s3">+ (</span><span class="s1">right </span><span class="s3">* </span><span class="s1">slideDistance</span><span class="s3">))</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">rotMat</span><span class="s3">.</span><span class="s1">xform</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">))</span>
+                <span class="s1">step</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">vel </span><span class="s3">+ (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent </span><span class="s3">* </span><span class="s1">dt</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setFluidPos</span><span class="s3">(</span><span class="s1">Point3</span><span class="s3">(</span>
+                        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">()+</span><span class="s1">step</span><span class="s3">))</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setH</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getH</span><span class="s3">()+</span><span class="s1">rotation</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">.</span><span class="s1">set</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">moving </span><span class="s2">or </span><span class="s1">jump</span><span class="s3">:</span>
+            <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;avatarMoving&quot;</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">doDeltaPos</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">needToDeltaPos </span><span class="s3">= </span><span class="s5">1</span>
+
+    <span class="s2">def </span><span class="s1">setPriorParentVector</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if __debug__</span><span class="s3">:</span>
+            <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;__oldDt&quot;</span><span class="s3">, </span><span class="s4">&quot;% 10.4f&quot;</span><span class="s3">%</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__oldDt</span><span class="s3">)</span>
+            <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;self.__oldPosDelta&quot;</span><span class="s3">,</span>
+                              <span class="s1">self</span><span class="s3">.</span><span class="s1">__oldPosDelta</span><span class="s3">.</span><span class="s1">pPrintValues</span><span class="s3">())</span>
+        <span class="s6"># avoid divide by zero crash - grw</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__oldDt </span><span class="s3">== </span><span class="s5">0</span><span class="s3">:</span>
+            <span class="s1">velocity </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">velocity </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__oldPosDelta</span><span class="s3">*(</span><span class="s5">1.0</span><span class="s3">/</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__oldDt</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent </span><span class="s3">= </span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">velocity</span><span class="s3">)</span>
+        <span class="s2">if __debug__</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantDebugIndicator</span><span class="s3">:</span>
+                <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;priorParent&quot;</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent</span><span class="s3">.</span><span class="s1">pPrintValues</span><span class="s3">())</span>
+
+    <span class="s2">def </span><span class="s1">reset</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">setVelocity</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">priorParent</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">zero</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">getVelocity</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span>
+
+    <span class="s2">def </span><span class="s1">enableAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Activate the arrow keys, etc. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">collisionsActive</span>
+
+        <span class="s6">#*#if __debug__:</span>
+        <span class="s6">#*#    self.accept(&quot;control-f3&quot;, self.spawnTest) #*#</span>
+
+        <span class="s6"># remove any old</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+        <span class="s6"># spawn the new task</span>
+        <span class="s1">taskName </span><span class="s3">= </span><span class="s4">&quot;AvatarControls-%s&quot;</span><span class="s3">%(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">),)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask </span><span class="s3">= </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">handleAvatarControls</span><span class="s3">, </span><span class="s1">taskName</span><span class="s3">, </span><span class="s5">25</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">isAirborne </span><span class="s3">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">mayJump </span><span class="s3">= </span><span class="s5">1</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">physVelocityIndicator</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask </span><span class="s3">= </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarPhysicsIndicator</span><span class="s3">,</span>
+                <span class="s4">&quot;AvatarControlsIndicator-%s&quot;</span><span class="s3">%(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">),), </span><span class="s5">35</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disableAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Ignore the arrow keys, etc. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debugStateCall</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">controlsTask </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">indicatorTask </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">jumpDelayTask </span><span class="s3">= </span><span class="s2">None</span>
+
+        <span class="s2">if __debug__</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">ignore</span><span class="s3">(</span><span class="s4">&quot;control-f3&quot;</span><span class="s3">) </span><span class="s6">#*#</span>
+
+
+    <span class="s2">def </span><span class="s1">flushEventHandlers</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s4">'cTrav'</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">pusher</span><span class="s3">.</span><span class="s1">flush</span><span class="s3">()</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantFloorSphere</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">floorPusher</span><span class="s3">.</span><span class="s1">flush</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">event</span><span class="s3">.</span><span class="s1">flush</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">lifter</span><span class="s3">.</span><span class="s1">flush</span><span class="s3">() </span><span class="s6"># not currently defined or needed</span>
+
+    <span class="s2">if __debug__</span><span class="s3">:</span>
+        <span class="s2">def </span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">message</span><span class="s3">):</span>
+            <span class="s0">&quot;&quot;&quot;for debugging&quot;&quot;&quot;</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span>
+                    <span class="s1">str</span><span class="s3">(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">))+</span><span class="s4">' '</span><span class="s3">+</span><span class="s1">message</span><span class="s3">)</span>
+
+    <span class="s6"># There are sometimes issues if the collision ray height is</span>
+    <span class="s6"># so tall that it collides with multiple levels of floors.</span>
+    <span class="s2">def </span><span class="s1">setCollisionRayHeight</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">height</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cRay</span><span class="s3">.</span><span class="s1">setOrigin</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s1">height</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

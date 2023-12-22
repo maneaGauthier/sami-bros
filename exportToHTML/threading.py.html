@@ -1,0 +1,565 @@
+<html>
+<head>
+<title>threading.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+threading.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; This module reimplements Python's native threading module using Panda 
+threading constructs.  It's designed as a drop-in replacement for the 
+threading module for code that works with Panda; it is necessary because 
+in some compilation models, Panda's threading constructs are 
+incompatible with the OS-provided threads used by Python's thread 
+module. 
+ 
+This module implements the threading module with a thin layer over 
+Panda's threading constructs.  As such, the semantics are close to, 
+but not precisely, the semantics documented for Python's standard 
+threading module.  If you really do require strict adherence to 
+Python's semantics, see the threading2 module instead. 
+ 
+However, if you don't need such strict adherence to Python's original 
+semantics, this module is probably a better choice.  It is likely to 
+be slighly faster than the threading2 module (and even slightly faster 
+than Python's own threading module).  It is also better integrated 
+with Panda's threads, so that Panda's thread debug mechanisms will be 
+easier to use and understand. 
+ 
+It is permissible to mix-and-match both threading and threading2 
+within the same application. &quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">panda3d </span><span class="s2">import </span><span class="s1">core</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">stdpy </span><span class="s2">import </span><span class="s1">thread </span><span class="s2">as </span><span class="s1">_thread</span>
+<span class="s2">import </span><span class="s1">sys </span><span class="s2">as </span><span class="s1">_sys</span>
+
+<span class="s2">import </span><span class="s1">weakref</span>
+
+<span class="s1">__all__ </span><span class="s3">= [</span>
+    <span class="s4">'Thread'</span><span class="s3">,</span>
+    <span class="s4">'Lock'</span><span class="s3">, </span><span class="s4">'RLock'</span><span class="s3">,</span>
+    <span class="s4">'Condition'</span><span class="s3">,</span>
+    <span class="s4">'Semaphore'</span><span class="s3">, </span><span class="s4">'BoundedSemaphore'</span><span class="s3">,</span>
+    <span class="s4">'Event'</span><span class="s3">,</span>
+    <span class="s4">'Timer'</span><span class="s3">,</span>
+    <span class="s4">'ThreadError'</span><span class="s3">,</span>
+    <span class="s4">'local'</span><span class="s3">,</span>
+    <span class="s4">'current_thread'</span><span class="s3">,</span>
+    <span class="s4">'main_thread'</span><span class="s3">,</span>
+    <span class="s4">'enumerate'</span><span class="s3">, </span><span class="s4">'active_count'</span><span class="s3">,</span>
+    <span class="s4">'settrace'</span><span class="s3">, </span><span class="s4">'setprofile'</span><span class="s3">, </span><span class="s4">'stack_size'</span><span class="s3">,</span>
+    <span class="s4">'TIMEOUT_MAX'</span><span class="s3">,</span>
+    <span class="s3">]</span>
+
+<span class="s1">TIMEOUT_MAX </span><span class="s3">= </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">TIMEOUT_MAX</span>
+
+<span class="s1">local </span><span class="s3">= </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_local</span>
+<span class="s1">_newname </span><span class="s3">= </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_newname</span>
+<span class="s1">ThreadError </span><span class="s3">= </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">error</span>
+
+<span class="s2">class </span><span class="s1">ThreadBase</span><span class="s3">:</span>
+    <span class="s0">&quot;&quot;&quot; A base class for both Thread and ExternalThread in this 
+    module. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">getName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+    <span class="s2">def </span><span class="s1">isDaemon</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">daemon</span>
+
+    <span class="s2">def </span><span class="s1">setDaemon</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">daemon</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">is_alive</span><span class="s3">():</span>
+            <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'daemon'</span><span class="s3">] = </span><span class="s1">daemon</span>
+
+    <span class="s2">def </span><span class="s1">__setattr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">key</span><span class="s3">, </span><span class="s1">value</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">key </span><span class="s3">== </span><span class="s4">'name'</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s1">value</span><span class="s3">)</span>
+        <span class="s2">elif </span><span class="s1">key </span><span class="s3">== </span><span class="s4">'ident'</span><span class="s3">:</span>
+            <span class="s2">raise </span><span class="s1">AttributeError</span>
+        <span class="s2">elif </span><span class="s1">key </span><span class="s3">== </span><span class="s4">'daemon'</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">setDaemon</span><span class="s3">(</span><span class="s1">value</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s1">key</span><span class="s3">] = </span><span class="s1">value</span>
+
+<span class="s5"># Copy these static methods from Panda's Thread object.  These are</span>
+<span class="s5"># useful if you may be running in Panda's SIMPLE_THREADS compilation</span>
+<span class="s5"># mode.</span>
+<span class="s1">ThreadBase</span><span class="s3">.</span><span class="s1">forceYield </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Thread</span><span class="s3">.</span><span class="s1">forceYield</span>
+<span class="s1">ThreadBase</span><span class="s3">.</span><span class="s1">considerYield </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Thread</span><span class="s3">.</span><span class="s1">considerYield</span>
+
+<span class="s2">class </span><span class="s1">Thread</span><span class="s3">(</span><span class="s1">ThreadBase</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; This class provides a wrapper around Panda's PythonThread 
+    object.  The wrapper is designed to emulate Python's own 
+    threading.Thread object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">group</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">target</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">name</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">args</span><span class="s3">=(), </span><span class="s1">kwargs</span><span class="s3">={}, </span><span class="s1">daemon</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s1">ThreadBase</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+        <span class="s2">assert </span><span class="s1">group </span><span class="s2">is None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__target </span><span class="s3">= </span><span class="s1">target</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__args </span><span class="s3">= </span><span class="s1">args</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__kwargs </span><span class="s3">= </span><span class="s1">kwargs</span>
+
+        <span class="s2">if not </span><span class="s1">name</span><span class="s3">:</span>
+            <span class="s1">name </span><span class="s3">= </span><span class="s1">_newname</span><span class="s3">()</span>
+
+        <span class="s1">current </span><span class="s3">= </span><span class="s1">current_thread</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">daemon </span><span class="s2">is not None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'daemon'</span><span class="s3">] = </span><span class="s1">daemon</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'daemon'</span><span class="s3">] = </span><span class="s1">current</span><span class="s3">.</span><span class="s1">daemon</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'name'</span><span class="s3">] = </span><span class="s1">name</span>
+
+        <span class="s2">def </span><span class="s1">call_run</span><span class="s3">():</span>
+            <span class="s5"># As soon as the thread is done, break the circular reference.</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">run</span><span class="s3">()</span>
+            <span class="s2">finally</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">__thread </span><span class="s3">= </span><span class="s2">None</span>
+                <span class="s1">_thread</span><span class="s3">.</span><span class="s1">_remove_thread_id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">ident</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__thread </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">PythonThread</span><span class="s3">(</span><span class="s1">call_run</span><span class="s3">, </span><span class="s2">None</span><span class="s3">, </span><span class="s1">name</span><span class="s3">, </span><span class="s1">name</span><span class="s3">)</span>
+        <span class="s1">threadId </span><span class="s3">= </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_add_thread</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span><span class="s3">, </span><span class="s1">weakref</span><span class="s3">.</span><span class="s1">proxy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'ident'</span><span class="s3">] = </span><span class="s1">threadId</span>
+
+    <span class="s2">def </span><span class="s1">__del__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># On interpreter shutdown, the _thread module might have</span>
+        <span class="s5"># already been cleaned up.</span>
+        <span class="s2">if </span><span class="s1">_thread </span><span class="s2">and </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_remove_thread_id</span><span class="s3">:</span>
+            <span class="s1">_thread</span><span class="s3">.</span><span class="s1">_remove_thread_id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">ident</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">is_alive</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">thread </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span>
+        <span class="s2">return </span><span class="s1">thread </span><span class="s2">is not None and </span><span class="s1">thread</span><span class="s3">.</span><span class="s1">is_started</span><span class="s3">()</span>
+
+    <span class="s1">isAlive </span><span class="s3">= </span><span class="s1">is_alive</span>
+
+    <span class="s2">def </span><span class="s1">start</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">thread </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span>
+        <span class="s2">if </span><span class="s1">thread </span><span class="s2">is None or </span><span class="s1">thread</span><span class="s3">.</span><span class="s1">is_started</span><span class="s3">():</span>
+            <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+        <span class="s2">if not </span><span class="s1">thread</span><span class="s3">.</span><span class="s1">start</span><span class="s3">(</span><span class="s1">core</span><span class="s3">.</span><span class="s1">TPNormal</span><span class="s3">, </span><span class="s2">True</span><span class="s3">):</span>
+            <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+    <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">_settrace_func</span><span class="s3">:</span>
+            <span class="s1">_sys</span><span class="s3">.</span><span class="s1">settrace</span><span class="s3">(</span><span class="s1">_settrace_func</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">_setprofile_func</span><span class="s3">:</span>
+            <span class="s1">_sys</span><span class="s3">.</span><span class="s1">setprofile</span><span class="s3">(</span><span class="s1">_setprofile_func</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__target</span><span class="s3">(*</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__args</span><span class="s3">, **</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__kwargs</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">join</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">timeout </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s5"># We don't support a timed join here, sorry.</span>
+        <span class="s2">assert </span><span class="s1">timeout </span><span class="s2">is None</span>
+        <span class="s1">thread </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span>
+        <span class="s2">if </span><span class="s1">thread </span><span class="s2">is not None</span><span class="s3">:</span>
+            <span class="s1">thread</span><span class="s3">.</span><span class="s1">join</span><span class="s3">()</span>
+            <span class="s5"># Clear the circular reference.</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__thread </span><span class="s3">= </span><span class="s2">None</span>
+            <span class="s1">_thread</span><span class="s3">.</span><span class="s1">_remove_thread_id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">ident</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'name'</span><span class="s3">] = </span><span class="s1">name</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s1">name</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">ExternalThread</span><span class="s3">(</span><span class="s1">ThreadBase</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; Returned for a Thread object that wasn't created by this 
+    interface. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">extThread</span><span class="s3">, </span><span class="s1">threadId</span><span class="s3">):</span>
+        <span class="s1">ThreadBase</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__thread </span><span class="s3">= </span><span class="s1">extThread</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'daemon'</span><span class="s3">] = </span><span class="s2">True</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'name'</span><span class="s3">] = </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span><span class="s3">.</span><span class="s1">getName</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'ident'</span><span class="s3">] = </span><span class="s1">threadId</span>
+
+    <span class="s2">def </span><span class="s1">is_alive</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span><span class="s3">.</span><span class="s1">isStarted</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">isAlive</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__thread</span><span class="s3">.</span><span class="s1">isStarted</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">start</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+    <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+    <span class="s2">def </span><span class="s1">join</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">timeout </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+    <span class="s2">def </span><span class="s1">setDaemon</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">daemon</span><span class="s3">):</span>
+        <span class="s2">raise </span><span class="s1">RuntimeError</span>
+
+<span class="s2">class </span><span class="s1">MainThread</span><span class="s3">(</span><span class="s1">ExternalThread</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; Returned for the MainThread object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">extThread</span><span class="s3">, </span><span class="s1">threadId</span><span class="s3">):</span>
+        <span class="s1">ExternalThread</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">extThread</span><span class="s3">, </span><span class="s1">threadId</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__dict__</span><span class="s3">[</span><span class="s4">'daemon'</span><span class="s3">] = </span><span class="s2">False</span>
+
+<span class="s2">class </span><span class="s1">Lock</span><span class="s3">(</span><span class="s1">core</span><span class="s3">.</span><span class="s1">Mutex</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; This class provides a wrapper around Panda's Mutex object. 
+    The wrapper is designed to emulate Python's own threading.Lock 
+    object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name </span><span class="s3">= </span><span class="s4">&quot;PythonLock&quot;</span><span class="s3">):</span>
+        <span class="s1">core</span><span class="s3">.</span><span class="s1">Mutex</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">blocking </span><span class="s3">= </span><span class="s2">True</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">blocking</span><span class="s3">:</span>
+            <span class="s1">core</span><span class="s3">.</span><span class="s1">Mutex</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+            <span class="s2">return True</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Mutex</span><span class="s3">.</span><span class="s1">tryAcquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s1">__enter__ </span><span class="s3">= </span><span class="s1">acquire</span>
+
+    <span class="s2">def </span><span class="s1">__exit__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">, </span><span class="s1">v</span><span class="s3">, </span><span class="s1">tb</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+<span class="s2">class </span><span class="s1">RLock</span><span class="s3">(</span><span class="s1">core</span><span class="s3">.</span><span class="s1">ReMutex</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; This class provides a wrapper around Panda's ReMutex object. 
+    The wrapper is designed to emulate Python's own threading.RLock 
+    object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name </span><span class="s3">= </span><span class="s4">&quot;PythonRLock&quot;</span><span class="s3">):</span>
+        <span class="s1">core</span><span class="s3">.</span><span class="s1">ReMutex</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">blocking </span><span class="s3">= </span><span class="s2">True</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">blocking</span><span class="s3">:</span>
+            <span class="s1">core</span><span class="s3">.</span><span class="s1">ReMutex</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+            <span class="s2">return True</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">core</span><span class="s3">.</span><span class="s1">ReMutex</span><span class="s3">.</span><span class="s1">tryAcquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s1">__enter__ </span><span class="s3">= </span><span class="s1">acquire</span>
+
+    <span class="s2">def </span><span class="s1">__exit__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">, </span><span class="s1">v</span><span class="s3">, </span><span class="s1">tb</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+
+<span class="s2">class </span><span class="s1">Condition</span><span class="s3">(</span><span class="s1">core</span><span class="s3">.</span><span class="s1">ConditionVarFull</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; This class provides a wrapper around Panda's ConditionVarFull 
+    object.  The wrapper is designed to emulate Python's own 
+    threading.Condition object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">lock </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">if not </span><span class="s1">lock</span><span class="s3">:</span>
+            <span class="s1">lock </span><span class="s3">= </span><span class="s1">Lock</span><span class="s3">()</span>
+
+        <span class="s5"># Panda doesn't support RLock objects used with condition</span>
+        <span class="s5"># variables.</span>
+        <span class="s2">assert </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">lock</span><span class="s3">, </span><span class="s1">Lock</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock </span><span class="s3">= </span><span class="s1">lock</span>
+        <span class="s1">core</span><span class="s3">.</span><span class="s1">ConditionVarFull</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, *</span><span class="s1">args</span><span class="s3">, **</span><span class="s1">kw</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">(*</span><span class="s1">args</span><span class="s3">, **</span><span class="s1">kw</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">release</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">wait</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">timeout </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">timeout </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">core</span><span class="s3">.</span><span class="s1">ConditionVarFull</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">core</span><span class="s3">.</span><span class="s1">ConditionVarFull</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">timeout</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">notifyAll</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">core</span><span class="s3">.</span><span class="s1">ConditionVarFull</span><span class="s3">.</span><span class="s1">notifyAll</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s1">notify_all </span><span class="s3">= </span><span class="s1">notifyAll</span>
+
+    <span class="s1">__enter__ </span><span class="s3">= </span><span class="s1">acquire</span>
+
+    <span class="s2">def </span><span class="s1">__exit__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">, </span><span class="s1">v</span><span class="s3">, </span><span class="s1">tb</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+<span class="s2">class </span><span class="s1">Semaphore</span><span class="s3">(</span><span class="s1">core</span><span class="s3">.</span><span class="s1">Semaphore</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; This class provides a wrapper around Panda's Semaphore 
+    object.  The wrapper is designed to emulate Python's own 
+    threading.Semaphore object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">value </span><span class="s3">= </span><span class="s6">1</span><span class="s3">):</span>
+        <span class="s1">core</span><span class="s3">.</span><span class="s1">Semaphore</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">value</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">blocking </span><span class="s3">= </span><span class="s2">True</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">blocking</span><span class="s3">:</span>
+            <span class="s1">core</span><span class="s3">.</span><span class="s1">Semaphore</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+            <span class="s2">return True</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Semaphore</span><span class="s3">.</span><span class="s1">tryAcquire</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s1">__enter__ </span><span class="s3">= </span><span class="s1">acquire</span>
+
+    <span class="s2">def </span><span class="s1">__exit__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">t</span><span class="s3">, </span><span class="s1">v</span><span class="s3">, </span><span class="s1">tb</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+<span class="s2">class </span><span class="s1">BoundedSemaphore</span><span class="s3">(</span><span class="s1">Semaphore</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; This class provides a wrapper around Panda's Semaphore 
+    object.  The wrapper is designed to emulate Python's own 
+    threading.BoundedSemaphore object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">value </span><span class="s3">= </span><span class="s6">1</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__max </span><span class="s3">= </span><span class="s1">value</span>
+        <span class="s1">Semaphore</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">value</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">release</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getCount</span><span class="s3">() &gt; </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__max</span><span class="s3">:</span>
+            <span class="s2">raise </span><span class="s1">ValueError</span>
+
+        <span class="s1">Semaphore</span><span class="s3">.</span><span class="s1">release</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">Event</span><span class="s3">:</span>
+    <span class="s0">&quot;&quot;&quot; This class is designed to emulate Python's own threading.Event 
+    object. &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Mutex</span><span class="s3">(</span><span class="s4">&quot;Python Event&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__cvar </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">ConditionVarFull</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__flag </span><span class="s3">= </span><span class="s2">False</span>
+
+    <span class="s2">def </span><span class="s1">is_set</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__flag</span>
+
+    <span class="s1">isSet </span><span class="s3">= </span><span class="s1">is_set</span>
+
+    <span class="s2">def </span><span class="s1">set</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">()</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__flag </span><span class="s3">= </span><span class="s2">True</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__cvar</span><span class="s3">.</span><span class="s1">notifyAll</span><span class="s3">()</span>
+
+        <span class="s2">finally</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">clear</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">()</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__flag </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s2">finally</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">wait</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">timeout </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">()</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">timeout </span><span class="s2">is None</span><span class="s3">:</span>
+                <span class="s2">while not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__flag</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">__cvar</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">()</span>
+            <span class="s2">else</span><span class="s3">:</span>
+                <span class="s1">clock </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">TrueClock</span><span class="s3">.</span><span class="s1">getGlobalPtr</span><span class="s3">()</span>
+                <span class="s1">expires </span><span class="s3">= </span><span class="s1">clock</span><span class="s3">.</span><span class="s1">getShortTime</span><span class="s3">() + </span><span class="s1">timeout</span>
+                <span class="s2">while not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__flag</span><span class="s3">:</span>
+                    <span class="s1">wait </span><span class="s3">= </span><span class="s1">expires </span><span class="s3">- </span><span class="s1">clock</span><span class="s3">.</span><span class="s1">getShortTime</span><span class="s3">()</span>
+                    <span class="s2">if </span><span class="s1">wait </span><span class="s3">&lt; </span><span class="s6">0</span><span class="s3">:</span>
+                        <span class="s2">return</span>
+
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">__cvar</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">(</span><span class="s1">wait</span><span class="s3">)</span>
+
+        <span class="s2">finally</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">__lock</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+<span class="s2">class </span><span class="s1">Timer</span><span class="s3">(</span><span class="s1">Thread</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot;Call a function after a specified number of seconds: 
+ 
+    t = Timer(30.0, f, args=[], kwargs={}) 
+    t.start() 
+    t.cancel() # stop the timer's action if it's still waiting 
+    &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">interval</span><span class="s3">, </span><span class="s1">function</span><span class="s3">, </span><span class="s1">args</span><span class="s3">=[], </span><span class="s1">kwargs</span><span class="s3">={}):</span>
+        <span class="s1">Thread</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">interval </span><span class="s3">= </span><span class="s1">interval</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">function </span><span class="s3">= </span><span class="s1">function</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">args </span><span class="s3">= </span><span class="s1">args</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">kwargs </span><span class="s3">= </span><span class="s1">kwargs</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">finished </span><span class="s3">= </span><span class="s1">Event</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">cancel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Stop the timer if it hasn't finished yet&quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">finished</span><span class="s3">.</span><span class="s1">set</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">finished</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">interval</span><span class="s3">)</span>
+        <span class="s2">if not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">finished</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">():</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">function</span><span class="s3">(*</span><span class="s1">self</span><span class="s3">.</span><span class="s1">args</span><span class="s3">, **</span><span class="s1">self</span><span class="s3">.</span><span class="s1">kwargs</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">finished</span><span class="s3">.</span><span class="s1">set</span><span class="s3">()</span>
+
+<span class="s2">def </span><span class="s1">_create_thread_wrapper</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">threadId</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot; Creates a thread wrapper for the indicated external thread. &quot;&quot;&quot;</span>
+    <span class="s2">if </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">core</span><span class="s3">.</span><span class="s1">MainThread</span><span class="s3">):</span>
+        <span class="s1">pyt </span><span class="s3">= </span><span class="s1">MainThread</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">threadId</span><span class="s3">)</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s1">pyt </span><span class="s3">= </span><span class="s1">ExternalThread</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">threadId</span><span class="s3">)</span>
+
+    <span class="s2">return </span><span class="s1">pyt</span>
+
+<span class="s2">def </span><span class="s1">current_thread</span><span class="s3">():</span>
+    <span class="s1">t </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Thread</span><span class="s3">.</span><span class="s1">getCurrentThread</span><span class="s3">()</span>
+    <span class="s2">return </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_get_thread_wrapper</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">_create_thread_wrapper</span><span class="s3">)</span>
+
+<span class="s2">def </span><span class="s1">main_thread</span><span class="s3">():</span>
+    <span class="s1">t </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Thread</span><span class="s3">.</span><span class="s1">getMainThread</span><span class="s3">()</span>
+    <span class="s2">return </span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_get_thread_wrapper</span><span class="s3">(</span><span class="s1">t</span><span class="s3">, </span><span class="s1">_create_thread_wrapper</span><span class="s3">)</span>
+
+<span class="s1">currentThread </span><span class="s3">= </span><span class="s1">current_thread</span>
+
+<span class="s2">def </span><span class="s1">enumerate</span><span class="s3">():</span>
+    <span class="s1">tlist </span><span class="s3">= []</span>
+    <span class="s1">_thread</span><span class="s3">.</span><span class="s1">_threadsLock</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">()</span>
+    <span class="s2">try</span><span class="s3">:</span>
+        <span class="s2">for </span><span class="s1">thread</span><span class="s3">, </span><span class="s1">locals</span><span class="s3">, </span><span class="s1">wrapper </span><span class="s2">in </span><span class="s1">list</span><span class="s3">(</span><span class="s1">_thread</span><span class="s3">.</span><span class="s1">_threads</span><span class="s3">.</span><span class="s1">values</span><span class="s3">()):</span>
+            <span class="s2">if </span><span class="s1">wrapper </span><span class="s2">and </span><span class="s1">wrapper</span><span class="s3">.</span><span class="s1">is_alive</span><span class="s3">():</span>
+                <span class="s1">tlist</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">wrapper</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">tlist</span>
+    <span class="s2">finally</span><span class="s3">:</span>
+        <span class="s1">_thread</span><span class="s3">.</span><span class="s1">_threadsLock</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+<span class="s2">def </span><span class="s1">active_count</span><span class="s3">():</span>
+    <span class="s2">return </span><span class="s1">len</span><span class="s3">(</span><span class="s1">enumerate</span><span class="s3">())</span>
+
+<span class="s1">activeCount </span><span class="s3">= </span><span class="s1">active_count</span>
+
+<span class="s1">_settrace_func </span><span class="s3">= </span><span class="s2">None</span>
+<span class="s2">def </span><span class="s1">settrace</span><span class="s3">(</span><span class="s1">func</span><span class="s3">):</span>
+    <span class="s2">global </span><span class="s1">_settrace_func</span>
+    <span class="s1">_settrace_func </span><span class="s3">= </span><span class="s1">func</span>
+
+<span class="s1">_setprofile_func </span><span class="s3">= </span><span class="s2">None</span>
+<span class="s2">def </span><span class="s1">setprofile</span><span class="s3">(</span><span class="s1">func</span><span class="s3">):</span>
+    <span class="s2">global </span><span class="s1">_setprofile_func</span>
+    <span class="s1">_setprofile_func </span><span class="s3">= </span><span class="s1">func</span>
+
+<span class="s2">def </span><span class="s1">stack_size</span><span class="s3">(</span><span class="s1">size </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+    <span class="s2">raise </span><span class="s1">ThreadError</span>
+
+<span class="s2">if __debug__</span><span class="s3">:</span>
+    <span class="s2">def </span><span class="s1">_test</span><span class="s3">():</span>
+        <span class="s2">from </span><span class="s1">collections </span><span class="s2">import </span><span class="s1">deque</span>
+
+        <span class="s1">_sleep </span><span class="s3">= </span><span class="s1">core</span><span class="s3">.</span><span class="s1">Thread</span><span class="s3">.</span><span class="s1">sleep</span>
+
+        <span class="s1">_VERBOSE </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s2">class </span><span class="s1">_Verbose</span><span class="s3">(</span><span class="s1">object</span><span class="s3">):</span>
+
+            <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">verbose</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+                <span class="s2">if </span><span class="s1">verbose </span><span class="s2">is None</span><span class="s3">:</span>
+                    <span class="s1">verbose </span><span class="s3">= </span><span class="s1">_VERBOSE</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">__verbose </span><span class="s3">= </span><span class="s1">verbose</span>
+
+            <span class="s2">def </span><span class="s1">_note</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">format</span><span class="s3">, *</span><span class="s1">args</span><span class="s3">):</span>
+                <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">__verbose</span><span class="s3">:</span>
+                    <span class="s1">format </span><span class="s3">= </span><span class="s1">format </span><span class="s3">% </span><span class="s1">args</span>
+                    <span class="s1">format </span><span class="s3">= </span><span class="s4">&quot;%s: %s</span><span class="s2">\n</span><span class="s4">&quot; </span><span class="s3">% (</span>
+                        <span class="s1">currentThread</span><span class="s3">().</span><span class="s1">getName</span><span class="s3">(), </span><span class="s1">format</span><span class="s3">)</span>
+                    <span class="s1">_sys</span><span class="s3">.</span><span class="s1">stderr</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">format</span><span class="s3">)</span>
+
+        <span class="s2">class </span><span class="s1">BoundedQueue</span><span class="s3">(</span><span class="s1">_Verbose</span><span class="s3">):</span>
+
+            <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">limit</span><span class="s3">):</span>
+                <span class="s1">_Verbose</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">mon </span><span class="s3">= </span><span class="s1">Lock</span><span class="s3">(</span><span class="s1">name </span><span class="s3">= </span><span class="s4">&quot;BoundedQueue.mon&quot;</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">rc </span><span class="s3">= </span><span class="s1">Condition</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">mon</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">wc </span><span class="s3">= </span><span class="s1">Condition</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">mon</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">limit </span><span class="s3">= </span><span class="s1">limit</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">queue </span><span class="s3">= </span><span class="s1">deque</span><span class="s3">()</span>
+
+            <span class="s2">def </span><span class="s1">put</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">item</span><span class="s3">):</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">mon</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">()</span>
+                <span class="s2">while </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">) &gt;= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">limit</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">_note</span><span class="s3">(</span><span class="s4">&quot;put(%s): queue full&quot;</span><span class="s3">, </span><span class="s1">item</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">wc</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_note</span><span class="s3">(</span><span class="s4">&quot;put(%s): appended, length now %d&quot;</span><span class="s3">,</span>
+                           <span class="s1">item</span><span class="s3">, </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">))</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">rc</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">mon</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+
+            <span class="s2">def </span><span class="s1">get</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">mon</span><span class="s3">.</span><span class="s1">acquire</span><span class="s3">()</span>
+                <span class="s2">while not </span><span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">:</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">_note</span><span class="s3">(</span><span class="s4">&quot;get(): queue empty&quot;</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">rc</span><span class="s3">.</span><span class="s1">wait</span><span class="s3">()</span>
+                <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">.</span><span class="s1">popleft</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">_note</span><span class="s3">(</span><span class="s4">&quot;get(): got %s, %d left&quot;</span><span class="s3">, </span><span class="s1">item</span><span class="s3">, </span><span class="s1">len</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">))</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">wc</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">()</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">mon</span><span class="s3">.</span><span class="s1">release</span><span class="s3">()</span>
+                <span class="s2">return </span><span class="s1">item</span>
+
+        <span class="s2">class </span><span class="s1">ProducerThread</span><span class="s3">(</span><span class="s1">Thread</span><span class="s3">):</span>
+
+            <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">queue</span><span class="s3">, </span><span class="s1">quota</span><span class="s3">):</span>
+                <span class="s1">Thread</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">=</span><span class="s4">&quot;Producer&quot;</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">queue </span><span class="s3">= </span><span class="s1">queue</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">quota </span><span class="s3">= </span><span class="s1">quota</span>
+
+            <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+                <span class="s2">from </span><span class="s1">random </span><span class="s2">import </span><span class="s1">random</span>
+                <span class="s1">counter </span><span class="s3">= </span><span class="s6">0</span>
+                <span class="s2">while </span><span class="s1">counter </span><span class="s3">&lt; </span><span class="s1">self</span><span class="s3">.</span><span class="s1">quota</span><span class="s3">:</span>
+                    <span class="s1">counter </span><span class="s3">= </span><span class="s1">counter </span><span class="s3">+ </span><span class="s6">1</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">.</span><span class="s1">put</span><span class="s3">(</span><span class="s4">&quot;%s.%d&quot; </span><span class="s3">% (</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getName</span><span class="s3">(), </span><span class="s1">counter</span><span class="s3">))</span>
+                    <span class="s1">_sleep</span><span class="s3">(</span><span class="s1">random</span><span class="s3">() * </span><span class="s6">0.00001</span><span class="s3">)</span>
+
+
+        <span class="s2">class </span><span class="s1">ConsumerThread</span><span class="s3">(</span><span class="s1">Thread</span><span class="s3">):</span>
+
+            <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">queue</span><span class="s3">, </span><span class="s1">count</span><span class="s3">):</span>
+                <span class="s1">Thread</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">=</span><span class="s4">&quot;Consumer&quot;</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">queue </span><span class="s3">= </span><span class="s1">queue</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">count </span><span class="s3">= </span><span class="s1">count</span>
+
+            <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+                <span class="s2">while </span><span class="s1">self</span><span class="s3">.</span><span class="s1">count </span><span class="s3">&gt; </span><span class="s6">0</span><span class="s3">:</span>
+                    <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">queue</span><span class="s3">.</span><span class="s1">get</span><span class="s3">()</span>
+                    <span class="s1">print</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+                    <span class="s1">self</span><span class="s3">.</span><span class="s1">count </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">count </span><span class="s3">- </span><span class="s6">1</span>
+
+        <span class="s1">NP </span><span class="s3">= </span><span class="s6">3</span>
+        <span class="s1">QL </span><span class="s3">= </span><span class="s6">4</span>
+        <span class="s1">NI </span><span class="s3">= </span><span class="s6">5</span>
+
+        <span class="s1">Q </span><span class="s3">= </span><span class="s1">BoundedQueue</span><span class="s3">(</span><span class="s1">QL</span><span class="s3">)</span>
+        <span class="s1">P </span><span class="s3">= []</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">NP</span><span class="s3">):</span>
+            <span class="s1">t </span><span class="s3">= </span><span class="s1">ProducerThread</span><span class="s3">(</span><span class="s1">Q</span><span class="s3">, </span><span class="s1">NI</span><span class="s3">)</span>
+            <span class="s1">t</span><span class="s3">.</span><span class="s1">setName</span><span class="s3">(</span><span class="s4">&quot;Producer-%d&quot; </span><span class="s3">% (</span><span class="s1">i</span><span class="s3">+</span><span class="s6">1</span><span class="s3">))</span>
+            <span class="s1">P</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">t</span><span class="s3">)</span>
+        <span class="s1">C </span><span class="s3">= </span><span class="s1">ConsumerThread</span><span class="s3">(</span><span class="s1">Q</span><span class="s3">, </span><span class="s1">NI</span><span class="s3">*</span><span class="s1">NP</span><span class="s3">)</span>
+        <span class="s2">for </span><span class="s1">t </span><span class="s2">in </span><span class="s1">P</span><span class="s3">:</span>
+            <span class="s1">t</span><span class="s3">.</span><span class="s1">start</span><span class="s3">()</span>
+            <span class="s1">_sleep</span><span class="s3">(</span><span class="s6">0.000001</span><span class="s3">)</span>
+        <span class="s1">C</span><span class="s3">.</span><span class="s1">start</span><span class="s3">()</span>
+        <span class="s2">for </span><span class="s1">t </span><span class="s2">in </span><span class="s1">P</span><span class="s3">:</span>
+            <span class="s1">t</span><span class="s3">.</span><span class="s1">join</span><span class="s3">()</span>
+        <span class="s1">C</span><span class="s3">.</span><span class="s1">join</span><span class="s3">()</span>
+
+    <span class="s2">if </span><span class="s1">__name__ </span><span class="s3">== </span><span class="s4">'__main__'</span><span class="s3">:</span>
+        <span class="s1">_test</span><span class="s3">()</span>
+</pre>
+</body>
+</html>

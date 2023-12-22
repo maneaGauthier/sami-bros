@@ -1,0 +1,216 @@
+<html>
+<head>
+<title>DevWalker.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DevWalker.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+DevWalker.py is for avatars. 
+ 
+A walker control such as this one provides: 
+ 
+- creation of the collision nodes 
+- handling the keyboard and mouse input for avatar movement 
+- moving the avatar 
+ 
+it does not: 
+ 
+- play sounds 
+- play animations 
+ 
+although it does send messages that allow a listener to play sounds or 
+animations based on walker events. 
+&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">InputStateGlobal </span><span class="s2">import </span><span class="s1">inputState</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">directnotify </span><span class="s2">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">task</span><span class="s3">.</span><span class="s1">Task </span><span class="s2">import </span><span class="s1">Task</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s3">*</span>
+
+
+<span class="s2">class </span><span class="s1">DevWalker</span><span class="s3">(</span><span class="s1">DirectObject</span><span class="s3">.</span><span class="s1">DirectObject</span><span class="s3">):</span>
+
+    <span class="s1">notify </span><span class="s3">= </span><span class="s1">DirectNotifyGlobal</span><span class="s3">.</span><span class="s1">directNotify</span><span class="s3">.</span><span class="s1">newCategory</span><span class="s3">(</span><span class="s4">&quot;DevWalker&quot;</span><span class="s3">)</span>
+    <span class="s1">wantDebugIndicator </span><span class="s3">= </span><span class="s1">ConfigVariableBool</span><span class="s3">(</span><span class="s4">'want-avatar-physics-indicator'</span><span class="s3">, </span><span class="s2">False</span><span class="s3">)</span>
+    <span class="s1">runMultiplier </span><span class="s3">= </span><span class="s1">ConfigVariableDouble</span><span class="s3">(</span><span class="s4">'dev-run-multiplier'</span><span class="s3">, </span><span class="s5">4.0</span><span class="s3">)</span>
+
+    <span class="s6"># Ghost mode overrides this:</span>
+    <span class="s1">slideName </span><span class="s3">= </span><span class="s4">&quot;slide-is-disabled&quot;</span>
+
+    <span class="s6"># special methods</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">DirectObject</span><span class="s3">.</span><span class="s1">DirectObject</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">=</span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">=</span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">=</span><span class="s5">0.0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">task </span><span class="s3">= </span><span class="s2">None</span>
+
+    <span class="s2">def </span><span class="s1">setWalkSpeed</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">forward</span><span class="s3">, </span><span class="s1">jump</span><span class="s3">, </span><span class="s1">reverse</span><span class="s3">, </span><span class="s1">rotate</span><span class="s3">):</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;setWalkSpeed()&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">=</span><span class="s1">forward</span>
+        <span class="s6">#self.avatarControlJumpForce=jump</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">=</span><span class="s1">reverse</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">=</span><span class="s1">rotate</span>
+
+    <span class="s2">def </span><span class="s1">getSpeeds</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s6">#assert self.debugPrint(&quot;getSpeeds()&quot;)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">setAvatar</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">avatar</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatar </span><span class="s3">= </span><span class="s1">avatar</span>
+        <span class="s2">if </span><span class="s1">avatar </span><span class="s2">is not None</span><span class="s3">:</span>
+            <span class="s2">pass </span><span class="s6"># setup the avatar</span>
+
+    <span class="s2">def </span><span class="s1">setWallBitMask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitMask</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">setFloorBitMask</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">bitMask</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">initializeCollisions</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">collisionTraverser</span><span class="s3">, </span><span class="s1">avatarNodePath</span><span class="s3">,</span>
+            <span class="s1">wallCollideMask</span><span class="s3">, </span><span class="s1">floorCollideMask</span><span class="s3">,</span>
+            <span class="s1">avatarRadius </span><span class="s3">= </span><span class="s5">1.4</span><span class="s3">, </span><span class="s1">floorOffset </span><span class="s3">= </span><span class="s5">1.0</span><span class="s3">, </span><span class="s1">reach </span><span class="s3">= </span><span class="s5">1.0</span><span class="s3">):</span>
+        <span class="s2">assert not </span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">isEmpty</span><span class="s3">()</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cTrav </span><span class="s3">= </span><span class="s1">collisionTraverser</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath </span><span class="s3">= </span><span class="s1">avatarNodePath</span>
+
+    <span class="s2">def </span><span class="s1">setAirborneHeightFunc</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">getAirborneHeight</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">deleteCollisions</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">setTag</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">key</span><span class="s3">, </span><span class="s1">value</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">setCollisionsActive</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">active </span><span class="s3">= </span><span class="s5">1</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">placeOnFloor</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">oneTimeCollide</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">addBlastForce</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vector</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">displayDebugInfo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        For debug use. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">onScreenDebug</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s4">&quot;w controls&quot;</span><span class="s3">, </span><span class="s4">&quot;DevWalker&quot;</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">handleAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">task</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Check on the arrow keys and update the avatar. 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># get the button states:</span>
+        <span class="s1">forward </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;forward&quot;</span><span class="s3">)</span>
+        <span class="s1">reverse </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;reverse&quot;</span><span class="s3">)</span>
+        <span class="s1">turnLeft </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;turnLeft&quot;</span><span class="s3">)</span>
+        <span class="s1">turnRight </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;turnRight&quot;</span><span class="s3">)</span>
+        <span class="s1">slideLeft </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;slideLeft&quot;</span><span class="s3">)</span>
+        <span class="s1">slideRight </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;slideRight&quot;</span><span class="s3">)</span>
+        <span class="s1">levitateUp </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;levitateUp&quot;</span><span class="s3">)</span>
+        <span class="s1">levitateDown </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;levitateDown&quot;</span><span class="s3">)</span>
+        <span class="s1">run </span><span class="s3">= </span><span class="s1">inputState</span><span class="s3">.</span><span class="s1">isSet</span><span class="s3">(</span><span class="s4">&quot;run&quot;</span><span class="s3">) </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">runMultiplier</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">() </span><span class="s2">or </span><span class="s5">1.0</span>
+
+        <span class="s6"># Check for Auto-Run</span>
+        <span class="s2">if </span><span class="s1">base</span><span class="s3">.</span><span class="s1">localAvatar</span><span class="s3">.</span><span class="s1">getAutoRun</span><span class="s3">():</span>
+            <span class="s1">forward </span><span class="s3">= </span><span class="s5">1</span>
+            <span class="s1">reverse </span><span class="s3">= </span><span class="s5">0</span>
+
+        <span class="s6"># Determine what the speeds are based on the buttons:</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">speed</span><span class="s3">=(</span>
+                <span class="s3">(</span><span class="s1">forward </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed </span><span class="s2">or</span>
+                <span class="s1">reverse </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">liftSpeed</span><span class="s3">=(</span>
+                <span class="s3">(</span><span class="s1">levitateUp </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed </span><span class="s2">or</span>
+                <span class="s1">levitateDown </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlReverseSpeed</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed</span><span class="s3">=(</span>
+                <span class="s3">(</span><span class="s1">slideLeft </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">) </span><span class="s2">or</span>
+                <span class="s3">(</span><span class="s1">slideRight </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlForwardSpeed</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">=(</span>
+                <span class="s3">(</span><span class="s1">turnLeft </span><span class="s2">and </span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">) </span><span class="s2">or</span>
+                <span class="s3">(</span><span class="s1">turnRight </span><span class="s2">and </span><span class="s3">-</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarControlRotateSpeed</span><span class="s3">))</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">wantDebugIndicator</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">displayDebugInfo</span><span class="s3">()</span>
+
+        <span class="s6"># Check to see if we're moving at all:</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed </span><span class="s2">or </span><span class="s1">self</span><span class="s3">.</span><span class="s1">liftSpeed </span><span class="s2">or </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed </span><span class="s2">or </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span><span class="s3">:</span>
+            <span class="s6"># How far did we move based on the amount of time elapsed?</span>
+            <span class="s1">dt</span><span class="s3">=</span><span class="s1">ClockObject</span><span class="s3">.</span><span class="s1">getGlobalClock</span><span class="s3">().</span><span class="s1">getDt</span><span class="s3">()</span>
+            <span class="s1">distance </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">speed </span><span class="s3">* </span><span class="s1">run</span>
+            <span class="s1">lift </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">liftSpeed </span><span class="s3">* </span><span class="s1">run</span>
+            <span class="s1">slideDistance </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">slideSpeed </span><span class="s3">* </span><span class="s1">run</span>
+            <span class="s1">rotation </span><span class="s3">= </span><span class="s1">dt </span><span class="s3">* </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rotationSpeed</span>
+
+            <span class="s6"># Take a step in the direction of our previous heading.</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">=</span><span class="s1">Vec3</span><span class="s3">(</span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">forward</span><span class="s3">() * </span><span class="s1">distance </span><span class="s3">+</span>
+                          <span class="s1">Vec3</span><span class="s3">.</span><span class="s1">up</span><span class="s3">() * </span><span class="s1">lift </span><span class="s3">+</span>
+                          <span class="s1">Vec3</span><span class="s3">.</span><span class="s1">right</span><span class="s3">() * </span><span class="s1">slideDistance</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">vel </span><span class="s3">!= </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">zero</span><span class="s3">():</span>
+                <span class="s6"># rotMat is the rotation matrix corresponding to</span>
+                <span class="s6"># our previous heading.</span>
+                <span class="s1">rotMat</span><span class="s3">=</span><span class="s1">Mat3</span><span class="s3">.</span><span class="s1">rotateMatNormaxis</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getH</span><span class="s3">(), </span><span class="s1">Vec3</span><span class="s3">.</span><span class="s1">up</span><span class="s3">())</span>
+                <span class="s1">step</span><span class="s3">=</span><span class="s1">rotMat</span><span class="s3">.</span><span class="s1">xform</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">)</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setFluidPos</span><span class="s3">(</span><span class="s1">Point3</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getPos</span><span class="s3">()+</span><span class="s1">step</span><span class="s3">))</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">setH</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">avatarNodePath</span><span class="s3">.</span><span class="s1">getH</span><span class="s3">()+</span><span class="s1">rotation</span><span class="s3">)</span>
+            <span class="s1">messenger</span><span class="s3">.</span><span class="s1">send</span><span class="s3">(</span><span class="s4">&quot;avatarMoving&quot;</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">vel</span><span class="s3">.</span><span class="s1">set</span><span class="s3">(</span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">, </span><span class="s5">0.0</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">Task</span><span class="s3">.</span><span class="s1">cont</span>
+
+    <span class="s2">def </span><span class="s1">enableAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Activate the arrow keys, etc. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;enableAvatarControls&quot;</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">task</span><span class="s3">:</span>
+            <span class="s6"># remove any old</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">task</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">task</span><span class="s3">)</span>
+        <span class="s6"># spawn the new task</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">task </span><span class="s3">= </span><span class="s1">taskMgr</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">handleAvatarControls</span><span class="s3">, </span><span class="s4">&quot;AvatarControls-dev-%s&quot;</span><span class="s3">%(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">),))</span>
+
+    <span class="s2">def </span><span class="s1">disableAvatarControls</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Ignore the arrow keys, etc. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">assert </span><span class="s1">self</span><span class="s3">.</span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s4">&quot;disableAvatarControls&quot;</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">task</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">task</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">()</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">task </span><span class="s3">= </span><span class="s2">None</span>
+
+    <span class="s2">def </span><span class="s1">flushEventHandlers</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">if __debug__</span><span class="s3">:</span>
+        <span class="s2">def </span><span class="s1">debugPrint</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">message</span><span class="s3">):</span>
+            <span class="s0">&quot;&quot;&quot;for debugging&quot;&quot;&quot;</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">notify</span><span class="s3">.</span><span class="s1">debug</span><span class="s3">(</span>
+                    <span class="s1">str</span><span class="s3">(</span><span class="s1">id</span><span class="s3">(</span><span class="s1">self</span><span class="s3">))+</span><span class="s4">' '</span><span class="s3">+</span><span class="s1">message</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<html>
+<head>
+<title>PaletteTreeCtrl.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+PaletteTreeCtrl.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+Defines Palette tree control 
+&quot;&quot;&quot;</span>
+<span class="s2">import </span><span class="s1">wx</span>
+<span class="s2">from </span><span class="s3">.</span><span class="s1">ObjectPaletteBase </span><span class="s2">import </span><span class="s3">*</span>
+
+
+<span class="s2">class </span><span class="s1">PaletteTreeCtrl</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TreeCtrl</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">treeStyle</span><span class="s3">, </span><span class="s1">rootName</span><span class="s3">):</span>
+        <span class="s1">wx</span><span class="s3">.</span><span class="s1">TreeCtrl</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">style</span><span class="s3">=</span><span class="s1">treeStyle</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">rootName </span><span class="s3">= </span><span class="s1">rootName</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">root </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">AddRoot</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">rootName</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI </span><span class="s3">= </span><span class="s1">parent</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">opSortAlpha </span><span class="s3">= </span><span class="s4">&quot;Sort Alphabetical Order&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">opSortOrig  </span><span class="s3">= </span><span class="s4">&quot;Sort Original Order&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">opSort </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">opSortOrig</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Bind</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">EVT_TREE_BEGIN_DRAG</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">onBeginDrag</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">OnCompareItems</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">item1</span><span class="s3">, </span><span class="s1">item2</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">compareItems</span><span class="s3">(</span><span class="s1">item1</span><span class="s3">, </span><span class="s1">item2</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">SortTreeNodes</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">SortChildren</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+              <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">ItemHasChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+                 <span class="s1">self</span><span class="s3">.</span><span class="s1">SortTreeNodes</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+              <span class="s5"># continue iteration to the next child</span>
+              <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">addTreeNodes</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parentItem</span><span class="s3">, </span><span class="s1">parentItemName</span><span class="s3">, </span><span class="s1">items</span><span class="s3">, </span><span class="s1">itemKeys</span><span class="s3">):</span>
+        <span class="s1">roots </span><span class="s3">= []</span>
+        <span class="s1">rootItems </span><span class="s3">= []</span>
+        <span class="s2">for </span><span class="s1">key </span><span class="s2">in </span><span class="s1">itemKeys</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">parentItemName </span><span class="s3">== </span><span class="s1">items</span><span class="s3">[</span><span class="s1">key</span><span class="s3">]:</span>
+               <span class="s1">roots</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">key</span><span class="s3">)</span>
+        <span class="s2">for </span><span class="s1">root </span><span class="s2">in </span><span class="s1">roots</span><span class="s3">:</span>
+            <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">parentItem</span><span class="s3">, </span><span class="s1">root</span><span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">root</span><span class="s3">)</span>
+            <span class="s1">rootItems</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">)</span>
+            <span class="s1">itemKeys</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">root</span><span class="s3">)</span>
+        <span class="s2">for </span><span class="s1">rootItem </span><span class="s2">in </span><span class="s1">rootItems</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">addTreeNodes</span><span class="s3">(</span><span class="s1">rootItem</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">rootItem</span><span class="s3">), </span><span class="s1">items</span><span class="s3">, </span><span class="s1">itemKeys</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">itemText</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">itemText </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">):</span>
+           <span class="s2">return </span><span class="s1">parent</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+              <span class="s5"># if the item was found - return it</span>
+              <span class="s2">if </span><span class="s1">itemText </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+                 <span class="s2">return </span><span class="s1">item</span>
+
+              <span class="s5"># the tem was not found - checking if it has children</span>
+              <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">ItemHasChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+                 <span class="s5"># item has children - delving into it</span>
+                 <span class="s1">child </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">itemText</span><span class="s3">)</span>
+                 <span class="s2">if </span><span class="s1">child </span><span class="s2">is not None</span><span class="s3">:</span>
+                    <span class="s2">return </span><span class="s1">child</span>
+
+              <span class="s5"># continue iteration to the next child</span>
+              <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+        <span class="s2">return None</span>
+
+    <span class="s2">def </span><span class="s1">AddGroup</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5">#import pdb;set_trace()</span>
+        <span class="s1">parent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetSelection</span><span class="s3">()</span>
+        <span class="s2">if </span><span class="s1">parent </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">parent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">()</span>
+
+        <span class="s1">i </span><span class="s3">= </span><span class="s6">1</span>
+        <span class="s1">namestr </span><span class="s3">= </span><span class="s4">&quot;Group%s&quot;</span><span class="s3">%(</span><span class="s1">i</span><span class="s3">)</span>
+        <span class="s1">found </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(), </span><span class="s1">namestr</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">found</span><span class="s3">:</span>
+              <span class="s1">i </span><span class="s3">= </span><span class="s1">i </span><span class="s3">+ </span><span class="s6">1</span>
+              <span class="s1">namestr </span><span class="s3">= </span><span class="s4">&quot;Group%s&quot;</span><span class="s3">%(</span><span class="s1">i</span><span class="s3">)</span>
+              <span class="s1">found </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(), </span><span class="s1">namestr</span><span class="s3">)</span>
+
+        <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">namestr</span><span class="s3">)</span>
+        <span class="s1">itemData </span><span class="s3">= </span><span class="s1">ObjectGen</span><span class="s3">(</span><span class="s1">name</span><span class="s3">=</span><span class="s1">namestr</span><span class="s3">)</span>
+        <span class="s1">parentName </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">parentName </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rootName</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">itemData</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">itemData</span><span class="s3">, </span><span class="s1">parentName</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">itemData</span><span class="s3">)</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">Expand</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">())</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">ScrollTo</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">DeleteItem</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">item</span><span class="s3">):</span>
+        <span class="s1">itemText </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item </span><span class="s2">and </span><span class="s1">itemText </span><span class="s3">!= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rootName</span><span class="s3">:</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">Delete</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">delete</span><span class="s3">(</span><span class="s1">itemText</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">DeleteSelected</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetSelection</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">DeleteItem</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">ReParent</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">parent</span><span class="s3">, </span><span class="s1">newParent</span><span class="s3">):</span>
+        <span class="s5"># main loop - iterating over item's children</span>
+        <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetFirstChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">)</span>
+        <span class="s2">while </span><span class="s1">item</span><span class="s3">:</span>
+           <span class="s1">itemName </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+           <span class="s1">itemData </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemPyData</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+           <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">newParent</span><span class="s3">, </span><span class="s1">itemName</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">SetItemPyData</span><span class="s3">(</span><span class="s1">newItem</span><span class="s3">, </span><span class="s1">itemData</span><span class="s3">)</span>
+
+           <span class="s5"># if an item had children, we need to re-parent them as well</span>
+           <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">ItemHasChildren</span><span class="s3">(</span><span class="s1">item</span><span class="s3">):</span>
+              <span class="s5"># recursing...</span>
+              <span class="s1">self</span><span class="s3">.</span><span class="s1">ReParent</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">newItem</span><span class="s3">, )</span>
+
+           <span class="s5"># continue iteration to the next child</span>
+           <span class="s1">item</span><span class="s3">, </span><span class="s1">cookie </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetNextChild</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">cookie</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">ChangeHierarchy</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">itemName</span><span class="s3">, </span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">):</span>
+        <span class="s1">parent </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">()</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">traverse</span><span class="s3">(</span><span class="s1">parent</span><span class="s3">, </span><span class="s1">itemName</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">item </span><span class="s2">is None</span><span class="s3">:</span>
+           <span class="s2">return</span>
+
+        <span class="s1">dragToItem</span><span class="s3">, </span><span class="s1">flags </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">HitTest</span><span class="s3">(</span><span class="s1">wx</span><span class="s3">.</span><span class="s1">Point</span><span class="s3">(</span><span class="s1">x</span><span class="s3">, </span><span class="s1">y</span><span class="s3">))</span>
+        <span class="s2">if </span><span class="s1">dragToItem</span><span class="s3">.</span><span class="s1">IsOk</span><span class="s3">():</span>
+           <span class="s5"># prevent draging into itself</span>
+           <span class="s2">if  </span><span class="s1">dragToItem </span><span class="s3">== </span><span class="s1">item</span><span class="s3">:</span>
+               <span class="s2">return</span>
+           <span class="s1">dragToItemName </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">dragToItem</span><span class="s3">)</span>
+           <span class="s2">if </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">findItem</span><span class="s3">(</span><span class="s1">dragToItemName</span><span class="s3">), </span><span class="s1">ObjectBase</span><span class="s3">):</span>
+              <span class="s5"># this is a file node, bailing out</span>
+              <span class="s2">return</span>
+
+           <span class="s1">newItem </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">AppendItem</span><span class="s3">(</span><span class="s1">dragToItem</span><span class="s3">, </span><span class="s1">itemName</span><span class="s3">)</span>
+
+           <span class="s1">itemObj </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">findItem</span><span class="s3">(</span><span class="s1">itemName</span><span class="s3">)</span>
+           <span class="s2">if </span><span class="s1">itemObj </span><span class="s2">is not None</span><span class="s3">:</span>
+              <span class="s5"># reparenting the data objects...</span>
+              <span class="s2">if </span><span class="s1">dragToItemName </span><span class="s3">== </span><span class="s1">self</span><span class="s3">.</span><span class="s1">rootName</span><span class="s3">:</span>
+                 <span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">itemObj</span><span class="s3">)</span>
+              <span class="s2">else</span><span class="s3">:</span>
+                 <span class="s1">self</span><span class="s3">.</span><span class="s1">paletteUI</span><span class="s3">.</span><span class="s1">palette</span><span class="s3">.</span><span class="s1">add</span><span class="s3">(</span><span class="s1">itemObj</span><span class="s3">, </span><span class="s1">dragToItemName</span><span class="s3">)</span>
+
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">ReParent</span><span class="s3">(</span><span class="s1">item</span><span class="s3">, </span><span class="s1">newItem</span><span class="s3">)</span>
+           <span class="s1">self</span><span class="s3">.</span><span class="s1">Delete</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">onBeginDrag</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">event</span><span class="s3">):</span>
+        <span class="s1">item </span><span class="s3">= </span><span class="s1">event</span><span class="s3">.</span><span class="s1">GetItem</span><span class="s3">()</span>
+
+        <span class="s2">if </span><span class="s1">item </span><span class="s3">!= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetRootItem</span><span class="s3">(): </span><span class="s5"># prevent dragging root item</span>
+            <span class="s1">text </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">GetItemText</span><span class="s3">(</span><span class="s1">item</span><span class="s3">)</span>
+            <span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;Starting drag'n'drop with %s...&quot; </span><span class="s3">% </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">text</span><span class="s3">))</span>
+
+            <span class="s1">tdo </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">TextDataObject</span><span class="s3">(</span><span class="s1">text</span><span class="s3">)</span>
+            <span class="s1">tds </span><span class="s3">= </span><span class="s1">wx</span><span class="s3">.</span><span class="s1">DropSource</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+            <span class="s1">tds</span><span class="s3">.</span><span class="s1">SetData</span><span class="s3">(</span><span class="s1">tdo</span><span class="s3">)</span>
+            <span class="s1">tds</span><span class="s3">.</span><span class="s1">DoDragDrop</span><span class="s3">(</span><span class="s2">True</span><span class="s3">)</span>
+
+</pre>
+</body>
+</html>

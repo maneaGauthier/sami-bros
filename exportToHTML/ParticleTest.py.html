@@ -1,0 +1,55 @@
+<html>
+<head>
+<title>ParticleTest.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ParticleTest.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">if </span><span class="s0">__name__ </span><span class="s2">== </span><span class="s3">&quot;__main__&quot;</span><span class="s2">:</span>
+    <span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directbase</span><span class="s2">.</span><span class="s0">TestStart </span><span class="s1">import </span><span class="s2">*</span>
+
+    <span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">physics </span><span class="s1">import </span><span class="s0">LinearVectorForce</span>
+    <span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core </span><span class="s1">import </span><span class="s0">Vec3</span>
+    <span class="s1">from </span><span class="s2">. </span><span class="s1">import </span><span class="s0">ParticleEffect</span>
+    <span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">tkpanels </span><span class="s1">import </span><span class="s0">ParticlePanel</span>
+    <span class="s1">from </span><span class="s2">. </span><span class="s1">import </span><span class="s0">Particles</span>
+    <span class="s1">from </span><span class="s2">. </span><span class="s1">import </span><span class="s0">ForceGroup</span>
+
+    <span class="s4"># Showbase</span>
+    <span class="s0">base</span><span class="s2">.</span><span class="s0">enableParticles</span><span class="s2">()</span>
+
+    <span class="s4"># ForceGroup</span>
+    <span class="s0">fg </span><span class="s2">= </span><span class="s0">ForceGroup</span><span class="s2">.</span><span class="s0">ForceGroup</span><span class="s2">()</span>
+    <span class="s0">gravity </span><span class="s2">= </span><span class="s0">LinearVectorForce</span><span class="s2">(</span><span class="s0">Vec3</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, -</span><span class="s5">10.0</span><span class="s2">))</span>
+    <span class="s0">fg</span><span class="s2">.</span><span class="s0">addForce</span><span class="s2">(</span><span class="s0">gravity</span><span class="s2">)</span>
+
+    <span class="s4"># Particles</span>
+    <span class="s0">p </span><span class="s2">= </span><span class="s0">Particles</span><span class="s2">.</span><span class="s0">Particles</span><span class="s2">()</span>
+
+    <span class="s4"># Particle effect</span>
+    <span class="s0">pe </span><span class="s2">= </span><span class="s0">ParticleEffect</span><span class="s2">.</span><span class="s0">ParticleEffect</span><span class="s2">(</span><span class="s3">'particle-fx'</span><span class="s2">)</span>
+    <span class="s0">pe</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">render</span><span class="s2">)</span>
+    <span class="s4">#pe.setPos(0.0, 5.0, 4.0)</span>
+    <span class="s0">pe</span><span class="s2">.</span><span class="s0">addForceGroup</span><span class="s2">(</span><span class="s0">fg</span><span class="s2">)</span>
+    <span class="s0">pe</span><span class="s2">.</span><span class="s0">addParticles</span><span class="s2">(</span><span class="s0">p</span><span class="s2">)</span>
+
+    <span class="s4"># Particle Panel</span>
+    <span class="s0">pp </span><span class="s2">= </span><span class="s0">ParticlePanel</span><span class="s2">.</span><span class="s0">ParticlePanel</span><span class="s2">(</span><span class="s0">pe</span><span class="s2">)</span>
+
+    <span class="s0">base</span><span class="s2">.</span><span class="s0">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<html>
+<head>
+<title>TkGlobal.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+TkGlobal.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; This module is now vestigial.  &quot;&quot;&quot;</span>
+
+<span class="s2">import </span><span class="s1">sys</span><span class="s3">, </span><span class="s1">Pmw</span>
+
+<span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">version_info </span><span class="s3">&gt;= (</span><span class="s4">3</span><span class="s3">, </span><span class="s4">0</span><span class="s3">):</span>
+    <span class="s2">from </span><span class="s1">tkinter </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">else</span><span class="s3">:</span>
+    <span class="s2">from </span><span class="s1">Tkinter </span><span class="s2">import </span><span class="s3">*</span>
+
+<span class="s5"># This is required by the ihooks.py module used by Squeeze (used by</span>
+<span class="s5"># pandaSqueezer.py) so that Pmw initializes properly</span>
+<span class="s2">if </span><span class="s6">'_Pmw' </span><span class="s2">in </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">modules</span><span class="s3">:</span>
+    <span class="s1">sys</span><span class="s3">.</span><span class="s1">modules</span><span class="s3">[</span><span class="s6">'_Pmw'</span><span class="s3">].</span><span class="s1">__name__ </span><span class="s3">= </span><span class="s6">'_Pmw'</span>
+
+<span class="s5"># Hack to workaround broken Pmw.NoteBook in Python 3</span>
+<span class="s2">def </span><span class="s1">bordercolors</span><span class="s3">(</span><span class="s1">root</span><span class="s3">, </span><span class="s1">colorName</span><span class="s3">):</span>
+    <span class="s1">lightRGB </span><span class="s3">= []</span>
+    <span class="s1">darkRGB </span><span class="s3">= []</span>
+    <span class="s2">for </span><span class="s1">value </span><span class="s2">in </span><span class="s1">Pmw</span><span class="s3">.</span><span class="s1">Color</span><span class="s3">.</span><span class="s1">name2rgb</span><span class="s3">(</span><span class="s1">root</span><span class="s3">, </span><span class="s1">colorName</span><span class="s3">, </span><span class="s4">1</span><span class="s3">):</span>
+        <span class="s1">value40pc </span><span class="s3">= (</span><span class="s4">14 </span><span class="s3">* </span><span class="s1">value</span><span class="s3">) // </span><span class="s4">10</span>
+        <span class="s2">if </span><span class="s1">value40pc </span><span class="s3">&gt; </span><span class="s1">int</span><span class="s3">(</span><span class="s1">Pmw</span><span class="s3">.</span><span class="s1">Color</span><span class="s3">.</span><span class="s1">_MAX_RGB</span><span class="s3">):</span>
+            <span class="s1">value40pc </span><span class="s3">= </span><span class="s1">int</span><span class="s3">(</span><span class="s1">Pmw</span><span class="s3">.</span><span class="s1">Color</span><span class="s3">.</span><span class="s1">_MAX_RGB</span><span class="s3">)</span>
+        <span class="s1">valueHalfWhite </span><span class="s3">= (</span><span class="s1">int</span><span class="s3">(</span><span class="s1">Pmw</span><span class="s3">.</span><span class="s1">Color</span><span class="s3">.</span><span class="s1">_MAX_RGB</span><span class="s3">) + </span><span class="s1">value</span><span class="s3">) // </span><span class="s4">2</span><span class="s1">;</span>
+        <span class="s1">lightRGB</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">max</span><span class="s3">(</span><span class="s1">value40pc</span><span class="s3">, </span><span class="s1">valueHalfWhite</span><span class="s3">))</span>
+
+        <span class="s1">darkValue </span><span class="s3">= (</span><span class="s4">60 </span><span class="s3">* </span><span class="s1">value</span><span class="s3">) // </span><span class="s4">100</span>
+        <span class="s1">darkRGB</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">darkValue</span><span class="s3">)</span>
+
+    <span class="s2">return </span><span class="s3">(</span>
+        <span class="s6">'#%04x%04x%04x' </span><span class="s3">% (</span><span class="s1">lightRGB</span><span class="s3">[</span><span class="s4">0</span><span class="s3">], </span><span class="s1">lightRGB</span><span class="s3">[</span><span class="s4">1</span><span class="s3">], </span><span class="s1">lightRGB</span><span class="s3">[</span><span class="s4">2</span><span class="s3">]),</span>
+        <span class="s6">'#%04x%04x%04x' </span><span class="s3">% (</span><span class="s1">darkRGB</span><span class="s3">[</span><span class="s4">0</span><span class="s3">], </span><span class="s1">darkRGB</span><span class="s3">[</span><span class="s4">1</span><span class="s3">], </span><span class="s1">darkRGB</span><span class="s3">[</span><span class="s4">2</span><span class="s3">])</span>
+    <span class="s3">)</span>
+
+<span class="s1">Pmw</span><span class="s3">.</span><span class="s1">Color</span><span class="s3">.</span><span class="s1">bordercolors </span><span class="s3">= </span><span class="s1">bordercolors</span>
+<span class="s2">del </span><span class="s1">bordercolors</span>
+
+
+<span class="s2">def </span><span class="s1">spawnTkLoop</span><span class="s3">():</span>
+    <span class="s0">&quot;&quot;&quot;Alias for :meth:`base.spawnTkLoop() &lt;.ShowBase.spawnTkLoop&gt;`.&quot;&quot;&quot;</span>
+    <span class="s1">base</span><span class="s3">.</span><span class="s1">spawnTkLoop</span><span class="s3">()</span>
+</pre>
+</body>
+</html>

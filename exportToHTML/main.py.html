@@ -1,0 +1,337 @@
+<html>
+<head>
+<title>main.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+.s5 { color: #5f826b; font-style: italic;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+main.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">time</span>
+<span class="s0">import </span><span class="s1">platform</span>
+
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s0">import </span><span class="s1">ShowBase</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task</span><span class="s2">.</span><span class="s1">Task </span><span class="s0">import </span><span class="s1">Task</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s1">ConfigVariableBool</span>
+
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">window </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">window</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">application</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">input_handler</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">scene </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">scene</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">camera </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">camera</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">mouse </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">mouse</span>
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">entity</span>
+
+
+<span class="s0">import </span><span class="s1">__main__</span>
+<span class="s1">time</span><span class="s2">.</span><span class="s1">dt </span><span class="s2">= </span><span class="s3">0</span>
+<span class="s1">time</span><span class="s2">.</span><span class="s1">dt_unscaled </span><span class="s2">= </span><span class="s3">0</span>
+<span class="s1">keyboard_keys </span><span class="s2">= </span><span class="s4">'1234567890qwertyuiopasdfghjklzxcvbnm'</span>
+
+
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">.</span><span class="s1">singleton_decorator </span><span class="s0">import </span><span class="s1">singleton</span>
+<span class="s2">@</span><span class="s1">singleton</span>
+<span class="s0">class </span><span class="s1">Ursina</span><span class="s2">(</span><span class="s1">ShowBase</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">title</span><span class="s2">=</span><span class="s4">'ursina'</span><span class="s2">, </span><span class="s1">icon</span><span class="s2">=</span><span class="s4">'textures/ursina.ico'</span><span class="s2">, </span><span class="s1">borderless</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">fullscreen</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">size</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">forced_aspect_ratio</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">vsync</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">editor_ui_enabled</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">window_type</span><span class="s2">=</span><span class="s4">'onscreen'</span><span class="s2">, </span><span class="s1">development_mode</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">render_mode</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">show_ursina_splash</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s5">&quot;&quot;&quot;The main class of Ursina. This class is a singleton, so you can only have one instance of it. 
+ 
+        Keyword Args (optional): 
+            title (str): The title of the window.\n 
+            fullscreen (bool): Whether the window should be fullscreen or not.\n 
+            size (tuple(int, int)): The size of the window.\n 
+            forced_aspect_ratio (bool): Whether the window should have a forced aspect ratio or not.\n 
+            position (tuple(int, int)): The position of the window.\n 
+            vsync (bool): Whether the window should have vsync enabled or not.\n 
+            borderless (bool): Whether the window should be borderless or not.\n 
+            show_ursina_splash (bool): Whether the Ursina splash should be shown or not.\n 
+            render_mode (str): The render mode of the window.\n 
+            development_mode (bool): Whether the development mode should be enabled or not.\n 
+            editor_ui_enabled (bool): Whether the editor UI should be enabled or not.\n 
+            window_type (str): The type of the window. Can be 'onscreen', 'offscreen' or 'none'.\n 
+        &quot;&quot;&quot;</span>
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">_warn_if_ursina_not_instantiated </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">= </span><span class="s1">window_type</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">base </span><span class="s2">= </span><span class="s1">self</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">development_mode </span><span class="s2">= </span><span class="s1">development_mode</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">show_ursina_splash </span><span class="s2">= </span><span class="s1">show_ursina_splash</span>
+
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">import </span><span class="s1">gltf</span>
+            <span class="s1">gltf</span><span class="s2">.</span><span class="s1">patch_loader</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">loader</span><span class="s2">)</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+
+        <span class="s0">if </span><span class="s4">'gltf_no_srgb' </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">:</span>
+            <span class="s1">application</span><span class="s2">.</span><span class="s1">gltf_no_srgb </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s4">'gltf_no_srgb'</span><span class="s2">]</span>
+
+        <span class="s0">if not </span><span class="s1">application</span><span class="s2">.</span><span class="s1">development_mode</span><span class="s2">:</span>
+            <span class="s1">fullscreen </span><span class="s2">= </span><span class="s0">True</span>
+
+        <span class="s1">window</span><span class="s2">.</span><span class="s1">ready</span><span class="s2">(</span><span class="s1">title</span><span class="s2">=</span><span class="s1">title</span><span class="s2">, </span><span class="s1">icon</span><span class="s2">=</span><span class="s1">icon</span><span class="s2">,</span>
+            <span class="s1">borderless</span><span class="s2">=</span><span class="s1">borderless</span><span class="s2">, </span><span class="s1">fullscreen</span><span class="s2">=</span><span class="s1">fullscreen</span><span class="s2">, </span><span class="s1">size</span><span class="s2">=</span><span class="s1">size</span><span class="s2">, </span><span class="s1">forced_aspect_ratio</span><span class="s2">=</span><span class="s1">forced_aspect_ratio</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=</span><span class="s1">position</span><span class="s2">, </span><span class="s1">vsync</span><span class="s2">=</span><span class="s1">vsync</span><span class="s2">, </span><span class="s1">window_type</span><span class="s2">=</span><span class="s1">window_type</span><span class="s2">,</span>
+            <span class="s1">editor_ui_enabled</span><span class="s2">=</span><span class="s1">editor_ui_enabled</span><span class="s2">, </span><span class="s1">render_mode</span><span class="s2">=</span><span class="s1">render_mode</span><span class="s2">)</span>
+
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">windowType</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type</span><span class="s2">)</span>
+        <span class="s1">window</span><span class="s2">.</span><span class="s1">apply_settings</span><span class="s2">()</span>
+        <span class="s6"># camera</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">!= </span><span class="s4">'none'</span><span class="s2">:</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">_cam </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camera</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">_cam</span><span class="s2">.</span><span class="s1">reparent_to</span><span class="s2">(</span><span class="s1">camera</span><span class="s2">)</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">render </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= (</span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, -</span><span class="s3">20</span><span class="s2">)</span>
+            <span class="s1">scene</span><span class="s2">.</span><span class="s1">camera </span><span class="s2">= </span><span class="s1">camera</span>
+            <span class="s1">camera</span><span class="s2">.</span><span class="s1">set_up</span><span class="s2">()</span>
+
+        <span class="s6"># input</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">== </span><span class="s4">'onscreen'</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonThrowers</span><span class="s2">[</span><span class="s3">0</span><span class="s2">].</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setButtonDownEvent</span><span class="s2">(</span><span class="s4">'buttonDown'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonThrowers</span><span class="s2">[</span><span class="s3">0</span><span class="s2">].</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setButtonUpEvent</span><span class="s2">(</span><span class="s4">'buttonUp'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonThrowers</span><span class="s2">[</span><span class="s3">0</span><span class="s2">].</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setButtonRepeatEvent</span><span class="s2">(</span><span class="s4">'buttonHold'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttonThrowers</span><span class="s2">[</span><span class="s3">0</span><span class="s2">].</span><span class="s1">node</span><span class="s2">().</span><span class="s1">setKeystrokeEvent</span><span class="s2">(</span><span class="s4">'keystroke'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_input_name_changes </span><span class="s2">= {</span>
+            <span class="s4">'mouse1' </span><span class="s2">: </span><span class="s4">'left mouse down'</span><span class="s2">, </span><span class="s4">'mouse1 up' </span><span class="s2">: </span><span class="s4">'left mouse up'</span><span class="s2">, </span><span class="s4">'mouse2' </span><span class="s2">: </span><span class="s4">'middle mouse down'</span><span class="s2">, </span><span class="s4">'mouse2 up' </span><span class="s2">: </span><span class="s4">'middle mouse up'</span><span class="s2">, </span><span class="s4">'mouse3' </span><span class="s2">: </span><span class="s4">'right mouse down'</span><span class="s2">, </span><span class="s4">'mouse3 up' </span><span class="s2">: </span><span class="s4">'right mouse up'</span><span class="s2">,</span>
+            <span class="s4">'wheel_up' </span><span class="s2">: </span><span class="s4">'scroll up'</span><span class="s2">, </span><span class="s4">'wheel_down' </span><span class="s2">: </span><span class="s4">'scroll down'</span><span class="s2">,</span>
+            <span class="s4">'arrow_left' </span><span class="s2">: </span><span class="s4">'left arrow'</span><span class="s2">, </span><span class="s4">'arrow_left up' </span><span class="s2">: </span><span class="s4">'left arrow up'</span><span class="s2">, </span><span class="s4">'arrow_up' </span><span class="s2">: </span><span class="s4">'up arrow'</span><span class="s2">, </span><span class="s4">'arrow_up up' </span><span class="s2">: </span><span class="s4">'up arrow up'</span><span class="s2">, </span><span class="s4">'arrow_down' </span><span class="s2">: </span><span class="s4">'down arrow'</span><span class="s2">, </span><span class="s4">'arrow_down up' </span><span class="s2">: </span><span class="s4">'down arrow up'</span><span class="s2">, </span><span class="s4">'arrow_right' </span><span class="s2">: </span><span class="s4">'right arrow'</span><span class="s2">, </span><span class="s4">'arrow_right up' </span><span class="s2">: </span><span class="s4">'right arrow up'</span><span class="s2">,</span>
+            <span class="s4">'lcontrol' </span><span class="s2">: </span><span class="s4">'left control'</span><span class="s2">, </span><span class="s4">'rcontrol' </span><span class="s2">: </span><span class="s4">'right control'</span><span class="s2">, </span><span class="s4">'lshift' </span><span class="s2">: </span><span class="s4">'left shift'</span><span class="s2">, </span><span class="s4">'rshift' </span><span class="s2">: </span><span class="s4">'right shift'</span><span class="s2">, </span><span class="s4">'lalt' </span><span class="s2">: </span><span class="s4">'left alt'</span><span class="s2">, </span><span class="s4">'ralt' </span><span class="s2">: </span><span class="s4">'right alt'</span><span class="s2">,</span>
+            <span class="s4">'lcontrol up' </span><span class="s2">: </span><span class="s4">'left control up'</span><span class="s2">, </span><span class="s4">'rcontrol up' </span><span class="s2">: </span><span class="s4">'right control up'</span><span class="s2">, </span><span class="s4">'lshift up' </span><span class="s2">: </span><span class="s4">'left shift up'</span><span class="s2">, </span><span class="s4">'rshift up' </span><span class="s2">: </span><span class="s4">'right shift up'</span><span class="s2">, </span><span class="s4">'lalt up' </span><span class="s2">: </span><span class="s4">'left alt up'</span><span class="s2">, </span><span class="s4">'ralt up' </span><span class="s2">: </span><span class="s4">'right alt up'</span><span class="s2">,</span>
+            <span class="s4">'control-mouse1' </span><span class="s2">: </span><span class="s4">'left mouse down'</span><span class="s2">, </span><span class="s4">'control-mouse2' </span><span class="s2">: </span><span class="s4">'middle mouse down'</span><span class="s2">, </span><span class="s4">'control-mouse3' </span><span class="s2">: </span><span class="s4">'right mouse down'</span><span class="s2">,</span>
+            <span class="s4">'shift-mouse1' </span><span class="s2">: </span><span class="s4">'left mouse down'</span><span class="s2">, </span><span class="s4">'shift-mouse2' </span><span class="s2">: </span><span class="s4">'middle mouse down'</span><span class="s2">, </span><span class="s4">'shift-mouse3' </span><span class="s2">: </span><span class="s4">'right mouse down'</span><span class="s2">,</span>
+            <span class="s4">'alt-mouse1' </span><span class="s2">: </span><span class="s4">'left mouse down'</span><span class="s2">, </span><span class="s4">'alt-mouse2' </span><span class="s2">: </span><span class="s4">'middle mouse down'</span><span class="s2">, </span><span class="s4">'alt-mouse3' </span><span class="s2">: </span><span class="s4">'right mouse down'</span><span class="s2">,</span>
+            <span class="s4">'page_down' </span><span class="s2">: </span><span class="s4">'page down'</span><span class="s2">, </span><span class="s4">'page_down up' </span><span class="s2">: </span><span class="s4">'page down up'</span><span class="s2">, </span><span class="s4">'page_up' </span><span class="s2">: </span><span class="s4">'page up'</span><span class="s2">, </span><span class="s4">'page_up up' </span><span class="s2">: </span><span class="s4">'page up up'</span><span class="s2">,</span>
+            <span class="s2">}</span>
+
+        <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">keyboard_keys</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">f'raw-</span><span class="s0">{</span><span class="s1">e</span><span class="s0">}</span><span class="s4">'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input</span><span class="s2">, [</span><span class="s1">e</span><span class="s2">, </span><span class="s0">True</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">f'raw-</span><span class="s0">{</span><span class="s1">e</span><span class="s0">}</span><span class="s4">-up'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_up</span><span class="s2">, [</span><span class="s1">e</span><span class="s2">, </span><span class="s0">True</span><span class="s2">])</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">f'raw-</span><span class="s0">{</span><span class="s1">e</span><span class="s0">}</span><span class="s4">-repeat'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_hold</span><span class="s2">, [</span><span class="s1">e</span><span class="s2">, </span><span class="s0">True</span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'buttonDown'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'buttonUp'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_up</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'buttonHold'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">input_hold</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'keystroke'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">text_input</span><span class="s2">)</span>
+        <span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s4">'paste-emit-keystrokes'</span><span class="s2">, </span><span class="s0">False</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">disableMouse</span><span class="s2">()</span>
+        <span class="s1">mouse</span><span class="s2">.</span><span class="s1">_mouse_watcher </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseWatcherNode</span>
+        <span class="s1">mouse</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mouse </span><span class="s2">= </span><span class="s1">mouse</span>
+
+        <span class="s1">scene</span><span class="s2">.</span><span class="s1">set_up</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_update_task </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_update</span><span class="s2">, </span><span class="s4">&quot;update&quot;</span><span class="s2">)</span>
+
+        <span class="s6"># try to load settings that need to be applied before entity creation</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">load_settings</span><span class="s2">()</span>
+
+        <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">prefabs</span><span class="s2">.</span><span class="s1">hot_reloader </span><span class="s0">import </span><span class="s1">HotReloader</span>
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">hot_reloader </span><span class="s2">= </span><span class="s1">HotReloader</span><span class="s2">(</span><span class="s1">__main__</span><span class="s2">.</span><span class="s1">__file__ </span><span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">__main__</span><span class="s2">, </span><span class="s4">'__file__'</span><span class="s2">) </span><span class="s0">else </span><span class="s4">'None'</span><span class="s2">, </span><span class="s1">enabled</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">development_mode</span><span class="s2">)  </span><span class="s6"># make sure it's running from a file and not an interactive session.</span>
+
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">gamepad</span>
+        <span class="s0">except </span><span class="s1">e </span><span class="s0">as </span><span class="s1">Exception</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">window_type </span><span class="s2">!= </span><span class="s4">'none'</span><span class="s2">:</span>
+            <span class="s1">window</span><span class="s2">.</span><span class="s1">make_editor_gui</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s4">'use_ingame_console' </span><span class="s0">in </span><span class="s1">kwargs </span><span class="s0">and </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s4">'use_ingame_console'</span><span class="s2">]:</span>
+                <span class="s0">import </span><span class="s1">builtins</span>
+                <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">TextField</span><span class="s2">, </span><span class="s1">color</span>
+                <span class="s1">window</span><span class="s2">.</span><span class="s1">console </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">window</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=</span><span class="s1">window</span><span class="s2">.</span><span class="s1">top_left</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+                <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field </span><span class="s2">= </span><span class="s1">TextField</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s3">.75</span><span class="s2">, </span><span class="s1">font</span><span class="s2">=</span><span class="s4">'VeraMono.ttf'</span><span class="s2">, </span><span class="s1">max_lines</span><span class="s2">=</span><span class="s3">20</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=(</span><span class="s3">0</span><span class="s2">,</span><span class="s3">0</span><span class="s2">), </span><span class="s1">register_mouse_input</span><span class="s2">=</span><span class="s0">True</span><span class="s2">, </span><span class="s1">text_input</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">eternal</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+                <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">color </span><span class="s2">= </span><span class="s1">color</span><span class="s2">.</span><span class="s1">black66</span>
+                <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">scale_x </span><span class="s2">= </span><span class="s3">1.5</span>
+                <span class="s0">def </span><span class="s1">_custom_print</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):  </span><span class="s6"># makes print() poutput to the in-game console instead of the terminal if use_ingame_console is True</span>
+                    <span class="s1">content </span><span class="s2">= </span><span class="s4">' '</span><span class="s2">.</span><span class="s1">join</span><span class="s2">([</span><span class="s1">str</span><span class="s2">(</span><span class="s1">e</span><span class="s2">) </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">args</span><span class="s2">])</span>
+                    <span class="s0">if </span><span class="s4">'error' </span><span class="s0">in </span><span class="s1">content</span><span class="s2">:</span>
+                        <span class="s1">content </span><span class="s2">= </span><span class="s4">f'</span><span class="s0">{</span><span class="s1">content</span><span class="s0">}</span><span class="s4">'</span>
+                    <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">cursor</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">text</span><span class="s2">.</span><span class="s1">count</span><span class="s2">(</span><span class="s4">'</span><span class="s0">\n</span><span class="s4">'</span><span class="s2">)</span>
+                    <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">cursor</span><span class="s2">.</span><span class="s1">x </span><span class="s2">= </span><span class="s3">999</span>
+                    <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">add_text</span><span class="s2">(</span><span class="s4">f'</span><span class="s0">\n{</span><span class="s1">content</span><span class="s0">}</span><span class="s4">'</span><span class="s2">)</span>
+                <span class="s1">builtins</span><span class="s2">.</span><span class="s1">print </span><span class="s2">= </span><span class="s1">_custom_print</span>
+
+                <span class="s0">def </span><span class="s1">_console_text_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+                    <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'|'</span><span class="s2">:</span>
+                        <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">not </span><span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_field</span><span class="s2">.</span><span class="s1">enabled</span>
+                <span class="s1">window</span><span class="s2">.</span><span class="s1">console</span><span class="s2">.</span><span class="s1">text_input </span><span class="s2">= </span><span class="s1">_console_text_input</span>
+
+
+        <span class="s0">if </span><span class="s4">'editor_ui_enabled' </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">:</span>
+            <span class="s1">window</span><span class="s2">.</span><span class="s1">editor_ui</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s4">'editor_ui_enabled'</span><span class="s2">]</span>
+
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'package_folder:'</span><span class="s2">, </span><span class="s1">application</span><span class="s2">.</span><span class="s1">package_folder</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'asset_folder:'</span><span class="s2">, </span><span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder</span><span class="s2">)</span>
+
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">_Ursina_instance </span><span class="s2">= </span><span class="s1">self</span>
+
+
+    <span class="s0">def </span><span class="s1">_update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s5">&quot;&quot;&quot;Internal task that runs every frame. Updates time, mouse, sequences and entities.&quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">calculate_dt</span><span class="s2">:</span>
+            <span class="s1">time</span><span class="s2">.</span><span class="s1">dt_unscaled </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getDt</span><span class="s2">()</span>
+            <span class="s1">time</span><span class="s2">.</span><span class="s1">dt </span><span class="s2">= </span><span class="s1">time</span><span class="s2">.</span><span class="s1">dt_unscaled </span><span class="s2">* </span><span class="s1">application</span><span class="s2">.</span><span class="s1">time_scale          </span><span class="s6"># time between frames</span>
+        <span class="s1">mouse</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">__main__</span><span class="s2">, </span><span class="s4">'update'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">__main__</span><span class="s2">.</span><span class="s1">update </span><span class="s0">and not </span><span class="s1">application</span><span class="s2">.</span><span class="s1">paused</span><span class="s2">:</span>
+            <span class="s1">__main__</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+        <span class="s0">for </span><span class="s1">seq </span><span class="s0">in </span><span class="s1">application</span><span class="s2">.</span><span class="s1">sequences</span><span class="s2">:</span>
+            <span class="s1">seq</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+        <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities</span><span class="s2">:</span>
+            <span class="s0">if not </span><span class="s1">e</span><span class="s2">.</span><span class="s1">enabled </span><span class="s0">or </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+            <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">paused </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore_paused </span><span class="s0">is False</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+            <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">has_disabled_ancestor</span><span class="s2">():</span>
+                <span class="s0">continue</span>
+
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'update'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">e</span><span class="s2">.</span><span class="s1">update</span><span class="s2">):</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'scripts'</span><span class="s2">):</span>
+                <span class="s0">for </span><span class="s1">script </span><span class="s0">in </span><span class="s1">e</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">script</span><span class="s2">.</span><span class="s1">enabled </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">script</span><span class="s2">, </span><span class="s4">'update'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">script</span><span class="s2">.</span><span class="s1">update</span><span class="s2">):</span>
+                        <span class="s1">script</span><span class="s2">.</span><span class="s1">update</span><span class="s2">()</span>
+
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+
+    <span class="s0">def </span><span class="s1">input_up</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">is_raw</span><span class="s2">=</span><span class="s0">False</span><span class="s2">): </span><span class="s6"># internal method for key release</span>
+        <span class="s0">if not </span><span class="s1">is_raw </span><span class="s0">and </span><span class="s1">key </span><span class="s0">in </span><span class="s1">keyboard_keys</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s0">in </span><span class="s2">(</span><span class="s4">'wheel_up'</span><span class="s2">, </span><span class="s4">'wheel_down'</span><span class="s2">):</span>
+            <span class="s0">return</span>
+
+        <span class="s1">key </span><span class="s2">+= </span><span class="s4">' up'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">input_hold</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">is_raw</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):   </span><span class="s6"># internal method for handling repeating input that occurs when you hold the key</span>
+        <span class="s1">key </span><span class="s2">= </span><span class="s1">key</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s4">'control-'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+        <span class="s1">key </span><span class="s2">= </span><span class="s1">key</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s4">'shift-'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+        <span class="s1">key </span><span class="s2">= </span><span class="s1">key</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s4">'alt-'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_input_name_changes</span><span class="s2">:</span>
+            <span class="s1">key </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_input_name_changes</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+
+        <span class="s1">key </span><span class="s2">+= </span><span class="s4">' hold'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">is_raw</span><span class="s2">=</span><span class="s0">False</span><span class="s2">): </span><span class="s6"># internal method for handling input</span>
+        <span class="s5">&quot;&quot;&quot;Built-in input handler. Propagates the input to all entities and the input function of the main script. Main use case for this it to simulate input though code, like: app.input('a'). 
+ 
+        Args: 
+            key (Any): The input key. 
+            is_raw (bool, optional): Whether or not the input should be treated as &quot;raw&quot;. Defaults to False. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if not </span><span class="s1">is_raw </span><span class="s0">and </span><span class="s1">key </span><span class="s0">in </span><span class="s1">keyboard_keys</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s4">'mouse' </span><span class="s0">not in </span><span class="s1">key</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">prefix </span><span class="s0">in </span><span class="s2">(</span><span class="s4">'control-'</span><span class="s2">, </span><span class="s4">'shift-'</span><span class="s2">, </span><span class="s4">'alt-'</span><span class="s2">):</span>
+                <span class="s0">if </span><span class="s1">key</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s1">prefix</span><span class="s2">):</span>
+                    <span class="s1">key </span><span class="s2">= </span><span class="s1">key</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s4">'control-'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+                    <span class="s1">key </span><span class="s2">= </span><span class="s1">key</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s4">'shift-'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+                    <span class="s1">key </span><span class="s2">= </span><span class="s1">key</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s4">'alt-'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+                    <span class="s0">if </span><span class="s1">key </span><span class="s0">in </span><span class="s1">keyboard_keys</span><span class="s2">:</span>
+                        <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_input_name_changes</span><span class="s2">:</span>
+            <span class="s1">key </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_input_name_changes</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s0">in </span><span class="s1">input_handler</span><span class="s2">.</span><span class="s1">rebinds</span><span class="s2">:</span>
+            <span class="s1">key </span><span class="s2">= </span><span class="s1">input_handler</span><span class="s2">.</span><span class="s1">rebinds</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+
+        <span class="s1">input_handler</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+        <span class="s0">if not </span><span class="s1">application</span><span class="s2">.</span><span class="s1">paused</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">__main__</span><span class="s2">, </span><span class="s4">'input'</span><span class="s2">):</span>
+                <span class="s1">__main__</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">enabled </span><span class="s0">is False or </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore </span><span class="s0">or </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore_input</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+            <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">paused </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore_paused </span><span class="s0">is False</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+            <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">has_disabled_ancestor</span><span class="s2">():</span>
+                <span class="s0">continue</span>
+
+
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'input'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">e</span><span class="s2">.</span><span class="s1">input</span><span class="s2">):</span>
+                <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+                    <span class="s0">break</span>
+
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'scripts'</span><span class="s2">):</span>
+                <span class="s0">for </span><span class="s1">script </span><span class="s0">in </span><span class="s1">e</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">script</span><span class="s2">.</span><span class="s1">enabled </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">script</span><span class="s2">, </span><span class="s4">'input'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">script</span><span class="s2">.</span><span class="s1">input</span><span class="s2">):</span>
+                        <span class="s0">if </span><span class="s1">script</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+                            <span class="s0">break</span>
+
+
+        <span class="s1">mouse</span><span class="s2">.</span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">text_input</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">):  </span><span class="s6"># internal method for handling text input</span>
+        <span class="s1">key_code </span><span class="s2">= </span><span class="s1">ord</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">key_code </span><span class="s2">&lt; </span><span class="s3">32 </span><span class="s0">or </span><span class="s2">(</span><span class="s1">key_code </span><span class="s2">&gt;= </span><span class="s3">127 </span><span class="s0">and </span><span class="s1">key_code </span><span class="s2">&lt;= </span><span class="s3">160</span><span class="s2">):</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">' ' </span><span class="s0">and </span><span class="s1">input_handler</span><span class="s2">.</span><span class="s1">held_keys</span><span class="s2">[</span><span class="s4">'control'</span><span class="s2">]:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if not </span><span class="s1">application</span><span class="s2">.</span><span class="s1">paused</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">__main__</span><span class="s2">, </span><span class="s4">'text_input'</span><span class="s2">):</span>
+                <span class="s1">__main__</span><span class="s2">.</span><span class="s1">text_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">e</span><span class="s2">.</span><span class="s1">enabled </span><span class="s0">is False or </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore </span><span class="s0">or </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore_input</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+            <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">paused </span><span class="s0">and </span><span class="s1">e</span><span class="s2">.</span><span class="s1">ignore_paused </span><span class="s0">is False</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'text_input'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">e</span><span class="s2">.</span><span class="s1">text_input</span><span class="s2">):</span>
+                <span class="s1">e</span><span class="s2">.</span><span class="s1">text_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">e</span><span class="s2">, </span><span class="s4">'scripts'</span><span class="s2">):</span>
+                <span class="s0">for </span><span class="s1">script </span><span class="s0">in </span><span class="s1">e</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">:</span>
+                    <span class="s0">if </span><span class="s1">script</span><span class="s2">.</span><span class="s1">enabled </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">script</span><span class="s2">, </span><span class="s4">'text_input'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">script</span><span class="s2">.</span><span class="s1">text_input</span><span class="s2">):</span>
+                        <span class="s1">script</span><span class="s2">.</span><span class="s1">text_input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">step</span><span class="s2">(</span><span class="s1">self</span><span class="s2">): </span><span class="s6"># use this control the update loop yourself. call app.step() in a while loop for example, instead of app.run()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">info</span><span class="s2">=</span><span class="s0">True</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">application</span><span class="s2">.</span><span class="s1">show_ursina_splash</span><span class="s2">:</span>
+            <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">prefabs </span><span class="s0">import </span><span class="s1">ursina_splash</span>
+
+        <span class="s1">application</span><span class="s2">.</span><span class="s1">load_settings</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">info</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'os:'</span><span class="s2">, </span><span class="s1">platform</span><span class="s2">.</span><span class="s1">system</span><span class="s2">())</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'development mode:'</span><span class="s2">, </span><span class="s1">application</span><span class="s2">.</span><span class="s1">development_mode</span><span class="s2">)</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'application successfully started'</span><span class="s2">)</span>
+
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">run</span><span class="s2">()</span>
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s1">key</span><span class="s2">)</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

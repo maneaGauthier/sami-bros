@@ -1,0 +1,343 @@
+<html>
+<head>
+<title>DirectDeviceManager.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectDeviceManager.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Class used to create and control VRPN devices.&quot;&quot;&quot;</span>
+
+<span class="s2">from </span><span class="s1">direct</span><span class="s3">.</span><span class="s1">showbase</span><span class="s3">.</span><span class="s1">DirectObject </span><span class="s2">import </span><span class="s1">DirectObject</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s3">*</span>
+<span class="s2">from </span><span class="s1">panda3d</span><span class="s3">.</span><span class="s1">vrpn </span><span class="s2">import </span><span class="s3">*</span>
+
+<span class="s1">ANALOG_MIN </span><span class="s3">= -</span><span class="s4">0.95</span>
+<span class="s1">ANALOG_MAX </span><span class="s3">= </span><span class="s4">0.95</span>
+<span class="s1">ANALOG_DEADBAND </span><span class="s3">= </span><span class="s4">0.125</span>
+<span class="s1">ANALOG_CENTER </span><span class="s3">= </span><span class="s4">0.0</span>
+
+
+<span class="s2">class </span><span class="s1">DirectDeviceManager</span><span class="s3">(</span><span class="s1">VrpnClient</span><span class="s3">, </span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">server </span><span class="s3">= </span><span class="s2">None</span><span class="s3">):</span>
+
+        <span class="s5"># Determine which server to use</span>
+        <span class="s2">if </span><span class="s1">server </span><span class="s3">!= </span><span class="s2">None</span><span class="s3">:</span>
+            <span class="s5"># One given as constructor argument</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">server </span><span class="s3">= </span><span class="s1">server</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s5"># Check config file, if that fails, use default</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">server </span><span class="s3">= </span><span class="s1">ConfigVariableString</span><span class="s3">(</span><span class="s6">'vrpn-server'</span><span class="s3">, </span><span class="s6">'spacedyne'</span><span class="s3">).</span><span class="s1">getValue</span><span class="s3">()</span>
+
+        <span class="s5"># Create a vrpn client</span>
+        <span class="s1">VrpnClient</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">server</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">createButtons</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectButtons</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">createAnalogs</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectAnalogs</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">createTracker</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectTracker</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">createDials</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectDials</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">createTimecodeReader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">DirectTimecodeReader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+
+<span class="s2">class </span><span class="s1">DirectButtons</span><span class="s3">(</span><span class="s1">ButtonNode</span><span class="s3">, </span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">buttonCount </span><span class="s3">= </span><span class="s4">0</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s5"># Keep track of number of buttons created</span>
+        <span class="s1">DirectButtons</span><span class="s3">.</span><span class="s1">buttonCount </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s5"># Create a new button node for the given device</span>
+        <span class="s1">ButtonNode</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s5"># Create a unique name for this button object</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= </span><span class="s6">'DirectButtons-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectButtons</span><span class="s3">.</span><span class="s1">buttonCount</span><span class="s3">)</span>
+
+        <span class="s5"># Attach node to data graph</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">base</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">simbase</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__getitem__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">index</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s3">(</span><span class="s1">index </span><span class="s3">&lt; </span><span class="s4">0</span><span class="s3">) </span><span class="s2">or </span><span class="s3">(</span><span class="s1">index </span><span class="s3">&gt;= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getNumButtons</span><span class="s3">()):</span>
+            <span class="s2">raise </span><span class="s1">IndexError</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getButtonState</span><span class="s3">(</span><span class="s1">index</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getNumButtons</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataUnused</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+    <span class="s2">def </span><span class="s1">getNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span>
+
+    <span class="s2">def </span><span class="s1">__repr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">str </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s6">': '</span>
+        <span class="s2">for </span><span class="s1">val </span><span class="s2">in </span><span class="s1">self</span><span class="s3">:</span>
+            <span class="s1">str </span><span class="s3">= </span><span class="s1">str </span><span class="s3">+ </span><span class="s6">'%d' </span><span class="s3">% </span><span class="s1">val </span><span class="s3">+ </span><span class="s6">' '</span>
+        <span class="s2">return </span><span class="s1">str</span>
+
+<span class="s2">class </span><span class="s1">DirectAnalogs</span><span class="s3">(</span><span class="s1">AnalogNode</span><span class="s3">, </span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">analogCount </span><span class="s3">= </span><span class="s4">0</span>
+
+    <span class="s1">_analogDeadband </span><span class="s3">= </span><span class="s1">ConfigVariableDouble</span><span class="s3">(</span><span class="s6">'vrpn-analog-deadband'</span><span class="s3">, </span><span class="s1">ANALOG_DEADBAND</span><span class="s3">)</span>
+    <span class="s1">_analogMin </span><span class="s3">= </span><span class="s1">ConfigVariableDouble</span><span class="s3">(</span><span class="s6">'vrpn-analog-min'</span><span class="s3">, </span><span class="s1">ANALOG_MIN</span><span class="s3">)</span>
+    <span class="s1">_analogMax </span><span class="s3">= </span><span class="s1">ConfigVariableDouble</span><span class="s3">(</span><span class="s6">'vrpn-analog-max'</span><span class="s3">, </span><span class="s1">ANALOG_MAX</span><span class="s3">)</span>
+    <span class="s1">_analogCenter </span><span class="s3">= </span><span class="s1">ConfigVariableDouble</span><span class="s3">(</span><span class="s6">'vrpn-analog-center'</span><span class="s3">, </span><span class="s1">ANALOG_CENTER</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s5"># Keep track of number of analogs created</span>
+        <span class="s1">DirectAnalogs</span><span class="s3">.</span><span class="s1">analogCount </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s5"># Create a new analog node for the given device</span>
+        <span class="s1">AnalogNode</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s5"># Create a unique name for this analog object</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= </span><span class="s6">'DirectAnalogs-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectAnalogs</span><span class="s3">.</span><span class="s1">analogCount</span><span class="s3">)</span>
+
+        <span class="s5"># Attach node to data graph</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">base</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">simbase</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+        <span class="s5"># See if any of the general analog parameters are dconfig'd</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">analogDeadband </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_analogDeadband</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">analogMin </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_analogMin</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">analogMax </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_analogMax</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">analogCenter </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_analogCenter</span><span class="s3">.</span><span class="s1">getValue</span><span class="s3">()</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">analogRange </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMax </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMin</span>
+
+    <span class="s2">def </span><span class="s1">__getitem__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">index</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s3">(</span><span class="s1">index </span><span class="s3">&lt; </span><span class="s4">0</span><span class="s3">) </span><span class="s2">or </span><span class="s3">(</span><span class="s1">index </span><span class="s3">&gt;= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getNumControls</span><span class="s3">()):</span>
+            <span class="s2">raise </span><span class="s1">IndexError</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getControlState</span><span class="s3">(</span><span class="s1">index</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getNumControls</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataUnused</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">normalizeWithoutCentering</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">val</span><span class="s3">, </span><span class="s1">minVal </span><span class="s3">= -</span><span class="s4">1</span><span class="s3">, </span><span class="s1">maxVal </span><span class="s3">= </span><span class="s4">1</span><span class="s3">):</span>
+        <span class="s5">#</span>
+        <span class="s5"># This is the old code that doesn't incorporate the centering fix</span>
+        <span class="s5">#</span>
+        <span class="s5"># First record sign</span>
+        <span class="s2">if </span><span class="s1">val </span><span class="s3">&lt; </span><span class="s4">0</span><span class="s3">:</span>
+            <span class="s1">sign </span><span class="s3">= -</span><span class="s4">1</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">sign </span><span class="s3">= </span><span class="s4">1</span>
+        <span class="s5"># Zero out values in deadband</span>
+        <span class="s1">val </span><span class="s3">= </span><span class="s1">sign </span><span class="s3">* </span><span class="s1">max</span><span class="s3">(</span><span class="s1">abs</span><span class="s3">(</span><span class="s1">val</span><span class="s3">) - </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogDeadband</span><span class="s3">, </span><span class="s4">0.0</span><span class="s3">)</span>
+        <span class="s5"># Clamp value between analog range min and max and scale about center</span>
+        <span class="s1">val </span><span class="s3">= </span><span class="s1">min</span><span class="s3">(</span><span class="s1">max</span><span class="s3">(</span><span class="s1">val</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMin</span><span class="s3">), </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMax</span><span class="s3">)</span>
+        <span class="s5"># Normalize values to given minVal and maxVal range</span>
+        <span class="s2">return </span><span class="s3">(((</span><span class="s1">maxVal </span><span class="s3">- </span><span class="s1">minVal</span><span class="s3">) *</span>
+                 <span class="s3">((</span><span class="s1">val </span><span class="s3">- </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMin</span><span class="s3">) / </span><span class="s1">float</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogRange</span><span class="s3">))) + </span><span class="s1">minVal</span><span class="s3">)</span>
+
+
+    <span class="s2">def </span><span class="s1">normalize</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">rawValue</span><span class="s3">, </span><span class="s1">minVal </span><span class="s3">= -</span><span class="s4">1</span><span class="s3">, </span><span class="s1">maxVal </span><span class="s3">= </span><span class="s4">1</span><span class="s3">, </span><span class="s1">sf </span><span class="s3">= </span><span class="s4">1.0</span><span class="s3">):</span>
+        <span class="s1">aMax </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMax</span>
+        <span class="s1">aMin </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogMin</span>
+        <span class="s1">center </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogCenter</span>
+        <span class="s1">deadband </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogDeadband</span>
+        <span class="s1">range </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">analogRange</span>
+        <span class="s5"># Zero out values in deadband</span>
+        <span class="s2">if </span><span class="s3">(</span><span class="s1">abs</span><span class="s3">(</span><span class="s1">rawValue</span><span class="s3">-</span><span class="s1">center</span><span class="s3">) &lt;= </span><span class="s1">deadband</span><span class="s3">):</span>
+            <span class="s2">return </span><span class="s4">0.0</span>
+        <span class="s5"># Clamp value between aMin and aMax and scale around center</span>
+        <span class="s2">if </span><span class="s3">(</span><span class="s1">rawValue </span><span class="s3">&gt;= </span><span class="s1">center</span><span class="s3">):</span>
+            <span class="s5"># Convert positive values to range 0 to 1</span>
+            <span class="s1">val </span><span class="s3">= </span><span class="s1">min</span><span class="s3">(</span><span class="s1">rawValue </span><span class="s3">* </span><span class="s1">sf</span><span class="s3">, </span><span class="s1">aMax</span><span class="s3">)</span>
+            <span class="s1">percentVal </span><span class="s3">= ((</span><span class="s1">val </span><span class="s3">- (</span><span class="s1">center </span><span class="s3">+ </span><span class="s1">deadband</span><span class="s3">))/</span>
+                          <span class="s1">float</span><span class="s3">(</span><span class="s1">aMax </span><span class="s3">- (</span><span class="s1">center </span><span class="s3">+ </span><span class="s1">deadband</span><span class="s3">)))</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s5"># Convert negative values to range -1 to 0</span>
+            <span class="s1">val </span><span class="s3">= </span><span class="s1">max</span><span class="s3">(</span><span class="s1">rawValue </span><span class="s3">* </span><span class="s1">sf</span><span class="s3">, </span><span class="s1">aMin</span><span class="s3">)</span>
+            <span class="s1">percentVal </span><span class="s3">= -((</span><span class="s1">val </span><span class="s3">- (</span><span class="s1">center </span><span class="s3">- </span><span class="s1">deadband</span><span class="s3">))/</span>
+                           <span class="s1">float</span><span class="s3">(</span><span class="s1">aMin </span><span class="s3">- (</span><span class="s1">center </span><span class="s3">- </span><span class="s1">deadband</span><span class="s3">)))</span>
+        <span class="s5"># Normalize values to given minVal and maxVal range</span>
+        <span class="s2">return </span><span class="s3">(((</span><span class="s1">maxVal </span><span class="s3">- </span><span class="s1">minVal</span><span class="s3">) * ((</span><span class="s1">percentVal </span><span class="s3">+ </span><span class="s4">1</span><span class="s3">)/</span><span class="s4">2.0</span><span class="s3">)) + </span><span class="s1">minVal</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">normalizeChannel</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">chan</span><span class="s3">, </span><span class="s1">minVal </span><span class="s3">= -</span><span class="s4">1</span><span class="s3">, </span><span class="s1">maxVal </span><span class="s3">= </span><span class="s4">1</span><span class="s3">, </span><span class="s1">sf </span><span class="s3">= </span><span class="s4">1.0</span><span class="s3">):</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">normalize</span><span class="s3">(</span><span class="s1">self</span><span class="s3">[</span><span class="s1">chan</span><span class="s3">], </span><span class="s1">minVal</span><span class="s3">, </span><span class="s1">maxVal</span><span class="s3">, </span><span class="s1">sfx</span><span class="s3">)</span>
+        <span class="s2">except </span><span class="s1">IndexError</span><span class="s3">:</span>
+            <span class="s2">return </span><span class="s4">0.0</span>
+
+    <span class="s2">def </span><span class="s1">getName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+    <span class="s2">def </span><span class="s1">getNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span>
+
+    <span class="s2">def </span><span class="s1">__repr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">str </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s6">': '</span>
+        <span class="s2">for </span><span class="s1">val </span><span class="s2">in </span><span class="s1">self</span><span class="s3">:</span>
+            <span class="s1">str </span><span class="s3">= </span><span class="s1">str </span><span class="s3">+ </span><span class="s6">'%.3f' </span><span class="s3">% </span><span class="s1">val </span><span class="s3">+ </span><span class="s6">' '</span>
+        <span class="s2">return </span><span class="s1">str</span>
+
+<span class="s2">class </span><span class="s1">DirectTracker</span><span class="s3">(</span><span class="s1">TrackerNode</span><span class="s3">, </span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">trackerCount </span><span class="s3">= </span><span class="s4">0</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s5"># Keep track of number of trackers created</span>
+        <span class="s1">DirectTracker</span><span class="s3">.</span><span class="s1">trackerCount </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s5"># Create a new tracker node for the given device</span>
+        <span class="s1">TrackerNode</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s5"># Create a unique name for this tracker object</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= </span><span class="s6">'DirectTracker-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectTracker</span><span class="s3">.</span><span class="s1">trackerCount</span><span class="s3">)</span>
+
+        <span class="s5"># Attach node to data graph</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">base</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">simbase</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataUnused</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+    <span class="s2">def </span><span class="s1">getNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span>
+
+    <span class="s2">def </span><span class="s1">__repr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+<span class="s2">class </span><span class="s1">DirectDials</span><span class="s3">(</span><span class="s1">DialNode</span><span class="s3">, </span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">dialCount </span><span class="s3">= </span><span class="s4">0</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s5"># Keep track of number of dials created</span>
+        <span class="s1">DirectDials</span><span class="s3">.</span><span class="s1">dialCount </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s5"># Create a new dial node for the given device</span>
+        <span class="s1">DialNode</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s5"># Create a unique name for this dial object</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= </span><span class="s6">'DirectDials-' </span><span class="s3">+ </span><span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectDials</span><span class="s3">.</span><span class="s1">dialCount</span><span class="s3">)</span>
+
+        <span class="s5"># Attach node to data graph</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">base</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">simbase</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__getitem__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">index</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        if (index &lt; 0) or (index &gt;= self.getNumDials()): 
+            raise IndexError 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">readDial</span><span class="s3">(</span><span class="s1">index</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__len__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getNumDials</span><span class="s3">()</span>
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataUnused</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+    <span class="s2">def </span><span class="s1">getNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span>
+
+    <span class="s2">def </span><span class="s1">__repr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">str </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">+ </span><span class="s6">': '</span>
+        <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getNumDials</span><span class="s3">()):</span>
+            <span class="s1">str </span><span class="s3">= </span><span class="s1">str </span><span class="s3">+ </span><span class="s6">'%.3f' </span><span class="s3">% </span><span class="s1">self</span><span class="s3">[</span><span class="s1">i</span><span class="s3">] + </span><span class="s6">' '</span>
+        <span class="s2">return </span><span class="s1">str</span>
+
+<span class="s2">class </span><span class="s1">DirectTimecodeReader</span><span class="s3">(</span><span class="s1">AnalogNode</span><span class="s3">, </span><span class="s1">DirectObject</span><span class="s3">):</span>
+    <span class="s1">timecodeReaderCount </span><span class="s3">= </span><span class="s4">0</span>
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">):</span>
+        <span class="s5"># Keep track of number of timecodeReader created</span>
+        <span class="s1">DirectTimecodeReader</span><span class="s3">.</span><span class="s1">timecodeReaderCount </span><span class="s3">+= </span><span class="s4">1</span>
+        <span class="s5"># Create a new dial node for the given device</span>
+        <span class="s1">AnalogNode</span><span class="s3">.</span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">vrpnClient</span><span class="s3">, </span><span class="s1">device</span><span class="s3">)</span>
+        <span class="s5"># Create a unique name for this dial object</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">name </span><span class="s3">= (</span><span class="s6">'DirectTimecodeReader-' </span><span class="s3">+</span>
+                     <span class="s1">repr</span><span class="s3">(</span><span class="s1">DirectTimecodeReader</span><span class="s3">.</span><span class="s1">timecodeReaderCount</span><span class="s3">))</span>
+        <span class="s5"># Initialize components of timecode</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">frames </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">seconds </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">minutes </span><span class="s3">= </span><span class="s4">0</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">hours </span><span class="s3">= </span><span class="s4">0</span>
+
+        <span class="s5"># Attach node to data graph</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">base</span>
+        <span class="s2">except</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_base </span><span class="s3">= </span><span class="s1">simbase</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">.</span><span class="s1">attachNewNode</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">enable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataRoot</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">disable</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span><span class="s3">.</span><span class="s1">reparentTo</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">_base</span><span class="s3">.</span><span class="s1">dataUnused</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">getName</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span>
+
+    <span class="s2">def </span><span class="s1">getNodePath</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">nodePath</span>
+
+    <span class="s2">def </span><span class="s1">getTime</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s5"># Assume only one card, use channel 0</span>
+        <span class="s1">timeBits </span><span class="s3">= </span><span class="s1">int</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">getControlState</span><span class="s3">(</span><span class="s4">0</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">frames </span><span class="s3">= ((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0xF</span><span class="s3">) +</span>
+                       <span class="s3">(((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0xF0</span><span class="s3">) &gt;&gt; </span><span class="s4">4</span><span class="s3">) * </span><span class="s4">10</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">seconds </span><span class="s3">= (((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0x0F00</span><span class="s3">) &gt;&gt; </span><span class="s4">8</span><span class="s3">) +</span>
+                        <span class="s3">(((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0xF000</span><span class="s3">) &gt;&gt; </span><span class="s4">12</span><span class="s3">) * </span><span class="s4">10</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">minutes </span><span class="s3">= (((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0x0F0000</span><span class="s3">) &gt;&gt; </span><span class="s4">16</span><span class="s3">) +</span>
+                        <span class="s3">(((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0xF00000</span><span class="s3">) &gt;&gt; </span><span class="s4">20</span><span class="s3">) * </span><span class="s4">10</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">hours </span><span class="s3">= (((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0xF000000</span><span class="s3">) &gt;&gt; </span><span class="s4">24</span><span class="s3">) +</span>
+                      <span class="s3">(((</span><span class="s1">timeBits </span><span class="s3">&amp; </span><span class="s4">0xF0000000</span><span class="s3">) &gt;&gt; </span><span class="s4">28</span><span class="s3">) * </span><span class="s4">10</span><span class="s3">))</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">totalSeconds </span><span class="s3">= ((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">hours </span><span class="s3">* </span><span class="s4">3600</span><span class="s3">) +</span>
+                             <span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">minutes </span><span class="s3">* </span><span class="s4">60</span><span class="s3">) +</span>
+                             <span class="s1">self</span><span class="s3">.</span><span class="s1">seconds </span><span class="s3">+</span>
+                             <span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">frames </span><span class="s3">/ </span><span class="s4">30.0</span><span class="s3">))</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">hours</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">minutes</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">seconds</span><span class="s3">, </span><span class="s1">self</span><span class="s3">.</span><span class="s1">frames</span><span class="s3">,</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">totalSeconds</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">__repr__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">str </span><span class="s3">= (</span><span class="s6">'%s: %d:%d:%d:%d' </span><span class="s3">% ((</span><span class="s1">self</span><span class="s3">.</span><span class="s1">name</span><span class="s3">,) + </span><span class="s1">self</span><span class="s3">.</span><span class="s1">getTime</span><span class="s3">()[:-</span><span class="s4">1</span><span class="s3">]))</span>
+        <span class="s2">return </span><span class="s1">str</span>
+</pre>
+</body>
+</html>

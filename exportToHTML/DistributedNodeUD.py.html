@@ -1,0 +1,116 @@
+<html>
+<head>
+<title>DistributedNodeUD.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DistributedNodeUD.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s2">.</span><span class="s1">DistributedObjectUD </span><span class="s0">import </span><span class="s1">DistributedObjectUD</span>
+
+<span class="s0">class </span><span class="s1">DistributedNodeUD</span><span class="s2">(</span><span class="s1">DistributedObjectUD</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">air</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s3"># Be careful not to create multiple NodePath objects</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">DistributedNodeUD_initialized</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">DistributedNodeUD_initialized </span><span class="s2">= </span><span class="s4">1</span>
+            <span class="s1">DistributedObjectUD</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">air</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">name </span><span class="s0">is None</span><span class="s2">:</span>
+                <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span>
+
+    <span class="s0">def </span><span class="s1">b_setParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentToken</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">) == </span><span class="s1">str</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setParentStr</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setParent</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">d_setParent</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">d_setParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentToken</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">) == </span><span class="s1">type</span><span class="s2">(</span><span class="s5">''</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setParentStr&quot;</span><span class="s2">, [</span><span class="s1">parentToken</span><span class="s2">])</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setParent&quot;</span><span class="s2">, [</span><span class="s1">parentToken</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">setParentStr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentToken</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">) &gt; </span><span class="s4">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">do_setParent</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">setParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentToken</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">do_setParent</span><span class="s2">(</span><span class="s1">parentToken</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">do_setParent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentToken</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">getParentMgr</span><span class="s2">().</span><span class="s1">requestReparent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentToken</span><span class="s2">)</span>
+
+    <span class="s3">###### set pos and hpr functions #######</span>
+
+    <span class="s3"># setX provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setX</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setX&quot;</span><span class="s2">, [</span><span class="s1">x</span><span class="s2">])</span>
+
+    <span class="s3"># setY provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setY</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">y</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setY&quot;</span><span class="s2">, [</span><span class="s1">y</span><span class="s2">])</span>
+
+    <span class="s3"># setZ provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setZ</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">z</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setZ&quot;</span><span class="s2">, [</span><span class="s1">z</span><span class="s2">])</span>
+
+    <span class="s3"># setH provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setH</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setH&quot;</span><span class="s2">, [</span><span class="s1">h</span><span class="s2">])</span>
+
+    <span class="s3"># setP provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setP</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">p</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setP&quot;</span><span class="s2">, [</span><span class="s1">p</span><span class="s2">])</span>
+
+    <span class="s3"># setR provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setR</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">r</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setR&quot;</span><span class="s2">, [</span><span class="s1">r</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">setXY</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">y</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">d_setXY</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setXY&quot;</span><span class="s2">, [</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">])</span>
+
+    <span class="s3"># setPos provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setPos&quot;</span><span class="s2">, [</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">])</span>
+
+    <span class="s3"># setHpr provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setHpr&quot;</span><span class="s2">, [</span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">setXYH</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setX</span><span class="s2">(</span><span class="s1">x</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">y</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setH</span><span class="s2">(</span><span class="s1">h</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">d_setXYH</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setXYH&quot;</span><span class="s2">, [</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">h</span><span class="s2">])</span>
+
+    <span class="s0">def </span><span class="s1">setXYZH</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setH</span><span class="s2">(</span><span class="s1">h</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">d_setXYZH</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setXYZH&quot;</span><span class="s2">, [</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">])</span>
+
+    <span class="s3"># setPosHpr provided by NodePath</span>
+    <span class="s0">def </span><span class="s1">d_setPosHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s5">&quot;setPosHpr&quot;</span><span class="s2">, [</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">, </span><span class="s1">z</span><span class="s2">, </span><span class="s1">h</span><span class="s2">, </span><span class="s1">p</span><span class="s2">, </span><span class="s1">r</span><span class="s2">])</span>
+</pre>
+</body>
+</html>

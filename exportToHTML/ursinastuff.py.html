@@ -1,0 +1,281 @@
+<html>
+<head>
+<title>ursinastuff.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #2aacb8;}
+.s5 { color: #6aab73;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ursinastuff.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">sys</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">math</span>
+<span class="s0">import </span><span class="s1">random</span>
+<span class="s0">import </span><span class="s1">inspect</span>
+<span class="s0">import </span><span class="s1">importlib</span>
+<span class="s0">import </span><span class="s1">subprocess</span>
+<span class="s0">import </span><span class="s1">time</span>
+<span class="s0">from </span><span class="s1">pathlib </span><span class="s0">import </span><span class="s1">Path</span>
+
+<span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">application</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">scene </span><span class="s0">import </span><span class="s1">instance </span><span class="s0">as </span><span class="s1">scene</span>
+<span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">sequence </span><span class="s0">import </span><span class="s1">Sequence</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">, </span><span class="s1">Wait</span>
+
+
+<span class="s0">class </span><span class="s1">Empty</span><span class="s2">():</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key </span><span class="s2">,</span><span class="s1">value</span><span class="s2">)</span>
+
+<span class="s0">class </span><span class="s1">Default</span><span class="s2">:</span>
+    <span class="s0">pass</span>
+
+
+<span class="s0">def </span><span class="s1">invoke</span><span class="s2">(</span><span class="s1">function</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):  </span><span class="s3"># reserved keywords: 'delay', 'unscaled'</span>
+    <span class="s1">delay </span><span class="s2">= </span><span class="s4">0</span>
+    <span class="s0">if </span><span class="s5">'delay' </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">:</span>
+        <span class="s1">delay </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s5">'delay'</span><span class="s2">]</span>
+        <span class="s0">del </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s5">'delay'</span><span class="s2">]</span>
+
+    <span class="s1">unscaled </span><span class="s2">= </span><span class="s0">False</span>
+    <span class="s0">if </span><span class="s5">'unscaled' </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">:</span>
+        <span class="s1">unscaled </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s5">'unscaled'</span><span class="s2">]</span>
+        <span class="s0">del </span><span class="s1">kwargs</span><span class="s2">[</span><span class="s5">'unscaled'</span><span class="s2">]</span>
+
+    <span class="s0">if not </span><span class="s1">delay</span><span class="s2">:</span>
+        <span class="s1">function</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">)</span>
+        <span class="s0">return None</span>
+
+    <span class="s1">s </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span>
+        <span class="s1">Wait</span><span class="s2">(</span><span class="s1">delay</span><span class="s2">),</span>
+        <span class="s1">Func</span><span class="s2">(</span><span class="s1">function</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">)</span>
+    <span class="s2">)</span>
+    <span class="s1">s</span><span class="s2">.</span><span class="s1">unscaled </span><span class="s2">= </span><span class="s1">unscaled</span>
+    <span class="s1">s</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+    <span class="s0">return </span><span class="s1">s</span>
+
+
+<span class="s0">def </span><span class="s1">after</span><span class="s2">(</span><span class="s1">delay</span><span class="s2">, </span><span class="s1">unscaled</span><span class="s2">=</span><span class="s0">True</span><span class="s2">):</span>
+    <span class="s6">'''@after  decorator for calling a function after some time. 
+ 
+        example: 
+        @after(.4) 
+        def reset_cooldown(): 
+            self.on_cooldown = False 
+            self.color = color.green 
+    '''</span>
+    <span class="s0">def </span><span class="s1">decorator</span><span class="s2">(</span><span class="s1">func</span><span class="s2">):</span>
+        <span class="s0">def </span><span class="s1">wrapper</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+            <span class="s1">invoke</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s1">delay</span><span class="s2">, </span><span class="s1">unscaled</span><span class="s2">=</span><span class="s1">unscaled</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">wrapper</span><span class="s2">()</span>
+    <span class="s0">return </span><span class="s1">decorator</span>
+
+
+
+<span class="s0">def </span><span class="s1">get_class_name</span><span class="s2">(</span><span class="s1">func</span><span class="s2">):</span>
+    <span class="s1">qualname_parts </span><span class="s2">= </span><span class="s1">func</span><span class="s2">.</span><span class="s1">__qualname__</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s5">'.'</span><span class="s2">)</span>
+    <span class="s1">class_name </span><span class="s2">= </span><span class="s1">qualname_parts</span><span class="s2">[-</span><span class="s4">2</span><span class="s2">] </span><span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">qualname_parts</span><span class="s2">) &gt; </span><span class="s4">1 </span><span class="s0">else None</span>
+    <span class="s0">return </span><span class="s1">class_name</span>
+
+<span class="s0">class </span><span class="s1">every</span><span class="s2">:</span>
+    <span class="s6">'''@after  decorator for calling a function on an Entity after some time. 
+ 
+        example: 
+        @every(.1) 
+        def fixed_update(): 
+            print('check collision') 
+ 
+        Using the @every decorator is the same as doing this in __init__() (on Entity): 
+        self.animations.append(Sequence(Func(self.fixed_update), Wait(.1), loop=True, started=True)) 
+        The Sequence will call the function every .1 second, while adding it to 
+        self.animations ensures the Sequence gets cleaned up when the Entity gets destroyed. 
+    '''</span>
+    <span class="s1">decorated_methods </span><span class="s2">= []  </span><span class="s3"># store decorated methods here</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">interval</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interval </span><span class="s2">= </span><span class="s1">interval</span>
+
+    <span class="s0">def </span><span class="s1">__call__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">func</span><span class="s2">):</span>
+        <span class="s0">def </span><span class="s1">wrapper</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+            <span class="s3"># print(f&quot;Calling {func.__name__} every {self.interval} seconds&quot;)</span>
+            <span class="s0">return </span><span class="s1">func</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">)</span>
+
+        <span class="s1">wrapper</span><span class="s2">.</span><span class="s1">_every </span><span class="s2">= </span><span class="s1">self  </span><span class="s3"># add _every attribute to the decorated method</span>
+        <span class="s1">wrapper</span><span class="s2">.</span><span class="s1">_func </span><span class="s2">= </span><span class="s1">func</span>
+        <span class="s1">every</span><span class="s2">.</span><span class="s1">decorated_methods</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">wrapper</span><span class="s2">)  </span><span class="s3"># store the decorated method</span>
+        <span class="s0">return </span><span class="s1">wrapper</span>
+
+
+
+<span class="s0">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s4">0</span><span class="s2">):</span>
+    <span class="s0">if </span><span class="s1">delay </span><span class="s2">== </span><span class="s4">0</span><span class="s2">:</span>
+        <span class="s1">_destroy</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">)</span>
+        <span class="s0">return</span>
+
+    <span class="s1">s </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">Wait</span><span class="s2">(</span><span class="s1">delay</span><span class="s2">), </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">_destroy</span><span class="s2">, </span><span class="s1">entity</span><span class="s2">))</span>
+    <span class="s1">s</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+    <span class="s0">return </span><span class="s1">s</span>
+
+<span class="s0">def </span><span class="s1">_destroy</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s1">force_destroy</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">camera</span>
+    <span class="s0">if not </span><span class="s1">entity </span><span class="s0">or </span><span class="s1">entity </span><span class="s2">== </span><span class="s1">camera</span><span class="s2">:</span>
+        <span class="s0">return</span>
+
+    <span class="s0">if </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">eternal </span><span class="s0">and not </span><span class="s1">force_destroy</span><span class="s2">:</span>
+        <span class="s0">return</span>
+
+    <span class="s0">for </span><span class="s1">child </span><span class="s0">in </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">children</span><span class="s2">:</span>
+        <span class="s1">_destroy</span><span class="s2">(</span><span class="s1">child</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">:</span>
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'clip'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'stop'</span><span class="s2">): </span><span class="s3"># stop audio</span>
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'on_destroy'</span><span class="s2">):</span>
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">on_destroy</span><span class="s2">()</span>
+
+    <span class="s0">if </span><span class="s1">entity </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">entities</span><span class="s2">:</span>
+        <span class="s1">scene</span><span class="s2">.</span><span class="s1">entities</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">entity </span><span class="s0">in </span><span class="s1">scene</span><span class="s2">.</span><span class="s1">collidables</span><span class="s2">:</span>
+        <span class="s1">scene</span><span class="s2">.</span><span class="s1">collidables</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'_parent'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">_parent </span><span class="s0">and </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">.</span><span class="s1">_parent</span><span class="s2">, </span><span class="s5">'_children'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">entity </span><span class="s0">in </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">_parent</span><span class="s2">.</span><span class="s1">_children</span><span class="s2">:</span>
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">_parent</span><span class="s2">.</span><span class="s1">_children</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">)</span>
+
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'scripts'</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">s </span><span class="s0">in </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">:</span>
+            <span class="s0">del </span><span class="s1">s</span>
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'animations'</span><span class="s2">):</span>
+        <span class="s0">for </span><span class="s1">anim </span><span class="s0">in </span><span class="s1">entity</span><span class="s2">.</span><span class="s1">animations</span><span class="s2">:</span>
+            <span class="s1">anim</span><span class="s2">.</span><span class="s1">finish</span><span class="s2">()</span>
+            <span class="s1">anim</span><span class="s2">.</span><span class="s1">kill</span><span class="s2">()</span>
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'tooltip'</span><span class="s2">):</span>
+        <span class="s1">_destroy</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">.</span><span class="s1">tooltip</span><span class="s2">)</span>
+
+    <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">, </span><span class="s5">'_on_click'</span><span class="s2">) </span><span class="s0">and </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">entity</span><span class="s2">.</span><span class="s1">_on_click</span><span class="s2">, </span><span class="s1">Sequence</span><span class="s2">):</span>
+        <span class="s1">entity</span><span class="s2">.</span><span class="s1">_on_click</span><span class="s2">.</span><span class="s1">kill</span><span class="s2">()</span>
+
+    <span class="s1">entity</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+    <span class="s3">#unload texture</span>
+    <span class="s3"># if hasattr(entity, 'texture') and entity.texture != None:</span>
+    <span class="s3">#     entity.texture.releaseAll()</span>
+
+    <span class="s0">del </span><span class="s1">entity</span>
+
+
+
+<span class="s0">def </span><span class="s1">chunk_list</span><span class="s2">(</span><span class="s1">l</span><span class="s2">, </span><span class="s1">chunk_size</span><span class="s2">):</span>
+    <span class="s3"># yield successive chunks from list</span>
+    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">), </span><span class="s1">chunk_size</span><span class="s2">):</span>
+        <span class="s0">yield </span><span class="s1">l</span><span class="s2">[</span><span class="s1">i</span><span class="s2">:</span><span class="s1">i </span><span class="s2">+ </span><span class="s1">chunk_size</span><span class="s2">]</span>
+
+
+<span class="s0">def </span><span class="s1">flatten_list</span><span class="s2">(</span><span class="s1">l</span><span class="s2">):</span>
+    <span class="s3"># return [item for sublist in l for item in sublist]</span>
+    <span class="s0">import </span><span class="s1">itertools</span>
+    <span class="s0">return </span><span class="s1">list</span><span class="s2">(</span><span class="s1">itertools</span><span class="s2">.</span><span class="s1">chain</span><span class="s2">(*</span><span class="s1">l</span><span class="s2">))</span>
+
+<span class="s0">def </span><span class="s1">flatten_completely</span><span class="s2">(</span><span class="s1">container</span><span class="s2">):</span>
+    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">container</span><span class="s2">:</span>
+        <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">i</span><span class="s2">, (</span><span class="s1">list</span><span class="s2">,</span><span class="s1">tuple</span><span class="s2">)):</span>
+            <span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">flatten</span><span class="s2">(</span><span class="s1">i</span><span class="s2">):</span>
+                <span class="s0">yield </span><span class="s1">j</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">yield </span><span class="s1">i</span>
+
+
+
+<span class="s0">def </span><span class="s1">size_list</span><span class="s2">():</span>
+    <span class="s3">#return a list of current python objects sorted by size</span>
+    <span class="s1">globals_list </span><span class="s2">= []</span>
+    <span class="s1">globals_list</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+    <span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">globals</span><span class="s2">():</span>
+        <span class="s3"># object, size</span>
+        <span class="s1">globals_list</span><span class="s2">.</span><span class="s1">append</span><span class="s2">([</span><span class="s1">e</span><span class="s2">, </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getsizeof</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)])</span>
+    <span class="s1">globals_list</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">(</span><span class="s1">key</span><span class="s2">=</span><span class="s1">operator</span><span class="s2">.</span><span class="s1">itemgetter</span><span class="s2">(</span><span class="s4">1</span><span class="s2">), </span><span class="s1">reverse</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">'scene size:'</span><span class="s2">, </span><span class="s1">globals_list</span><span class="s2">)</span>
+
+
+<span class="s0">def </span><span class="s1">find_sequence</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">file_types</span><span class="s2">, </span><span class="s1">folders</span><span class="s2">): </span><span class="s3"># find frame_0, frame_1, frame_2 and so on</span>
+    <span class="s0">for </span><span class="s1">folder </span><span class="s0">in </span><span class="s1">folders</span><span class="s2">:</span>
+        <span class="s0">for </span><span class="s1">file_type </span><span class="s0">in </span><span class="s1">file_types</span><span class="s2">:</span>
+            <span class="s1">files </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">folder</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s5">f'**/</span><span class="s0">{</span><span class="s1">name</span><span class="s0">}</span><span class="s5">*.</span><span class="s0">{</span><span class="s1">file_type</span><span class="s0">}</span><span class="s5">'</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">files</span><span class="s2">:</span>
+                <span class="s1">files</span><span class="s2">.</span><span class="s1">sort</span><span class="s2">()</span>
+                <span class="s0">return </span><span class="s1">files</span>
+    <span class="s0">return </span><span class="s2">[]</span>
+
+
+<span class="s0">def </span><span class="s1">import_all_classes</span><span class="s2">(</span><span class="s1">path</span><span class="s2">=</span><span class="s1">application</span><span class="s2">.</span><span class="s1">asset_folder</span><span class="s2">, </span><span class="s1">debug</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+    <span class="s1">path </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">path</span><span class="s2">)</span>
+    <span class="s1">sys</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">path</span><span class="s2">)</span>
+    <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">string_utilities </span><span class="s0">import </span><span class="s1">snake_to_camel</span>
+    <span class="s0">from </span><span class="s1">glob </span><span class="s0">import </span><span class="s1">iglob</span>
+    <span class="s1">imported_successfully </span><span class="s2">= []</span>
+
+    <span class="s0">for </span><span class="s1">file_path </span><span class="s0">in </span><span class="s1">iglob</span><span class="s2">(</span><span class="s1">path </span><span class="s2">+ </span><span class="s5">'**/*.py'</span><span class="s2">, </span><span class="s1">recursive</span><span class="s2">=</span><span class="s0">True</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s5">'</span><span class="s0">\\</span><span class="s5">build</span><span class="s0">\\</span><span class="s5">' </span><span class="s0">in </span><span class="s1">file_path </span><span class="s0">or </span><span class="s5">'__' </span><span class="s0">in </span><span class="s1">file_path</span><span class="s2">:</span>
+            <span class="s0">continue</span>
+
+        <span class="s1">rel_path </span><span class="s2">= </span><span class="s1">file_path</span><span class="s2">[</span><span class="s1">len</span><span class="s2">(</span><span class="s1">path</span><span class="s2">):][:-</span><span class="s4">3</span><span class="s2">].</span><span class="s1">replace</span><span class="s2">(</span><span class="s5">'</span><span class="s0">\\</span><span class="s5">'</span><span class="s2">, </span><span class="s5">'.'</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">rel_path</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s5">'.'</span><span class="s2">):</span>
+            <span class="s1">rel_path </span><span class="s2">= </span><span class="s1">rel_path</span><span class="s2">[</span><span class="s4">1</span><span class="s2">:]</span>
+        <span class="s1">module_name </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">basename</span><span class="s2">(</span><span class="s1">file_path</span><span class="s2">).</span><span class="s1">split</span><span class="s2">(</span><span class="s5">'.'</span><span class="s2">)[</span><span class="s4">0</span><span class="s2">]</span>
+        <span class="s1">class_name </span><span class="s2">= </span><span class="s1">snake_to_camel</span><span class="s2">(</span><span class="s1">module_name</span><span class="s2">)</span>
+        <span class="s1">module_name </span><span class="s2">= </span><span class="s1">module_name</span>
+        <span class="s1">import_statement </span><span class="s2">= </span><span class="s5">'from ' </span><span class="s2">+ </span><span class="s1">rel_path </span><span class="s2">+ </span><span class="s5">' import *'</span>
+
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">exec</span><span class="s2">(</span><span class="s1">import_statement</span><span class="s2">, </span><span class="s1">globals</span><span class="s2">())</span>
+            <span class="s1">imported_successfully</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">module_name</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">debug</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s1">import_statement</span><span class="s2">)</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">debug</span><span class="s2">:</span>
+                <span class="s1">print</span><span class="s2">(</span><span class="s5">'     x'</span><span class="s2">, </span><span class="s1">import_statement</span><span class="s2">)</span>
+            <span class="s0">pass</span>
+
+    <span class="s0">return </span><span class="s1">imported_successfully</span>
+
+
+<span class="s0">def </span><span class="s1">print_on_screen</span><span class="s2">(</span><span class="s1">text</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=(</span><span class="s4">0</span><span class="s2">,</span><span class="s4">0</span><span class="s2">), </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s4">.5</span><span class="s2">,</span><span class="s4">.5</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=</span><span class="s4">1</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">=</span><span class="s4">1</span><span class="s2">):</span>
+    <span class="s0">from </span><span class="s1">ursina</span><span class="s2">.</span><span class="s1">text </span><span class="s0">import </span><span class="s1">Text</span>
+    <span class="s1">text_entity </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">text</span><span class="s2">=</span><span class="s1">text</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=</span><span class="s1">position</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=</span><span class="s1">origin</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s1">scale</span><span class="s2">)</span>
+    <span class="s1">destroy</span><span class="s2">(</span><span class="s1">text_entity</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s1">duration</span><span class="s2">)</span>
+
+
+<span class="s0">class </span><span class="s1">LoopingList</span><span class="s2">(</span><span class="s1">list</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__getitem__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">i</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">super</span><span class="s2">().</span><span class="s1">__getitem__</span><span class="s2">(</span><span class="s1">i </span><span class="s2">% </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">))</span>
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s5">'__main__'</span><span class="s2">:</span>
+
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+
+
+
+    <span class="s3"># Player()</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,631 @@
+<html>
+<head>
+<title>ClientRepositoryBase.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ClientRepositoryBase.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">MsgTypes </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s0">import </span><span class="s1">Task</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s0">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s0">from </span><span class="s2">. </span><span class="s0">import </span><span class="s1">CRCache</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">CRDataCache </span><span class="s0">import </span><span class="s1">CRDataCache</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">ConnectionRepository </span><span class="s0">import </span><span class="s1">ConnectionRepository</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s0">import </span><span class="s1">PythonUtil</span>
+<span class="s0">from </span><span class="s2">. </span><span class="s0">import </span><span class="s1">ParentMgr</span>
+<span class="s0">from </span><span class="s2">. </span><span class="s0">import </span><span class="s1">RelatedObjectMgr</span>
+<span class="s0">import </span><span class="s1">time</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">ClockDelta </span><span class="s0">import </span><span class="s2">*</span>
+
+
+<span class="s0">class </span><span class="s1">ClientRepositoryBase</span><span class="s2">(</span><span class="s1">ConnectionRepository</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This maintains a client-side connection with a Panda server. 
+ 
+    This base class exists to collect the common code between 
+    ClientRepository, which is the CMU-provided, open-source version 
+    of the client repository code, and OTPClientRepository, which is 
+    the VR Studio's implementation of the same. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;ClientRepositoryBase&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dcFileNames </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">dcSuffix </span><span class="s2">= </span><span class="s4">''</span><span class="s2">,</span>
+                 <span class="s1">connectMethod </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">threadedNet </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">connectMethod </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">connectMethod </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">CM_HTTP</span>
+        <span class="s1">ConnectionRepository</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">connectMethod</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">, </span><span class="s1">hasOwnerView </span><span class="s2">= </span><span class="s0">True</span><span class="s2">, </span><span class="s1">threadedNet </span><span class="s2">= </span><span class="s1">threadedNet</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dcSuffix </span><span class="s2">= </span><span class="s1">dcSuffix</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">'setVerbose'</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s4">'verbose-clientrepository'</span><span class="s2">):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">setVerbose</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">context</span><span class="s2">=</span><span class="s5">100000</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setClientDatagram</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastGenerate </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setDeferInterval</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetDouble</span><span class="s2">(</span><span class="s4">'deferred-generate-interval'</span><span class="s2">, </span><span class="s5">0.2</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">noDefer </span><span class="s2">= </span><span class="s0">False  </span><span class="s6"># Set this True to temporarily disable deferring.</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">recorder </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">recorder</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">readDCFile</span><span class="s2">(</span><span class="s1">dcFileNames</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cache</span><span class="s2">=</span><span class="s1">CRCache</span><span class="s2">.</span><span class="s1">CRCache</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">doDataCache </span><span class="s2">= </span><span class="s1">CRDataCache</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cacheOwner</span><span class="s2">=</span><span class="s1">CRCache</span><span class="s2">.</span><span class="s1">CRCache</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">serverDelta </span><span class="s2">= </span><span class="s5">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bootedIndex </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bootedText </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s6"># create a parentMgr to handle distributed reparents</span>
+        <span class="s6"># this used to be 'token2nodePath'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">parentMgr </span><span class="s2">= </span><span class="s1">ParentMgr</span><span class="s2">.</span><span class="s1">ParentMgr</span><span class="s2">()</span>
+
+        <span class="s6"># The RelatedObjectMgr helps distributed objects find each</span>
+        <span class="s6"># other.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">relatedObjectMgr </span><span class="s2">= </span><span class="s1">RelatedObjectMgr</span><span class="s2">.</span><span class="s1">RelatedObjectMgr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+        <span class="s6"># This will be filled in when a TimeManager is created.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">timeManager </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s6"># Keep track of how recently we last sent a heartbeat message.</span>
+        <span class="s6"># We want to keep these coming at heartbeatInterval seconds.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatInterval </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetDouble</span><span class="s2">(</span><span class="s4">'heartbeat-interval'</span><span class="s2">, </span><span class="s5">10</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatStarted </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastHeartbeat </span><span class="s2">= </span><span class="s5">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_delayDeletedDOs </span><span class="s2">= {}</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">specialNameNumber </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s0">def </span><span class="s1">setDeferInterval</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">deferInterval</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;Specifies the minimum amount of time, in seconds, that must 
+        elapse before generating any two DistributedObjects whose 
+        class type is marked &quot;deferrable&quot;.  Set this to 0 to indicate 
+        no deferring will occur.&quot;&quot;&quot;</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">deferInterval </span><span class="s2">= </span><span class="s1">deferInterval</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setHandleCUpdates</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferInterval </span><span class="s2">== </span><span class="s5">0</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">:</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'deferredGenerate'</span><span class="s2">)</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferInterval</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doDeferredGenerate</span><span class="s2">, </span><span class="s4">'deferredGenerate'</span><span class="s2">)</span>
+
+    <span class="s6">## def queryObjectAll(self, doID, context=0):</span>
+        <span class="s6">## &quot;&quot;&quot;</span>
+        <span class="s6">## Get a one-time snapshot look at the object.</span>
+        <span class="s6">## &quot;&quot;&quot;</span>
+        <span class="s6">## assert self.notify.debugStateCall(self)</span>
+        <span class="s6">## # Create a message</span>
+        <span class="s6">## datagram = PyDatagram()</span>
+        <span class="s6">## datagram.addServerHeader(</span>
+            <span class="s6">## doID, localAvatar.getDoId(), 2020)</span>
+        <span class="s6">## # A context that can be used to index the response if needed</span>
+        <span class="s6">## datagram.addUint32(context)</span>
+        <span class="s6">## self.send(datagram)</span>
+        <span class="s6">## # Make sure the message gets there.</span>
+        <span class="s6">## self.flush()</span>
+
+    <span class="s0">def </span><span class="s1">specialName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">label</span><span class="s2">):</span>
+        <span class="s1">name </span><span class="s2">= (</span><span class="s4">&quot;SpecialName %s %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">specialNameNumber</span><span class="s2">, </span><span class="s1">label</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">specialNameNumber </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s0">return </span><span class="s1">name</span>
+
+    <span class="s0">def </span><span class="s1">getTables</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ownerView</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">ownerView</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2ownerView</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cacheOwner</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cache</span>
+
+    <span class="s0">def </span><span class="s1">_getMsgName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">msgId</span><span class="s2">):</span>
+        <span class="s6"># we might get a list of message names, use the first one</span>
+        <span class="s0">return </span><span class="s1">makeList</span><span class="s2">(</span><span class="s1">MsgId2Names</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">msgId</span><span class="s2">, </span><span class="s4">'UNKNOWN MESSAGE: %s' </span><span class="s2">% </span><span class="s1">msgId</span><span class="s2">))[</span><span class="s5">0</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">allocateContext</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">context</span><span class="s2">+=</span><span class="s5">1</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">context</span>
+
+    <span class="s0">def </span><span class="s1">setServerDelta</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">delta</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Indicates the approximate difference in seconds between the 
+        client's clock and the server's clock, in universal time (not 
+        including timezone shifts).  This is mainly useful for 
+        reporting synchronization information to the logs; don't 
+        depend on it for any precise timing requirements. 
+ 
+        Also see Notify.setServerDelta(), which also accounts for a 
+        timezone shift. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">serverDelta </span><span class="s2">= </span><span class="s1">delta</span>
+
+    <span class="s0">def </span><span class="s1">getServerDelta</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">serverDelta</span>
+
+    <span class="s0">def </span><span class="s1">getServerTimeOfDay</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Returns the current time of day (seconds elapsed since the 
+        1972 epoch) according to the server's clock.  This is in GMT, 
+        and hence is irrespective of timezones. 
+ 
+        The value is computed based on the client's clock and the 
+        known delta from the server's clock, which is not terribly 
+        precisely measured and may drift slightly after startup, but 
+        it should be accurate plus or minus a couple of seconds. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">return </span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">() + </span><span class="s1">self</span><span class="s2">.</span><span class="s1">serverDelta</span>
+
+    <span class="s0">def </span><span class="s1">doGenerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">, </span><span class="s1">classId</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s6"># Look up the dclass</span>
+        <span class="s0">assert </span><span class="s1">parentId </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">GameGlobalsId </span><span class="s0">or </span><span class="s1">parentId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span>
+        <span class="s1">dclass </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dclassesByNumber</span><span class="s2">[</span><span class="s1">classId</span><span class="s2">]</span>
+        <span class="s0">assert</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;performing generate for %s %s&quot; </span><span class="s2">% (</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(), </span><span class="s1">doId</span><span class="s2">)))</span>
+        <span class="s1">dclass</span><span class="s2">.</span><span class="s1">startGenerate</span><span class="s2">()</span>
+        <span class="s6"># Create a new distributed object, and put it in the dictionary</span>
+        <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">generateWithRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+        <span class="s1">dclass</span><span class="s2">.</span><span class="s1">stopGenerate</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">flushGenerates</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Forces all pending generates to be performed immediately. &quot;&quot;&quot;</span>
+        <span class="s0">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">:</span>
+            <span class="s1">msgType</span><span class="s2">, </span><span class="s1">extra </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">replayDeferredGenerate</span><span class="s2">(</span><span class="s1">msgType</span><span class="s2">, </span><span class="s1">extra</span><span class="s2">)</span>
+
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'deferredGenerate'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">replayDeferredGenerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">msgType</span><span class="s2">, </span><span class="s1">extra</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; Override this to do something appropriate with deferred 
+        &quot;generate&quot; messages when they are replayed(). 
+        &quot;&quot;&quot;</span>
+
+        <span class="s0">if </span><span class="s1">msgType </span><span class="s2">== </span><span class="s1">CLIENT_ENTER_OBJECT_REQUIRED_OTHER</span><span class="s2">:</span>
+            <span class="s6"># It's a generate message.</span>
+            <span class="s1">doId </span><span class="s2">= </span><span class="s1">extra</span>
+            <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">:</span>
+                <span class="s1">args</span><span class="s2">, </span><span class="s1">deferrable</span><span class="s2">, </span><span class="s1">dg</span><span class="s2">, </span><span class="s1">updates </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+                <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">doGenerate</span><span class="s2">(*</span><span class="s1">args</span><span class="s2">)</span>
+
+                <span class="s0">if </span><span class="s1">deferrable</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">lastGenerate </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+
+                <span class="s0">for </span><span class="s1">dg</span><span class="s2">, </span><span class="s1">di </span><span class="s0">in </span><span class="s1">updates</span><span class="s2">:</span>
+                    <span class="s6"># non-DC updates that need to be played back in-order are</span>
+                    <span class="s6"># stored as (msgType, (dg, di))</span>
+                    <span class="s0">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">di</span><span class="s2">) </span><span class="s0">is </span><span class="s1">tuple</span><span class="s2">:</span>
+                        <span class="s1">msgType </span><span class="s2">= </span><span class="s1">dg</span>
+                        <span class="s1">dg</span><span class="s2">, </span><span class="s1">di </span><span class="s2">= </span><span class="s1">di</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">replayDeferredGenerate</span><span class="s2">(</span><span class="s1">msgType</span><span class="s2">, (</span><span class="s1">dg</span><span class="s2">, </span><span class="s1">di</span><span class="s2">))</span>
+                    <span class="s0">else</span><span class="s2">:</span>
+                        <span class="s6"># ovUpdated is set to True since its OV</span>
+                        <span class="s6"># is assumbed to have occured when the</span>
+                        <span class="s6"># deferred update was originally received</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">__doUpdate</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">, </span><span class="s0">True</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s4">&quot;Ignoring deferred message %s&quot; </span><span class="s2">% (</span><span class="s1">msgType</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">doDeferredGenerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; This is the task that generates an object on the deferred 
+        queue. &quot;&quot;&quot;</span>
+
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s0">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">now </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastGenerate </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferInterval</span><span class="s2">:</span>
+                <span class="s6"># Come back later.</span>
+                <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">again</span>
+
+            <span class="s6"># Generate the next deferred object.</span>
+            <span class="s1">msgType</span><span class="s2">, </span><span class="s1">extra </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">[</span><span class="s5">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">replayDeferredGenerate</span><span class="s2">(</span><span class="s1">msgType</span><span class="s2">, </span><span class="s1">extra</span><span class="s2">)</span>
+
+        <span class="s6"># All objects are generaetd.</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+
+    <span class="s0">def </span><span class="s1">generateWithRequiredFields</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">:</span>
+            <span class="s6"># ...it is in our dictionary.</span>
+            <span class="s6"># Just update it.</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+            <span class="s0">assert </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">== </span><span class="s1">dclass</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">setLocation</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredFields calls announceGenerate</span>
+        <span class="s0">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cache</span><span class="s2">.</span><span class="s1">contains</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">):</span>
+            <span class="s6"># ...it is in the cache.</span>
+            <span class="s6"># Pull it out of the cache:</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cache</span><span class="s2">.</span><span class="s1">retrieve</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+            <span class="s0">assert </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">== </span><span class="s1">dclass</span>
+            <span class="s6"># put it in the dictionary:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">distObj</span>
+            <span class="s6"># and update it.</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s6"># make sure we don't have a stale location</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">parentId </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">zoneId </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">setLocation</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredFields calls announceGenerate</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s6"># ...it is not in the dictionary or the cache.</span>
+            <span class="s6"># Construct a new one</span>
+            <span class="s1">classDef </span><span class="s2">= </span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getClassDef</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">classDef </span><span class="s2">== </span><span class="s0">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s4">&quot;Could not create an undefined %s object.&quot; </span><span class="s2">% (</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">classDef</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">= </span><span class="s1">dclass</span>
+            <span class="s6"># Assign it an Id</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">doId </span><span class="s2">= </span><span class="s1">doId</span>
+            <span class="s6"># Put the new do in the dictionary</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">distObj</span>
+            <span class="s6"># Update the required fields</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generateInit</span><span class="s2">()  </span><span class="s6"># Only called when constructed</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">_retrieveCachedData</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">setLocation</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredFields calls announceGenerate</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;New DO:%s, dclass:%s&quot; </span><span class="s2">% (</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+        <span class="s0">return </span><span class="s1">distObj</span>
+
+    <span class="s0">def </span><span class="s1">generateWithRequiredOtherFields</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">,</span>
+                                        <span class="s1">parentId </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">zoneId </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">:</span>
+            <span class="s6"># ...it is in our dictionary.</span>
+            <span class="s6"># Just update it.</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+            <span class="s0">assert </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">== </span><span class="s1">dclass</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">setLocation</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredOtherFields calls announceGenerate</span>
+        <span class="s0">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cache</span><span class="s2">.</span><span class="s1">contains</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">):</span>
+            <span class="s6"># ...it is in the cache.</span>
+            <span class="s6"># Pull it out of the cache:</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cache</span><span class="s2">.</span><span class="s1">retrieve</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+            <span class="s0">assert </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">== </span><span class="s1">dclass</span>
+            <span class="s6"># put it in the dictionary:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">distObj</span>
+            <span class="s6"># and update it.</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s6"># make sure we don't have a stale location</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">parentId </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">zoneId </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">setLocation</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredOtherFields calls announceGenerate</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s6"># ...it is not in the dictionary or the cache.</span>
+            <span class="s6"># Construct a new one</span>
+            <span class="s1">classDef </span><span class="s2">= </span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getClassDef</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">classDef </span><span class="s2">== </span><span class="s0">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s4">&quot;Could not create an undefined %s object.&quot; </span><span class="s2">% (</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">classDef</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">= </span><span class="s1">dclass</span>
+            <span class="s6"># Assign it an Id</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">doId </span><span class="s2">= </span><span class="s1">doId</span>
+            <span class="s6"># Put the new do in the dictionary</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">distObj</span>
+            <span class="s6"># Update the required fields</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generateInit</span><span class="s2">()  </span><span class="s6"># Only called when constructed</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">_retrieveCachedData</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">setLocation</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredOtherFields calls announceGenerate</span>
+        <span class="s0">return </span><span class="s1">distObj</span>
+
+    <span class="s0">def </span><span class="s1">generateWithRequiredOtherFieldsOwner</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2ownerView</span><span class="s2">:</span>
+            <span class="s6"># ...it is in our dictionary.</span>
+            <span class="s6"># Just update it.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s4">'duplicate owner generate for %s (%s)' </span><span class="s2">% (</span>
+                <span class="s1">doId</span><span class="s2">, </span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2ownerView</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+            <span class="s0">assert </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">== </span><span class="s1">dclass</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredOtherFields calls announceGenerate</span>
+        <span class="s0">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cacheOwner</span><span class="s2">.</span><span class="s1">contains</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">):</span>
+            <span class="s6"># ...it is in the cache.</span>
+            <span class="s6"># Pull it out of the cache:</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cacheOwner</span><span class="s2">.</span><span class="s1">retrieve</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+            <span class="s0">assert </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">== </span><span class="s1">dclass</span>
+            <span class="s6"># put it in the dictionary:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doId2ownerView</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">distObj</span>
+            <span class="s6"># and update it.</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredOtherFields calls announceGenerate</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s6"># ...it is not in the dictionary or the cache.</span>
+            <span class="s6"># Construct a new one</span>
+            <span class="s1">classDef </span><span class="s2">= </span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getOwnerClassDef</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">classDef </span><span class="s2">== </span><span class="s0">None</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s4">&quot;Could not create an undefined %s object. Have you created an owner view?&quot; </span><span class="s2">% (</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">classDef</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">dclass </span><span class="s2">= </span><span class="s1">dclass</span>
+            <span class="s6"># Assign it an Id</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">doId </span><span class="s2">= </span><span class="s1">doId</span>
+            <span class="s6"># Put the new do in the dictionary</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doId2ownerView</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">distObj</span>
+            <span class="s6"># Update the required fields</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generateInit</span><span class="s2">()  </span><span class="s6"># Only called when constructed</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">()</span>
+            <span class="s1">distObj</span><span class="s2">.</span><span class="s1">updateRequiredOtherFields</span><span class="s2">(</span><span class="s1">dclass</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+            <span class="s6"># updateRequiredOtherFields calls announceGenerate</span>
+        <span class="s0">return </span><span class="s1">distObj</span>
+
+
+    <span class="s0">def </span><span class="s1">disableDoId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">ownerView</span><span class="s2">=</span><span class="s0">False</span><span class="s2">):</span>
+        <span class="s1">table</span><span class="s2">, </span><span class="s1">cache </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getTables</span><span class="s2">(</span><span class="s1">ownerView</span><span class="s2">)</span>
+        <span class="s6"># Make sure the object exists</span>
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">table</span><span class="s2">:</span>
+            <span class="s6"># Look up the object</span>
+            <span class="s1">distObj </span><span class="s2">= </span><span class="s1">table</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+            <span class="s6"># remove the object from the dictionary</span>
+            <span class="s0">del </span><span class="s1">table</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+
+            <span class="s6"># Only cache the object if it is a &quot;cacheable&quot; type</span>
+            <span class="s6"># object; this way we don't clutter up the caches with</span>
+            <span class="s6"># trivial objects that don't benefit from caching.</span>
+            <span class="s6"># also don't try to cache an object that is delayDeleted</span>
+            <span class="s1">cached </span><span class="s2">= </span><span class="s0">False</span>
+            <span class="s0">if </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">getCacheable</span><span class="s2">() </span><span class="s0">and </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">getDelayDeleteCount</span><span class="s2">() &lt;= </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s1">cached </span><span class="s2">= </span><span class="s1">cache</span><span class="s2">.</span><span class="s1">cache</span><span class="s2">(</span><span class="s1">distObj</span><span class="s2">)</span>
+            <span class="s0">if not </span><span class="s1">cached</span><span class="s2">:</span>
+                <span class="s1">distObj</span><span class="s2">.</span><span class="s1">deleteOrDelay</span><span class="s2">()</span>
+                <span class="s0">if </span><span class="s1">distObj</span><span class="s2">.</span><span class="s1">getDelayDeleteCount</span><span class="s2">() &lt;= </span><span class="s5">0</span><span class="s2">:</span>
+                    <span class="s6"># make sure we're not leaking</span>
+                    <span class="s1">distObj</span><span class="s2">.</span><span class="s1">detectLeaks</span><span class="s2">()</span>
+
+        <span class="s0">elif </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">:</span>
+            <span class="s6"># The object had been deferred.  Great; we don't even have</span>
+            <span class="s6"># to generate it now.</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+            <span class="s1">i </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">.</span><span class="s1">index</span><span class="s2">((</span><span class="s1">CLIENT_ENTER_OBJECT_REQUIRED_OTHER</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">))</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">[</span><span class="s1">i</span><span class="s2">]</span>
+            <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredGenerates</span><span class="s2">) == </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'deferredGenerate'</span><span class="s2">)</span>
+
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_logFailedDisable</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">ownerView</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">_logFailedDisable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">ownerView</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+            <span class="s4">&quot;Disable failed. DistObj &quot;</span>
+            <span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">) +</span>
+            <span class="s4">&quot; is not in dictionary, ownerView=%s&quot; </span><span class="s2">% </span><span class="s1">ownerView</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">handleDelete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s6"># overridden by ClientRepository</span>
+        <span class="s0">assert </span><span class="s5">0</span>
+
+    <span class="s0">def </span><span class="s1">handleUpdateField</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        This method is called when a CLIENT_OBJECT_UPDATE_FIELD 
+        message is received; it decodes the update, unpacks the 
+        arguments, and calls the corresponding method on the indicated 
+        DistributedObject. 
+ 
+        In fact, this method is exactly duplicated by the C++ method 
+        cConnectionRepository::handle_update_field(), which was 
+        written to optimize the message loop by handling all of the 
+        CLIENT_OBJECT_UPDATE_FIELD messages in C++.  That means that 
+        nowadays, this Python method will probably never be called, 
+        since UPDATE_FIELD messages will not even be passed to the 
+        Python message handlers.  But this method remains for 
+        documentation purposes, and also as a &quot;just in case&quot; handler 
+        in case we ever do come across a situation in the future in 
+        which python might handle the UPDATE_FIELD message. 
+        &quot;&quot;&quot;</span>
+        <span class="s6"># Get the DO Id</span>
+        <span class="s1">doId </span><span class="s2">= </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getUint32</span><span class="s2">()</span>
+
+        <span class="s1">ovUpdated </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__doUpdateOwner</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">:</span>
+            <span class="s6"># This object hasn't really been generated yet.  Sit on</span>
+            <span class="s6"># the update.</span>
+            <span class="s1">args</span><span class="s2">, </span><span class="s1">deferrable</span><span class="s2">, </span><span class="s1">dg0</span><span class="s2">, </span><span class="s1">updates </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">deferredDoIds</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+
+            <span class="s6"># Keep a copy of the datagram, and move the di to the copy</span>
+            <span class="s1">dg </span><span class="s2">= </span><span class="s1">Datagram</span><span class="s2">(</span><span class="s1">di</span><span class="s2">.</span><span class="s1">getDatagram</span><span class="s2">())</span>
+            <span class="s1">di </span><span class="s2">= </span><span class="s1">DatagramIterator</span><span class="s2">(</span><span class="s1">dg</span><span class="s2">, </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getCurrentIndex</span><span class="s2">())</span>
+
+            <span class="s1">updates</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">dg</span><span class="s2">, </span><span class="s1">di</span><span class="s2">))</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s6"># This object has been fully generated.  It's OK to update.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__doUpdate</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">, </span><span class="s1">ovUpdated</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">__doUpdate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">, </span><span class="s1">ovUpdated</span><span class="s2">):</span>
+        <span class="s6"># Find the DO</span>
+        <span class="s1">do </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">do </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s6"># Let the dclass finish the job</span>
+            <span class="s1">do</span><span class="s2">.</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">receiveUpdate</span><span class="s2">(</span><span class="s1">do</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+        <span class="s0">elif not </span><span class="s1">ovUpdated</span><span class="s2">:</span>
+            <span class="s6"># this next bit is looking for avatar handles so that if you get an update</span>
+            <span class="s6"># for an avatar that isn't in your doId2do table but there is a</span>
+            <span class="s6"># avatar handle for that object then it's messages will be forwarded to that</span>
+            <span class="s6"># object. We are currently using that for whisper echoing</span>
+            <span class="s6"># if you need a more general perpose system consider registering proxy objects on</span>
+            <span class="s6"># a dict and adding the avatar handles to that dict when they are created</span>
+            <span class="s6"># then change/remove the old method. I didn't do that because I couldn't think</span>
+            <span class="s6"># of a use for it. -JML</span>
+            <span class="s0">try </span><span class="s2">:</span>
+                <span class="s1">handle </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">identifyAvatar</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">handle</span><span class="s2">:</span>
+                    <span class="s1">dclass </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dclassesByName</span><span class="s2">[</span><span class="s1">handle</span><span class="s2">.</span><span class="s1">dclassName</span><span class="s2">]</span>
+                    <span class="s1">dclass</span><span class="s2">.</span><span class="s1">receiveUpdate</span><span class="s2">(</span><span class="s1">handle</span><span class="s2">, </span><span class="s1">di</span><span class="s2">)</span>
+
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                        <span class="s4">&quot;Asked to update non-existent DistObj &quot; </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">))</span>
+            <span class="s0">except</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                        <span class="s4">&quot;Asked to update non-existent DistObj &quot; </span><span class="s2">+ </span><span class="s1">str</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">) + </span><span class="s4">&quot;and failed to find it&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__doUpdateOwner</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s1">ovObj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2ownerView</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">ovObj</span><span class="s2">:</span>
+            <span class="s1">odg </span><span class="s2">= </span><span class="s1">Datagram</span><span class="s2">(</span><span class="s1">di</span><span class="s2">.</span><span class="s1">getDatagram</span><span class="s2">())</span>
+            <span class="s1">odi </span><span class="s2">= </span><span class="s1">DatagramIterator</span><span class="s2">(</span><span class="s1">odg</span><span class="s2">, </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getCurrentIndex</span><span class="s2">())</span>
+            <span class="s1">ovObj</span><span class="s2">.</span><span class="s1">dclass</span><span class="s2">.</span><span class="s1">receiveUpdate</span><span class="s2">(</span><span class="s1">ovObj</span><span class="s2">, </span><span class="s1">odi</span><span class="s2">)</span>
+            <span class="s0">return True</span>
+        <span class="s0">return False</span>
+
+    <span class="s0">def </span><span class="s1">handleGoGetLost</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s6"># The server told us it's about to drop the connection on us.</span>
+        <span class="s6"># Get ready!</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">di</span><span class="s2">.</span><span class="s1">getRemainingSize</span><span class="s2">() &gt; </span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bootedIndex </span><span class="s2">= </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getUint16</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bootedText </span><span class="s2">= </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getString</span><span class="s2">()</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                <span class="s4">&quot;Server is booting us out (%d): %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bootedIndex</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bootedText</span><span class="s2">))</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bootedIndex </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">bootedText </span><span class="s2">= </span><span class="s0">None</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                <span class="s4">&quot;Server is booting us out with no explanation.&quot;</span><span class="s2">)</span>
+
+        <span class="s6"># disconnect now, don't wait for send/recv to fail</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stopReaderPollTask</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lostConnection</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">handleServerHeartbeat</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s6"># Got a heartbeat message from the server.</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s4">'server-heartbeat-info'</span><span class="s2">, </span><span class="s5">1</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Server heartbeat.&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">handleSystemMessage</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s6"># Got a system message from the server.</span>
+        <span class="s1">message </span><span class="s2">= </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getString</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">'Message from server: %s' </span><span class="s2">% (</span><span class="s1">message</span><span class="s2">))</span>
+        <span class="s0">return </span><span class="s1">message</span>
+
+    <span class="s0">def </span><span class="s1">handleSystemMessageAknowledge</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">di</span><span class="s2">):</span>
+        <span class="s6"># Got a system message from the server.</span>
+        <span class="s1">message </span><span class="s2">= </span><span class="s1">di</span><span class="s2">.</span><span class="s1">getString</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">'Message with aknowledge from server: %s' </span><span class="s2">% (</span><span class="s1">message</span><span class="s2">))</span>
+        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s4">&quot;system message aknowledge&quot;</span><span class="s2">, [</span><span class="s1">message</span><span class="s2">])</span>
+        <span class="s0">return </span><span class="s1">message</span>
+
+    <span class="s0">def </span><span class="s1">getObjectsOfClass</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">objClass</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; returns dict of doId:object, containing all objects 
+        that inherit from 'class'. returned dict is safely mutable. &quot;&quot;&quot;</span>
+        <span class="s1">doDict </span><span class="s2">= {}</span>
+        <span class="s0">for </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">do </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">do</span><span class="s2">, </span><span class="s1">objClass</span><span class="s2">):</span>
+                <span class="s1">doDict</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">do</span>
+        <span class="s0">return </span><span class="s1">doDict</span>
+
+    <span class="s0">def </span><span class="s1">getObjectsOfExactClass</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">objClass</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; returns dict of doId:object, containing all objects that 
+        are exactly of type 'class' (neglecting inheritance). returned 
+        dict is safely mutable. &quot;&quot;&quot;</span>
+        <span class="s1">doDict </span><span class="s2">= {}</span>
+        <span class="s0">for </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">do </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s0">if </span><span class="s1">do</span><span class="s2">.</span><span class="s1">__class__ </span><span class="s2">== </span><span class="s1">objClass</span><span class="s2">:</span>
+                <span class="s1">doDict</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">] = </span><span class="s1">do</span>
+        <span class="s0">return </span><span class="s1">doDict</span>
+
+
+    <span class="s0">def </span><span class="s1">considerHeartbeat</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;Send a heartbeat message if we haven't sent one recently.&quot;&quot;&quot;</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatStarted</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;Heartbeats not started; not sending.&quot;</span><span class="s2">)</span>
+            <span class="s0">return</span>
+
+        <span class="s1">elapsed </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">() - </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastHeartbeat</span>
+        <span class="s0">if </span><span class="s1">elapsed </span><span class="s2">&lt; </span><span class="s5">0 </span><span class="s0">or </span><span class="s1">elapsed </span><span class="s2">&gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatInterval</span><span class="s2">:</span>
+            <span class="s6"># It's time to send the heartbeat again (or maybe someone</span>
+            <span class="s6"># reset the clock back).</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Sending heartbeat mid-frame.&quot;</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startHeartbeat</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">stopHeartbeat</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">&quot;heartBeat&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatStarted </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s0">def </span><span class="s1">startHeartbeat</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stopHeartbeat</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatStarted </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendHeartbeat</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">waitForNextHeartBeat</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">sendHeartbeatTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendHeartbeat</span><span class="s2">()</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">again</span>
+
+    <span class="s0">def </span><span class="s1">waitForNextHeartBeat</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">heartbeatInterval</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sendHeartbeatTask</span><span class="s2">,</span>
+                              <span class="s4">&quot;heartBeat&quot;</span><span class="s2">, </span><span class="s1">taskChain </span><span class="s2">= </span><span class="s4">'net'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">oldMethod</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s5">0</span>
+
+    <span class="s0">def </span><span class="s1">getWorld</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">):</span>
+        <span class="s6"># Get the world node for this object</span>
+        <span class="s1">obj </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">[</span><span class="s1">doId</span><span class="s2">]</span>
+
+        <span class="s1">worldNP </span><span class="s2">= </span><span class="s1">obj</span><span class="s2">.</span><span class="s1">getParent</span><span class="s2">()</span>
+        <span class="s0">while </span><span class="s5">1</span><span class="s2">:</span>
+            <span class="s1">nextNP </span><span class="s2">= </span><span class="s1">worldNP</span><span class="s2">.</span><span class="s1">getParent</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">nextNP </span><span class="s2">== </span><span class="s1">render</span><span class="s2">:</span>
+                <span class="s0">break</span>
+            <span class="s0">elif </span><span class="s1">worldNP</span><span class="s2">.</span><span class="s1">isEmpty</span><span class="s2">():</span>
+                <span class="s0">return None</span>
+        <span class="s0">return </span><span class="s1">worldNP</span>
+
+    <span class="s0">def </span><span class="s1">isLive</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">GetBool</span><span class="s2">(</span><span class="s4">'force-live'</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s0">return True</span>
+        <span class="s0">return not </span><span class="s2">(</span><span class="s1">__dev__ </span><span class="s0">or </span><span class="s1">launcher</span><span class="s2">.</span><span class="s1">isTestServer</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">isLocalId</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">id</span><span class="s2">):</span>
+        <span class="s6"># By default, no ID's are local.  See also</span>
+        <span class="s6"># ClientRepository.isLocalId().</span>
+        <span class="s0">return </span><span class="s5">0</span>
+
+    <span class="s6"># methods for tracking delaydeletes</span>
+    <span class="s0">def </span><span class="s1">_addDelayDeletedDO</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">do</span><span class="s2">):</span>
+        <span class="s6"># use the id of the object, it's possible to have multiple DelayDeleted instances</span>
+        <span class="s6"># with identical doIds if an object gets deleted then re-generated</span>
+        <span class="s1">key </span><span class="s2">= </span><span class="s1">id</span><span class="s2">(</span><span class="s1">do</span><span class="s2">)</span>
+        <span class="s0">assert </span><span class="s1">key </span><span class="s0">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_delayDeletedDOs</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_delayDeletedDOs</span><span class="s2">[</span><span class="s1">key</span><span class="s2">] = </span><span class="s1">do</span>
+
+    <span class="s0">def </span><span class="s1">_removeDelayDeletedDO</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">do</span><span class="s2">):</span>
+        <span class="s1">key </span><span class="s2">= </span><span class="s1">id</span><span class="s2">(</span><span class="s1">do</span><span class="s2">)</span>
+        <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_delayDeletedDOs</span><span class="s2">[</span><span class="s1">key</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">printDelayDeletes</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'DelayDeletes:'</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'============='</span><span class="s2">)</span>
+        <span class="s0">for </span><span class="s1">obj </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_delayDeletedDOs</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">'%s</span><span class="s0">\t</span><span class="s4">%s (%s)</span><span class="s0">\t</span><span class="s4">delayDeletes=%s' </span><span class="s2">% (</span>
+                <span class="s1">obj</span><span class="s2">.</span><span class="s1">doId</span><span class="s2">, </span><span class="s1">safeRepr</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">), </span><span class="s1">itype</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">), </span><span class="s1">obj</span><span class="s2">.</span><span class="s1">getDelayDeleteNames</span><span class="s2">()))</span>
+</pre>
+</body>
+</html>

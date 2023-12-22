@@ -1,0 +1,139 @@
+<html>
+<head>
+<title>DirectMySQLdbConnection.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectMySQLdbConnection.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">MySQLdb</span>
+<span class="s0">from </span><span class="s1">MySQLdb</span><span class="s2">.</span><span class="s1">connections </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">DirectMySQLdbConnection</span><span class="s2">(</span><span class="s1">Connection</span><span class="s2">):</span>
+    <span class="s3">### DCR: from MySQLdb connections.py Connection.__init__</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s3">### DCR: fixed up relative imports</span>
+        <span class="s0">from </span><span class="s1">MySQLdb</span><span class="s2">.</span><span class="s1">constants </span><span class="s0">import </span><span class="s1">CLIENT</span><span class="s2">, </span><span class="s1">FIELD_TYPE</span>
+        <span class="s0">from </span><span class="s1">MySQLdb</span><span class="s2">.</span><span class="s1">converters </span><span class="s0">import </span><span class="s1">conversions</span>
+        <span class="s0">from </span><span class="s1">weakref </span><span class="s0">import </span><span class="s1">proxy</span><span class="s2">, </span><span class="s1">WeakValueDictionary</span>
+
+        <span class="s0">import </span><span class="s1">types</span>
+
+        <span class="s1">kwargs2 </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">()</span>
+
+        <span class="s1">conv </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s4">'conv'</span><span class="s2">, </span><span class="s1">conversions</span><span class="s2">)</span>
+
+        <span class="s1">kwargs2</span><span class="s2">[</span><span class="s4">'conv'</span><span class="s2">] = </span><span class="s1">dict</span><span class="s2">([ (</span><span class="s1">k</span><span class="s2">, </span><span class="s1">v</span><span class="s2">) </span><span class="s0">for </span><span class="s1">k</span><span class="s2">, </span><span class="s1">v </span><span class="s0">in </span><span class="s1">conv</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()</span>
+                                 <span class="s0">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">k</span><span class="s2">) </span><span class="s0">is </span><span class="s1">int </span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cursorclass </span><span class="s2">= </span><span class="s1">kwargs2</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s4">'cursorclass'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">default_cursor</span><span class="s2">)</span>
+        <span class="s1">charset </span><span class="s2">= </span><span class="s1">kwargs2</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s4">'charset'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">charset</span><span class="s2">:</span>
+            <span class="s1">use_unicode </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">use_unicode </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">use_unicode </span><span class="s2">= </span><span class="s1">kwargs2</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s4">'use_unicode'</span><span class="s2">, </span><span class="s1">use_unicode</span><span class="s2">)</span>
+        <span class="s1">sql_mode </span><span class="s2">= </span><span class="s1">kwargs2</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s4">'sql_mode'</span><span class="s2">, </span><span class="s4">''</span><span class="s2">)</span>
+
+        <span class="s1">client_flag </span><span class="s2">= </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s4">'client_flag'</span><span class="s2">, </span><span class="s5">0</span><span class="s2">)</span>
+        <span class="s3">### DCR: fixed up module reference</span>
+        <span class="s1">client_version </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">([ </span><span class="s1">int</span><span class="s2">(</span><span class="s1">n</span><span class="s2">) </span><span class="s0">for </span><span class="s1">n </span><span class="s0">in </span><span class="s1">MySQLdb</span><span class="s2">.</span><span class="s1">connections</span><span class="s2">.</span><span class="s1">_mysql</span><span class="s2">.</span><span class="s1">get_client_info</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s4">'.'</span><span class="s2">)[:</span><span class="s5">2</span><span class="s2">] ])</span>
+        <span class="s0">if </span><span class="s1">client_version </span><span class="s2">&gt;= (</span><span class="s5">4</span><span class="s2">, </span><span class="s5">1</span><span class="s2">):</span>
+            <span class="s1">client_flag </span><span class="s2">|= </span><span class="s1">CLIENT</span><span class="s2">.</span><span class="s1">MULTI_STATEMENTS</span>
+        <span class="s0">if </span><span class="s1">client_version </span><span class="s2">&gt;= (</span><span class="s5">5</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+            <span class="s1">client_flag </span><span class="s2">|= </span><span class="s1">CLIENT</span><span class="s2">.</span><span class="s1">MULTI_RESULTS</span>
+
+        <span class="s1">kwargs2</span><span class="s2">[</span><span class="s4">'client_flag'</span><span class="s2">] = </span><span class="s1">client_flag</span>
+
+        <span class="s3">### DCR: skip over the Connection __init__</span>
+        <span class="s3">#super(Connection, self).__init__(*args, **kwargs2)</span>
+        <span class="s1">MySQLdb</span><span class="s2">.</span><span class="s1">_mysql</span><span class="s2">.</span><span class="s1">connection</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kwargs2</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">encoders </span><span class="s2">= </span><span class="s1">dict</span><span class="s2">([ (</span><span class="s1">k</span><span class="s2">, </span><span class="s1">v</span><span class="s2">) </span><span class="s0">for </span><span class="s1">k</span><span class="s2">, </span><span class="s1">v </span><span class="s0">in </span><span class="s1">conv</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()</span>
+                               <span class="s0">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">k</span><span class="s2">) </span><span class="s0">is not </span><span class="s1">int </span><span class="s2">])</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_server_version </span><span class="s2">= </span><span class="s1">tuple</span><span class="s2">([ </span><span class="s1">int</span><span class="s2">(</span><span class="s1">n</span><span class="s2">) </span><span class="s0">for </span><span class="s1">n </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">get_server_info</span><span class="s2">().</span><span class="s1">split</span><span class="s2">(</span><span class="s4">'.'</span><span class="s2">)[:</span><span class="s5">2</span><span class="s2">] ])</span>
+
+        <span class="s1">db </span><span class="s2">= </span><span class="s1">proxy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s3">### DCR: these functions create memory leaks with gc.DEBUG_SAVEALL turned on</span>
+        <span class="s4">&quot;&quot;&quot; 
+        def _get_string_literal(): 
+            def string_literal(obj, dummy=None): 
+                return db.string_literal(obj) 
+            return string_literal 
+ 
+        def _get_unicode_literal(): 
+            def unicode_literal(u, dummy=None): 
+                return db.literal(u.encode(unicode_literal.charset)) 
+            return unicode_literal 
+ 
+        def _get_string_decoder(): 
+            def string_decoder(s): 
+                return s.decode(string_decoder.charset) 
+            return string_decoder 
+        &quot;&quot;&quot;</span>
+
+        <span class="s3">### DCR: use methods rather than inline-defined functions to prevent memory leaks</span>
+        <span class="s1">string_literal </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_get_string_literal</span><span class="s2">(</span><span class="s1">db</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">unicode_literal </span><span class="s2">= </span><span class="s1">unicode_literal </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_get_unicode_literal</span><span class="s2">(</span><span class="s1">db</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">string_decoder </span><span class="s2">= </span><span class="s1">string_decoder </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_get_string_decoder</span><span class="s2">()</span>
+        <span class="s0">if not </span><span class="s1">charset</span><span class="s2">:</span>
+            <span class="s1">charset </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">character_set_name</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">set_character_set</span><span class="s2">(</span><span class="s1">charset</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">sql_mode</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">set_sql_mode</span><span class="s2">(</span><span class="s1">sql_mode</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">use_unicode</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">converter</span><span class="s2">[</span><span class="s1">FIELD_TYPE</span><span class="s2">.</span><span class="s1">STRING</span><span class="s2">].</span><span class="s1">insert</span><span class="s2">(-</span><span class="s5">1</span><span class="s2">, (</span><span class="s0">None</span><span class="s2">, </span><span class="s1">string_decoder</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">converter</span><span class="s2">[</span><span class="s1">FIELD_TYPE</span><span class="s2">.</span><span class="s1">VAR_STRING</span><span class="s2">].</span><span class="s1">insert</span><span class="s2">(-</span><span class="s5">1</span><span class="s2">, (</span><span class="s0">None</span><span class="s2">, </span><span class="s1">string_decoder</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">converter</span><span class="s2">[</span><span class="s1">FIELD_TYPE</span><span class="s2">.</span><span class="s1">BLOB</span><span class="s2">].</span><span class="s1">insert</span><span class="s2">(-</span><span class="s5">1</span><span class="s2">, (</span><span class="s0">None</span><span class="s2">, </span><span class="s1">string_decoder</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">encoders</span><span class="s2">[</span><span class="s1">types</span><span class="s2">.</span><span class="s1">StringType</span><span class="s2">] = </span><span class="s1">string_literal</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">encoders</span><span class="s2">[</span><span class="s1">types</span><span class="s2">.</span><span class="s1">UnicodeType</span><span class="s2">] = </span><span class="s1">unicode_literal</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_transactional </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">server_capabilities </span><span class="s2">&amp; </span><span class="s1">CLIENT</span><span class="s2">.</span><span class="s1">TRANSACTIONS</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_transactional</span><span class="s2">:</span>
+            <span class="s3"># PEP-249 requires autocommit to be initially off</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">autocommit</span><span class="s2">(</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">messages </span><span class="s2">= []</span>
+
+    <span class="s3">### DCR: make inline-defined functions into member methods to avoid garbage</span>
+    <span class="s0">def </span><span class="s1">_string_literal</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">db</span><span class="s2">, </span><span class="s1">obj</span><span class="s2">, </span><span class="s1">dummy</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">db</span><span class="s2">.</span><span class="s1">string_literal</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">_get_string_literal</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">db</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Functor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_string_literal</span><span class="s2">, </span><span class="s1">db</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">_unicode_literal</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">db</span><span class="s2">, </span><span class="s1">u</span><span class="s2">, </span><span class="s1">dummy</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">db</span><span class="s2">.</span><span class="s1">literal</span><span class="s2">(</span><span class="s1">u</span><span class="s2">.</span><span class="s1">encode</span><span class="s2">(</span><span class="s1">unicode_literal</span><span class="s2">.</span><span class="s1">charset</span><span class="s2">))</span>
+    <span class="s0">def </span><span class="s1">_get_unicode_literal</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">db</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">Functor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_unicode_literal</span><span class="s2">, </span><span class="s1">db</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">_string_decoder</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">s</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">s</span><span class="s2">.</span><span class="s1">decode</span><span class="s2">(</span><span class="s1">string_decoder</span><span class="s2">.</span><span class="s1">charset</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">_get_string_decoder</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3"># make it into a Functor since MySQLdb.connections.Connection wants to set</span>
+        <span class="s3"># attributes on its string_decoder</span>
+        <span class="s0">return </span><span class="s1">Functor</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_string_decoder</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">close</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">Connection</span><span class="s2">.</span><span class="s1">close</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s3"># break garbage cycles</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">unicode_literal </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">string_decoder </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">encoders </span><span class="s2">= </span><span class="s0">None</span>
+</pre>
+</body>
+</html>

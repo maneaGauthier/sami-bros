@@ -1,0 +1,126 @@
+<html>
+<head>
+<title>button_list.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+button_list.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Entity</span><span class="s2">, </span><span class="s1">Text</span><span class="s2">, </span><span class="s1">camera</span><span class="s2">, </span><span class="s1">Button</span><span class="s2">, </span><span class="s1">color</span><span class="s2">, </span><span class="s1">mouse</span><span class="s2">, </span><span class="s1">Sequence</span><span class="s2">, </span><span class="s1">Vec3</span>
+<span class="s0">from </span><span class="s1">math </span><span class="s0">import </span><span class="s1">floor</span>
+
+
+<span class="s0">class </span><span class="s1">ButtonList</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">button_dict</span><span class="s2">, </span><span class="s1">button_height</span><span class="s2">=</span><span class="s3">1.1</span><span class="s2">, </span><span class="s1">width</span><span class="s2">=</span><span class="s3">.5</span><span class="s2">, </span><span class="s1">popup</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">Button</span><span class="s2">.</span><span class="s1">default_color</span><span class="s2">, </span><span class="s1">highlight_color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">white33</span><span class="s2">, </span><span class="s1">selected_color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">azure</span><span class="s2">, </span><span class="s1">font</span><span class="s2">=</span><span class="s1">Text</span><span class="s2">.</span><span class="s1">default_font</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">, </span><span class="s1">position</span><span class="s2">=(-(</span><span class="s1">width</span><span class="s2">/</span><span class="s3">2</span><span class="s2">), </span><span class="s3">.45</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">button_height </span><span class="s2">= </span><span class="s1">button_height</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">width </span><span class="s2">= </span><span class="s1">width</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">text_entity </span><span class="s2">= </span><span class="s1">Text</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">font</span><span class="s2">=</span><span class="s1">font</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s3">.5</span><span class="s2">,</span><span class="s3">.5</span><span class="s2">), </span><span class="s1">text</span><span class="s2">=</span><span class="s4">'empty'</span><span class="s2">, </span><span class="s1">world_scale</span><span class="s2">=</span><span class="s3">20</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=-</span><span class="s3">.1</span><span class="s2">, </span><span class="s1">x</span><span class="s2">=</span><span class="s3">.01</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=-(</span><span class="s1">button_height</span><span class="s2">*</span><span class="s3">.25</span><span class="s2">*</span><span class="s1">Text</span><span class="s2">.</span><span class="s1">size</span><span class="s2">), </span><span class="s1">line_height</span><span class="s2">=</span><span class="s1">button_height</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bg </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'quad'</span><span class="s2">, </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s3">.5</span><span class="s2">,</span><span class="s3">.5</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=</span><span class="s1">width</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">, </span><span class="s1">collider</span><span class="s2">=</span><span class="s4">'box'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlight </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'quad'</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">highlight_color</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s3">1</span><span class="s2">,</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_height</span><span class="s2">), </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s3">.5</span><span class="s2">,</span><span class="s3">.5</span><span class="s2">), </span><span class="s1">z</span><span class="s2">=-</span><span class="s3">.01</span><span class="s2">, </span><span class="s1">add_to_scene_entities</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selection_marker </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'quad'</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">selected_color</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s3">1</span><span class="s2">,</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_height</span><span class="s2">), </span><span class="s1">origin</span><span class="s2">=(-</span><span class="s3">.5</span><span class="s2">,</span><span class="s3">.5</span><span class="s2">), </span><span class="s1">z</span><span class="s2">=-</span><span class="s3">.02</span><span class="s2">, </span><span class="s1">enabled</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">add_to_scene_entities</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict </span><span class="s2">= </span><span class="s1">button_dict</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">popup </span><span class="s2">= </span><span class="s1">popup</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popup</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">close_button </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">100</span><span class="s2">,</span><span class="s3">100</span><span class="s2">,</span><span class="s3">.1</span><span class="s2">), </span><span class="s1">model</span><span class="s2">=</span><span class="s4">'quad'</span><span class="s2">, </span><span class="s1">collider</span><span class="s2">=</span><span class="s4">'box'</span><span class="s2">, </span><span class="s1">visible_self</span><span class="s2">=</span><span class="s0">False</span><span class="s2">, </span><span class="s1">on_click</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value</span><span class="s2">)</span>
+
+
+    <span class="s2">@</span><span class="s1">property</span>
+    <span class="s0">def </span><span class="s1">button_dict</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_button_dict</span>
+
+    <span class="s2">@</span><span class="s1">button_dict</span><span class="s2">.</span><span class="s1">setter</span>
+    <span class="s0">def </span><span class="s1">button_dict</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">value</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_button_dict </span><span class="s2">= </span><span class="s1">value</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">actions </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_button_dict</span><span class="s2">.</span><span class="s1">values</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_height </span><span class="s2">* </span><span class="s1">len</span><span class="s2">(</span><span class="s1">value</span><span class="s2">) * </span><span class="s1">Text</span><span class="s2">.</span><span class="s1">size</span>
+        <span class="s5"># self.bg.model='circle'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">model </span><span class="s2">= </span><span class="s4">'quad'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">origin </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">origin</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s4">'</span><span class="s0">\n</span><span class="s4">'</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">line_height </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_height</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlight</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">= </span><span class="s3">1 </span><span class="s2">/ </span><span class="s1">len</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selection_marker</span><span class="s2">.</span><span class="s1">scale_y </span><span class="s2">= </span><span class="s3">1 </span><span class="s2">/ </span><span class="s1">len</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s5"># handle click here instead of in on_click so you can assign a custom on_click function</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'left mouse down' </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">hovered</span><span class="s2">:</span>
+            <span class="s1">y </span><span class="s2">= </span><span class="s1">floor</span><span class="s2">(-</span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">point</span><span class="s2">.</span><span class="s1">y </span><span class="s2">* </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict</span><span class="s2">))</span>
+            <span class="s1">y </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">y</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict</span><span class="s2">)-</span><span class="s3">1</span><span class="s2">)</span>
+
+            <span class="s1">action </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actions</span><span class="s2">[</span><span class="s1">y</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">selection_marker</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">True</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">selection_marker</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">highlight</span><span class="s2">.</span><span class="s1">y</span>
+
+            <span class="s0">if </span><span class="s1">callable</span><span class="s2">(</span><span class="s1">action</span><span class="s2">):</span>
+                <span class="s1">action</span><span class="s2">()</span>
+
+            <span class="s0">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">action</span><span class="s2">, </span><span class="s1">Sequence</span><span class="s2">):</span>
+                <span class="s1">action</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">popup</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'left mouse down' </span><span class="s0">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">.</span><span class="s1">hovered</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">selection_marker</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">False</span>
+
+
+    <span class="s0">def </span><span class="s1">update</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">highlight</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">hovered_entity </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span>
+        <span class="s0">if </span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">hovered_entity </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">bg</span><span class="s2">:</span>
+            <span class="s1">y </span><span class="s2">= </span><span class="s1">floor</span><span class="s2">(-</span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">point</span><span class="s2">.</span><span class="s1">y </span><span class="s2">* </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict</span><span class="s2">))</span>
+            <span class="s1">y </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">y</span><span class="s2">, </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict</span><span class="s2">)-</span><span class="s3">1</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">highlight</span><span class="s2">.</span><span class="s1">y </span><span class="s2">= -</span><span class="s1">y </span><span class="s2">/ </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_dict</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">on_disable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">selection_marker</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">False</span>
+
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">'__main__'</span><span class="s2">:</span>
+    <span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s1">Ursina</span><span class="s2">, </span><span class="s1">Func</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+
+    <span class="s1">default </span><span class="s2">= </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">print</span><span class="s2">, </span><span class="s4">'not yet implemented'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">test</span><span class="s2">(</span><span class="s1">a</span><span class="s2">=</span><span class="s3">1</span><span class="s2">, </span><span class="s1">b</span><span class="s2">=</span><span class="s3">2</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">'------:'</span><span class="s2">, </span><span class="s1">a</span><span class="s2">, </span><span class="s1">b</span><span class="s2">)</span>
+
+    <span class="s1">button_dict </span><span class="s2">= {}</span>
+    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s3">6</span><span class="s2">, </span><span class="s3">20</span><span class="s2">):</span>
+        <span class="s1">button_dict</span><span class="s2">[</span><span class="s4">f'button </span><span class="s0">{</span><span class="s1">i</span><span class="s0">}</span><span class="s4">'</span><span class="s2">] = </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">print</span><span class="s2">, </span><span class="s1">i</span><span class="s2">)</span>
+
+    <span class="s1">bl </span><span class="s2">= </span><span class="s1">ButtonList</span><span class="s2">(</span><span class="s1">button_dict</span><span class="s2">, </span><span class="s1">font</span><span class="s2">=</span><span class="s4">'VeraMono.ttf'</span><span class="s2">, </span><span class="s1">button_height</span><span class="s2">=</span><span class="s3">1.5</span><span class="s2">, </span><span class="s1">popup</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s4">'space'</span><span class="s2">:</span>
+            <span class="s1">bl</span><span class="s2">.</span><span class="s1">button_dict </span><span class="s2">= {</span>
+                <span class="s4">'one' </span><span class="s2">:     </span><span class="s0">None</span><span class="s2">,</span>
+                <span class="s4">'two' </span><span class="s2">:     </span><span class="s1">default</span><span class="s2">,</span>
+                <span class="s4">'tree' </span><span class="s2">:    </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">test</span><span class="s2">, </span><span class="s3">3</span><span class="s2">, </span><span class="s3">4</span><span class="s2">),</span>
+                <span class="s4">'four' </span><span class="s2">:    </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">test</span><span class="s2">, </span><span class="s1">b</span><span class="s2">=</span><span class="s3">3</span><span class="s2">, </span><span class="s1">a</span><span class="s2">=</span><span class="s3">4</span><span class="s2">),</span>
+            <span class="s2">}</span>
+
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

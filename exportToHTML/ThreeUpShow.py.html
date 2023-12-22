@@ -1,0 +1,47 @@
+<html>
+<head>
+<title>ThreeUpShow.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ThreeUpShow.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;ThreeUpShow is a variant of ShowBase that defines three cameras covering 
+different parts of the window.&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ThreeUpShow'</span><span class="s2">]</span>
+
+
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">ShowBase</span>
+
+<span class="s4">class </span><span class="s1">ThreeUpShow</span><span class="s2">(</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">ShowBase</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">makeCamera</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">win</span><span class="s2">, </span><span class="s1">sort </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">scene </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                   <span class="s1">displayRegion </span><span class="s2">= (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">), </span><span class="s1">stereo </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                   <span class="s1">aspectRatio </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">clearDepth </span><span class="s2">= </span><span class="s5">0</span><span class="s2">, </span><span class="s1">clearColor </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                   <span class="s1">lens </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">camName </span><span class="s2">= </span><span class="s3">'cam'</span><span class="s2">, </span><span class="s1">mask </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                   <span class="s1">useCamera </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camRS</span><span class="s2">=</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">makeCamera</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">, </span><span class="s1">win</span><span class="s2">, </span><span class="s1">displayRegion </span><span class="s2">= (</span><span class="s5">.5</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">1</span><span class="s2">), </span><span class="s1">aspectRatio</span><span class="s2">=</span><span class="s5">.67</span><span class="s2">, </span><span class="s1">camName</span><span class="s2">=</span><span class="s3">'camRS'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camLL</span><span class="s2">=</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">makeCamera</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">, </span><span class="s1">win</span><span class="s2">, </span><span class="s1">displayRegion </span><span class="s2">= (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">), </span><span class="s1">camName</span><span class="s2">=</span><span class="s3">'camLL'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camUR</span><span class="s2">=</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">ShowBase</span><span class="s2">.</span><span class="s1">makeCamera</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">, </span><span class="s1">win</span><span class="s2">, </span><span class="s1">displayRegion </span><span class="s2">= (</span><span class="s5">0</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">, </span><span class="s5">.5</span><span class="s2">, </span><span class="s5">1</span><span class="s2">), </span><span class="s1">camName</span><span class="s2">=</span><span class="s3">'camUR'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camUR</span>
+
+</pre>
+</body>
+</html>

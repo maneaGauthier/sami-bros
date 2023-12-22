@@ -1,0 +1,167 @@
+<html>
+<head>
+<title>RotatingLog.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+RotatingLog.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">time</span>
+
+
+<span class="s0">class </span><span class="s1">RotatingLog</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; 
+    An `open()` replacement that will automatically open and write 
+    to a new file if the prior file is too large or after a time interval. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">path</span><span class="s2">=</span><span class="s4">&quot;./log_file&quot;</span><span class="s2">, </span><span class="s1">hourInterval</span><span class="s2">=</span><span class="s5">24</span><span class="s2">, </span><span class="s1">megabyteLimit</span><span class="s2">=</span><span class="s5">1024</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Args: 
+            path: a full or partial path with file name. 
+            hourInterval: the number of hours at which to rotate the file. 
+            megabyteLimit: the number of megabytes of file size the log may 
+                grow to, after which the log is rotated.  Note: The log file 
+                may get a bit larger than limit do to writing out whole lines 
+                (last line may exceed megabyteLimit or &quot;megabyteGuidline&quot;). 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">path </span><span class="s2">= </span><span class="s1">path</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">timeInterval </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeLimit </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s0">if </span><span class="s1">hourInterval </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">timeInterval </span><span class="s2">= </span><span class="s1">hourInterval</span><span class="s2">*</span><span class="s5">60</span><span class="s2">*</span><span class="s5">60</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit </span><span class="s2">= </span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">()+</span><span class="s1">self</span><span class="s2">.</span><span class="s1">timeInterval</span>
+        <span class="s0">if </span><span class="s1">megabyteLimit </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sizeLimit </span><span class="s2">= </span><span class="s1">megabyteLimit</span><span class="s2">*</span><span class="s5">1024</span><span class="s2">*</span><span class="s5">1024</span>
+
+    <span class="s0">def </span><span class="s1">__del__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">close</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">&quot;file&quot;</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">flush</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">closed </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">closed</span>
+            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">closed </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s0">def </span><span class="s1">shouldRotate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Returns a bool about whether a new log file should 
+        be created and written to (while at the same time 
+        stopping output to the old log file and closing it). 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">&quot;file&quot;</span><span class="s2">):</span>
+            <span class="s0">return </span><span class="s5">1</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit </span><span class="s0">is not None and </span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">() &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s5">1</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizeLimit </span><span class="s0">is not None and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">tell</span><span class="s2">() &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizeLimit</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s5">1</span>
+        <span class="s0">return </span><span class="s5">0</span>
+
+    <span class="s0">def </span><span class="s1">filePath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">dateString</span><span class="s2">=</span><span class="s1">time</span><span class="s2">.</span><span class="s1">strftime</span><span class="s2">(</span><span class="s4">&quot;%Y_%m_%d_%H&quot;</span><span class="s2">, </span><span class="s1">time</span><span class="s2">.</span><span class="s1">localtime</span><span class="s2">())</span>
+        <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s5">26</span><span class="s2">):</span>
+            <span class="s1">path</span><span class="s2">=</span><span class="s4">&quot;%s_%s_%s.log&quot;</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">path</span><span class="s2">, </span><span class="s1">dateString</span><span class="s2">, </span><span class="s1">chr</span><span class="s2">(</span><span class="s1">i</span><span class="s2">+</span><span class="s5">97</span><span class="s2">))</span>
+            <span class="s0">if not </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">(</span><span class="s1">path</span><span class="s2">) </span><span class="s0">or </span><span class="s1">os</span><span class="s2">.</span><span class="s1">stat</span><span class="s2">(</span><span class="s1">path</span><span class="s2">)[</span><span class="s5">6</span><span class="s2">] &lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sizeLimit</span><span class="s2">:</span>
+                <span class="s0">return </span><span class="s1">path</span>
+        <span class="s6"># Hmm, 26 files are full?  throw the rest in z:</span>
+        <span class="s6"># Maybe we should clear the self.sizeLimit here... maybe.</span>
+        <span class="s0">return </span><span class="s1">path</span>
+
+    <span class="s0">def </span><span class="s1">rotate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Rotate the log now.  You normally shouldn't need to call this. 
+        See write(). 
+        &quot;&quot;&quot;</span>
+        <span class="s1">path</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">filePath</span><span class="s2">()</span>
+        <span class="s1">file</span><span class="s2">=</span><span class="s1">open</span><span class="s2">(</span><span class="s1">path</span><span class="s2">, </span><span class="s4">&quot;a&quot;</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">file</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s6"># This should be redundant with &quot;a&quot; open() mode,</span>
+            <span class="s6"># but on some platforms tell() will return 0</span>
+            <span class="s6"># until the first write:</span>
+            <span class="s1">file</span><span class="s2">.</span><span class="s1">seek</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">=</span><span class="s1">file</span>
+
+            <span class="s6"># Some of these data members may be expected by some of our clients:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">closed </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">closed</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">mode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">mode</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">name</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">softspace </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">softspace</span>
+            <span class="s6">#self.encoding = self.file.encoding # Python 2.3</span>
+            <span class="s6">#self.newlines = self.file.newlines # Python 2.3, maybe</span>
+
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit </span><span class="s0">is not None and </span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">() &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">timeLimit</span><span class="s2">=</span><span class="s1">time</span><span class="s2">.</span><span class="s1">time</span><span class="s2">()+</span><span class="s1">self</span><span class="s2">.</span><span class="s1">timeInterval</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s6"># We'll keep writing to the old file, if available.</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;RotatingLog error: Unable to open new log file </span><span class="s0">\&quot;</span><span class="s4">%s</span><span class="s0">\&quot;</span><span class="s4">.&quot; </span><span class="s2">% (</span><span class="s1">path</span><span class="s2">,))</span>
+
+    <span class="s0">def </span><span class="s1">write</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">data</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Write the data to either the current log or a new one, 
+        depending on the return of shouldRotate() and whether 
+        the new file can be opened. 
+        &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">shouldRotate</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">rotate</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s4">&quot;file&quot;</span><span class="s2">):</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">data</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">flush</span><span class="s2">()</span>
+            <span class="s0">return </span><span class="s1">r</span>
+
+    <span class="s0">def </span><span class="s1">flush</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">flush</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">fileno</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">fileno</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">isatty</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">isatty</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__next__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">next</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">)</span>
+    <span class="s1">next </span><span class="s2">= </span><span class="s1">__next__</span>
+
+    <span class="s0">def </span><span class="s1">read</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">read</span><span class="s2">(</span><span class="s1">size</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">readline</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">readline</span><span class="s2">(</span><span class="s1">size</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">readlines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sizehint</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">readlines</span><span class="s2">(</span><span class="s1">sizehint</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">xreadlines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">xreadlines</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">seek</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">offset</span><span class="s2">, </span><span class="s1">whence</span><span class="s2">=</span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">seek</span><span class="s2">(</span><span class="s1">offset</span><span class="s2">, </span><span class="s1">whence</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">tell</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">tell</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">truncate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">size</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">truncate</span><span class="s2">(</span><span class="s1">size</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">writelines</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sequence</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.</span><span class="s1">writelines</span><span class="s2">(</span><span class="s1">sequence</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

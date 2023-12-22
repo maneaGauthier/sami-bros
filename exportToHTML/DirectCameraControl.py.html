@@ -1,0 +1,918 @@
+<html>
+<head>
+<title>DirectCameraControl.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DirectCameraControl.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">DirectUtil </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">DirectGeometry </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">DirectGlobals </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s2">.</span><span class="s1">DirectSelection </span><span class="s0">import </span><span class="s1">SelectionRay</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">interval</span><span class="s2">.</span><span class="s1">IntervalGlobal </span><span class="s0">import </span><span class="s1">Sequence</span><span class="s2">, </span><span class="s1">Func</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s0">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s0">import </span><span class="s1">Task</span>
+
+<span class="s1">CAM_MOVE_DURATION </span><span class="s2">= </span><span class="s3">1.2</span>
+<span class="s1">COA_MARKER_SF </span><span class="s2">= </span><span class="s3">0.0075</span>
+<span class="s1">Y_AXIS </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+
+<span class="s0">class </span><span class="s1">DirectCameraControl</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">'DirectCameraControl'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Create the grid</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">startT </span><span class="s2">= </span><span class="s3">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">startF </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">orthoViewRoll </span><span class="s2">= </span><span class="s3">0.0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastView </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coa </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s4">'models/misc/sphere'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setName</span><span class="s2">(</span><span class="s4">'DirectCameraCOAMarker'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setTransparency</span><span class="s2">(</span><span class="s3">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setColor</span><span class="s2">(</span><span class="s3">1</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">useDirectRenderStyle</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerColorIval </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nullHitPointCount </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries </span><span class="s2">= []</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerRef </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">group</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s4">'coaMarkerRef'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">group</span><span class="s2">.</span><span class="s1">attachNewNode</span><span class="s2">(</span><span class="s4">'camManipRef'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">switchDirBelowZero </span><span class="s2">= </span><span class="s0">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraTask </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraInterval </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">CAM_MOVE_DURATION</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">actionEvents </span><span class="s2">= [</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-mouse1'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseRotateStart</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-mouse1Up'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseDollyStop</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-mouse2'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseFlyStart</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-mouse2Up'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseFlyStop</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-mouse3'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseDollyStart</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-mouse3Up'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseDollyStop</span><span class="s2">],</span>
+            <span class="s2">]</span>
+
+        <span class="s5"># [gjeon] moved all of the hotkeys to single place for easy remapping</span>
+<span class="s5">##         self.keyEvents = [</span>
+<span class="s5">##             ['c', self.centerCamIn, 0.5],</span>
+<span class="s5">##             ['f', self.fitOnWidget],                  # Note: This function doesn't work as intended</span>
+<span class="s5">##             ['h', self.homeCam],</span>
+<span class="s5">##             ['shift-v', self.toggleMarkerVis],</span>
+<span class="s5">##             ['m', self.moveToFit],                      # Note: This function doesn't work as intended; the object dissappears and screen flashes</span>
+<span class="s5">##             ['n', self.pickNextCOA],</span>
+<span class="s5">##             ['u', self.orbitUprightCam],</span>
+<span class="s5">##             ['shift-u', self.uprightCam],</span>
+<span class="s5">##             [repr(1), self.spawnMoveToView, 1],</span>
+<span class="s5">##             [repr(2), self.spawnMoveToView, 2],</span>
+<span class="s5">##             [repr(3), self.spawnMoveToView, 3],</span>
+<span class="s5">##             [repr(4), self.spawnMoveToView, 4],</span>
+<span class="s5">##             [repr(5), self.spawnMoveToView, 5],</span>
+<span class="s5">##             [repr(6), self.spawnMoveToView, 6],</span>
+<span class="s5">##             [repr(7), self.spawnMoveToView, 7],</span>
+<span class="s5">##             [repr(8), self.spawnMoveToView, 8],</span>
+<span class="s5">##             ['9', self.swingCamAboutWidget, -90.0, t],</span>
+<span class="s5">##             ['0', self.swingCamAboutWidget,  90.0, t],</span>
+<span class="s5">##             ['`', self.removeManipulateCameraTask],</span>
+<span class="s5">##             ['=', self.zoomCam, 0.5, t],</span>
+<span class="s5">##             ['+', self.zoomCam, 0.5, t],</span>
+<span class="s5">##             ['-', self.zoomCam, -2.0, t],</span>
+<span class="s5">##             ['_', self.zoomCam, -2.0, t],</span>
+<span class="s5">##             ]</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">keyEvents </span><span class="s2">= [</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-centerCamIn'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">centerCamIn</span><span class="s2">, </span><span class="s3">0.5</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-fitOnWidget'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fitOnWidget</span><span class="s2">],                  </span><span class="s5"># Note: This function doesn't work as intended</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-homeCam'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">homeCam</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-toggleMarkerVis'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggleMarkerVis</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-moveToFit'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">moveToFit</span><span class="s2">],                      </span><span class="s5"># Note: This function doesn't work as intended; the object dissappears and screen flashes</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-pickNextCOA'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pickNextCOA</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-orbitUprightCam'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orbitUprightCam</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-uprightCam'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uprightCam</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-1'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">1</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-2'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">2</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-3'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">3</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-4'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">4</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-5'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">5</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-6'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">6</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-7'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">7</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-spwanMoveToView-8'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMoveToView</span><span class="s2">, </span><span class="s3">8</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-swingCamAboutWidget-0'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">swingCamAboutWidget</span><span class="s2">, -</span><span class="s3">90.0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-swingCamAboutWidget-1'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">swingCamAboutWidget</span><span class="s2">,  </span><span class="s3">90.0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-removeManipulateCameraTask'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">removeManipulateCameraTask</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-zoomInCam'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zoomCam</span><span class="s2">, </span><span class="s3">0.5</span><span class="s2">, </span><span class="s1">t</span><span class="s2">],</span>
+            <span class="s2">[</span><span class="s4">'DIRECT-zoomOutCam'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">zoomCam</span><span class="s2">, -</span><span class="s3">2.0</span><span class="s2">, </span><span class="s1">t</span><span class="s2">],</span>
+            <span class="s2">]</span>
+        <span class="s5"># set this to true to prevent the camera from rolling</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lockRoll </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s5"># NIK - flag to determine whether to use maya camera controls</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">useMayaCamControls </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">altDown </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspCollPlane </span><span class="s2">= </span><span class="s0">None </span><span class="s5"># [gjeon] used for new LE</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">perspCollPlane2 </span><span class="s2">= </span><span class="s0">None </span><span class="s5"># [gjeon] used for new LE</span>
+
+    <span class="s0">def </span><span class="s1">toggleMarkerVis</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+<span class="s5">##        if base.direct.cameraControl.coaMarker.isHidden():</span>
+<span class="s5">##            base.direct.cameraControl.coaMarker.show()</span>
+<span class="s5">##        else:</span>
+<span class="s5">##            base.direct.cameraControl.coaMarker.hide()</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">isHidden</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">mouseRotateStart</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">modifiers</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">useMayaCamControls </span><span class="s0">and </span><span class="s1">modifiers </span><span class="s2">== </span><span class="s3">4</span><span class="s2">:          </span><span class="s5"># alt is pressed - use maya controls</span>
+            <span class="s5"># base.direct.pushUndo([base.direct.camera])        # Wasteful use of undo</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMouseRotateTask</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">mouseDollyStart</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">modifiers</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">useMayaCamControls </span><span class="s0">and </span><span class="s1">modifiers </span><span class="s2">== </span><span class="s3">4</span><span class="s2">: </span><span class="s5"># alt is pressed - use maya controls</span>
+            <span class="s5"># Hide the marker for this kind of motion</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+            <span class="s5"># Record time of start of mouse interaction</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startT</span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startF </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameCount</span><span class="s2">()</span>
+            <span class="s5"># If the cam is orthogonal, spawn differentTask</span>
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">, </span><span class="s4">&quot;manipulationControl&quot;</span><span class="s2">) </span><span class="s0">and </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">fMultiView </span><span class="s0">and</span><span class="s1">\</span>
+               <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() != </span><span class="s4">'persp'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnOrthoZoom</span><span class="s2">()</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s5"># Start manipulation</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnHPanYZoom</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__stopManipulateCamera</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraTask</span><span class="s2">:</span>
+            <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraTask</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraTask </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraInterval</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraInterval</span><span class="s2">.</span><span class="s1">finish</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraInterval </span><span class="s2">= </span><span class="s0">None</span>
+
+    <span class="s0">def </span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">func </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">task </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">ival </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">func</span><span class="s2">:</span>
+            <span class="s0">assert</span><span class="s2">(</span><span class="s1">task </span><span class="s0">is None</span><span class="s2">)</span>
+            <span class="s1">task </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">Task</span><span class="s2">(</span><span class="s1">func</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">task</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraTask </span><span class="s2">= </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">ival</span><span class="s2">:</span>
+            <span class="s1">ival</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">manipulateCameraInterval </span><span class="s2">= </span><span class="s1">ival</span>
+
+    <span class="s0">def </span><span class="s1">mouseDollyStop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">mouseFlyStart</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">modifiers</span><span class="s2">):</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s5"># base.direct.pushUndo([base.direct.camera])            # Wasteful use of undo</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">useMayaCamControls </span><span class="s0">and </span><span class="s1">modifiers </span><span class="s2">== </span><span class="s3">4</span><span class="s2">:          </span><span class="s5"># alt is down, use maya controls</span>
+            <span class="s5"># Hide the marker for this kind of motion</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+            <span class="s5"># Record time of start of mouse interaction</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startT</span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startF </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameCount</span><span class="s2">()</span>
+            <span class="s5"># Start manipulation</span>
+            <span class="s5"># If the cam is orthogonal, spawn differentTask</span>
+            <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">, </span><span class="s4">&quot;manipulationControl&quot;</span><span class="s2">) </span><span class="s0">and </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">manipulationControl</span><span class="s2">.</span><span class="s1">fMultiView </span><span class="s0">and</span><span class="s1">\</span>
+               <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() != </span><span class="s4">'persp'</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnOrthoTranslate</span><span class="s2">()</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnXZTranslate</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">altDown </span><span class="s2">= </span><span class="s3">1</span>
+        <span class="s0">elif not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">useMayaCamControls</span><span class="s2">:</span>
+            <span class="s5"># Where are we in the display region?</span>
+            <span class="s0">if </span><span class="s2">((</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseX</span><span class="s2">) &lt; </span><span class="s3">0.9</span><span class="s2">) </span><span class="s0">and </span><span class="s2">(</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseY</span><span class="s2">) &lt; </span><span class="s3">0.9</span><span class="s2">)):</span>
+                <span class="s5"># MOUSE IS IN CENTRAL REGION</span>
+                <span class="s5"># Hide the marker for this kind of motion</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">hide</span><span class="s2">()</span>
+                <span class="s5"># Record time of start of mouse interaction</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">startT</span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">startF </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameCount</span><span class="s2">()</span>
+                <span class="s5"># Start manipulation</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnXZTranslateOrHPanYZoom</span><span class="s2">()</span>
+                <span class="s5"># END MOUSE IN CENTRAL REGION</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s2">((</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseX</span><span class="s2">) &gt; </span><span class="s3">0.9</span><span class="s2">) </span><span class="s0">and</span>
+                    <span class="s2">(</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseY</span><span class="s2">) &gt; </span><span class="s3">0.9</span><span class="s2">)):</span>
+                    <span class="s5"># Mouse is in corners, spawn roll task</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMouseRollTask</span><span class="s2">()</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s5"># Mouse is in outer frame, spawn mouseRotateTask</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">spawnMouseRotateTask</span><span class="s2">()</span>
+        <span class="s0">if not </span><span class="s1">modifiers </span><span class="s2">== </span><span class="s3">4</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">altDown </span><span class="s2">= </span><span class="s3">0</span>
+
+    <span class="s0">def </span><span class="s1">mouseFlyStop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s1">stopT </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">deltaT </span><span class="s2">= </span><span class="s1">stopT </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startT</span>
+        <span class="s1">stopF </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameCount</span><span class="s2">()</span>
+        <span class="s1">deltaF </span><span class="s2">= </span><span class="s1">stopF </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startF</span>
+        <span class="s5">## No reason this shouldn't work with Maya cam on</span>
+        <span class="s5"># if not self.useMayaCamControls and (deltaT &lt;= 0.25) or (deltaF &lt;= 1):</span>
+
+        <span class="s5"># Do this when not trying to manipulate camera</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">altDown </span><span class="s0">and </span><span class="s1">len</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">getSelectedAsList</span><span class="s2">()) == </span><span class="s3">0</span><span class="s2">:</span>
+            <span class="s5"># Check for a hit point based on</span>
+            <span class="s5"># current mouse position</span>
+            <span class="s5"># Allow intersection with unpickable objects</span>
+            <span class="s5"># And then spawn task to determine mouse mode</span>
+            <span class="s5"># Don't intersect with hidden or backfacing objects</span>
+            <span class="s1">skipFlags </span><span class="s2">= </span><span class="s1">SKIP_HIDDEN </span><span class="s2">| </span><span class="s1">SKIP_BACKFACE</span>
+            <span class="s5"># Skip camera (and its children), unless control key is pressed</span>
+            <span class="s1">skipFlags </span><span class="s2">|= </span><span class="s1">SKIP_CAMERA </span><span class="s2">* (</span><span class="s3">1 </span><span class="s2">- </span><span class="s1">base</span><span class="s2">.</span><span class="s1">getControl</span><span class="s2">())</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">computeCOA</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">iRay</span><span class="s2">.</span><span class="s1">pickGeom</span><span class="s2">(</span><span class="s1">skipFlags </span><span class="s2">= </span><span class="s1">skipFlags</span><span class="s2">))</span>
+            <span class="s5"># Record reference point</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerRef</span><span class="s2">.</span><span class="s1">setPosHprScale</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">)</span>
+            <span class="s5"># Record entries</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries </span><span class="s2">= []</span>
+            <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">iRay</span><span class="s2">.</span><span class="s1">getNumEntries</span><span class="s2">()):</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">iRay</span><span class="s2">.</span><span class="s1">getEntry</span><span class="s2">(</span><span class="s1">i</span><span class="s2">))</span>
+        <span class="s5"># Show the marker</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+        <span class="s5"># Resize it</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSize</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">mouseFlyStartTopWin</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;Moving mouse 2 in new window&quot;</span><span class="s2">)</span>
+        <span class="s5">#altIsDown = base.getAlt()</span>
+        <span class="s5">#if altIsDown:</span>
+        <span class="s5">#    print &quot;Alt is down&quot;</span>
+
+    <span class="s0">def </span><span class="s1">mouseFlyStopTopWin</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s4">&quot;Stopping mouse 2 in new window&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnXZTranslateOrHPanYZoom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn the new task</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">Task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">XZTranslateOrHPanYZoomTask</span><span class="s2">)</span>
+        <span class="s5"># For HPanYZoom</span>
+        <span class="s1">t</span><span class="s2">.</span><span class="s1">zoomSF </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">task </span><span class="s2">= </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnXZTranslateOrHPPan</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn new task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">XZTranslateOrHPPanTask</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnXZTranslate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn new task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">XZTranslateTask</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnOrthoTranslate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn new task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">OrthoTranslateTask</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnHPanYZoom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn new task</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">Task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">HPanYZoomTask</span><span class="s2">)</span>
+        <span class="s1">t</span><span class="s2">.</span><span class="s1">zoomSF </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">task </span><span class="s2">= </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnOrthoZoom</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn new task</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">Task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">OrthoZoomTask</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">task </span><span class="s2">= </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnHPPan</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Spawn new task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">func </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">HPPanTask</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">XZTranslateOrHPanYZoomTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fShift</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">XZTranslateTask</span><span class="s2">(</span><span class="s1">state</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">HPanYZoomTask</span><span class="s2">(</span><span class="s1">state</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">XZTranslateOrHPPanTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fShift</span><span class="s2">:</span>
+            <span class="s5"># Panning action</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">HPPanTask</span><span class="s2">(</span><span class="s1">state</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s5"># Translation action</span>
+            <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">XZTranslateTask</span><span class="s2">(</span><span class="s1">state</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">XZTranslateTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">coaDist </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s1">xlateSF </span><span class="s2">= (</span><span class="s1">coaDist </span><span class="s2">/ </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">near</span><span class="s2">)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">,</span>
+                             <span class="s2">(-</span><span class="s3">0.5 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX </span><span class="s2">*</span>
+                              <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">nearWidth </span><span class="s2">*</span>
+                              <span class="s1">xlateSF</span><span class="s2">),</span>
+                             <span class="s3">0.0</span><span class="s2">,</span>
+                             <span class="s2">(-</span><span class="s3">0.5 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY </span><span class="s2">*</span>
+                              <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">nearHeight </span><span class="s2">*</span>
+                              <span class="s1">xlateSF</span><span class="s2">))</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">OrthoTranslateTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s5"># create ray from the camera to detect 3d position</span>
+        <span class="s1">iRay </span><span class="s2">= </span><span class="s1">SelectionRay</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)</span>
+        <span class="s1">iRay</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">.</span><span class="s1">setFromLens</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camNode</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseX</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseY</span><span class="s2">)</span>
+        <span class="s5">#iRay.collideWithBitMask(1)</span>
+        <span class="s1">iRay</span><span class="s2">.</span><span class="s1">collideWithBitMask</span><span class="s2">(</span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">bit</span><span class="s2">(</span><span class="s3">21</span><span class="s2">))</span>
+        <span class="s1">iRay</span><span class="s2">.</span><span class="s1">ct</span><span class="s2">.</span><span class="s1">traverse</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">grid</span><span class="s2">)</span>
+
+        <span class="s1">entry </span><span class="s2">= </span><span class="s1">iRay</span><span class="s2">.</span><span class="s1">getEntry</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">hitPt </span><span class="s2">= </span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getSurfacePoint</span><span class="s2">(</span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getFromNodePath</span><span class="s2">())</span>
+        <span class="s1">iRay</span><span class="s2">.</span><span class="s1">collisionNodePath</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+        <span class="s0">del </span><span class="s1">iRay</span>
+        <span class="s0">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">state</span><span class="s2">, </span><span class="s4">'prevPt'</span><span class="s2">):</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, (</span><span class="s1">state</span><span class="s2">.</span><span class="s1">prevPt </span><span class="s2">- </span><span class="s1">hitPt</span><span class="s2">))</span>
+        <span class="s1">state</span><span class="s2">.</span><span class="s1">prevPt </span><span class="s2">= </span><span class="s1">hitPt</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">HPanYZoomTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s5"># If the cam is orthogonal, don't rotate or zoom.</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">(), </span><span class="s4">&quot;getLens&quot;</span><span class="s2">) </span><span class="s0">and</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">getLens</span><span class="s2">().</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">&quot;OrthographicLens&quot;</span><span class="s2">):</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fControl</span><span class="s2">:</span>
+            <span class="s1">moveDir </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">))</span>
+            <span class="s5"># If marker is behind camera invert vector</span>
+            <span class="s0">if </span><span class="s1">moveDir</span><span class="s2">[</span><span class="s3">1</span><span class="s2">] &lt; </span><span class="s3">0.0</span><span class="s2">:</span>
+                <span class="s1">moveDir</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">moveDir </span><span class="s2">* -</span><span class="s3">1</span><span class="s2">)</span>
+            <span class="s1">moveDir</span><span class="s2">.</span><span class="s1">normalize</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">moveDir </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">Y_AXIS</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">useMayaCamControls </span><span class="s2">: </span><span class="s5"># use maya controls</span>
+            <span class="s1">moveDir</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">moveDir </span><span class="s2">* ((</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX </span><span class="s2">-</span><span class="s3">1.0 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY</span><span class="s2">)</span>
+                                    <span class="s2">* </span><span class="s1">state</span><span class="s2">.</span><span class="s1">zoomSF</span><span class="s2">))</span>
+            <span class="s1">hVal </span><span class="s2">= </span><span class="s3">0.0</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">moveDir</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">moveDir </span><span class="s2">* (-</span><span class="s3">1.0 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY </span><span class="s2">*</span>
+                                        <span class="s1">state</span><span class="s2">.</span><span class="s1">zoomSF</span><span class="s2">))</span>
+            <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY </span><span class="s2">&gt; </span><span class="s3">0.0</span><span class="s2">:</span>
+                <span class="s1">moveDir</span><span class="s2">.</span><span class="s1">setY</span><span class="s2">(</span><span class="s1">moveDir</span><span class="s2">[</span><span class="s3">1</span><span class="s2">] * </span><span class="s3">1.0</span><span class="s2">)</span>
+
+            <span class="s1">hVal </span><span class="s2">= </span><span class="s3">0.5 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">fovH</span>
+
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">,</span>
+                                <span class="s1">moveDir</span><span class="s2">[</span><span class="s3">0</span><span class="s2">],</span>
+                                <span class="s1">moveDir</span><span class="s2">[</span><span class="s3">1</span><span class="s2">],</span>
+                                <span class="s1">moveDir</span><span class="s2">[</span><span class="s3">2</span><span class="s2">],</span>
+                                <span class="s1">hVal</span><span class="s2">,</span>
+                                <span class="s3">0.0</span><span class="s2">, </span><span class="s3">0.0</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockRoll </span><span class="s2">== </span><span class="s0">True</span><span class="s2">):</span>
+            <span class="s5"># flatten roll</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setR</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">OrthoZoomTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">filmSize </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camNode</span><span class="s2">.</span><span class="s1">getLens</span><span class="s2">().</span><span class="s1">getFilmSize</span><span class="s2">()</span>
+        <span class="s1">factor </span><span class="s2">= (</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX </span><span class="s2">-</span><span class="s3">1.0 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY</span><span class="s2">) * </span><span class="s3">0.1</span>
+        <span class="s1">x </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">getWidth</span><span class="s2">()</span>
+        <span class="s1">y </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">getHeight</span><span class="s2">()</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">orthoFactor </span><span class="s2">-= </span><span class="s1">factor</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">orthoFactor </span><span class="s2">&lt; </span><span class="s3">0</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">orthoFactor </span><span class="s2">= </span><span class="s3">0.0001</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">updateFilmSize</span><span class="s2">(</span><span class="s1">x</span><span class="s2">, </span><span class="s1">y</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">HPPanTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">,</span>
+                             <span class="s2">(</span><span class="s3">0.5 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX </span><span class="s2">*</span>
+                              <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">fovH</span><span class="s2">),</span>
+                             <span class="s2">(-</span><span class="s3">0.5 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY </span><span class="s2">*</span>
+                              <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">fovV</span><span class="s2">),</span>
+                             <span class="s3">0.0</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">spawnMouseRotateTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspCollPlane</span><span class="s2">:</span>
+            <span class="s1">iRay </span><span class="s2">= </span><span class="s1">SelectionRay</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)</span>
+            <span class="s1">iRay</span><span class="s2">.</span><span class="s1">collider</span><span class="s2">.</span><span class="s1">setFromLens</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camNode</span><span class="s2">, </span><span class="s3">0.0</span><span class="s2">, </span><span class="s3">0.0</span><span class="s2">)</span>
+            <span class="s1">iRay</span><span class="s2">.</span><span class="s1">collideWithBitMask</span><span class="s2">(</span><span class="s3">1</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">().</span><span class="s1">getZ</span><span class="s2">() &gt;=</span><span class="s3">0</span><span class="s2">:</span>
+                <span class="s1">iRay</span><span class="s2">.</span><span class="s1">ct</span><span class="s2">.</span><span class="s1">traverse</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspCollPlane</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">iRay</span><span class="s2">.</span><span class="s1">ct</span><span class="s2">.</span><span class="s1">traverse</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">perspCollPlane2</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s1">iRay</span><span class="s2">.</span><span class="s1">getNumEntries</span><span class="s2">() &gt; </span><span class="s3">0</span><span class="s2">:</span>
+                <span class="s1">entry </span><span class="s2">= </span><span class="s1">iRay</span><span class="s2">.</span><span class="s1">getEntry</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+                <span class="s1">hitPt </span><span class="s2">= </span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getSurfacePoint</span><span class="s2">(</span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getFromNodePath</span><span class="s2">())</span>
+
+                <span class="s5"># create a temp nodePath to get the position</span>
+                <span class="s1">np </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s4">'temp'</span><span class="s2">)</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">hitPt</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">()</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos</span><span class="s2">)</span>
+
+            <span class="s1">iRay</span><span class="s2">.</span><span class="s1">collisionNodePath</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+            <span class="s0">del </span><span class="s1">iRay</span>
+
+        <span class="s5"># Set at markers position in render coordinates</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">ZERO_POINT</span><span class="s2">)</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">Task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseRotateTask</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseX</span><span class="s2">) &gt; </span><span class="s3">0.9</span><span class="s2">:</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">constrainedDir </span><span class="s2">= </span><span class="s4">'y'</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">constrainedDir </span><span class="s2">= </span><span class="s4">'x'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">task </span><span class="s2">= </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">mouseRotateTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s5"># If the cam is orthogonal, don't rotate.</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">(), </span><span class="s4">&quot;getLens&quot;</span><span class="s2">) </span><span class="s0">and</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">cam</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">getLens</span><span class="s2">().</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__ </span><span class="s2">== </span><span class="s4">&quot;OrthographicLens&quot;</span><span class="s2">):</span>
+            <span class="s0">return</span>
+        <span class="s5"># If moving outside of center, ignore motion perpendicular to edge</span>
+        <span class="s0">if </span><span class="s2">((</span><span class="s1">state</span><span class="s2">.</span><span class="s1">constrainedDir </span><span class="s2">== </span><span class="s4">'y'</span><span class="s2">) </span><span class="s0">and </span><span class="s2">(</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseX</span><span class="s2">) &gt; </span><span class="s3">0.9</span><span class="s2">)):</span>
+            <span class="s1">deltaX </span><span class="s2">= </span><span class="s3">0</span>
+            <span class="s1">deltaY </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY</span>
+        <span class="s0">elif </span><span class="s2">((</span><span class="s1">state</span><span class="s2">.</span><span class="s1">constrainedDir </span><span class="s2">== </span><span class="s4">'x'</span><span class="s2">) </span><span class="s0">and </span><span class="s2">(</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseY</span><span class="s2">) &gt; </span><span class="s3">0.9</span><span class="s2">)):</span>
+            <span class="s1">deltaX </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX</span>
+            <span class="s1">deltaY </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">deltaX </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaX</span>
+            <span class="s1">deltaY </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">mouseDeltaY</span>
+        <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fShift</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">,</span>
+                                 <span class="s2">(</span><span class="s1">deltaX </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">fovH</span><span class="s2">),</span>
+                                 <span class="s2">(-</span><span class="s1">deltaY </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">fovV</span><span class="s2">),</span>
+                                 <span class="s3">0.0</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockRoll </span><span class="s2">== </span><span class="s0">True</span><span class="s2">):</span>
+                <span class="s5"># flatten roll</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setR</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">ZERO_POINT</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">().</span><span class="s1">getZ</span><span class="s2">() &gt;=</span><span class="s3">0 </span><span class="s0">or not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">switchDirBelowZero</span><span class="s2">:</span>
+                <span class="s1">dirX </span><span class="s2">= -</span><span class="s3">1</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">dirX </span><span class="s2">= </span><span class="s3">1</span>
+
+            <span class="s1">wrt </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getTransform</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">,</span>
+                                    <span class="s2">(</span><span class="s1">dirX </span><span class="s2">* </span><span class="s1">deltaX </span><span class="s2">* </span><span class="s3">180.0</span><span class="s2">),</span>
+                                    <span class="s2">(</span><span class="s1">deltaY </span><span class="s2">* </span><span class="s3">180.0</span><span class="s2">),</span>
+                                    <span class="s3">0.0</span><span class="s2">)</span>
+
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockRoll </span><span class="s2">== </span><span class="s0">True</span><span class="s2">):</span>
+                <span class="s5"># flatten roll</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setR</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setTransform</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">, </span><span class="s1">wrt</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">spawnMouseRollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Set at markers position in render coordinates</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">ZERO_POINT</span><span class="s2">)</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">Task</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mouseRollTask</span><span class="s2">)</span>
+        <span class="s1">t</span><span class="s2">.</span><span class="s1">coaCenter </span><span class="s2">= </span><span class="s1">getScreenXY</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">)</span>
+        <span class="s1">t</span><span class="s2">.</span><span class="s1">lastAngle </span><span class="s2">= </span><span class="s1">getCrankAngle</span><span class="s2">(</span><span class="s1">t</span><span class="s2">.</span><span class="s1">coaCenter</span><span class="s2">)</span>
+        <span class="s5"># Store the camera/manipRef offset transform</span>
+        <span class="s1">t</span><span class="s2">.</span><span class="s1">wrt </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getTransform</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">task </span><span class="s2">= </span><span class="s1">t</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">mouseRollTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">wrt </span><span class="s2">= </span><span class="s1">state</span><span class="s2">.</span><span class="s1">wrt</span>
+        <span class="s1">angle </span><span class="s2">= </span><span class="s1">getCrankAngle</span><span class="s2">(</span><span class="s1">state</span><span class="s2">.</span><span class="s1">coaCenter</span><span class="s2">)</span>
+        <span class="s1">deltaAngle </span><span class="s2">= </span><span class="s1">angle </span><span class="s2">- </span><span class="s1">state</span><span class="s2">.</span><span class="s1">lastAngle</span>
+        <span class="s1">state</span><span class="s2">.</span><span class="s1">lastAngle </span><span class="s2">= </span><span class="s1">angle</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s1">deltaAngle</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">lockRoll </span><span class="s2">== </span><span class="s0">True</span><span class="s2">):</span>
+            <span class="s5"># flatten roll</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setR</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">setTransform</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">, </span><span class="s1">wrt</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">lockCOA</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA </span><span class="s2">= </span><span class="s3">1</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">message</span><span class="s2">(</span><span class="s4">'COA Lock On'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">unlockCOA</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">message</span><span class="s2">(</span><span class="s4">'COA Lock Off'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">toggleCOALock</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA </span><span class="s2">= </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">message</span><span class="s2">(</span><span class="s4">'COA Lock On'</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">message</span><span class="s2">(</span><span class="s4">'COA Lock Off'</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">pickNextCOA</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; Cycle through collision handler entries &quot;&quot;&quot;</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries</span><span class="s2">:</span>
+            <span class="s5"># Get next entry and rotate entries</span>
+            <span class="s1">entry </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries</span><span class="s2">[</span><span class="s3">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries</span><span class="s2">[</span><span class="s3">1</span><span class="s2">:] + </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries</span><span class="s2">[:</span><span class="s3">1</span><span class="s2">]</span>
+            <span class="s5"># Filter out object's under camera</span>
+            <span class="s1">nodePath </span><span class="s2">= </span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getIntoNodePath</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera </span><span class="s0">not in </span><span class="s1">nodePath</span><span class="s2">.</span><span class="s1">getAncestors</span><span class="s2">():</span>
+                <span class="s5"># Compute new hit point</span>
+                <span class="s1">hitPt </span><span class="s2">= </span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getSurfacePoint</span><span class="s2">(</span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getFromNodePath</span><span class="s2">())</span>
+                <span class="s5"># Move coa marker to new point</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoa</span><span class="s2">(</span><span class="s1">hitPt</span><span class="s2">, </span><span class="s1">ref </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerRef</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s5"># Remove offending entry</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cqEntries</span><span class="s2">[:-</span><span class="s3">1</span><span class="s2">]</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">pickNextCOA</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">computeCOA</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">entry</span><span class="s2">):</span>
+        <span class="s1">coa </span><span class="s2">= </span><span class="s1">Point3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s1">dr </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">drList</span><span class="s2">.</span><span class="s1">getCurrentDr</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fLockCOA</span><span class="s2">:</span>
+            <span class="s5"># COA is locked, use existing point</span>
+            <span class="s5"># Use existing point</span>
+            <span class="s1">coa</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">))</span>
+            <span class="s5"># Reset hit point count</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nullHitPointCount </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s0">elif </span><span class="s1">entry</span><span class="s2">:</span>
+            <span class="s5"># Got a hit point (hit point is in camera coordinates)</span>
+            <span class="s5"># Set center of action</span>
+            <span class="s1">hitPt </span><span class="s2">= </span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getSurfacePoint</span><span class="s2">(</span><span class="s1">entry</span><span class="s2">.</span><span class="s1">getFromNodePath</span><span class="s2">())</span>
+            <span class="s1">hitPtDist </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">hitPt</span><span class="s2">).</span><span class="s1">length</span><span class="s2">()</span>
+            <span class="s1">coa</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">hitPt</span><span class="s2">)</span>
+            <span class="s5"># Handle case of bad coa point (too close or too far)</span>
+            <span class="s0">if </span><span class="s2">((</span><span class="s1">hitPtDist </span><span class="s2">&lt; (</span><span class="s3">1.1 </span><span class="s2">* </span><span class="s1">dr</span><span class="s2">.</span><span class="s1">near</span><span class="s2">)) </span><span class="s0">or</span>
+                <span class="s2">(</span><span class="s1">hitPtDist </span><span class="s2">&gt; </span><span class="s1">dr</span><span class="s2">.</span><span class="s1">far</span><span class="s2">)):</span>
+                <span class="s5"># Just use existing point</span>
+                <span class="s1">coa</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">))</span>
+            <span class="s5"># Reset hit point count</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nullHitPointCount </span><span class="s2">= </span><span class="s3">0</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s5"># Increment null hit point count</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">nullHitPointCount </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nullHitPointCount </span><span class="s2">+ </span><span class="s3">1</span><span class="s2">) % </span><span class="s3">7</span>
+            <span class="s5"># No COA lock and no intersection point</span>
+            <span class="s5"># Use a point out in front of camera</span>
+            <span class="s5"># Distance to point increases on multiple null hit points</span>
+            <span class="s5"># MRM: Would be nice to be able to control this</span>
+            <span class="s5"># At least display it</span>
+            <span class="s1">dist </span><span class="s2">= </span><span class="s1">pow</span><span class="s2">(</span><span class="s3">10.0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nullHitPointCount</span><span class="s2">)</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">message</span><span class="s2">(</span><span class="s4">'COA Distance: ' </span><span class="s2">+ </span><span class="s1">repr</span><span class="s2">(</span><span class="s1">dist</span><span class="s2">))</span>
+            <span class="s1">coa</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s5"># Compute COA Dist</span>
+        <span class="s1">coaDist </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">coa </span><span class="s2">- </span><span class="s1">ZERO_POINT</span><span class="s2">).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">coaDist </span><span class="s2">&lt; (</span><span class="s3">1.1 </span><span class="s2">* </span><span class="s1">dr</span><span class="s2">.</span><span class="s1">near</span><span class="s2">):</span>
+            <span class="s1">coa</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+            <span class="s1">coaDist </span><span class="s2">= </span><span class="s3">100</span>
+        <span class="s5"># Update coa and marker</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoa</span><span class="s2">(</span><span class="s1">coa</span><span class="s2">, </span><span class="s1">coaDist </span><span class="s2">= </span><span class="s1">coaDist</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">updateCoa</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ref2point</span><span class="s2">, </span><span class="s1">coaDist </span><span class="s2">= </span><span class="s0">None</span><span class="s2">, </span><span class="s1">ref </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coa</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">ref2point</span><span class="s2">[</span><span class="s3">0</span><span class="s2">], </span><span class="s1">ref2point</span><span class="s2">[</span><span class="s3">1</span><span class="s2">], </span><span class="s1">ref2point</span><span class="s2">[</span><span class="s3">2</span><span class="s2">])</span>
+        <span class="s0">if not </span><span class="s1">coaDist</span><span class="s2">:</span>
+            <span class="s1">coaDist </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coa </span><span class="s2">- </span><span class="s1">ZERO_POINT</span><span class="s2">).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s5"># Place the marker in render space</span>
+        <span class="s0">if </span><span class="s1">ref </span><span class="s2">== </span><span class="s0">None</span><span class="s2">:</span>
+            <span class="s5"># KEH: use the current display region</span>
+            <span class="s5"># ref = base.cam</span>
+            <span class="s1">ref </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">drList</span><span class="s2">.</span><span class="s1">getCurrentDr</span><span class="s2">().</span><span class="s1">cam</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">ref</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coa</span><span class="s2">)</span>
+        <span class="s1">pos </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setPosHprScale</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">, </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">), </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">1</span><span class="s2">))</span>
+        <span class="s5"># Resize it</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSize</span><span class="s2">(</span><span class="s1">coaDist</span><span class="s2">)</span>
+        <span class="s5"># Record marker pos in render space</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerPos</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">())</span>
+
+    <span class="s0">def </span><span class="s1">updateCoaMarkerSizeOnDeath</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Needed because tasks pass in state as first arg</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSize</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">updateCoaMarkerSize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">coaDist </span><span class="s2">= </span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">coaDist</span><span class="s2">:</span>
+            <span class="s1">coaDist </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s5"># Nominal size based on default 30 degree vertical FOV</span>
+        <span class="s5"># Need to adjust size based on distance and current FOV</span>
+        <span class="s1">sf </span><span class="s2">= </span><span class="s1">COA_MARKER_SF </span><span class="s2">* </span><span class="s1">coaDist </span><span class="s2">* (</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">drList</span><span class="s2">.</span><span class="s1">getCurrentDr</span><span class="s2">().</span><span class="s1">fovV</span><span class="s2">/</span><span class="s3">30.0</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">sf </span><span class="s2">== </span><span class="s3">0.0</span><span class="s2">:</span>
+            <span class="s1">sf </span><span class="s2">= </span><span class="s3">0.1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">sf</span><span class="s2">)</span>
+        <span class="s5"># Lerp color to fade out</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerColorIval</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerColorIval</span><span class="s2">.</span><span class="s1">finish</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerColorIval </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span>
+            <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">unstash</span><span class="s2">),</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">colorInterval</span><span class="s2">(</span><span class="s3">1.5</span><span class="s2">, </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s3">1</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">),</span>
+                                         <span class="s1">startColor </span><span class="s2">= </span><span class="s1">Vec4</span><span class="s2">(</span><span class="s3">1</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s2">),</span>
+                                         <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">),</span>
+            <span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">stash</span><span class="s2">)</span>
+            <span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarkerColorIval</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">homeCam</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">clearMat</span><span class="s2">()</span>
+        <span class="s5"># Resize coa marker</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSize</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">uprightCam</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+        <span class="s5"># Pitch camera till upright</span>
+        <span class="s1">currH </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getH</span><span class="s2">()</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">hprInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                              <span class="s2">(</span><span class="s1">currH</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">),</span>
+                                              <span class="s1">other </span><span class="s2">= </span><span class="s1">render</span><span class="s2">,</span>
+                                              <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">,</span>
+                                              <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">orbitUprightCam</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+        <span class="s5"># Transform camera z axis to render space</span>
+        <span class="s1">mCam2Render </span><span class="s2">= </span><span class="s1">Mat4</span><span class="s2">(</span><span class="s1">Mat4</span><span class="s2">.</span><span class="s1">identMat</span><span class="s2">()) </span><span class="s5"># [gjeon] fixed to give required argument</span>
+        <span class="s1">mCam2Render</span><span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getMat</span><span class="s2">(</span><span class="s1">render</span><span class="s2">))</span>
+        <span class="s1">zAxis </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">mCam2Render</span><span class="s2">.</span><span class="s1">xformVec</span><span class="s2">(</span><span class="s1">Z_AXIS</span><span class="s2">))</span>
+        <span class="s1">zAxis</span><span class="s2">.</span><span class="s1">normalize</span><span class="s2">()</span>
+        <span class="s5"># Compute rotation angle needed to upright cam</span>
+        <span class="s1">orbitAngle </span><span class="s2">= </span><span class="s1">rad2Deg</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">acos</span><span class="s2">(</span><span class="s1">CLAMP</span><span class="s2">(</span><span class="s1">zAxis</span><span class="s2">.</span><span class="s1">dot</span><span class="s2">(</span><span class="s1">Z_AXIS</span><span class="s2">), -</span><span class="s3">1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">)))</span>
+        <span class="s5"># Check angle</span>
+        <span class="s0">if </span><span class="s1">orbitAngle </span><span class="s2">&lt; </span><span class="s3">0.1</span><span class="s2">:</span>
+            <span class="s5"># Already upright</span>
+            <span class="s0">return</span>
+        <span class="s5"># Compute orthogonal axis of rotation</span>
+        <span class="s1">rotAxis </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">zAxis</span><span class="s2">.</span><span class="s1">cross</span><span class="s2">(</span><span class="s1">Z_AXIS</span><span class="s2">))</span>
+        <span class="s1">rotAxis</span><span class="s2">.</span><span class="s1">normalize</span><span class="s2">()</span>
+        <span class="s5"># Find angle between rot Axis and render X_AXIS</span>
+        <span class="s1">rotAngle </span><span class="s2">= </span><span class="s1">rad2Deg</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">acos</span><span class="s2">(</span><span class="s1">CLAMP</span><span class="s2">(</span><span class="s1">rotAxis</span><span class="s2">.</span><span class="s1">dot</span><span class="s2">(</span><span class="s1">X_AXIS</span><span class="s2">), -</span><span class="s3">1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">)))</span>
+        <span class="s5"># Determine sign or rotation angle</span>
+        <span class="s0">if </span><span class="s1">rotAxis</span><span class="s2">[</span><span class="s3">1</span><span class="s2">] &lt; </span><span class="s3">0</span><span class="s2">:</span>
+            <span class="s1">rotAngle </span><span class="s2">*= -</span><span class="s3">1</span>
+        <span class="s5"># Position ref CS at coa marker with xaxis aligned with rot axis</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">, </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">render</span><span class="s2">, </span><span class="s1">rotAngle</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">)</span>
+        <span class="s5"># Reparent Cam to ref Coordinate system</span>
+        <span class="s1">parent </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getParent</span><span class="s2">()</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">wrtReparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">)</span>
+        <span class="s5"># Rotate ref CS to final orientation</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">hprInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                            <span class="s2">(</span><span class="s1">rotAngle</span><span class="s2">, </span><span class="s1">orbitAngle</span><span class="s2">, </span><span class="s3">0</span><span class="s2">),</span>
+                                            <span class="s1">other </span><span class="s2">= </span><span class="s1">render</span><span class="s2">,</span>
+                                            <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">reparentCam</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">centerCam</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">centerCamIn</span><span class="s2">(</span><span class="s3">1.0</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">centerCamNow</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">centerCamIn</span><span class="s2">(</span><span class="s3">0.</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">centerCamIn</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+        <span class="s5"># Determine marker location</span>
+        <span class="s1">markerToCam </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)</span>
+        <span class="s1">dist </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">markerToCam </span><span class="s2">- </span><span class="s1">ZERO_POINT</span><span class="s2">).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s1">scaledCenterVec </span><span class="s2">= </span><span class="s1">Y_AXIS </span><span class="s2">* </span><span class="s1">dist</span>
+        <span class="s1">delta </span><span class="s2">= </span><span class="s1">markerToCam </span><span class="s2">- </span><span class="s1">scaledCenterVec</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">Point3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">), </span><span class="s1">Point3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">))</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">posInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                              <span class="s1">Point3</span><span class="s2">(</span><span class="s1">delta</span><span class="s2">),</span>
+                                              <span class="s1">other </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">,</span>
+                                              <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSizeOnDeath</span><span class="s2">),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">zoomCam</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">zoomFactor</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+        <span class="s5"># Find a point zoom factor times the current separation</span>
+        <span class="s5"># of the widget and cam</span>
+        <span class="s1">zoomPtToCam </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">) * </span><span class="s1">zoomFactor</span>
+        <span class="s5"># Put a target nodePath there</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">zoomPtToCam</span><span class="s2">)</span>
+        <span class="s5"># Move to that point</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">posInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                              <span class="s1">ZERO_POINT</span><span class="s2">,</span>
+                                              <span class="s1">other </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">,</span>
+                                              <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSizeOnDeath</span><span class="s2">),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">spawnMoveToView</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">view</span><span class="s2">):</span>
+        <span class="s5"># Kill any existing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+        <span class="s5"># Calc hprOffset</span>
+        <span class="s1">hprOffset </span><span class="s2">= </span><span class="s1">VBase3</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">view </span><span class="s2">== </span><span class="s3">8</span><span class="s2">:</span>
+            <span class="s5"># Try the next roll angle</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">orthoViewRoll </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthoViewRoll </span><span class="s2">+ </span><span class="s3">90.0</span><span class="s2">) % </span><span class="s3">360.0</span>
+            <span class="s5"># but use the last view</span>
+            <span class="s1">view </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastView</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">orthoViewRoll </span><span class="s2">= </span><span class="s3">0.0</span>
+        <span class="s5"># Adjust offset based on specified view</span>
+        <span class="s0">if </span><span class="s1">view </span><span class="s2">== </span><span class="s3">1</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">180.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s1">view </span><span class="s2">== </span><span class="s3">2</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">0.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s1">view </span><span class="s2">== </span><span class="s3">3</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">90.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s1">view </span><span class="s2">== </span><span class="s3">4</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(-</span><span class="s3">90.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s1">view </span><span class="s2">== </span><span class="s3">5</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">0.</span><span class="s2">, -</span><span class="s3">90.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s1">view </span><span class="s2">== </span><span class="s3">6</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">0.</span><span class="s2">, </span><span class="s3">90.</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s0">elif </span><span class="s1">view </span><span class="s2">== </span><span class="s3">7</span><span class="s2">:</span>
+            <span class="s1">hprOffset</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s3">135.</span><span class="s2">, -</span><span class="s3">35.264</span><span class="s2">, </span><span class="s3">0.</span><span class="s2">)</span>
+        <span class="s5"># Position target</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">, </span><span class="s1">ZERO_VEC</span><span class="s2">,</span>
+                                   <span class="s1">hprOffset</span><span class="s2">)</span>
+        <span class="s5"># Scale center vec by current distance to target</span>
+        <span class="s1">offsetDistance </span><span class="s2">= </span><span class="s1">Vec3</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">) -</span>
+                              <span class="s1">ZERO_POINT</span><span class="s2">).</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s1">scaledCenterVec </span><span class="s2">= </span><span class="s1">Y_AXIS </span><span class="s2">* (-</span><span class="s3">1.0 </span><span class="s2">* </span><span class="s1">offsetDistance</span><span class="s2">)</span>
+        <span class="s5"># Now put the camManipRef at that point</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">,</span>
+                                   <span class="s1">scaledCenterVec</span><span class="s2">,</span>
+                                   <span class="s1">ZERO_VEC</span><span class="s2">)</span>
+        <span class="s5"># Record view for next time around</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastView </span><span class="s2">= </span><span class="s1">view</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">posHprInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                                 <span class="s1">pos </span><span class="s2">= </span><span class="s1">ZERO_POINT</span><span class="s2">,</span>
+                                                 <span class="s1">hpr </span><span class="s2">= </span><span class="s1">VBase3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">orthoViewRoll</span><span class="s2">),</span>
+                                                 <span class="s1">other </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">,</span>
+                                                 <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSizeOnDeath</span><span class="s2">),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">swingCamAboutWidget</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">degrees</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5"># Remove existing camera manipulation task</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+
+        <span class="s5"># Record undo point</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">([</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">])</span>
+
+        <span class="s5"># Coincident with widget</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">, </span><span class="s1">ZERO_POINT</span><span class="s2">)</span>
+        <span class="s5"># But aligned with render space</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">ZERO_POINT</span><span class="s2">)</span>
+
+        <span class="s1">parent </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getParent</span><span class="s2">()</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">wrtReparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">)</span>
+
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">hprInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                            <span class="s1">VBase3</span><span class="s2">(</span><span class="s1">degrees</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">),</span>
+                                            <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">reparentCam</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">reparentCam</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">):</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">wrtReparentTo</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">updateCoaMarkerSize</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">fitOnWidget</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath </span><span class="s2">= </span><span class="s4">'None Given'</span><span class="s2">):</span>
+        <span class="s5"># Fit the node on the screen</span>
+        <span class="s5"># stop any ongoing tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+        <span class="s5"># How big is the node?</span>
+        <span class="s1">nodeScale </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">scalingNode</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+        <span class="s1">maxScale </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">nodeScale</span><span class="s2">[</span><span class="s3">0</span><span class="s2">], </span><span class="s1">nodeScale</span><span class="s2">[</span><span class="s3">1</span><span class="s2">], </span><span class="s1">nodeScale</span><span class="s2">[</span><span class="s3">2</span><span class="s2">])</span>
+        <span class="s1">maxDim </span><span class="s2">= </span><span class="s1">min</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">nearWidth</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">nearHeight</span><span class="s2">)</span>
+
+        <span class="s5"># At what distance does the object fill 30% of the screen?</span>
+        <span class="s5"># Assuming radius of 1 on widget</span>
+        <span class="s1">camY </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">near </span><span class="s2">* (</span><span class="s3">2.0 </span><span class="s2">* </span><span class="s1">maxScale</span><span class="s2">)/(</span><span class="s3">0.3 </span><span class="s2">* </span><span class="s1">maxDim</span><span class="s2">)</span>
+
+        <span class="s5"># What is the vector through the center of the screen?</span>
+        <span class="s1">centerVec </span><span class="s2">= </span><span class="s1">Y_AXIS </span><span class="s2">* </span><span class="s1">camY</span>
+
+        <span class="s5"># Where is the node relative to the viewpoint</span>
+        <span class="s1">vWidget2Camera </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">getPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">)</span>
+
+        <span class="s5"># How far do you move the camera to be this distance from the node?</span>
+        <span class="s1">deltaMove </span><span class="s2">= </span><span class="s1">vWidget2Camera </span><span class="s2">- </span><span class="s1">centerVec</span>
+
+        <span class="s5"># Move a target there</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">, </span><span class="s1">deltaMove</span><span class="s2">)</span>
+        <span class="s0">except </span><span class="s1">Exception</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span>
+
+        <span class="s1">parent </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">getParent</span><span class="s2">()</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">wrtReparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camManipRef</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">posInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                              <span class="s1">Point3</span><span class="s2">(</span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">, </span><span class="s3">0</span><span class="s2">),</span>
+                                              <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">reparentCam</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'manipulateCamera'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__startManipulateCamera</span><span class="s2">(</span><span class="s1">ival </span><span class="s2">= </span><span class="s1">ival</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">moveToFit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># How big is the active widget?</span>
+        <span class="s1">widgetScale </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">scalingNode</span><span class="s2">.</span><span class="s1">getScale</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+        <span class="s1">maxScale </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">widgetScale</span><span class="s2">[</span><span class="s3">0</span><span class="s2">], </span><span class="s1">widgetScale</span><span class="s2">[</span><span class="s3">1</span><span class="s2">], </span><span class="s1">widgetScale</span><span class="s2">[</span><span class="s3">2</span><span class="s2">])</span>
+        <span class="s5"># At what distance does the widget fill 50% of the screen?</span>
+        <span class="s1">camY </span><span class="s2">= ((</span><span class="s3">2 </span><span class="s2">* </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">near </span><span class="s2">* (</span><span class="s3">1.5 </span><span class="s2">* </span><span class="s1">maxScale</span><span class="s2">)) /</span>
+                <span class="s1">min</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">nearWidth</span><span class="s2">, </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">dr</span><span class="s2">.</span><span class="s1">nearHeight</span><span class="s2">))</span>
+        <span class="s5"># Find a point this distance along the Y axis</span>
+        <span class="s5"># MRM: This needs to be generalized to support non uniform frusta</span>
+        <span class="s1">centerVec </span><span class="s2">= </span><span class="s1">Y_AXIS </span><span class="s2">* </span><span class="s1">camY</span>
+        <span class="s5"># Before moving, record the relationship between the selected nodes</span>
+        <span class="s5"># and the widget, so that this can be maintained</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">getWrtAll</span><span class="s2">()</span>
+        <span class="s5"># Push state onto undo stack</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">pushUndo</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">)</span>
+        <span class="s5"># Remove the task to keep the widget attached to the object</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'followSelectedNodePath'</span><span class="s2">)</span>
+        <span class="s5"># Spawn a task to keep the selected objects with the widget</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">stickToWidgetTask</span><span class="s2">, </span><span class="s4">'stickToWidget'</span><span class="s2">)</span>
+        <span class="s5"># Spawn a task to move the widget</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">widget</span><span class="s2">.</span><span class="s1">posInterval</span><span class="s2">(</span><span class="s1">CAM_MOVE_DURATION</span><span class="s2">,</span>
+                                              <span class="s1">Point3</span><span class="s2">(</span><span class="s1">centerVec</span><span class="s2">),</span>
+                                              <span class="s1">other </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">camera</span><span class="s2">,</span>
+                                              <span class="s1">blendType </span><span class="s2">= </span><span class="s4">'easeInOut'</span><span class="s2">)</span>
+        <span class="s1">ival </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">, </span><span class="s1">Func</span><span class="s2">(</span><span class="s0">lambda</span><span class="s2">: </span><span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'stickToWidget'</span><span class="s2">)),</span>
+                        <span class="s1">name </span><span class="s2">= </span><span class="s4">'moveToFit'</span><span class="s2">)</span>
+        <span class="s1">ival</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">stickToWidgetTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s5"># Move the objects with the widget</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">selected</span><span class="s2">.</span><span class="s1">moveWrtWidgetAll</span><span class="s2">()</span>
+        <span class="s5"># Continue</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">cont</span>
+
+    <span class="s0">def </span><span class="s1">enableMouseFly</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">fKeyEvents </span><span class="s2">= </span><span class="s3">1</span><span class="s2">):</span>
+        <span class="s5"># disable C++ fly interface</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">disableMouse</span><span class="s2">()</span>
+        <span class="s5"># Enable events</span>
+        <span class="s0">for </span><span class="s1">event </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actionEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">[</span><span class="s3">0</span><span class="s2">], </span><span class="s1">event</span><span class="s2">[</span><span class="s3">1</span><span class="s2">], </span><span class="s1">extraArgs </span><span class="s2">= </span><span class="s1">event</span><span class="s2">[</span><span class="s3">2</span><span class="s2">:])</span>
+        <span class="s0">if </span><span class="s1">fKeyEvents</span><span class="s2">:</span>
+            <span class="s0">for </span><span class="s1">event </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">keyEvents</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">[</span><span class="s3">0</span><span class="s2">], </span><span class="s1">event</span><span class="s2">[</span><span class="s3">1</span><span class="s2">], </span><span class="s1">extraArgs </span><span class="s2">= </span><span class="s1">event</span><span class="s2">[</span><span class="s3">2</span><span class="s2">:])</span>
+        <span class="s5"># Show marker</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">direct</span><span class="s2">.</span><span class="s1">group</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">disableMouseFly</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Hide the marker</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">coaMarker</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">hidden</span><span class="s2">)</span>
+        <span class="s5"># Ignore events</span>
+        <span class="s0">for </span><span class="s1">event </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">actionEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">event</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+        <span class="s0">for </span><span class="s1">event </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">keyEvents</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">event</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+        <span class="s5"># Kill tasks</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">removeManipulateCameraTask</span><span class="s2">()</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'stickToWidget'</span><span class="s2">)</span>
+        <span class="s1">base</span><span class="s2">.</span><span class="s1">enableMouse</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">removeManipulateCameraTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__stopManipulateCamera</span><span class="s2">()</span>
+
+</pre>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<html>
+<head>
+<title>ProjectileIntervalTest.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ProjectileIntervalTest.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Undocumented Module&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'doTest'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">.</span><span class="s1">IntervalGlobal </span><span class="s4">import </span><span class="s2">*</span>
+
+<span class="s4">def </span><span class="s1">doTest</span><span class="s2">():</span>
+    <span class="s1">smiley </span><span class="s2">= </span><span class="s1">loader</span><span class="s2">.</span><span class="s1">loadModel</span><span class="s2">(</span><span class="s3">'models/misc/smiley'</span><span class="s2">)</span>
+    <span class="s1">smiley</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s1">pi </span><span class="s2">= </span><span class="s1">ProjectileInterval</span><span class="s2">(</span><span class="s1">smiley</span><span class="s2">, </span><span class="s1">startPos</span><span class="s2">=</span><span class="s1">Point3</span><span class="s2">(</span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">),</span>
+                            <span class="s1">endZ </span><span class="s2">= -</span><span class="s5">10</span><span class="s2">, </span><span class="s1">wayPoint</span><span class="s2">=</span><span class="s1">Point3</span><span class="s2">(</span><span class="s5">10</span><span class="s2">, </span><span class="s5">0</span><span class="s2">, </span><span class="s5">0</span><span class="s2">),</span>
+                            <span class="s1">timeToWayPoint</span><span class="s2">=</span><span class="s5">3</span><span class="s2">)</span>
+    <span class="s1">pi</span><span class="s2">.</span><span class="s1">loop</span><span class="s2">()</span>
+    <span class="s4">return </span><span class="s1">pi</span>
+
+</pre>
+</body>
+</html>

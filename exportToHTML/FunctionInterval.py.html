@@ -1,0 +1,473 @@
+<html>
+<head>
+<title>FunctionInterval.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+FunctionInterval.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;FunctionInterval module: contains the FunctionInterval class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'FunctionInterval'</span><span class="s2">, </span><span class="s3">'EventInterval'</span><span class="s2">, </span><span class="s3">'AcceptInterval'</span><span class="s2">, </span><span class="s3">'IgnoreInterval'</span><span class="s2">, </span><span class="s3">'ParentInterval'</span><span class="s2">, </span><span class="s3">'WrtParentInterval'</span><span class="s2">, </span><span class="s3">'PosInterval'</span><span class="s2">, </span><span class="s3">'HprInterval'</span><span class="s2">, </span><span class="s3">'ScaleInterval'</span><span class="s2">, </span><span class="s3">'PosHprInterval'</span><span class="s2">, </span><span class="s3">'HprScaleInterval'</span><span class="s2">, </span><span class="s3">'PosHprScaleInterval'</span><span class="s2">, </span><span class="s3">'Func'</span><span class="s2">, </span><span class="s3">'Wait'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">MessengerGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Interval</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+
+<span class="s5">#############################################################</span>
+<span class="s5">###                                                       ###</span>
+<span class="s5">### See examples of function intervals in IntervalTest.py ###</span>
+<span class="s5">###                                                       ###</span>
+<span class="s5">#############################################################</span>
+
+<span class="s4">class </span><span class="s1">FunctionInterval</span><span class="s2">(</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">):</span>
+    <span class="s5"># Name counter</span>
+    <span class="s1">functionIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+
+    <span class="s5"># Keep a list of function intervals currently in memory for</span>
+    <span class="s5"># Control-C-Control-V redefining. These are just weakrefs so they</span>
+    <span class="s5"># should not cause any leaks.</span>
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s4">import </span><span class="s1">weakref</span>
+        <span class="s1">FunctionIntervals </span><span class="s2">= </span><span class="s1">weakref</span><span class="s2">.</span><span class="s1">WeakKeyDictionary</span><span class="s2">()</span>
+
+        <span class="s2">@</span><span class="s1">classmethod</span>
+        <span class="s4">def </span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">oldFunction</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">):</span>
+            <span class="s4">import </span><span class="s1">types</span>
+            <span class="s1">count </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s4">for </span><span class="s1">ival </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">FunctionIntervals</span><span class="s2">:</span>
+                <span class="s5"># print 'testing: ', ival.function, oldFunction</span>
+                <span class="s5"># Note: you can only replace methods currently</span>
+                <span class="s4">if </span><span class="s1">type</span><span class="s2">(</span><span class="s1">ival</span><span class="s2">.</span><span class="s1">function</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">ival</span><span class="s2">.</span><span class="s1">function</span><span class="s2">.</span><span class="s1">__func__ </span><span class="s2">== </span><span class="s1">oldFunction</span><span class="s2">:</span>
+                        <span class="s5"># print 'found: ', ival.function, oldFunction</span>
+                        <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s6">3</span><span class="s2">, </span><span class="s6">0</span><span class="s2">):</span>
+                            <span class="s1">ival</span><span class="s2">.</span><span class="s1">function </span><span class="s2">= </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                                             <span class="s1">ival</span><span class="s2">.</span><span class="s1">function</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">)</span>
+                        <span class="s4">else</span><span class="s2">:</span>
+                            <span class="s1">ival</span><span class="s2">.</span><span class="s1">function </span><span class="s2">= </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                                             <span class="s1">ival</span><span class="s2">.</span><span class="s1">function</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">,</span>
+                                                             <span class="s1">ival</span><span class="s2">.</span><span class="s1">function</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">)</span>
+                        <span class="s1">count </span><span class="s2">+= </span><span class="s6">1</span>
+            <span class="s4">return </span><span class="s1">count</span>
+
+    <span class="s5"># create FunctionInterval DirectNotify category</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'FunctionInterval'</span><span class="s2">)</span>
+
+    <span class="s5"># Class methods</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">function</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(function, name = None, openEnded = 1, extraArgs = []) 
+        &quot;&quot;&quot;</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s3">'name'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s1">openEnded </span><span class="s2">= </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s3">'openEnded'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">extraArgs </span><span class="s2">= </span><span class="s1">kw</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s3">'extraArgs'</span><span class="s2">, [])</span>
+
+        <span class="s5"># Record instance variables</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">function </span><span class="s2">= </span><span class="s1">function</span>
+
+        <span class="s5"># Create a unique name for the interval if necessary</span>
+        <span class="s4">if </span><span class="s1">name </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">makeUniqueName</span><span class="s2">(</span><span class="s1">function</span><span class="s2">)</span>
+        <span class="s4">assert </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">name</span><span class="s2">, </span><span class="s1">str</span><span class="s2">)</span>
+
+        <span class="s5"># Record any arguments</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">extraArgs </span><span class="s2">= </span><span class="s1">extraArgs</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">kw </span><span class="s2">= </span><span class="s1">kw</span>
+        <span class="s5"># Initialize superclass</span>
+        <span class="s5"># Set openEnded true if privInitialize after end time cause interval</span>
+        <span class="s5"># function to be called.  If false, privInitialize calls have no effect</span>
+        <span class="s5"># Event, Accept, Ignore intervals default to openEnded = 0</span>
+        <span class="s5"># Parent, Pos, Hpr, etc intervals default to openEnded = 1</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">openEnded </span><span class="s2">= </span><span class="s1">openEnded</span><span class="s2">)</span>
+
+        <span class="s5"># For rebinding, let's remember this function interval on the class</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">FunctionIntervals</span><span class="s2">[</span><span class="s1">self</span><span class="s2">] = </span><span class="s6">1</span>
+
+    <span class="s2">@</span><span class="s1">staticmethod</span>
+    <span class="s4">def </span><span class="s1">makeUniqueName</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s1">suffix </span><span class="s2">= </span><span class="s3">''</span><span class="s2">):</span>
+        <span class="s1">func_name </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">func</span><span class="s2">, </span><span class="s3">'__name__'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">func_name </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">func_name </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">func</span><span class="s2">)</span>
+        <span class="s1">name </span><span class="s2">= </span><span class="s3">'Func-%s-%d' </span><span class="s2">% (</span><span class="s1">func_name</span><span class="s2">, </span><span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">functionIntervalNum</span><span class="s2">)</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">functionIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s4">if </span><span class="s1">suffix</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'%s-%s' </span><span class="s2">% (</span><span class="s1">name</span><span class="s2">, </span><span class="s1">str</span><span class="s2">(</span><span class="s1">suffix</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">name</span>
+
+    <span class="s4">def </span><span class="s1">privInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Evaluate the function</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">function</span><span class="s2">(*</span><span class="s1">self</span><span class="s2">.</span><span class="s1">extraArgs</span><span class="s2">, **</span><span class="s1">self</span><span class="s2">.</span><span class="s1">kw</span><span class="s2">)</span>
+        <span class="s5"># Print debug information</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+            <span class="s3">'updateFunc() - %s: executing Function' </span><span class="s2">% </span><span class="s1">self</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)</span>
+
+
+<span class="s5">### FunctionInterval subclass for throwing events ###</span>
+<span class="s4">class </span><span class="s1">EventInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(event, sentArgs) 
+        &quot;&quot;&quot;</span>
+        <span class="s4">def </span><span class="s1">sendFunc</span><span class="s2">(</span><span class="s1">event </span><span class="s2">= </span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs </span><span class="s2">= </span><span class="s1">sentArgs</span><span class="s2">):</span>
+            <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">sentArgs</span><span class="s2">)</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sendFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">event</span><span class="s2">)</span>
+
+<span class="s5">### FunctionInterval subclass for accepting hooks ###</span>
+<span class="s4">class </span><span class="s1">AcceptInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dirObj</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">function</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(dirObj, event, function, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s4">def </span><span class="s1">acceptFunc</span><span class="s2">(</span><span class="s1">dirObj </span><span class="s2">= </span><span class="s1">dirObj</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s1">event</span><span class="s2">, </span><span class="s1">function </span><span class="s2">= </span><span class="s1">function</span><span class="s2">):</span>
+            <span class="s1">dirObj</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s1">event</span><span class="s2">, </span><span class="s1">function</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'Accept-' </span><span class="s2">+ </span><span class="s1">event</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">acceptFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s5">### FunctionInterval subclass for ignoring events ###</span>
+<span class="s4">class </span><span class="s1">IgnoreInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dirObj</span><span class="s2">, </span><span class="s1">event</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(dirObj, event, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s4">def </span><span class="s1">ignoreFunc</span><span class="s2">(</span><span class="s1">dirObj </span><span class="s2">= </span><span class="s1">dirObj</span><span class="s2">, </span><span class="s1">event </span><span class="s2">= </span><span class="s1">event</span><span class="s2">):</span>
+            <span class="s1">dirObj</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s1">event</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'Ignore-' </span><span class="s2">+ </span><span class="s1">event</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ignoreFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s5">### Function Interval subclass for adjusting scene graph hierarchy ###</span>
+<span class="s4">class </span><span class="s1">ParentInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># ParentInterval counter</span>
+    <span class="s1">parentIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, parent, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s4">def </span><span class="s1">reparentFunc</span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">parent</span><span class="s2">):</span>
+            <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'ParentInterval-%d' </span><span class="s2">% </span><span class="s1">ParentInterval</span><span class="s2">.</span><span class="s1">parentIntervalNum</span>
+            <span class="s1">ParentInterval</span><span class="s2">.</span><span class="s1">parentIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">reparentFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s5">### Function Interval subclass for adjusting scene graph hierarchy ###</span>
+<span class="s4">class </span><span class="s1">WrtParentInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># WrtParentInterval counter</span>
+    <span class="s1">wrtParentIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">parent</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, parent, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s4">def </span><span class="s1">wrtReparentFunc</span><span class="s2">(</span><span class="s1">nodePath </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">parent </span><span class="s2">= </span><span class="s1">parent</span><span class="s2">):</span>
+            <span class="s1">nodePath</span><span class="s2">.</span><span class="s1">wrtReparentTo</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= (</span><span class="s3">'WrtParentInterval-%d' </span><span class="s2">%</span>
+                    <span class="s1">WrtParentInterval</span><span class="s2">.</span><span class="s1">wrtParentIntervalNum</span><span class="s2">)</span>
+            <span class="s1">WrtParentInterval</span><span class="s2">.</span><span class="s1">wrtParentIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">wrtReparentFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s5">### Function Interval subclasses for instantaneous pose changes ###</span>
+<span class="s4">class </span><span class="s1">PosInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># PosInterval counter</span>
+    <span class="s1">posIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                 <span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, pos, duration, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Create function</span>
+        <span class="s4">def </span><span class="s1">posFunc</span><span class="s2">(</span><span class="s1">np </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">pos </span><span class="s2">= </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">other</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">other</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'PosInterval-%d' </span><span class="s2">% </span><span class="s1">PosInterval</span><span class="s2">.</span><span class="s1">posIntervalNum</span>
+            <span class="s1">PosInterval</span><span class="s2">.</span><span class="s1">posIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">posFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">HprInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># HprInterval counter</span>
+    <span class="s1">hprIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                 <span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, hpr, duration, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Create function</span>
+        <span class="s4">def </span><span class="s1">hprFunc</span><span class="s2">(</span><span class="s1">np </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">hpr </span><span class="s2">= </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">other</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">other</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setHpr</span><span class="s2">(</span><span class="s1">hpr</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'HprInterval-%d' </span><span class="s2">% </span><span class="s1">HprInterval</span><span class="s2">.</span><span class="s1">hprIntervalNum</span>
+            <span class="s1">HprInterval</span><span class="s2">.</span><span class="s1">hprIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hprFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">ScaleInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># ScaleInterval counter</span>
+    <span class="s1">scaleIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                 <span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, scale, duration, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Create function</span>
+        <span class="s4">def </span><span class="s1">scaleFunc</span><span class="s2">(</span><span class="s1">np </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">scale </span><span class="s2">= </span><span class="s1">scale</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">other</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">other</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setScale</span><span class="s2">(</span><span class="s1">scale</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'ScaleInterval-%d' </span><span class="s2">% </span><span class="s1">ScaleInterval</span><span class="s2">.</span><span class="s1">scaleIntervalNum</span>
+            <span class="s1">ScaleInterval</span><span class="s2">.</span><span class="s1">scaleIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">scaleFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">PosHprInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># PosHprInterval counter</span>
+    <span class="s1">posHprIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                 <span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, pos, hpr, duration, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Create function</span>
+        <span class="s4">def </span><span class="s1">posHprFunc</span><span class="s2">(</span><span class="s1">np </span><span class="s2">= </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">pos </span><span class="s2">= </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr </span><span class="s2">= </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">other</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">other</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPosHpr</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'PosHprInterval-%d' </span><span class="s2">% </span><span class="s1">PosHprInterval</span><span class="s2">.</span><span class="s1">posHprIntervalNum</span>
+            <span class="s1">PosHprInterval</span><span class="s2">.</span><span class="s1">posHprIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">posHprFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">HprScaleInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># HprScaleInterval counter</span>
+    <span class="s1">hprScaleIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                 <span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, hpr, scale, duration, other, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Create function</span>
+        <span class="s4">def </span><span class="s1">hprScaleFunc</span><span class="s2">(</span><span class="s1">np</span><span class="s2">=</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">=</span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s1">scale</span><span class="s2">,</span>
+                            <span class="s1">other </span><span class="s2">= </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">other</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setHprScale</span><span class="s2">(</span><span class="s1">other</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setHprScale</span><span class="s2">(</span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= (</span><span class="s3">'HprScale-%d' </span><span class="s2">%</span>
+                    <span class="s1">HprScaleInterval</span><span class="s2">.</span><span class="s1">hprScaleIntervalNum</span><span class="s2">)</span>
+            <span class="s1">HprScaleInterval</span><span class="s2">.</span><span class="s1">hprScaleIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">hprScaleFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">PosHprScaleInterval</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s5"># PosHprScaleInterval counter</span>
+    <span class="s1">posHprScaleIntervalNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># Initialization</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">,</span>
+                 <span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">other </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(nodePath, pos, hpr, scale, duration, other, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Create function</span>
+        <span class="s4">def </span><span class="s1">posHprScaleFunc</span><span class="s2">(</span><span class="s1">np</span><span class="s2">=</span><span class="s1">nodePath</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">=</span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">=</span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=</span><span class="s1">scale</span><span class="s2">,</span>
+                            <span class="s1">other </span><span class="s2">= </span><span class="s1">other</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">other</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPosHprScale</span><span class="s2">(</span><span class="s1">other</span><span class="s2">, </span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">np</span><span class="s2">.</span><span class="s1">setPosHprScale</span><span class="s2">(</span><span class="s1">pos</span><span class="s2">, </span><span class="s1">hpr</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">)</span>
+        <span class="s5"># Determine name</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= (</span><span class="s3">'PosHprScale-%d' </span><span class="s2">%</span>
+                    <span class="s1">PosHprScaleInterval</span><span class="s2">.</span><span class="s1">posHprScaleIntervalNum</span><span class="s2">)</span>
+            <span class="s1">PosHprScaleInterval</span><span class="s2">.</span><span class="s1">posHprScaleIntervalNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Create function interval</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">posHprScaleFunc</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s1">name</span><span class="s2">)</span>
+
+
+
+
+<span class="s4">class </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">FunctionInterval</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">):</span>
+        <span class="s1">function </span><span class="s2">= </span><span class="s1">args</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s4">assert </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">function</span><span class="s2">, </span><span class="s3">'__call__'</span><span class="s2">)</span>
+        <span class="s1">extraArgs </span><span class="s2">= </span><span class="s1">args</span><span class="s2">[</span><span class="s6">1</span><span class="s2">:]</span>
+        <span class="s1">kw</span><span class="s2">[</span><span class="s3">'extraArgs'</span><span class="s2">] = </span><span class="s1">extraArgs</span>
+        <span class="s1">FunctionInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">function</span><span class="s2">, **</span><span class="s1">kw</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">Wait</span><span class="s2">(</span><span class="s1">WaitInterval</span><span class="s2">):</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">):</span>
+        <span class="s1">WaitInterval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">)</span>
+
+<span class="s3">&quot;&quot;&quot; 
+SAMPLE CODE 
+ 
+from IntervalGlobal import * 
+ 
+i1 = Func(base.transitions.fadeOut) 
+i2 = Func(base.transitions.fadeIn) 
+ 
+def caughtIt(): 
+    print 'Caught here-is-an-event' 
+ 
+class DummyAcceptor(DirectObject): 
+    pass 
+ 
+da = DummyAcceptor() 
+i3 = Func(da.accept, 'here-is-an-event', caughtIt) 
+ 
+i4 = Func(messenger.send, 'here-is-an-event') 
+ 
+i5 = Func(da.ignore, 'here-is-an-event') 
+ 
+# Using a function 
+def printDone(): 
+    print 'done' 
+ 
+i6 = Func(printDone) 
+ 
+# Create track 
+t1 = Sequence([ 
+    # Fade out 
+    (0.0, i1), 
+    # Fade in 
+    (2.0, i2), 
+    # Accept event 
+    (4.0, i3), 
+    # Throw it, 
+    (5.0, i4), 
+    # Ignore event 
+    (6.0, i5), 
+    # Throw event again and see if ignore worked 
+    (7.0, i4), 
+    # Print done 
+    (8.0, i6)], name = 'demo') 
+ 
+# Play track 
+t1.play() 
+ 
+### Specifying interval start times during track construction ### 
+# Interval start time can be specified relative to three different points: 
+# PREVIOUS_END 
+# PREVIOUS_START 
+# TRACK_START 
+ 
+startTime = 0.0 
+def printStart(): 
+    global startTime 
+    startTime = globalClock.getFrameTime() 
+    print 'Start' 
+ 
+def printPreviousStart(): 
+    global startTime 
+    currTime = globalClock.getFrameTime() 
+    print 'PREVIOUS_END %0.2f' % (currTime - startTime) 
+ 
+def printPreviousEnd(): 
+    global startTime 
+    currTime = globalClock.getFrameTime() 
+    print 'PREVIOUS_END %0.2f' % (currTime - startTime) 
+ 
+def printTrackStart(): 
+    global startTime 
+    currTime = globalClock.getFrameTime() 
+    print 'TRACK_START %0.2f' % (currTime - startTime) 
+ 
+i1 = Func(printStart) 
+# Just to take time 
+i2 = LerpPosInterval(camera, 2.0, Point3(0, 10, 5)) 
+# This will be relative to end of camera move 
+i3 = FunctionInterval(printPreviousEnd) 
+# Just to take time 
+i4 = LerpPosInterval(camera, 2.0, Point3(0, 0, 5)) 
+# This will be relative to the start of the camera move 
+i5 = FunctionInterval(printPreviousStart) 
+# This will be relative to track start 
+i6 = FunctionInterval(printTrackStart) 
+# Create the track, if you don't specify offset type in tuple it defaults to 
+# relative to TRACK_START (first entry below) 
+t2 = Track([(0.0, i1),                 # i1 start at t = 0, duration = 0.0 
+           (1.0, i2, TRACK_START),    # i2 start at t = 1, duration = 2.0 
+           (2.0, i3, PREVIOUS_END),   # i3 start at t = 5, duration = 0.0 
+           (1.0, i4, PREVIOUS_END),   # i4 start at t = 6, duration = 2.0 
+           (3.0, i5, PREVIOUS_START), # i5 start at t = 9, duration = 0.0 
+           (10.0, i6, TRACK_START)],  # i6 start at t = 10, duration = 0.0 
+          name = 'startTimeDemo') 
+ 
+t2.play() 
+ 
+ 
+smiley = loader.loadModel('models/misc/smiley') 
+ 
+from direct.actor import Actor 
+donald = Actor.Actor() 
+donald.loadModel(&quot;phase_6/models/char/donald-wheel-1000&quot;) 
+donald.loadAnims({&quot;steer&quot;:&quot;phase_6/models/char/donald-wheel-wheel&quot;}) 
+donald.reparentTo(render) 
+ 
+ 
+seq = Sequence(Func(donald.setPos, 0, 0, 0), 
+               donald.actorInterval('steer', duration=1.0), 
+               donald.posInterval(1, Point3(0, 0, 1)), 
+               Parallel(donald.actorInterval('steer', duration=1.0), 
+                        donald.posInterval(1, Point3(0, 0, 0)), 
+                        ), 
+               Wait(1.0), 
+               Func(base.toggleWireframe), 
+               Wait(1.0), 
+               Parallel(donald.actorInterval('steer', duration=1.0), 
+                        donald.posInterval(1, Point3(0, 0, -1)), 
+                        Sequence(donald.hprInterval(1, Vec3(180, 0, 0)), 
+                                 donald.hprInterval(1, Vec3(0, 0, 0)), 
+                                 ), 
+                        ), 
+               Func(base.toggleWireframe), 
+               Func(messenger.send, 'hello'), 
+               ) 
+ 
+ 
+ 
+&quot;&quot;&quot;</span>
+</pre>
+</body>
+</html>

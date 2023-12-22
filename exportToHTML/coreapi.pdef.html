@@ -1,0 +1,141 @@
+<html>
+<head>
+<title>coreapi.pdef</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+coreapi.pdef</font>
+</center></td></tr></table>
+<pre><span class="s0">from panda3d.core import getModelPath, Filename, ConfigVariableFilename, DSearchPath, ExecutionEnvironment, PandaSystem</span>
+
+<span class="s0"># This file defines a number of standard &quot;packages&quot; that correspond to</span>
+<span class="s0"># a Panda3D distribution.  These packages are built by passing this</span>
+<span class="s0"># file to the ppackage utility, either as a packaged application, or</span>
+<span class="s0"># as the module direct.p3d.ppackage.</span>
+
+<span class="s0"># The packages in this file define the &quot;Core API&quot;.  This is the second</span>
+<span class="s0"># installed piece of the three-part plugin system (the plugin, the</span>
+<span class="s0"># core API, Panda3D).</span>
+
+<span class="s0"># These packages are downloaded directly by the plugin, from the host</span>
+<span class="s0"># specified by the value of PANDA_PACKAGE_HOST_URL compiled into the</span>
+<span class="s0"># plugin.  Thus, these packages are inextricably tied to the</span>
+<span class="s0"># particular plugin they have been built with.  They do not have to be</span>
+<span class="s0"># present on a server that hosts a version of Panda3D for download,</span>
+<span class="s0"># just on the server that hosts the plugin itself.  These packages do</span>
+<span class="s0"># not need to be updated with each new version of Panda3D.</span>
+
+<span class="s0"># Also see panda3d.pdef.</span>
+
+<span class="s0">class coreapi(solo):</span>
+    <span class="s0"># The special &quot;coreapi&quot; package.  As a &quot;solo&quot;, this is just a</span>
+    <span class="s0"># single .dll (or dylib, or whatever).</span>
+    <span class="s0">setVer(PandaSystem.getP3dCoreapiVersionString())</span>
+    <span class="s0">file('p3d_plugin.dll')</span>
+
+<span class="s0">class images(package):</span>
+    <span class="s0"># The default startup images are stored as their own package.</span>
+    <span class="s0">names = ['download', 'failed', 'play_click', 'play_ready', 'play_rollover',</span>
+             <span class="s0">'auth_click', 'auth_ready', 'auth_rollover']</span>
+    <span class="s0">configDict = {}</span>
+
+    <span class="s0"># Construct a search path to look for the images.</span>
+    <span class="s0">search = DSearchPath()</span>
+
+    <span class="s0"># First on the path: an explicit $PLUGIN_IMAGES env var.</span>
+    <span class="s0">if ExecutionEnvironment.hasEnvironmentVariable('PLUGIN_IMAGES'):</span>
+        <span class="s0">search.appendDirectory(Filename.expandFrom('$PLUGIN_IMAGES'))</span>
+
+    <span class="s0"># Next on the path: the models/plugin_images directory within the</span>
+    <span class="s0"># current directory.</span>
+    <span class="s0">search.appendDirectory('models/plugin_images')</span>
+
+    <span class="s0"># Finally on the path: models/plugin_images within the model</span>
+    <span class="s0"># search path.</span>
+    <span class="s0">for dir in getModelPath().getDirectories():</span>
+        <span class="s0">search.appendDirectory(Filename(dir, 'plugin_images'))</span>
+
+    <span class="s0">for name in names:</span>
+        <span class="s0"># Look for a png image first.</span>
+        <span class="s0">basename = '%s.png' % (name)</span>
+        <span class="s0">filename = Filename(basename)</span>
+        <span class="s0">found = filename.resolveFilename(search)</span>
+        <span class="s0">if not found:</span>
+            <span class="s0"># Then try a jpeg image.</span>
+            <span class="s0">basename = '%s.jpg' % (name)</span>
+            <span class="s0">filename = Filename(basename)</span>
+            <span class="s0">found = filename.resolveFilename(search)</span>
+
+        <span class="s0">if found:</span>
+            <span class="s0"># Add the image file to the package</span>
+            <span class="s0">file(filename, newName = basename, extract = True)</span>
+
+            <span class="s0"># And set the config variable to reference it.</span>
+            <span class="s0">token = '%s_img' % (name)</span>
+            <span class="s0">configDict[token] = basename</span>
+        <span class="s0">else:</span>
+            <span class="s0">print(&quot;Could not locate %s&quot; % (filename))</span>
+
+    <span class="s0"># Also make a few special cases.  We use the same default image</span>
+    <span class="s0"># for many of the states.</span>
+    <span class="s0">download = configDict.get('download_img', None)</span>
+    <span class="s0">if download:</span>
+        <span class="s0">configDict['ready_img'] = download</span>
+        <span class="s0">configDict['unauth_img'] = download</span>
+        <span class="s0">configDict['launch_img'] = download</span>
+        <span class="s0">configDict['active_img'] = download</span>
+
+    <span class="s0">config(**configDict)</span>
+
+<span class="s0">class certlist(package):</span>
+    <span class="s0"># This package holds any certificates that should be considered</span>
+    <span class="s0"># pre-approved by the plugin vendor.  If you build and host your</span>
+    <span class="s0"># own version of the Panda3D plugin, you can add your own</span>
+    <span class="s0"># certificates to this list.  The certificates in this package</span>
+    <span class="s0"># will be assumed to have been approved by the user when he/she</span>
+    <span class="s0"># installed the plugin.</span>
+
+    <span class="s0"># They should be PEM-encoded and their filenames must end in the</span>
+    <span class="s0"># &quot;.pem&quot; or &quot;.crt&quot; extension, and they should be added with the</span>
+    <span class="s0"># extract = True flag so they will be extracted to disk.</span>
+    <span class="s0">pass</span>
+
+
+<span class="s0">class p3dcert(package):</span>
+    <span class="s0"># This special application, used to pop up a dialog to prompt the</span>
+    <span class="s0"># user to accept or deny unknown applications, is its own package.</span>
+    <span class="s0">config(display_name = &quot;Authorization Dialog&quot;)</span>
+
+    <span class="s0">if platform.startswith('osx'):</span>
+        <span class="s0"># On Mac, we package up a P3DCert.app bundle.  This includes</span>
+        <span class="s0"># specifications in the plist file to avoid creating a dock</span>
+        <span class="s0"># icon and stuff.</span>
+
+        <span class="s0"># Find p3dcert.plist in the direct source tree.</span>
+        <span class="s0">import direct</span>
+        <span class="s0">plist = Filename(direct.__path__[0], 'plugin/p3dcert.plist')</span>
+        <span class="s0">makeBundle('P3DCert.app', plist, executable = 'p3dcert')</span>
+
+    <span class="s0">else:</span>
+        <span class="s0"># Anywhere else, we just ship the executable file p3dcert.exe.</span>
+        <span class="s0">file('p3dcert.exe', required = True)</span>
+
+
+<span class="s0">class p3dembed(package):</span>
+    <span class="s0"># This contains the p3dembed executable, that is used by</span>
+    <span class="s0"># pdeploy to generate a self-extracting .p3d executable.</span>
+
+    <span class="s0">config(platform_specific = True)</span>
+    <span class="s0">file('p3dembed.exe', required = True)</span>
+
+    <span class="s0">if platform.startswith('win'):</span>
+        <span class="s0">file('p3dembedw.exe', required = True)</span>
+</pre>
+</body>
+</html>

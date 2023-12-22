@@ -1,0 +1,272 @@
+<html>
+<head>
+<title>conversation.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+conversation.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">collections </span><span class="s0">import </span><span class="s1">namedtuple</span>
+<span class="s0">from </span><span class="s1">copy </span><span class="s0">import </span><span class="s1">copy</span>
+
+
+<span class="s0">class </span><span class="s1">Node</span><span class="s2">:</span>
+    <span class="s1">__slots__ </span><span class="s2">= [</span><span class="s3">'index'</span><span class="s2">, </span><span class="s3">'indent_level'</span><span class="s2">, </span><span class="s3">'content'</span><span class="s2">, </span><span class="s3">'code'</span><span class="s2">, </span><span class="s3">'children'</span><span class="s2">, </span><span class="s3">'is_answer'</span><span class="s2">]</span>
+
+    <span class="s0">def </span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s3">'Node:</span><span class="s0">\n    </span><span class="s3">' </span><span class="s2">+ </span><span class="s3">'</span><span class="s0">\n    </span><span class="s3">'</span><span class="s2">.</span><span class="s1">join</span><span class="s2">([</span><span class="s3">f'</span><span class="s0">{</span><span class="s1">e</span><span class="s0">} </span><span class="s3">= </span><span class="s0">{</span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">e</span><span class="s2">)</span><span class="s0">}</span><span class="s3">' </span><span class="s0">for </span><span class="s1">e </span><span class="s0">in </span><span class="s1">Node</span><span class="s2">.</span><span class="s1">__slots__</span><span class="s2">])</span>
+
+
+<span class="s0">class </span><span class="s1">Conversation</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">variables_object</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, **</span><span class="s1">kwargs</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">camera</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=-</span><span class="s4">.1</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text_origin</span><span class="s2">=(-</span><span class="s4">.5</span><span class="s2">,</span><span class="s4">0</span><span class="s2">), </span><span class="s1">scale</span><span class="s2">=(</span><span class="s4">1</span><span class="s2">,</span><span class="s4">.1</span><span class="s2">), </span><span class="s1">model</span><span class="s2">=</span><span class="s1">Quad</span><span class="s2">(</span><span class="s1">radius</span><span class="s2">=</span><span class="s4">.5</span><span class="s2">,</span><span class="s1">aspect</span><span class="s2">=</span><span class="s4">1</span><span class="s2">/</span><span class="s4">.1</span><span class="s2">), </span><span class="s1">text</span><span class="s2">=</span><span class="s3">'Question'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">line_height </span><span class="s2">= </span><span class="s4">1.25</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= (-</span><span class="s4">.45</span><span class="s2">, -</span><span class="s4">.05</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">highlight_color </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">color</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator </span><span class="s2">= </span><span class="s1">Entity</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">, </span><span class="s1">model</span><span class="s2">=</span><span class="s1">Circle</span><span class="s2">(</span><span class="s4">3</span><span class="s2">), </span><span class="s1">position</span><span class="s2">=(</span><span class="s4">.45</span><span class="s2">,-</span><span class="s4">.4</span><span class="s2">,-</span><span class="s4">.1</span><span class="s2">), </span><span class="s1">rotation_z</span><span class="s2">=</span><span class="s4">180</span><span class="s2">, </span><span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">azure</span><span class="s2">, </span><span class="s1">world_scale</span><span class="s2">=</span><span class="s4">.5</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=-</span><span class="s4">1</span><span class="s2">, </span><span class="s1">enabled</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+        <span class="s0">def </span><span class="s1">toggle</span><span class="s2">():</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">.</span><span class="s1">visible </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">.</span><span class="s1">visible</span>
+            <span class="s1">invoke</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">.</span><span class="s1">toggle</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s4">.5</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">.</span><span class="s1">toggle </span><span class="s2">= </span><span class="s1">toggle</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">.</span><span class="s1">toggle</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">spacing </span><span class="s2">= </span><span class="s4">4 </span><span class="s2">* </span><span class="s4">.02</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">wordwrap </span><span class="s2">= </span><span class="s4">65</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">button_model </span><span class="s2">= </span><span class="s1">Quad</span><span class="s2">(</span><span class="s1">radius</span><span class="s2">=</span><span class="s4">.5</span><span class="s2">, </span><span class="s1">aspect</span><span class="s2">=</span><span class="s4">1</span><span class="s2">/</span><span class="s4">.075</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">variables_object </span><span class="s2">= </span><span class="s1">variables_object</span>
+
+        <span class="s0">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s0">in </span><span class="s1">kwargs</span><span class="s2">.</span><span class="s1">items</span><span class="s2">():</span>
+            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key </span><span class="s2">,</span><span class="s1">value</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">answer_0 </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s3">'answer_0'</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">y</span><span class="s2">-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">spacing</span><span class="s2">-</span><span class="s4">.025</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s4">1</span><span class="s2">,</span><span class="s4">.075</span><span class="s2">), </span><span class="s1">text_origin</span><span class="s2">=(-</span><span class="s4">.5</span><span class="s2">,</span><span class="s4">0</span><span class="s2">), </span><span class="s1">model</span><span class="s2">=</span><span class="s1">copy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_model</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">answer_1 </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s3">'answer_1'</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">answer_0</span><span class="s2">.</span><span class="s1">y</span><span class="s2">-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">spacing</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s4">1</span><span class="s2">,</span><span class="s4">.075</span><span class="s2">), </span><span class="s1">text_origin</span><span class="s2">=(-</span><span class="s4">.5</span><span class="s2">,</span><span class="s4">0</span><span class="s2">), </span><span class="s1">model</span><span class="s2">=</span><span class="s1">copy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_model</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">answer_2 </span><span class="s2">= </span><span class="s1">Button</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">, </span><span class="s1">text</span><span class="s2">=</span><span class="s3">'answer_2'</span><span class="s2">, </span><span class="s1">y</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">answer_1</span><span class="s2">.</span><span class="s1">y</span><span class="s2">-</span><span class="s1">self</span><span class="s2">.</span><span class="s1">spacing</span><span class="s2">, </span><span class="s1">scale</span><span class="s2">=(</span><span class="s4">1</span><span class="s2">,</span><span class="s4">.075</span><span class="s2">), </span><span class="s1">text_origin</span><span class="s2">=(-</span><span class="s4">.5</span><span class="s2">,</span><span class="s4">0</span><span class="s2">), </span><span class="s1">model</span><span class="s2">=</span><span class="s1">copy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_model</span><span class="s2">))</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">buttons </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">answer_0</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">answer_1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">answer_2</span><span class="s2">)</span>
+        <span class="s0">for </span><span class="s1">b </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">:</span>
+            <span class="s1">b</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">line_height </span><span class="s2">= </span><span class="s4">1.15</span>
+            <span class="s1">b</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">position </span><span class="s2">= (-</span><span class="s4">.45</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">started </span><span class="s2">= </span><span class="s0">False</span>
+
+
+
+    <span class="s0">def </span><span class="s1">ask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">node</span><span class="s2">, </span><span class="s1">question_part</span><span class="s2">=</span><span class="s4">0</span><span class="s2">):</span>
+        <span class="s5"># print(node)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">current_node </span><span class="s2">= </span><span class="s1">node</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question_part </span><span class="s2">= </span><span class="s1">question_part</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">text </span><span class="s2">= </span><span class="s1">node</span><span class="s2">.</span><span class="s1">content</span><span class="s2">[</span><span class="s1">question_part</span><span class="s2">]</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">wordwrap </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">wordwrap</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question</span><span class="s2">.</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">appear</span><span class="s2">(</span><span class="s1">delay</span><span class="s2">=</span><span class="s4">.1</span><span class="s2">)</span>
+
+        <span class="s0">for </span><span class="s1">b </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">:</span>
+            <span class="s1">b</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">False</span>
+
+        <span class="s1">answers </span><span class="s2">= []</span>
+        <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">child </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">node</span><span class="s2">.</span><span class="s1">children</span><span class="s2">):</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">variables_object </span><span class="s0">and </span><span class="s1">child</span><span class="s2">.</span><span class="s1">code </span><span class="s0">and </span><span class="s1">child</span><span class="s2">.</span><span class="s1">code</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'if'</span><span class="s2">):</span>
+                <span class="s0">try</span><span class="s2">:</span>
+                    <span class="s0">if not </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">variables_object</span><span class="s2">, </span><span class="s1">child</span><span class="s2">.</span><span class="s1">code</span><span class="s2">[</span><span class="s4">3</span><span class="s2">:]):</span>
+                        <span class="s0">continue</span>
+                <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s3">'failed parsing conversation if statement:'</span><span class="s2">, </span><span class="s1">e</span><span class="s2">)</span>
+
+            <span class="s1">answers</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">child</span><span class="s2">)</span>
+
+        <span class="s5"># multi page question</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">node</span><span class="s2">.</span><span class="s1">content</span><span class="s2">) &gt; </span><span class="s4">1 </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_part </span><span class="s2">&lt; </span><span class="s1">len</span><span class="s2">(</span><span class="s1">node</span><span class="s2">.</span><span class="s1">content</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_part </span><span class="s2">&lt; </span><span class="s1">len</span><span class="s2">(</span><span class="s1">node</span><span class="s2">.</span><span class="s1">content</span><span class="s2">): </span><span class="s5"># question not finished, so don't show answer buttons</span>
+                <span class="s5"># print('question not finished')</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">more_indicator</span><span class="s2">, </span><span class="s3">'enabled'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">))</span>
+                <span class="s0">return</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence </span><span class="s2">= </span><span class="s1">Sequence</span><span class="s2">()</span>
+        <span class="s1">invoke</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence</span><span class="s2">.</span><span class="s1">start</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence</span><span class="s2">.</span><span class="s1">duration</span><span class="s2">)</span>
+
+        <span class="s0">if not </span><span class="s1">node</span><span class="s2">.</span><span class="s1">children</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s4">0</span><span class="s2">].</span><span class="s1">text </span><span class="s2">= </span><span class="s3">'*leave*'</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s4">0</span><span class="s2">].</span><span class="s1">on_click </span><span class="s2">= </span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">, </span><span class="s3">'enabled'</span><span class="s2">, </span><span class="s0">False</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s3">'enabled'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">))</span>
+
+        <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">child </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">answers</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Wait</span><span class="s2">(</span><span class="s1">i</span><span class="s2">*</span><span class="s4">.15</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">Func</span><span class="s2">(</span><span class="s1">setattr</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s3">'enabled'</span><span class="s2">, </span><span class="s0">True</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">text </span><span class="s2">= </span><span class="s1">child</span><span class="s2">.</span><span class="s1">content</span><span class="s2">[</span><span class="s4">0</span><span class="s2">]</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">text_entity</span><span class="s2">.</span><span class="s1">wordwrap </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">wordwrap</span>
+
+            <span class="s0">def </span><span class="s1">on_click</span><span class="s2">(</span><span class="s1">node</span><span class="s2">=</span><span class="s1">child</span><span class="s2">):</span>
+                <span class="s0">if not </span><span class="s1">node</span><span class="s2">.</span><span class="s1">children</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s3">'end conversation'</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">enabled </span><span class="s2">= </span><span class="s0">False</span>
+                    <span class="s0">return</span>
+
+                <span class="s0">if </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code </span><span class="s0">and not </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'if '</span><span class="s2">):</span>
+                    <span class="s0">try</span><span class="s2">:</span>
+                        <span class="s0">if </span><span class="s3">'+=' </span><span class="s0">in </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code </span><span class="s0">or </span><span class="s3">'-=' </span><span class="s0">in </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code </span><span class="s0">or </span><span class="s3">'*=' </span><span class="s0">in </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code </span><span class="s0">or </span><span class="s3">'/=' </span><span class="s0">in </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code</span><span class="s2">:</span>
+                            <span class="s1">var</span><span class="s2">, </span><span class="s1">operator</span><span class="s2">, </span><span class="s1">value </span><span class="s2">= </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code</span><span class="s2">.</span><span class="s1">split</span><span class="s2">()</span>
+                            <span class="s1">original_value </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">variables_object</span><span class="s2">, </span><span class="s1">var</span><span class="s2">)</span>
+                            <span class="s1">data_type </span><span class="s2">= </span><span class="s1">type</span><span class="s2">(</span><span class="s1">original_value</span><span class="s2">)</span>
+                            <span class="s1">value </span><span class="s2">= </span><span class="s1">data_type</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+                            <span class="s0">if </span><span class="s1">operator </span><span class="s2">== </span><span class="s3">'+='</span><span class="s2">:    </span><span class="s1">new_value </span><span class="s2">= </span><span class="s1">original_value </span><span class="s2">+ </span><span class="s1">value</span>
+                            <span class="s0">if </span><span class="s1">operator </span><span class="s2">== </span><span class="s3">'-='</span><span class="s2">:    </span><span class="s1">new_value </span><span class="s2">= </span><span class="s1">original_value </span><span class="s2">- </span><span class="s1">value</span>
+                            <span class="s0">if </span><span class="s1">operator </span><span class="s2">== </span><span class="s3">'*='</span><span class="s2">:    </span><span class="s1">new_value </span><span class="s2">= </span><span class="s1">original_value </span><span class="s2">* </span><span class="s1">value</span>
+                            <span class="s0">if </span><span class="s1">operator </span><span class="s2">== </span><span class="s3">'/='</span><span class="s2">:    </span><span class="s1">new_value </span><span class="s2">= </span><span class="s1">original_value </span><span class="s2">/ </span><span class="s1">value</span>
+
+                            <span class="s1">setattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">variables_object</span><span class="s2">, </span><span class="s1">var</span><span class="s2">, </span><span class="s1">new_value</span><span class="s2">)</span>
+                        <span class="s1">print</span><span class="s2">(</span><span class="s3">'executed code:'</span><span class="s2">, </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code</span><span class="s2">)</span>
+                    <span class="s0">except </span><span class="s1">Exception </span><span class="s0">as </span><span class="s1">e</span><span class="s2">:</span>
+                        <span class="s1">print</span><span class="s2">(</span><span class="s3">'failed executing code on node:'</span><span class="s2">, </span><span class="s1">node</span><span class="s2">, </span><span class="s3">'code:'</span><span class="s2">, </span><span class="s1">node</span><span class="s2">.</span><span class="s1">code</span><span class="s2">, </span><span class="s3">'error:'</span><span class="s2">, </span><span class="s1">e</span><span class="s2">)</span>
+
+                <span class="s1">invoke</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ask</span><span class="s2">, </span><span class="s1">node</span><span class="s2">.</span><span class="s1">children</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s4">0</span><span class="s2">, </span><span class="s1">delay</span><span class="s2">=</span><span class="s4">.1</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">node</span><span class="s2">.</span><span class="s1">children</span><span class="s2">) &gt; </span><span class="s4">1</span><span class="s2">:</span>
+                    <span class="s1">print</span><span class="s2">(</span><span class="s3">'error at node:'</span><span class="s2">, </span><span class="s1">n</span><span class="s2">, </span><span class="s3">'. node has multiple children, but should only have one (a question)'</span><span class="s2">)</span>
+
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">[</span><span class="s1">i</span><span class="s2">].</span><span class="s1">on_click </span><span class="s2">= </span><span class="s1">on_click</span>
+
+
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s3">'left mouse down' </span><span class="s0">or </span><span class="s1">key </span><span class="s2">== </span><span class="s3">'space' </span><span class="s0">and not </span><span class="s1">mouse</span><span class="s2">.</span><span class="s1">hovered_entity </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">buttons</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">next</span><span class="s2">()</span>
+
+
+    <span class="s0">def </span><span class="s1">next</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">started</span><span class="s2">:</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence</span><span class="s2">.</span><span class="s1">finished </span><span class="s0">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence</span><span class="s2">.</span><span class="s1">t </span><span class="s2">&gt; </span><span class="s4">.1</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">question_appear_sequence</span><span class="s2">.</span><span class="s1">finish</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">button_appear_sequence</span><span class="s2">.</span><span class="s1">start</span><span class="s2">()</span>
+            <span class="s0">return</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_part </span><span class="s2">&lt; </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">current_node</span><span class="s2">.</span><span class="s1">content</span><span class="s2">)-</span><span class="s4">1</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">ask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">current_node</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">question_part</span><span class="s2">+</span><span class="s4">1</span><span class="s2">)</span>
+
+
+    <span class="s0">def </span><span class="s1">start_conversation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">conversation</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">conversation_nodes </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">parse_conversation</span><span class="s2">(</span><span class="s1">conversation</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">conversation_nodes</span><span class="s2">[</span><span class="s4">0</span><span class="s2">])</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">started </span><span class="s2">= </span><span class="s0">True</span>
+
+
+
+    <span class="s0">def </span><span class="s1">parse_conversation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">convo</span><span class="s2">):</span>
+        <span class="s1">convo </span><span class="s2">= </span><span class="s1">convo</span><span class="s2">.</span><span class="s1">strip</span><span class="s2">()</span>
+        <span class="s1">nodes </span><span class="s2">= </span><span class="s1">list</span><span class="s2">()</span>
+        <span class="s1">prev_node </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">node_index </span><span class="s2">= </span><span class="s4">0</span>
+
+        <span class="s0">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">l </span><span class="s0">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">convo</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'</span><span class="s0">\n</span><span class="s3">'</span><span class="s2">)):</span>
+            <span class="s0">if not </span><span class="s1">l</span><span class="s2">:</span>
+                <span class="s0">continue</span>
+
+            <span class="s1">indent_level </span><span class="s2">= </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) - </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">.</span><span class="s1">lstrip</span><span class="s2">())</span>
+            <span class="s1">indent_level </span><span class="s2">//= </span><span class="s4">4</span>
+            <span class="s1">content</span><span class="s2">, </span><span class="s1">code </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">strip</span><span class="s2">(), </span><span class="s0">None</span>
+            <span class="s0">if </span><span class="s3">'(' </span><span class="s0">in </span><span class="s1">l</span><span class="s2">:</span>
+                <span class="s1">content</span><span class="s2">, </span><span class="s1">code </span><span class="s2">= </span><span class="s1">l</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">'('</span><span class="s2">)</span>
+                <span class="s1">content </span><span class="s2">= </span><span class="s1">content</span><span class="s2">.</span><span class="s1">strip</span><span class="s2">()</span>
+                <span class="s1">code </span><span class="s2">= </span><span class="s1">code</span><span class="s2">[:-</span><span class="s4">1</span><span class="s2">]</span>
+                <span class="s1">is_answer </span><span class="s2">= </span><span class="s1">content</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'* '</span><span class="s2">)</span>
+                <span class="s5"># print('code:', codeK)</span>
+
+            <span class="s0">if </span><span class="s1">prev_node </span><span class="s0">and </span><span class="s1">prev_node</span><span class="s2">.</span><span class="s1">indent_level </span><span class="s2">== </span><span class="s1">indent_level</span><span class="s2">:</span>
+                <span class="s1">prev_node</span><span class="s2">.</span><span class="s1">content</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">content</span><span class="s2">)</span>
+                <span class="s1">prev_node </span><span class="s2">= </span><span class="s1">n</span>
+                <span class="s0">continue</span>
+
+            <span class="s1">n </span><span class="s2">= </span><span class="s1">Node</span><span class="s2">()</span>
+            <span class="s1">n</span><span class="s2">.</span><span class="s1">index </span><span class="s2">= </span><span class="s1">node_index</span>
+            <span class="s1">n</span><span class="s2">.</span><span class="s1">indent_level </span><span class="s2">= </span><span class="s1">indent_level</span>
+            <span class="s1">n</span><span class="s2">.</span><span class="s1">is_answer </span><span class="s2">= </span><span class="s1">content</span><span class="s2">.</span><span class="s1">startswith</span><span class="s2">(</span><span class="s3">'* '</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">n</span><span class="s2">.</span><span class="s1">is_answer</span><span class="s2">:</span>
+                <span class="s1">content </span><span class="s2">= </span><span class="s1">content</span><span class="s2">[</span><span class="s4">2</span><span class="s2">:]</span>
+            <span class="s1">n</span><span class="s2">.</span><span class="s1">content </span><span class="s2">= [</span><span class="s1">content</span><span class="s2">, ]</span>
+            <span class="s1">n</span><span class="s2">.</span><span class="s1">children </span><span class="s2">= </span><span class="s1">list</span><span class="s2">()</span>
+            <span class="s1">n</span><span class="s2">.</span><span class="s1">code </span><span class="s2">= </span><span class="s1">code</span>
+            <span class="s1">nodes</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">n</span><span class="s2">)</span>
+            <span class="s1">prev_node </span><span class="s2">= </span><span class="s1">n</span>
+            <span class="s1">node_index </span><span class="s2">+= </span><span class="s4">1</span>
+
+            <span class="s5"># look backwards through nodes to find current node's parent</span>
+            <span class="s0">for </span><span class="s1">j </span><span class="s0">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">node_index</span><span class="s2">-</span><span class="s4">1</span><span class="s2">, -</span><span class="s4">1</span><span class="s2">, -</span><span class="s4">1</span><span class="s2">):</span>
+                <span class="s0">if </span><span class="s1">nodes</span><span class="s2">[</span><span class="s1">j</span><span class="s2">].</span><span class="s1">indent_level </span><span class="s2">== </span><span class="s1">n</span><span class="s2">.</span><span class="s1">indent_level</span><span class="s2">-</span><span class="s4">1</span><span class="s2">:</span>
+                    <span class="s1">nodes</span><span class="s2">[</span><span class="s1">j</span><span class="s2">].</span><span class="s1">children</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">n</span><span class="s2">)</span>
+                    <span class="s0">break</span>
+
+
+        <span class="s0">return </span><span class="s1">nodes</span>
+
+
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">app </span><span class="s2">= </span><span class="s1">Ursina</span><span class="s2">()</span>
+
+    <span class="s1">variables </span><span class="s2">= </span><span class="s1">Empty</span><span class="s2">(</span>
+        <span class="s1">evil</span><span class="s2">=</span><span class="s4">0</span><span class="s2">,</span>
+        <span class="s1">chaos</span><span class="s2">=</span><span class="s4">0</span><span class="s2">,</span>
+        <span class="s1">bar_mission_solved</span><span class="s2">=</span><span class="s0">False</span><span class="s2">,</span>
+    <span class="s2">)</span>
+    <span class="s1">conversation </span><span class="s2">= </span><span class="s1">Conversation</span><span class="s2">(</span><span class="s1">variables_object</span><span class="s2">=</span><span class="s1">variables</span><span class="s2">)</span>
+    <span class="s5"># conversation.question.model = 'quad'</span>
+    <span class="s5"># for b in conversation.buttons:</span>
+    <span class="s5">#     b.model = 'quad'</span>
+    
+    <span class="s1">convo </span><span class="s2">= </span><span class="s1">dedent</span><span class="s2">(</span><span class="s3">''' 
+    I'm looking for my sister. Can you help me find her, please? I haven't seen her in days! Who know what could've happened!? 
+    I'm worried. Will you help me? 
+        * Yes, of course. This can be a dangerous city. 
+            Oh no! Do you think something happened to her? 
+            What should I do?! 
+                * She's probably fine. She can handle herself. 
+                    You're right. I'm still worried though. 
+                        * Don't worry, I'll look for her. 
+                * Maybe. (stats.chaos += 1) 
+                    Help me look for her, please! *runs off* 
+        * I'm sorry, but I don't have time right now. (evil += 1) 
+            A true friend wouldn't say that. 
+        * I know where she is! (if bar_mission_solved) 
+            Really? Where? 
+                * I saw her on a ship by the docks, it looked like they were ready to set off. 
+                    Thank you! *runs off* 
+    '''</span><span class="s2">)</span>
+    <span class="s1">conversation</span><span class="s2">.</span><span class="s1">start_conversation</span><span class="s2">(</span><span class="s1">convo</span><span class="s2">)</span>
+    <span class="s5"># conversation.parse_conversation(convo)</span>
+    <span class="s5"># def input(key):</span>
+    <span class="s5">#     if key == 'left mouse down' and mouse.hovered_entity in conversation.buttons:</span>
+    <span class="s5">#         print('add sound here')</span>
+
+
+
+
+    <span class="s0">def </span><span class="s1">input</span><span class="s2">(</span><span class="s1">key</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">key </span><span class="s2">== </span><span class="s3">'space'</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s1">variables</span><span class="s2">.</span><span class="s1">evil</span><span class="s2">)</span>
+            <span class="s5"># conversation.start_conversation()</span>
+
+    <span class="s5"># window.color = color._16</span>
+    <span class="s1">window</span><span class="s2">.</span><span class="s1">size </span><span class="s2">= </span><span class="s1">window</span><span class="s2">.</span><span class="s1">fullscreen_size </span><span class="s2">* </span><span class="s4">.5</span>
+    <span class="s1">Sprite</span><span class="s2">(</span><span class="s3">'shore'</span><span class="s2">, </span><span class="s1">z</span><span class="s2">=</span><span class="s4">1</span><span class="s2">)</span>
+    <span class="s1">app</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

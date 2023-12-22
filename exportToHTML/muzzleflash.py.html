@@ -1,0 +1,32 @@
+<html>
+<head>
+<title>muzzleflash.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+muzzleflash.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">ursina </span><span class="s0">import </span><span class="s2">*</span>
+
+<span class="s0">class </span><span class="s1">MuzzleFlash</span><span class="s2">(</span><span class="s1">Entity</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">,</span>
+                         <span class="s1">z</span><span class="s2">=</span><span class="s3">1</span><span class="s2">,</span>
+                         <span class="s1">world_scale</span><span class="s2">=</span><span class="s3">.5</span><span class="s2">,</span>
+                         <span class="s1">model</span><span class="s2">=</span><span class="s4">'quad'</span><span class="s2">,</span>
+                         <span class="s1">color</span><span class="s2">=</span><span class="s1">color</span><span class="s2">.</span><span class="s1">yellow</span><span class="s2">,</span>
+                         <span class="s1">enabled</span><span class="s2">=</span><span class="s0">False</span>
+                         <span class="s2">)</span>
+</pre>
+</body>
+</html>

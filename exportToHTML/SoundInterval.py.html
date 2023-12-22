@@ -1,0 +1,189 @@
+<html>
+<head>
+<title>SoundInterval.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+SoundInterval.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;SoundInterval module: contains the SoundInterval class&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'SoundInterval'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">direct </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">Interval</span>
+<span class="s4">import </span><span class="s1">random</span>
+
+<span class="s4">class </span><span class="s1">SoundInterval</span><span class="s2">(</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">):</span>
+    <span class="s5"># Name counter</span>
+    <span class="s1">soundNum </span><span class="s2">= </span><span class="s6">1</span>
+    <span class="s5"># create SoundInterval DirectNotify category</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">'SoundInterval'</span><span class="s2">)</span>
+    <span class="s5"># Class methods</span>
+    <span class="s5"># Create a sound interval</span>
+    <span class="s5"># If loop = 0, sound will play once, duration of the interval</span>
+    <span class="s5"># equals the duration of the sound</span>
+    <span class="s5"># If loop = 1, the sound will loop for the specified duration</span>
+    <span class="s5"># If no duration is specified, sound will loop for the duration</span>
+    <span class="s5"># of the sound, i.e. it will only play once.....usually, there</span>
+    <span class="s5"># seems to be some timing in the audio such that the stop doesn't</span>
+    <span class="s5"># kill the looping sound until the next time around if duration</span>
+    <span class="s5"># of the interval equals duration of the sound</span>
+    <span class="s5"># seamlessloop will let the audio system loop the sound rather</span>
+    <span class="s5"># than explicitly restarting the sound every time around. This</span>
+    <span class="s5"># prevents a skip in the sound at every repetition (the gap in</span>
+    <span class="s5"># the sound is caused by the delay between the end of the sound</span>
+    <span class="s5"># and the next taskMgr cycle). There still seems to be a skip</span>
+    <span class="s5"># in Miles when looping MP3s. =(</span>
+    <span class="s5"># RAU 03/01/07 add listenerNode in case we don't want to</span>
+    <span class="s5"># use base.camera as the listener, node must not be None</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">sound</span><span class="s2">, </span><span class="s1">loop </span><span class="s2">= </span><span class="s6">0</span><span class="s2">, </span><span class="s1">duration </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">volume </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">startTime </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">node</span><span class="s2">=</span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">seamlessLoop</span><span class="s2">=</span><span class="s4">True</span><span class="s2">, </span><span class="s1">listenerNode </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">cutOff </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(sound, loop, name) 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># Generate unique name</span>
+        <span class="s1">id </span><span class="s2">= </span><span class="s3">'Sound-%d' </span><span class="s2">% </span><span class="s1">SoundInterval</span><span class="s2">.</span><span class="s1">soundNum</span>
+        <span class="s1">SoundInterval</span><span class="s2">.</span><span class="s1">soundNum </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s5"># Record instance variables</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sound </span><span class="s2">= </span><span class="s1">sound</span>
+        <span class="s4">if </span><span class="s1">sound</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">soundDuration </span><span class="s2">= </span><span class="s1">sound</span><span class="s2">.</span><span class="s1">length</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">soundDuration </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fLoop </span><span class="s2">= </span><span class="s1">loop</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">volume </span><span class="s2">= </span><span class="s1">volume</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">startTime </span><span class="s2">= </span><span class="s1">startTime</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">node </span><span class="s2">= </span><span class="s1">node</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode </span><span class="s2">= </span><span class="s1">listenerNode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cutOff </span><span class="s2">= </span><span class="s1">cutOff</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_seamlessLoop </span><span class="s2">= </span><span class="s1">seamlessLoop</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_seamlessLoop</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_fLoop </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_soundPlaying </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_reverse </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s5"># If no duration given use sound's duration as interval's duration</span>
+        <span class="s4">if </span><span class="s1">float</span><span class="s2">(</span><span class="s1">duration</span><span class="s2">) == </span><span class="s6">0.0 </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sound </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">duration </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">soundDuration </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startTime</span><span class="s2">, </span><span class="s6">0</span><span class="s2">)</span>
+            <span class="s5">#if (duration == 0):</span>
+            <span class="s5">#    self.notify.warning('zero length duration!')</span>
+
+            <span class="s5"># MPG - hack for Miles bug</span>
+            <span class="s5">#duration += 1.5</span>
+
+            <span class="s5"># DCR - hack for Miles bug - adding 1.5 seconds caused</span>
+            <span class="s5"># problems for MG_neg_buzzer.wav</span>
+
+            <span class="s5"># DCR - what this is all about: Miles is under-reporting the</span>
+            <span class="s5"># length of MP3 files, and they're getting cut off too early.</span>
+            <span class="s5"># This is a temporary hack. We could:</span>
+            <span class="s5"># - hack Miles to fix its MP3 length calculation</span>
+            <span class="s5"># - complain louder about this to RAD</span>
+            <span class="s5"># - precompute MP3 durations and store them in a table</span>
+
+            <span class="s5"># drose - ok, I've put in a lower-level workaround in the</span>
+            <span class="s5"># MilesAudioManager.  This is no longer necessary up here,</span>
+            <span class="s5"># where it pollutes SoundInterval for everyone.</span>
+            <span class="s5">#duration += min(duration * 2.4, 1.5)</span>
+
+        <span class="s5"># Generate unique name if necessary</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">name </span><span class="s2">== </span><span class="s4">None</span><span class="s2">):</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s1">id</span>
+        <span class="s5"># Initialize superclass</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">duration</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">privInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5"># If it's within a 10th of a second of the start,</span>
+        <span class="s5"># start at the beginning</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_reverse </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">t1 </span><span class="s2">= </span><span class="s1">t </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startTime</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t1 </span><span class="s2">&lt; </span><span class="s6">0.1</span><span class="s2">):</span>
+            <span class="s1">t1 </span><span class="s2">= </span><span class="s6">0.0</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">t1 </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">soundDuration</span><span class="s2">) </span><span class="s4">and not </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_seamlessLoop </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_soundPlaying</span><span class="s2">):</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">sfxPlayer</span><span class="s2">.</span><span class="s1">playSfx</span><span class="s2">(</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">sound</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fLoop</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">volume</span><span class="s2">, </span><span class="s1">t1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">,</span>
+                <span class="s1">listenerNode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode</span><span class="s2">, </span><span class="s1">cutoff </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cutOff</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_soundPlaying </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s1">t</span>
+
+    <span class="s4">def </span><span class="s1">privInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">privStep</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s5">## if self._reverse:</span>
+        <span class="s5">##     # Don't attempt to play the sound backwards.</span>
+        <span class="s5">##     return</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">== </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SPaused</span><span class="s2">:</span>
+            <span class="s5"># Restarting from a pause.</span>
+            <span class="s1">t1 </span><span class="s2">= </span><span class="s1">t </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">startTime</span>
+            <span class="s4">if </span><span class="s1">t1 </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">soundDuration</span><span class="s2">:</span>
+                <span class="s1">base</span><span class="s2">.</span><span class="s1">sfxPlayer</span><span class="s2">.</span><span class="s1">playSfx</span><span class="s2">(</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">sound</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fLoop</span><span class="s2">, </span><span class="s6">1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">volume</span><span class="s2">, </span><span class="s1">t1</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">,</span>
+                    <span class="s1">listenerNode </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode</span><span class="s2">.</span><span class="s1">isEmpty</span><span class="s2">() </span><span class="s4">and </span><span class="s1">\</span>
+           <span class="s1">self</span><span class="s2">.</span><span class="s1">node </span><span class="s4">and not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">.</span><span class="s1">isEmpty</span><span class="s2">():</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">sfxPlayer</span><span class="s2">.</span><span class="s1">setFinalVolume</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sound</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">volume</span><span class="s2">,</span>
+                                          <span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cutOff</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SStarted</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s1">t</span>
+
+    <span class="s4">def </span><span class="s1">finish</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kArgs</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_inFinish </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">finish</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, *</span><span class="s1">args</span><span class="s2">, **</span><span class="s1">kArgs</span><span class="s2">)</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_inFinish</span>
+
+    <span class="s4">def </span><span class="s1">privFinalize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># if we're just coming to the end of a seamlessloop, leave the sound alone,</span>
+        <span class="s5"># let the audio subsystem loop it</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_seamlessLoop </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_soundPlaying </span><span class="s4">and </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getLoop</span><span class="s2">()</span>
+            <span class="s4">and not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">'_inFinish'</span><span class="s2">)):</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">sfxPlayer</span><span class="s2">.</span><span class="s1">setFinalVolume</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">sound</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">node</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">volume</span><span class="s2">,</span>
+                                          <span class="s1">self</span><span class="s2">.</span><span class="s1">listenerNode</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cutOff</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s4">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sound </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sound</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_soundPlaying </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">currT </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SFinal</span>
+
+    <span class="s4">def </span><span class="s1">privReverseInitialize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">t</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_reverse </span><span class="s2">= </span><span class="s4">True</span>
+
+    <span class="s4">def </span><span class="s1">privReverseInstant</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span>
+
+    <span class="s4">def </span><span class="s1">privReverseFinalize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_reverse </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SInitial</span>
+
+    <span class="s4">def </span><span class="s1">privInterrupt</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">sound </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">sound</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_soundPlaying </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">state </span><span class="s2">= </span><span class="s1">CInterval</span><span class="s2">.</span><span class="s1">SPaused</span>
+
+    <span class="s4">def </span><span class="s1">loop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startT </span><span class="s2">= </span><span class="s6">0.0</span><span class="s2">, </span><span class="s1">endT </span><span class="s2">= -</span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">playRate </span><span class="s2">= </span><span class="s6">1.0</span><span class="s2">, </span><span class="s1">stagger</span><span class="s2">=</span><span class="s4">False</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fLoop </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s1">Interval</span><span class="s2">.</span><span class="s1">Interval</span><span class="s2">.</span><span class="s1">loop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">startT</span><span class="s2">, </span><span class="s1">endT</span><span class="s2">, </span><span class="s1">playRate</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">stagger</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">setT</span><span class="s2">(</span><span class="s1">random</span><span class="s2">.</span><span class="s1">random</span><span class="s2">() * </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getDuration</span><span class="s2">())</span>
+</pre>
+</body>
+</html>

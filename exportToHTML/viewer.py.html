@@ -1,0 +1,127 @@
+<html>
+<head>
+<title>viewer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+viewer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">math</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">sys</span>
+
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">ShowBase </span><span class="s0">import </span><span class="s1">ShowBase</span>
+<span class="s0">import </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">as </span><span class="s1">p3d</span>
+
+<span class="s0">import </span><span class="s1">simplepbr</span>
+
+
+<span class="s1">p3d</span><span class="s2">.</span><span class="s1">load_prc_file_data</span><span class="s2">(</span>
+    <span class="s3">''</span><span class="s2">,</span>
+    <span class="s3">'window-size 1024 768</span><span class="s0">\n</span><span class="s3">'</span>
+    <span class="s3">'texture-minfilter mipmap</span><span class="s0">\n</span><span class="s3">'</span>
+    <span class="s3">'texture-anisotropic-degree 16</span><span class="s0">\n</span><span class="s3">'</span>
+<span class="s2">)</span>
+
+
+<span class="s0">class </span><span class="s1">App</span><span class="s2">(</span><span class="s1">ShowBase</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">sys</span><span class="s2">.</span><span class="s1">argv</span><span class="s2">) &lt; </span><span class="s4">2</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Missing input file&quot;</span><span class="s2">)</span>
+            <span class="s1">sys</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">(</span><span class="s4">1</span><span class="s2">)</span>
+
+        <span class="s1">super</span><span class="s2">().</span><span class="s1">__init__</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline </span><span class="s2">= </span><span class="s1">simplepbr</span><span class="s2">.</span><span class="s1">init</span><span class="s2">()</span>
+
+        <span class="s1">infile </span><span class="s2">= </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">Filename</span><span class="s2">.</span><span class="s1">from_os_specific</span><span class="s2">(</span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">abspath</span><span class="s2">(</span><span class="s1">sys</span><span class="s2">.</span><span class="s1">argv</span><span class="s2">[</span><span class="s4">1</span><span class="s2">]))</span>
+        <span class="s1">p3d</span><span class="s2">.</span><span class="s1">get_model_path</span><span class="s2">().</span><span class="s1">prepend_directory</span><span class="s2">(</span><span class="s1">infile</span><span class="s2">.</span><span class="s1">get_dirname</span><span class="s2">())</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">model_root </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">loader</span><span class="s2">.</span><span class="s1">load_model</span><span class="s2">(</span><span class="s1">infile</span><span class="s2">, </span><span class="s1">noCache</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'escape'</span><span class="s2">, </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'q'</span><span class="s2">, </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'w'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggle_wireframe</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'t'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggle_texture</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'n'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggle_normal_maps</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'e'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggle_emission_maps</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'o'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggle_occlusion_maps</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'a'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">toggle_ambient_light</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'shift-l'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">ls</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s3">'shift-a'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">analyze</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">reparent_to</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">)</span>
+
+        <span class="s1">bounds </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">getBounds</span><span class="s2">()</span>
+        <span class="s1">center </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">.</span><span class="s1">get_center</span><span class="s2">()</span>
+        <span class="s0">if </span><span class="s1">bounds</span><span class="s2">.</span><span class="s1">is_empty</span><span class="s2">():</span>
+            <span class="s1">radius </span><span class="s2">= </span><span class="s4">1</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">radius </span><span class="s2">= </span><span class="s1">bounds</span><span class="s2">.</span><span class="s1">get_radius</span><span class="s2">()</span>
+
+        <span class="s1">fov </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">get_fov</span><span class="s2">()</span>
+        <span class="s1">distance </span><span class="s2">= </span><span class="s1">radius </span><span class="s2">/ </span><span class="s1">math</span><span class="s2">.</span><span class="s1">tan</span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">radians</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">fov</span><span class="s2">[</span><span class="s4">0</span><span class="s2">], </span><span class="s1">fov</span><span class="s2">[</span><span class="s4">1</span><span class="s2">]) / </span><span class="s4">2.0</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">set_near</span><span class="s2">(</span><span class="s1">min</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">get_default_near</span><span class="s2">(), </span><span class="s1">radius </span><span class="s2">/ </span><span class="s4">2</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">set_far</span><span class="s2">(</span><span class="s1">max</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">camLens</span><span class="s2">.</span><span class="s1">get_default_far</span><span class="s2">(), </span><span class="s1">distance </span><span class="s2">+ </span><span class="s1">radius </span><span class="s2">* </span><span class="s4">2</span><span class="s2">))</span>
+        <span class="s1">trackball </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">trackball</span><span class="s2">.</span><span class="s1">node</span><span class="s2">()</span>
+        <span class="s1">trackball</span><span class="s2">.</span><span class="s1">set_origin</span><span class="s2">(</span><span class="s1">center</span><span class="s2">)</span>
+        <span class="s1">trackball</span><span class="s2">.</span><span class="s1">set_pos</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s1">distance</span><span class="s2">, </span><span class="s4">0</span><span class="s2">)</span>
+        <span class="s1">trackball</span><span class="s2">.</span><span class="s1">setForwardScale</span><span class="s2">(</span><span class="s1">distance </span><span class="s2">* </span><span class="s4">0.006</span><span class="s2">)</span>
+
+        <span class="s5"># Create a light if the model does not have one</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'**/+Light'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">light </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">attach_new_node</span><span class="s2">(</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">PointLight</span><span class="s2">(</span><span class="s3">'light'</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">light</span><span class="s2">.</span><span class="s1">set_pos</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, -</span><span class="s1">distance</span><span class="s2">, </span><span class="s1">distance</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">set_light</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">light</span><span class="s2">)</span>
+
+        <span class="s5"># Move lights to render</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">clear_light</span><span class="s2">()</span>
+        <span class="s0">for </span><span class="s1">light </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">find_all_matches</span><span class="s2">(</span><span class="s3">'**/+Light'</span><span class="s2">):</span>
+            <span class="s1">light</span><span class="s2">.</span><span class="s1">parent</span><span class="s2">.</span><span class="s1">wrt_reparent_to</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">set_light</span><span class="s2">(</span><span class="s1">light</span><span class="s2">)</span>
+
+        <span class="s5"># Add some ambient light</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ambient </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">attach_new_node</span><span class="s2">(</span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">AmbientLight</span><span class="s2">(</span><span class="s3">'ambient'</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ambient</span><span class="s2">.</span><span class="s1">node</span><span class="s2">().</span><span class="s1">set_color</span><span class="s2">((</span><span class="s4">.2</span><span class="s2">, </span><span class="s4">.2</span><span class="s2">, </span><span class="s4">.2</span><span class="s2">, </span><span class="s4">1</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">set_light</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ambient</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">find</span><span class="s2">(</span><span class="s3">'**/+Character'</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">anims </span><span class="s2">= </span><span class="s1">p3d</span><span class="s2">.</span><span class="s1">AnimControlCollection</span><span class="s2">()</span>
+            <span class="s1">p3d</span><span class="s2">.</span><span class="s1">autoBind</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">model_root</span><span class="s2">.</span><span class="s1">node</span><span class="s2">(), </span><span class="s1">self</span><span class="s2">.</span><span class="s1">anims</span><span class="s2">, ~</span><span class="s4">0</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">anims</span><span class="s2">.</span><span class="s1">get_num_anims</span><span class="s2">() &gt; </span><span class="s4">0</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">anims</span><span class="s2">.</span><span class="s1">get_anim</span><span class="s2">(</span><span class="s4">0</span><span class="s2">).</span><span class="s1">loop</span><span class="s2">(</span><span class="s0">True</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">toggle_normal_maps</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline</span><span class="s2">.</span><span class="s1">use_normal_maps </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline</span><span class="s2">.</span><span class="s1">use_normal_maps</span>
+
+    <span class="s0">def </span><span class="s1">toggle_emission_maps</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline</span><span class="s2">.</span><span class="s1">use_emission_maps </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline</span><span class="s2">.</span><span class="s1">use_emission_maps</span>
+
+    <span class="s0">def </span><span class="s1">toggle_occlusion_maps</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline</span><span class="s2">.</span><span class="s1">use_occlusion_maps </span><span class="s2">= </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">pipeline</span><span class="s2">.</span><span class="s1">use_occlusion_maps</span>
+
+    <span class="s0">def </span><span class="s1">toggle_ambient_light</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">has_light</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ambient</span><span class="s2">):</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">clear_light</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ambient</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">render</span><span class="s2">.</span><span class="s1">set_light</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">ambient</span><span class="s2">)</span>
+
+<span class="s0">def </span><span class="s1">main</span><span class="s2">():</span>
+    <span class="s1">App</span><span class="s2">().</span><span class="s1">run</span><span class="s2">()</span>
+
+<span class="s0">if </span><span class="s1">__name__ </span><span class="s2">== </span><span class="s3">'__main__'</span><span class="s2">:</span>
+    <span class="s1">main</span><span class="s2">()</span>
+</pre>
+</body>
+</html>

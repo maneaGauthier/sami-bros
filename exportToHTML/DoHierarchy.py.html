@@ -1,0 +1,126 @@
+<html>
+<head>
+<title>DoHierarchy.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DoHierarchy.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+
+<span class="s0">class </span><span class="s1">DoHierarchy</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This table has been a source of memory leaks, with DoIds getting left in the table indefinitely. 
+    DoHierarchy guards access to the table and ensures correctness. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;DoHierarchy&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># parentId-&gt;zoneId-&gt;set(child DoIds)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_table </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">isEmpty</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">assert </span><span class="s2">((</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_table</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">) == (</span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">))</span>
+        <span class="s0">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_table</span><span class="s2">) == </span><span class="s6">0 </span><span class="s0">and </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">) == </span><span class="s6">0</span>
+
+    <span class="s0">def </span><span class="s1">__len__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">clear</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_table </span><span class="s2">= {}</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">getDoIds</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">getDo</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">classType</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Args: 
+            parentId: any distributed object id. 
+            zoneId: a uint32, defaults to None (all zones).  Try zone 2 if 
+                you're not sure which zone to use (0 is a bad/null zone and 
+                1 has had reserved use in the past as a no messages zone, while 
+                2 has traditionally been a global, uber, misc stuff zone). 
+            dclassType: a distributed class type filter, defaults to None 
+                (no filter). 
+ 
+        If dclassName is None then all objects in the zone are returned; 
+        otherwise the list is filtered to only include objects of that type. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">parent</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_table</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">parent </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s0">return </span><span class="s2">[]</span>
+        <span class="s0">if </span><span class="s1">zoneId </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">r </span><span class="s2">= []</span>
+            <span class="s0">for </span><span class="s1">zone </span><span class="s0">in </span><span class="s1">parent</span><span class="s2">.</span><span class="s1">values</span><span class="s2">():</span>
+                <span class="s0">for </span><span class="s1">obj </span><span class="s0">in </span><span class="s1">zone</span><span class="s2">:</span>
+                    <span class="s1">r</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s1">parent</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">zoneId</span><span class="s2">, [])</span>
+        <span class="s0">if </span><span class="s1">classType </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">a </span><span class="s2">= []</span>
+            <span class="s0">for </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">r</span><span class="s2">:</span>
+                <span class="s1">obj </span><span class="s2">= </span><span class="s1">getDo</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">, </span><span class="s1">classType</span><span class="s2">):</span>
+                    <span class="s1">a</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+            <span class="s1">r </span><span class="s2">= </span><span class="s1">a</span>
+        <span class="s0">return </span><span class="s1">r</span>
+
+    <span class="s0">def </span><span class="s1">storeObjectLocation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">do</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s1">doId </span><span class="s2">= </span><span class="s1">do</span><span class="s2">.</span><span class="s1">doId</span>
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                <span class="s4">'storeObjectLocation(%s %s) already in _allDoIds; duplicate generate()? or didn</span><span class="s0">\'</span><span class="s4">t clean up previous instance of DO?' </span><span class="s2">% (</span>
+                <span class="s1">do</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">do</span><span class="s2">.</span><span class="s1">doId</span><span class="s2">))</span>
+        <span class="s1">parentZoneDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_table</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">, {})</span>
+        <span class="s1">zoneDoSet </span><span class="s2">= </span><span class="s1">parentZoneDict</span><span class="s2">.</span><span class="s1">setdefault</span><span class="s2">(</span><span class="s1">zoneId</span><span class="s2">, </span><span class="s1">set</span><span class="s2">())</span>
+        <span class="s1">zoneDoSet</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'storeObjectLocation: %s(%s) @ (%s, %s)' </span><span class="s2">% (</span>
+            <span class="s1">do</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">))</span>
+
+    <span class="s0">def </span><span class="s1">deleteObjectLocation</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">do</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">):</span>
+        <span class="s1">doId </span><span class="s2">= </span><span class="s1">do</span><span class="s2">.</span><span class="s1">doId</span>
+        <span class="s0">if </span><span class="s1">doId </span><span class="s0">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                <span class="s4">'deleteObjectLocation(%s %s) not in _allDoIds; duplicate delete()? or invalid previous location on a new object?' </span><span class="s2">% (</span>
+                <span class="s1">do</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">do</span><span class="s2">.</span><span class="s1">doId</span><span class="s2">))</span>
+        <span class="s5"># jbutler: temp hack to get by the assert, this will be fixed soon</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">doId </span><span class="s0">not in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">):</span>
+            <span class="s0">return</span>
+        <span class="s1">parentZoneDict </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_table</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">parentId</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">parentZoneDict </span><span class="s0">is not None</span><span class="s2">:</span>
+            <span class="s1">zoneDoSet </span><span class="s2">= </span><span class="s1">parentZoneDict</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">zoneId</span><span class="s2">)</span>
+            <span class="s0">if </span><span class="s1">zoneDoSet </span><span class="s0">is not None</span><span class="s2">:</span>
+                <span class="s0">if </span><span class="s1">doId </span><span class="s0">in </span><span class="s1">zoneDoSet</span><span class="s2">:</span>
+                    <span class="s1">zoneDoSet</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">_allDoIds</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">doId</span><span class="s2">)</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'deleteObjectLocation: %s(%s) @ (%s, %s)' </span><span class="s2">% (</span>
+                        <span class="s1">do</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">.</span><span class="s1">__name__</span><span class="s2">, </span><span class="s1">doId</span><span class="s2">, </span><span class="s1">parentId</span><span class="s2">, </span><span class="s1">zoneId</span><span class="s2">))</span>
+                    <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">zoneDoSet</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">:</span>
+                        <span class="s0">del </span><span class="s1">parentZoneDict</span><span class="s2">[</span><span class="s1">zoneId</span><span class="s2">]</span>
+                        <span class="s0">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">parentZoneDict</span><span class="s2">) == </span><span class="s6">0</span><span class="s2">:</span>
+                            <span class="s0">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_table</span><span class="s2">[</span><span class="s1">parentId</span><span class="s2">]</span>
+                <span class="s0">else</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                        <span class="s4">&quot;deleteObjectLocation: objId: %s not found&quot; </span><span class="s2">% </span><span class="s1">doId</span><span class="s2">)</span>
+            <span class="s0">else</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                    <span class="s4">&quot;deleteObjectLocation: zoneId: %s not found&quot; </span><span class="s2">% </span><span class="s1">zoneId</span><span class="s2">)</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                <span class="s4">&quot;deleteObjectLocation: parentId: %s not found&quot; </span><span class="s2">% </span><span class="s1">parentId</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<html>
+<head>
+<title>ShadowPlacer.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ShadowPlacer.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; 
+ShadowPlacer.py places a shadow. 
+ 
+It traces a line from a light source to the opposing surface. 
+Or it may do that later, right now it puts a node on the surface under 
+the its parent node. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ShadowPlacer'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">controls</span><span class="s2">.</span><span class="s1">ControlManager </span><span class="s4">import </span><span class="s1">CollisionHandlerRayStart</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s4">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s2">. </span><span class="s4">import </span><span class="s1">DirectObject</span>
+
+<span class="s4">class </span><span class="s1">ShadowPlacer</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;ShadowPlacer&quot;</span><span class="s2">)</span>
+
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s1">count </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">activeCount </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s6"># special methods</span>
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cTrav</span><span class="s2">, </span><span class="s1">shadowNodePath</span><span class="s2">,</span>
+            <span class="s1">wallCollideMask</span><span class="s2">, </span><span class="s1">floorCollideMask</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isActive </span><span class="s2">= </span><span class="s5">0 </span><span class="s6"># Is the placer &quot;on&quot;.  This is also printed in the debugCall.</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">DirectObject</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setup</span><span class="s2">(</span><span class="s1">cTrav</span><span class="s2">, </span><span class="s1">shadowNodePath</span><span class="s2">,</span>
+            <span class="s1">wallCollideMask</span><span class="s2">, </span><span class="s1">floorCollideMask</span><span class="s2">)</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">count </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">debugDisplay</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setup</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cTrav</span><span class="s2">, </span><span class="s1">shadowNodePath</span><span class="s2">,</span>
+            <span class="s1">wallCollideMask</span><span class="s2">, </span><span class="s1">floorCollideMask</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Set up the collisions 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s4">assert not </span><span class="s1">shadowNodePath</span><span class="s2">.</span><span class="s1">isEmpty</span><span class="s2">()</span>
+        <span class="s4">assert not </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s3">&quot;cTrav&quot;</span><span class="s2">) </span><span class="s6"># Protect from setup() being called again.</span>
+
+        <span class="s4">if not </span><span class="s1">cTrav</span><span class="s2">:</span>
+            <span class="s6"># set up the shadow collision traverser</span>
+            <span class="s1">base</span><span class="s2">.</span><span class="s1">initShadowTrav</span><span class="s2">()</span>
+            <span class="s1">cTrav </span><span class="s2">= </span><span class="s1">base</span><span class="s2">.</span><span class="s1">shadowTrav</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav </span><span class="s2">= </span><span class="s1">cTrav</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">shadowNodePath </span><span class="s2">= </span><span class="s1">shadowNodePath</span>
+
+        <span class="s1">floorOffset </span><span class="s2">= </span><span class="s5">0.025</span>
+        <span class="s6"># Set up the collison ray</span>
+        <span class="s6"># This is a ray cast down to detect floor polygons</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cRay </span><span class="s2">= </span><span class="s1">CollisionRay</span><span class="s2">(</span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s1">CollisionHandlerRayStart</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, </span><span class="s5">0.0</span><span class="s2">, -</span><span class="s5">1.0</span><span class="s2">)</span>
+        <span class="s1">cRayNode </span><span class="s2">= </span><span class="s1">CollisionNode</span><span class="s2">(</span><span class="s3">'shadowPlacer'</span><span class="s2">)</span>
+        <span class="s1">cRayNode</span><span class="s2">.</span><span class="s1">addSolid</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRay</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath </span><span class="s2">= </span><span class="s1">NodePath</span><span class="s2">(</span><span class="s1">cRayNode</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cRayBitMask </span><span class="s2">= </span><span class="s1">floorCollideMask</span>
+        <span class="s1">cRayNode</span><span class="s2">.</span><span class="s1">setFromCollideMask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayBitMask</span><span class="s2">)</span>
+        <span class="s1">cRayNode</span><span class="s2">.</span><span class="s1">setIntoCollideMask</span><span class="s2">(</span><span class="s1">BitMask32</span><span class="s2">.</span><span class="s1">allOff</span><span class="s2">())</span>
+
+        <span class="s6"># set up floor collision mechanism</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lifter </span><span class="s2">= </span><span class="s1">CollisionHandlerFloor</span><span class="s2">()</span>
+        <span class="s6">#self.lifter.setInPattern(&quot;on-floor&quot;)</span>
+        <span class="s6">#self.lifter.setOutPattern(&quot;off-floor&quot;)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lifter</span><span class="s2">.</span><span class="s1">setOffset</span><span class="s2">(</span><span class="s1">floorOffset</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lifter</span><span class="s2">.</span><span class="s1">setReach</span><span class="s2">(</span><span class="s5">4.0</span><span class="s2">)</span>
+
+        <span class="s6"># activate the collider with the traverser and pusher</span>
+        <span class="s6">#self.on()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lifter</span><span class="s2">.</span><span class="s1">addCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">, </span><span class="s1">shadowNodePath</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">off</span><span class="s2">()</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isActive</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">count </span><span class="s2">-= </span><span class="s5">1</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">debugDisplay</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span>
+
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">shadowNodePath</span>
+
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRay</span>
+        <span class="s6">#del self.cRayNode</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">.</span><span class="s1">removeNode</span><span class="s2">()</span>
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span>
+
+        <span class="s4">del </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lifter</span>
+
+    <span class="s4">def </span><span class="s1">on</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Turn on the shadow placement.  The shadow z position will 
+        start being updated until a call to off() is made. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">(</span><span class="s3">&quot;activeCount=%s&quot;</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeCount</span><span class="s2">,))</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isActive</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">hasCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">hasCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">.</span><span class="s1">reparentTo</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">shadowNodePath</span><span class="s2">.</span><span class="s1">getParent</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">addCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lifter</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isActive </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeCount </span><span class="s2">+= </span><span class="s5">1</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">debugDisplay</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">off</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Turn off the shadow placement.  The shadow will still be 
+        there, but the z position will not be updated until a call 
+        to on() is made. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">(</span><span class="s3">&quot;activeCount=%s&quot;</span><span class="s2">%(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">activeCount</span><span class="s2">,))</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">isActive</span><span class="s2">:</span>
+            <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">hasCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">)</span>
+            <span class="s4">return</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">hasCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">)</span>
+        <span class="s1">didIt </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">removeCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">)</span>
+        <span class="s4">assert </span><span class="s1">didIt</span>
+        <span class="s6"># Now that we have disabled collisions, make one more pass</span>
+        <span class="s6"># right now to ensure we aren't standing in a wall.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">oneTimeCollide</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">.</span><span class="s1">detachNode</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">isActive </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">activeCount </span><span class="s2">-= </span><span class="s5">1</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">debugDisplay</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">oneTimeCollide</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Makes one quick collision pass for the avatar, for instance as 
+        a one-time straighten-things-up operation after collisions 
+        have been disabled. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debugCall</span><span class="s2">()</span>
+        <span class="s1">tempCTrav </span><span class="s2">= </span><span class="s1">CollisionTraverser</span><span class="s2">(</span><span class="s3">&quot;oneTimeCollide&quot;</span><span class="s2">)</span>
+        <span class="s1">tempCTrav</span><span class="s2">.</span><span class="s1">addCollider</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cRayNodePath</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lifter</span><span class="s2">)</span>
+        <span class="s1">tempCTrav</span><span class="s2">.</span><span class="s1">traverse</span><span class="s2">(</span><span class="s1">render</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">resetToOrigin</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">shadowNodePath</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">shadowNodePath</span><span class="s2">.</span><span class="s1">setPos</span><span class="s2">(</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">,</span><span class="s5">0</span><span class="s2">)</span>
+
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s4">def </span><span class="s1">debugDisplay</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s0">&quot;&quot;&quot;for debugging&quot;&quot;&quot;</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">getDebug</span><span class="s2">():</span>
+                <span class="s1">message </span><span class="s2">= </span><span class="s3">&quot;%d active (%d total), %d colliders&quot;</span><span class="s2">%(</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">activeCount</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">count</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cTrav</span><span class="s2">.</span><span class="s1">getNumColliders</span><span class="s2">())</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s1">message</span><span class="s2">)</span>
+                <span class="s1">onScreenDebug</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s3">&quot;ShadowPlacers&quot;</span><span class="s2">, </span><span class="s1">message</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s5">1 </span><span class="s6"># to allow assert self.debugDisplay()</span>
+</pre>
+</body>
+</html>

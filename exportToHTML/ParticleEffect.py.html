@@ -1,0 +1,285 @@
+<html>
+<head>
+<title>ParticleEffect.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #7a7e85;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+.s6 { color: #5f826b; font-style: italic;}
+.s7 { color: #a5c261;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ParticleEffect.py</font>
+</center></td></tr></table>
+<pre>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">core </span><span class="s1">import </span><span class="s2">*</span>
+
+<span class="s3"># Leave these imports in, they may be used by ptf files.</span>
+<span class="s1">from </span><span class="s0">panda3d</span><span class="s2">.</span><span class="s0">physics </span><span class="s1">import </span><span class="s2">*</span>
+<span class="s1">from </span><span class="s2">. </span><span class="s1">import </span><span class="s0">Particles</span>
+<span class="s1">from </span><span class="s2">. </span><span class="s1">import </span><span class="s0">ForceGroup</span>
+
+<span class="s1">from </span><span class="s0">direct</span><span class="s2">.</span><span class="s0">directnotify </span><span class="s1">import </span><span class="s0">DirectNotifyGlobal</span>
+
+
+<span class="s1">class </span><span class="s0">ParticleEffect</span><span class="s2">(</span><span class="s0">NodePath</span><span class="s2">):</span>
+    <span class="s0">notify </span><span class="s2">= </span><span class="s0">DirectNotifyGlobal</span><span class="s2">.</span><span class="s0">directNotify</span><span class="s2">.</span><span class="s0">newCategory</span><span class="s2">(</span><span class="s4">'ParticleEffect'</span><span class="s2">)</span>
+    <span class="s0">pid </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s1">def </span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">name</span><span class="s2">=</span><span class="s1">None</span><span class="s2">, </span><span class="s0">particles</span><span class="s2">=</span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">name </span><span class="s1">is None</span><span class="s2">:</span>
+            <span class="s0">name </span><span class="s2">= </span><span class="s4">'particle-effect-%d' </span><span class="s2">% </span><span class="s0">ParticleEffect</span><span class="s2">.</span><span class="s0">pid</span>
+            <span class="s0">ParticleEffect</span><span class="s2">.</span><span class="s0">pid </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s0">NodePath</span><span class="s2">.</span><span class="s0">__init__</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">name</span><span class="s2">)</span>
+        <span class="s3"># Record particle effect name</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">name </span><span class="s2">= </span><span class="s0">name</span>
+        <span class="s3"># Enabled flag</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">fEnabled </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s3"># Dictionary of particles and forceGroups</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict </span><span class="s2">= {}</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict </span><span class="s2">= {}</span>
+        <span class="s3"># The effect's particle system</span>
+        <span class="s1">if </span><span class="s0">particles </span><span class="s1">is not None</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">addParticles</span><span class="s2">(</span><span class="s0">particles</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">renderParent </span><span class="s2">= </span><span class="s1">None</span>
+
+    <span class="s1">def </span><span class="s0">cleanup</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">removeNode</span><span class="s2">()</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">disable</span><span class="s2">()</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">__isValid</span><span class="s2">():</span>
+            <span class="s1">for </span><span class="s0">f </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">f</span><span class="s2">.</span><span class="s0">cleanup</span><span class="s2">()</span>
+            <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">p</span><span class="s2">.</span><span class="s0">cleanup</span><span class="s2">()</span>
+            <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span>
+            <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span>
+        <span class="s1">del </span><span class="s0">self</span><span class="s2">.</span><span class="s0">renderParent</span>
+
+    <span class="s1">def </span><span class="s0">getName</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># override NodePath.getName()</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">name</span>
+
+    <span class="s1">def </span><span class="s0">reset</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">removeAllForces</span><span class="s2">()</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">removeAllParticles</span><span class="s2">()</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict </span><span class="s2">= {}</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict </span><span class="s2">= {}</span>
+
+    <span class="s1">def </span><span class="s0">start</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">parent</span><span class="s2">=</span><span class="s1">None</span><span class="s2">, </span><span class="s0">renderParent</span><span class="s2">=</span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s1">assert </span><span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">debug</span><span class="s2">(</span><span class="s4">'start() - name: %s' </span><span class="s2">% </span><span class="s0">self</span><span class="s2">.</span><span class="s0">name</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">renderParent </span><span class="s2">= </span><span class="s0">renderParent</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">enable</span><span class="s2">()</span>
+        <span class="s1">if </span><span class="s0">parent </span><span class="s1">is not None</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">parent</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">enable</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s3"># band-aid added for client crash - grw</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">__isValid</span><span class="s2">():</span>
+            <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">renderParent</span><span class="s2">:</span>
+                <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                    <span class="s0">p</span><span class="s2">.</span><span class="s0">setRenderParent</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">renderParent</span><span class="s2">.</span><span class="s0">node</span><span class="s2">())</span>
+            <span class="s1">for </span><span class="s0">f </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">f</span><span class="s2">.</span><span class="s0">enable</span><span class="s2">()</span>
+            <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">p</span><span class="s2">.</span><span class="s0">enable</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">fEnabled </span><span class="s2">= </span><span class="s5">1</span>
+
+    <span class="s1">def </span><span class="s0">disable</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">detachNode</span><span class="s2">()</span>
+        <span class="s3"># band-aid added for client crash - grw</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">__isValid</span><span class="s2">():</span>
+            <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">p</span><span class="s2">.</span><span class="s0">setRenderParent</span><span class="s2">(</span><span class="s0">p</span><span class="s2">.</span><span class="s0">node</span><span class="s2">)</span>
+            <span class="s1">for </span><span class="s0">f </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">f</span><span class="s2">.</span><span class="s0">disable</span><span class="s2">()</span>
+            <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">():</span>
+                <span class="s0">p</span><span class="s2">.</span><span class="s0">disable</span><span class="s2">()</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">fEnabled </span><span class="s2">= </span><span class="s5">0</span>
+
+    <span class="s1">def </span><span class="s0">isEnabled</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s6">&quot;&quot;&quot; 
+        Note: this may be misleading if enable(), disable() not used 
+        &quot;&quot;&quot;</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">fEnabled</span>
+
+    <span class="s1">def </span><span class="s0">addForceGroup</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">forceGroup</span><span class="s2">):</span>
+        <span class="s0">forceGroup</span><span class="s2">.</span><span class="s0">nodePath</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">forceGroup</span><span class="s2">.</span><span class="s0">particleEffect </span><span class="s2">= </span><span class="s0">self</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">[</span><span class="s0">forceGroup</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">()] = </span><span class="s0">forceGroup</span>
+
+        <span class="s3"># Associate the force group with all particles</span>
+        <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">len</span><span class="s2">(</span><span class="s0">forceGroup</span><span class="s2">)):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">addForce</span><span class="s2">(</span><span class="s0">forceGroup</span><span class="s2">[</span><span class="s0">i</span><span class="s2">])</span>
+
+    <span class="s1">def </span><span class="s0">addForce</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">force</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+            <span class="s0">p</span><span class="s2">.</span><span class="s0">addForce</span><span class="s2">(</span><span class="s0">force</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">removeForceGroup</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">forceGroup</span><span class="s2">):</span>
+        <span class="s3"># Remove forces from all particles</span>
+        <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">len</span><span class="s2">(</span><span class="s0">forceGroup</span><span class="s2">)):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">removeForce</span><span class="s2">(</span><span class="s0">forceGroup</span><span class="s2">[</span><span class="s0">i</span><span class="s2">])</span>
+
+        <span class="s0">forceGroup</span><span class="s2">.</span><span class="s0">nodePath</span><span class="s2">.</span><span class="s0">removeNode</span><span class="s2">()</span>
+        <span class="s0">forceGroup</span><span class="s2">.</span><span class="s0">particleEffect </span><span class="s2">= </span><span class="s1">None</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">pop</span><span class="s2">(</span><span class="s0">forceGroup</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">(), </span><span class="s1">None</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">removeForce</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">force</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+            <span class="s0">p</span><span class="s2">.</span><span class="s0">removeForce</span><span class="s2">(</span><span class="s0">force</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">removeAllForces</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">fg </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">removeForceGroup</span><span class="s2">(</span><span class="s0">fg</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">addParticles</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">particles</span><span class="s2">):</span>
+        <span class="s0">particles</span><span class="s2">.</span><span class="s0">nodePath</span><span class="s2">.</span><span class="s0">reparentTo</span><span class="s2">(</span><span class="s0">self</span><span class="s2">)</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">[</span><span class="s0">particles</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">()] = </span><span class="s0">particles</span>
+
+        <span class="s3"># Associate all forces in all force groups with the particles</span>
+        <span class="s1">for </span><span class="s0">fg </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+            <span class="s1">for </span><span class="s0">i </span><span class="s1">in </span><span class="s0">range</span><span class="s2">(</span><span class="s0">len</span><span class="s2">(</span><span class="s0">fg</span><span class="s2">)):</span>
+                <span class="s0">particles</span><span class="s2">.</span><span class="s0">addForce</span><span class="s2">(</span><span class="s0">fg</span><span class="s2">[</span><span class="s0">i</span><span class="s2">])</span>
+
+    <span class="s1">def </span><span class="s0">removeParticles</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">particles</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">particles </span><span class="s1">is None</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">warning</span><span class="s2">(</span><span class="s4">'removeParticles() - particles == None!'</span><span class="s2">)</span>
+            <span class="s1">return</span>
+        <span class="s0">particles</span><span class="s2">.</span><span class="s0">nodePath</span><span class="s2">.</span><span class="s0">detachNode</span><span class="s2">()</span>
+        <span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">pop</span><span class="s2">(</span><span class="s0">particles</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">(), </span><span class="s1">None</span><span class="s2">)</span>
+
+        <span class="s3"># Remove all forces from the particles</span>
+        <span class="s1">for </span><span class="s0">fg </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+            <span class="s1">for </span><span class="s0">f </span><span class="s1">in </span><span class="s0">fg</span><span class="s2">:</span>
+                <span class="s0">particles</span><span class="s2">.</span><span class="s0">removeForce</span><span class="s2">(</span><span class="s0">f</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">removeAllParticles</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">removeParticles</span><span class="s2">(</span><span class="s0">p</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">getParticlesList</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">())</span>
+
+    <span class="s1">def </span><span class="s0">getParticlesNamed</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">name</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">get</span><span class="s2">(</span><span class="s0">name</span><span class="s2">, </span><span class="s1">None</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">getParticlesDict</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span>
+
+    <span class="s1">def </span><span class="s0">getForceGroupList</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">())</span>
+
+    <span class="s1">def </span><span class="s0">getForceGroupNamed</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">name</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">get</span><span class="s2">(</span><span class="s0">name</span><span class="s2">, </span><span class="s1">None</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">getForceGroupDict</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span>
+
+    <span class="s1">def </span><span class="s0">saveConfig</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">filename</span><span class="s2">):</span>
+        <span class="s0">filename </span><span class="s2">= </span><span class="s0">Filename</span><span class="s2">(</span><span class="s0">filename</span><span class="s2">)</span>
+        <span class="s1">with </span><span class="s0">open</span><span class="s2">(</span><span class="s0">filename</span><span class="s2">.</span><span class="s0">toOsSpecific</span><span class="s2">(), </span><span class="s4">'w'</span><span class="s2">) </span><span class="s1">as </span><span class="s0">f</span><span class="s2">:</span>
+          <span class="s3"># Add a blank line</span>
+          <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'</span><span class="s1">\n</span><span class="s4">'</span><span class="s2">)</span>
+
+          <span class="s3"># Make sure we start with a clean slate</span>
+          <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'self.reset()</span><span class="s1">\n</span><span class="s4">'</span><span class="s2">)</span>
+
+          <span class="s0">pos </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getPos</span><span class="s2">()</span>
+          <span class="s0">hpr </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getHpr</span><span class="s2">()</span>
+          <span class="s0">scale </span><span class="s2">= </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getScale</span><span class="s2">()</span>
+          <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'self.setPos(%0.3f, %0.3f, %0.3f)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">%</span>
+                  <span class="s2">(</span><span class="s0">pos</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s0">pos</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s0">pos</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]))</span>
+          <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'self.setHpr(%0.3f, %0.3f, %0.3f)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">%</span>
+                  <span class="s2">(</span><span class="s0">hpr</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s0">hpr</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s0">hpr</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]))</span>
+          <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'self.setScale(%0.3f, %0.3f, %0.3f)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">%</span>
+                  <span class="s2">(</span><span class="s0">scale</span><span class="s2">[</span><span class="s5">0</span><span class="s2">], </span><span class="s0">scale</span><span class="s2">[</span><span class="s5">1</span><span class="s2">], </span><span class="s0">scale</span><span class="s2">[</span><span class="s5">2</span><span class="s2">]))</span>
+
+          <span class="s3"># Save all the particles to file</span>
+          <span class="s0">num </span><span class="s2">= </span><span class="s5">0</span>
+          <span class="s1">for </span><span class="s0">p </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">particlesDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+              <span class="s0">target </span><span class="s2">= </span><span class="s4">'p%d' </span><span class="s2">% </span><span class="s0">num</span>
+              <span class="s0">num </span><span class="s2">= </span><span class="s0">num </span><span class="s2">+ </span><span class="s5">1</span>
+              <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s0">target </span><span class="s2">+ </span><span class="s4">' = Particles.Particles(</span><span class="s1">\'</span><span class="s4">%s</span><span class="s1">\'</span><span class="s4">)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">% </span><span class="s0">p</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">())</span>
+              <span class="s0">p</span><span class="s2">.</span><span class="s0">printParams</span><span class="s2">(</span><span class="s0">f</span><span class="s2">, </span><span class="s0">target</span><span class="s2">)</span>
+              <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'self.addParticles(%s)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">% </span><span class="s0">target</span><span class="s2">)</span>
+
+          <span class="s3"># Save all the forces to file</span>
+          <span class="s0">num </span><span class="s2">= </span><span class="s5">0</span>
+          <span class="s1">for </span><span class="s0">fg </span><span class="s1">in </span><span class="s0">list</span><span class="s2">(</span><span class="s0">self</span><span class="s2">.</span><span class="s0">forceGroupDict</span><span class="s2">.</span><span class="s0">values</span><span class="s2">()):</span>
+              <span class="s0">target </span><span class="s2">= </span><span class="s4">'f%d' </span><span class="s2">% </span><span class="s0">num</span>
+              <span class="s0">num </span><span class="s2">= </span><span class="s0">num </span><span class="s2">+ </span><span class="s5">1</span>
+              <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s0">target </span><span class="s2">+ </span><span class="s4">' = ForceGroup.ForceGroup(</span><span class="s1">\'</span><span class="s4">%s</span><span class="s1">\'</span><span class="s4">)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">% </span><span class="s0">\</span>
+                                                  <span class="s0">fg</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">())</span>
+              <span class="s0">fg</span><span class="s2">.</span><span class="s0">printParams</span><span class="s2">(</span><span class="s0">f</span><span class="s2">, </span><span class="s0">target</span><span class="s2">)</span>
+              <span class="s0">f</span><span class="s2">.</span><span class="s0">write</span><span class="s2">(</span><span class="s4">'self.addForceGroup(%s)</span><span class="s1">\n</span><span class="s4">' </span><span class="s2">% </span><span class="s0">target</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">loadConfig</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">filename</span><span class="s2">):</span>
+        <span class="s0">vfs </span><span class="s2">= </span><span class="s0">VirtualFileSystem</span><span class="s2">.</span><span class="s0">getGlobalPtr</span><span class="s2">()</span>
+        <span class="s0">data </span><span class="s2">= </span><span class="s0">vfs</span><span class="s2">.</span><span class="s0">readFile</span><span class="s2">(</span><span class="s0">filename</span><span class="s2">, </span><span class="s5">1</span><span class="s2">)</span>
+        <span class="s0">data </span><span class="s2">= </span><span class="s0">data</span><span class="s2">.</span><span class="s0">replace</span><span class="s2">(</span><span class="s7">b'</span><span class="s1">\r</span><span class="s7">'</span><span class="s2">, </span><span class="s7">b''</span><span class="s2">)</span>
+        <span class="s1">try</span><span class="s2">:</span>
+            <span class="s0">exec</span><span class="s2">(</span><span class="s0">data</span><span class="s2">)</span>
+        <span class="s1">except</span><span class="s2">:</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">warning</span><span class="s2">(</span><span class="s4">'loadConfig: failed to load particle file: '</span><span class="s2">+ </span><span class="s0">repr</span><span class="s2">(</span><span class="s0">filename</span><span class="s2">))</span>
+            <span class="s1">raise</span>
+
+    <span class="s1">def </span><span class="s0">accelerate</span><span class="s2">(</span><span class="s0">self</span><span class="s2">,</span><span class="s0">time</span><span class="s2">,</span><span class="s0">stepCount </span><span class="s2">= </span><span class="s5">1</span><span class="s2">,</span><span class="s0">stepTime</span><span class="s2">=</span><span class="s5">0.0</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">particles </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getParticlesList</span><span class="s2">():</span>
+            <span class="s0">particles</span><span class="s2">.</span><span class="s0">accelerate</span><span class="s2">(</span><span class="s0">time</span><span class="s2">,</span><span class="s0">stepCount</span><span class="s2">,</span><span class="s0">stepTime</span><span class="s2">)</span>
+
+    <span class="s1">def </span><span class="s0">clearToInitial</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">particles </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getParticlesList</span><span class="s2">():</span>
+            <span class="s0">particles</span><span class="s2">.</span><span class="s0">clearToInitial</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">softStop</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">particles </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getParticlesList</span><span class="s2">():</span>
+            <span class="s0">particles</span><span class="s2">.</span><span class="s0">softStop</span><span class="s2">()</span>
+
+    <span class="s1">def </span><span class="s0">softStart</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s0">firstBirthDelay</span><span class="s2">=</span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s1">if </span><span class="s0">self</span><span class="s2">.</span><span class="s0">__isValid</span><span class="s2">():</span>
+            <span class="s1">for </span><span class="s0">particles </span><span class="s1">in </span><span class="s0">self</span><span class="s2">.</span><span class="s0">getParticlesList</span><span class="s2">():</span>
+                <span class="s1">if </span><span class="s0">firstBirthDelay </span><span class="s1">is not None</span><span class="s2">:</span>
+                    <span class="s0">particles</span><span class="s2">.</span><span class="s0">softStart</span><span class="s2">(</span><span class="s0">br</span><span class="s2">=-</span><span class="s5">1</span><span class="s2">, </span><span class="s0">first_birth_delay</span><span class="s2">=</span><span class="s0">firstBirthDelay</span><span class="s2">)</span>
+                <span class="s1">else</span><span class="s2">:</span>
+                    <span class="s0">particles</span><span class="s2">.</span><span class="s0">softStart</span><span class="s2">()</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s3"># Not asserting here since we want to crash live clients for more expedient bugfix</span>
+            <span class="s3"># (Sorry, live clients)</span>
+            <span class="s0">self</span><span class="s2">.</span><span class="s0">notify</span><span class="s2">.</span><span class="s0">error</span><span class="s2">(</span><span class="s4">'Trying to start effect(%s) after cleanup.' </span><span class="s2">% (</span><span class="s0">self</span><span class="s2">.</span><span class="s0">getName</span><span class="s2">(),))</span>
+
+    <span class="s1">def </span><span class="s0">__isValid</span><span class="s2">(</span><span class="s0">self</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s0">hasattr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s4">'forceGroupDict'</span><span class="s2">) </span><span class="s1">and </span><span class="s0">\</span>
+               <span class="s0">hasattr</span><span class="s2">(</span><span class="s0">self</span><span class="s2">, </span><span class="s4">'particlesDict'</span><span class="s2">)</span>
+
+    <span class="s3"># Snake-case aliases.</span>
+    <span class="s0">is_enabled </span><span class="s2">= </span><span class="s0">isEnabled</span>
+    <span class="s0">add_force_group </span><span class="s2">= </span><span class="s0">addForceGroup</span>
+    <span class="s0">add_force </span><span class="s2">= </span><span class="s0">addForce</span>
+    <span class="s0">remove_force_group </span><span class="s2">= </span><span class="s0">removeForceGroup</span>
+    <span class="s0">remove_force </span><span class="s2">= </span><span class="s0">removeForce</span>
+    <span class="s0">remove_all_forces </span><span class="s2">= </span><span class="s0">removeAllForces</span>
+    <span class="s0">add_particles </span><span class="s2">= </span><span class="s0">addParticles</span>
+    <span class="s0">remove_particles </span><span class="s2">= </span><span class="s0">removeParticles</span>
+    <span class="s0">remove_all_particles </span><span class="s2">= </span><span class="s0">removeAllParticles</span>
+    <span class="s0">get_particles_list </span><span class="s2">= </span><span class="s0">getParticlesList</span>
+    <span class="s0">get_particles_named </span><span class="s2">= </span><span class="s0">getParticlesNamed</span>
+    <span class="s0">get_particles_dict </span><span class="s2">= </span><span class="s0">getParticlesDict</span>
+    <span class="s0">get_force_group_list </span><span class="s2">= </span><span class="s0">getForceGroupList</span>
+    <span class="s0">get_force_group_named </span><span class="s2">= </span><span class="s0">getForceGroupNamed</span>
+    <span class="s0">get_force_group_dict </span><span class="s2">= </span><span class="s0">getForceGroupDict</span>
+    <span class="s0">save_config </span><span class="s2">= </span><span class="s0">saveConfig</span>
+    <span class="s0">load_config </span><span class="s2">= </span><span class="s0">loadConfig</span>
+    <span class="s0">clear_to_initial </span><span class="s2">= </span><span class="s0">clearToInitial</span>
+    <span class="s0">soft_stop </span><span class="s2">= </span><span class="s0">softStop</span>
+    <span class="s0">soft_start </span><span class="s2">= </span><span class="s0">softStart</span>
+</pre>
+</body>
+</html>

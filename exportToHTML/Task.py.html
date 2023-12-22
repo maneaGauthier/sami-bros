@@ -1,0 +1,1345 @@
+<html>
+<head>
+<title>Task.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #2aacb8;}
+.s6 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Task.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot; This module defines a Python-level wrapper around the C++ 
+:class:`~panda3d.core.AsyncTaskManager` interface.  It replaces the old 
+full-Python implementation of the Task system. 
+ 
+For more information about the task system, consult the 
+:ref:`tasks-and-event-handling` page in the programming manual. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'Task'</span><span class="s2">, </span><span class="s3">'TaskManager'</span><span class="s2">,</span>
+           <span class="s3">'cont'</span><span class="s2">, </span><span class="s3">'done'</span><span class="s2">, </span><span class="s3">'again'</span><span class="s2">, </span><span class="s3">'pickup'</span><span class="s2">, </span><span class="s3">'exit'</span><span class="s2">,</span>
+           <span class="s3">'sequence'</span><span class="s2">, </span><span class="s3">'loop'</span><span class="s2">, </span><span class="s3">'pause'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase </span><span class="s4">import </span><span class="s1">ExceptionVarDump</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">PythonUtil </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">MessengerGlobal </span><span class="s4">import </span><span class="s1">messenger</span>
+<span class="s4">import </span><span class="s1">types</span>
+<span class="s4">import </span><span class="s1">random</span>
+<span class="s4">import </span><span class="s1">importlib</span>
+<span class="s4">import </span><span class="s1">sys</span>
+
+<span class="s4">try</span><span class="s2">:</span>
+    <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+        <span class="s4">import </span><span class="s1">_signal </span><span class="s4">as </span><span class="s1">signal</span>
+    <span class="s4">else</span><span class="s2">:</span>
+        <span class="s4">import </span><span class="s1">signal</span>
+<span class="s4">except </span><span class="s1">ImportError</span><span class="s2">:</span>
+    <span class="s1">signal </span><span class="s2">= </span><span class="s4">None</span>
+
+<span class="s4">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s4">import </span><span class="s2">*</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">extensions_native </span><span class="s4">import </span><span class="s1">HTTPChannel_extensions</span>
+
+<span class="s4">def </span><span class="s1">print_exc_plus</span><span class="s2">():</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Print the usual traceback information, followed by a listing of all the 
+    local variables in each frame. 
+    &quot;&quot;&quot;</span>
+    <span class="s4">import </span><span class="s1">sys</span>
+    <span class="s4">import </span><span class="s1">traceback</span>
+
+    <span class="s1">tb </span><span class="s2">= </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">exc_info</span><span class="s2">()[</span><span class="s5">2</span><span class="s2">]</span>
+    <span class="s4">while </span><span class="s5">1</span><span class="s2">:</span>
+        <span class="s4">if not </span><span class="s1">tb</span><span class="s2">.</span><span class="s1">tb_next</span><span class="s2">:</span>
+            <span class="s4">break</span>
+        <span class="s1">tb </span><span class="s2">= </span><span class="s1">tb</span><span class="s2">.</span><span class="s1">tb_next</span>
+    <span class="s1">stack </span><span class="s2">= []</span>
+    <span class="s1">f </span><span class="s2">= </span><span class="s1">tb</span><span class="s2">.</span><span class="s1">tb_frame</span>
+    <span class="s4">while </span><span class="s1">f</span><span class="s2">:</span>
+        <span class="s1">stack</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">f</span><span class="s2">)</span>
+        <span class="s1">f </span><span class="s2">= </span><span class="s1">f</span><span class="s2">.</span><span class="s1">f_back</span>
+    <span class="s1">stack</span><span class="s2">.</span><span class="s1">reverse</span><span class="s2">()</span>
+    <span class="s1">traceback</span><span class="s2">.</span><span class="s1">print_exc</span><span class="s2">()</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Locals by frame, innermost last&quot;</span><span class="s2">)</span>
+    <span class="s4">for </span><span class="s1">frame </span><span class="s4">in </span><span class="s1">stack</span><span class="s2">:</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;&quot;</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Frame %s in %s at line %s&quot; </span><span class="s2">% (</span><span class="s1">frame</span><span class="s2">.</span><span class="s1">f_code</span><span class="s2">.</span><span class="s1">co_name</span><span class="s2">,</span>
+                                             <span class="s1">frame</span><span class="s2">.</span><span class="s1">f_code</span><span class="s2">.</span><span class="s1">co_filename</span><span class="s2">,</span>
+                                             <span class="s1">frame</span><span class="s2">.</span><span class="s1">f_lineno</span><span class="s2">))</span>
+        <span class="s4">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">value </span><span class="s4">in </span><span class="s1">list</span><span class="s2">(</span><span class="s1">frame</span><span class="s2">.</span><span class="s1">f_locals</span><span class="s2">.</span><span class="s1">items</span><span class="s2">()):</span>
+            <span class="s6">#We have to be careful not to cause a new error in our error</span>
+            <span class="s6">#printer! Calling str() on an unknown object could cause an</span>
+            <span class="s6">#error we don't want.</span>
+            <span class="s4">try</span><span class="s2">:</span>
+                <span class="s1">valueStr </span><span class="s2">= </span><span class="s1">str</span><span class="s2">(</span><span class="s1">value</span><span class="s2">)</span>
+            <span class="s4">except</span><span class="s2">:</span>
+                <span class="s1">valueStr </span><span class="s2">= </span><span class="s3">&quot;&lt;ERROR WHILE PRINTING VALUE&gt;&quot;</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;</span><span class="s4">\t</span><span class="s3">%20s = %s&quot; </span><span class="s2">% (</span><span class="s1">key</span><span class="s2">, </span><span class="s1">valueStr</span><span class="s2">))</span>
+
+<span class="s6"># For historical purposes, we remap the C++-defined enumeration to</span>
+<span class="s6"># these Python names, and define them both at the module level, here,</span>
+<span class="s6"># and at the class level (below).  The preferred access is via the</span>
+<span class="s6"># class level.</span>
+<span class="s1">done </span><span class="s2">= </span><span class="s1">AsyncTask</span><span class="s2">.</span><span class="s1">DSDone</span>
+<span class="s1">cont </span><span class="s2">= </span><span class="s1">AsyncTask</span><span class="s2">.</span><span class="s1">DSCont</span>
+<span class="s1">again </span><span class="s2">= </span><span class="s1">AsyncTask</span><span class="s2">.</span><span class="s1">DSAgain</span>
+<span class="s1">pickup </span><span class="s2">= </span><span class="s1">AsyncTask</span><span class="s2">.</span><span class="s1">DSPickup</span>
+<span class="s1">exit </span><span class="s2">= </span><span class="s1">AsyncTask</span><span class="s2">.</span><span class="s1">DSExit</span>
+
+<span class="s6">#: Task aliases to :class:`panda3d.core.PythonTask` for historical purposes.</span>
+<span class="s1">Task </span><span class="s2">= </span><span class="s1">PythonTask</span>
+
+<span class="s6"># Copy the module-level enums above into the class level.  This funny</span>
+<span class="s6"># syntax is necessary because it's a C++-wrapped extension type, not a</span>
+<span class="s6"># true Python class.</span>
+<span class="s6"># We can't override 'done', which is already a known method.  We have a</span>
+<span class="s6"># special check in PythonTask for when the method is being returned.</span>
+<span class="s6">#Task.DtoolClassDict['done'] = done</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'cont'</span><span class="s2">] = </span><span class="s1">cont</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'again'</span><span class="s2">] = </span><span class="s1">again</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'pickup'</span><span class="s2">] = </span><span class="s1">pickup</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'exit'</span><span class="s2">] = </span><span class="s1">exit</span>
+
+<span class="s6"># Alias the AsyncTaskPause constructor as Task.pause().</span>
+<span class="s1">pause </span><span class="s2">= </span><span class="s1">AsyncTaskPause</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'pause'</span><span class="s2">] = </span><span class="s1">staticmethod</span><span class="s2">(</span><span class="s1">pause</span><span class="s2">)</span>
+
+<span class="s1">gather </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">gather</span>
+
+<span class="s4">def </span><span class="s1">sequence</span><span class="s2">(*</span><span class="s1">taskList</span><span class="s2">):</span>
+    <span class="s1">seq </span><span class="s2">= </span><span class="s1">AsyncTaskSequence</span><span class="s2">(</span><span class="s3">'sequence'</span><span class="s2">)</span>
+    <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">taskList</span><span class="s2">:</span>
+        <span class="s1">seq</span><span class="s2">.</span><span class="s1">addTask</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)</span>
+    <span class="s4">return </span><span class="s1">seq</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'sequence'</span><span class="s2">] = </span><span class="s1">staticmethod</span><span class="s2">(</span><span class="s1">sequence</span><span class="s2">)</span>
+
+<span class="s4">def </span><span class="s1">loop</span><span class="s2">(*</span><span class="s1">taskList</span><span class="s2">):</span>
+    <span class="s1">seq </span><span class="s2">= </span><span class="s1">AsyncTaskSequence</span><span class="s2">(</span><span class="s3">'loop'</span><span class="s2">)</span>
+    <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">taskList</span><span class="s2">:</span>
+        <span class="s1">seq</span><span class="s2">.</span><span class="s1">addTask</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)</span>
+    <span class="s1">seq</span><span class="s2">.</span><span class="s1">setRepeatCount</span><span class="s2">(-</span><span class="s5">1</span><span class="s2">)</span>
+    <span class="s4">return </span><span class="s1">seq</span>
+<span class="s1">Task</span><span class="s2">.</span><span class="s1">DtoolClassDict</span><span class="s2">[</span><span class="s3">'loop'</span><span class="s2">] = </span><span class="s1">staticmethod</span><span class="s2">(</span><span class="s1">loop</span><span class="s2">)</span>
+
+<span class="s4">class </span><span class="s1">TaskManager</span><span class="s2">:</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;TaskManager&quot;</span><span class="s2">)</span>
+
+    <span class="s1">taskTimerVerbose </span><span class="s2">= </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'task-timer-verbose'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">)</span>
+    <span class="s1">extendedExceptions </span><span class="s2">= </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'extended-exceptions'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">)</span>
+    <span class="s1">pStatsTasks </span><span class="s2">= </span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'pstats-tasks'</span><span class="s2">, </span><span class="s4">False</span><span class="s2">)</span>
+
+    <span class="s1">MaxEpochSpeed </span><span class="s2">= </span><span class="s5">1.0</span><span class="s2">/</span><span class="s5">30.0</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr </span><span class="s2">= </span><span class="s1">AsyncTaskManager</span><span class="s2">.</span><span class="s1">getGlobalPtr</span><span class="s2">()</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">resumeFunc </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getClock</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stepping </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">destroyed </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fKeyboardInterrupt </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interruptCount </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s4">if </span><span class="s1">signal</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__prevHandler </span><span class="s2">= </span><span class="s1">signal</span><span class="s2">.</span><span class="s1">default_int_handler</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfileQueue </span><span class="s2">= []</span>
+
+        <span class="s6"># this will be set when it's safe to import StateVar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_profileFrames </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfiler </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_profileTasks </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo </span><span class="s2">= </span><span class="s1">ScratchPad</span><span class="s2">(</span>
+            <span class="s1">taskId </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">profiled </span><span class="s2">= </span><span class="s4">False</span><span class="s2">,</span>
+            <span class="s1">session </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">finalInit</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># This function should be called once during startup, after</span>
+        <span class="s6"># most things are imported.</span>
+        <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">fsm</span><span class="s2">.</span><span class="s1">StatePush </span><span class="s4">import </span><span class="s1">StateVar</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_profileTasks </span><span class="s2">= </span><span class="s1">StateVar</span><span class="s2">(</span><span class="s4">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setProfileTasks</span><span class="s2">(</span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'profile-task-spikes'</span><span class="s2">, </span><span class="s5">0</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">())</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_profileFrames </span><span class="s2">= </span><span class="s1">StateVar</span><span class="s2">(</span><span class="s4">False</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setProfileFrames</span><span class="s2">(</span><span class="s1">ConfigVariableBool</span><span class="s2">(</span><span class="s3">'profile-frames'</span><span class="s2">, </span><span class="s5">0</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">destroy</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># This should be safe to call multiple times.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s3">&quot;TaskManager.destroy()&quot;</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">destroyed </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfileQueue</span><span class="s2">.</span><span class="s1">clear</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">cleanup</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">setClock</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">clockObject</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">setClock</span><span class="s2">(</span><span class="s1">clockObject</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock </span><span class="s2">= </span><span class="s1">clockObject</span>
+
+    <span class="s1">clock </span><span class="s2">= </span><span class="s1">property</span><span class="s2">(</span><span class="s4">lambda </span><span class="s1">self</span><span class="s2">: </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getClock</span><span class="s2">(), </span><span class="s1">setClock</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">invokeDefaultHandler</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">signalNumber</span><span class="s2">, </span><span class="s1">stackFrame</span><span class="s2">):</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'*** allowing mid-frame keyboard interrupt.'</span><span class="s2">)</span>
+        <span class="s6"># Restore default interrupt handler</span>
+        <span class="s4">if </span><span class="s1">signal</span><span class="s2">:</span>
+            <span class="s1">signal</span><span class="s2">.</span><span class="s1">signal</span><span class="s2">(</span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIGINT</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__prevHandler</span><span class="s2">)</span>
+        <span class="s6"># and invoke it</span>
+        <span class="s4">raise </span><span class="s1">KeyboardInterrupt</span>
+
+    <span class="s4">def </span><span class="s1">keyboardInterruptHandler</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">signalNumber</span><span class="s2">, </span><span class="s1">stackFrame</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fKeyboardInterrupt </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interruptCount </span><span class="s2">+= </span><span class="s5">1</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interruptCount </span><span class="s2">== </span><span class="s5">1</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'* interrupt by keyboard'</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">interruptCount </span><span class="s2">== </span><span class="s5">2</span><span class="s2">:</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">'** waiting for end of frame before interrupting...'</span><span class="s2">)</span>
+            <span class="s6"># The user must really want to interrupt this process</span>
+            <span class="s6"># Next time around invoke the default handler</span>
+            <span class="s1">signal</span><span class="s2">.</span><span class="s1">signal</span><span class="s2">(</span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIGINT</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">invokeDefaultHandler</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getCurrentTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns the task currently executing on this thread, or 
+        None if this is being called outside of the task manager. &quot;&quot;&quot;</span>
+
+        <span class="s4">return </span><span class="s1">Thread</span><span class="s2">.</span><span class="s1">getCurrentThread</span><span class="s2">().</span><span class="s1">getCurrentTask</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">hasTaskChain</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">chainName</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; Returns true if a task chain with the indicated name has 
+        already been defined, or false otherwise.  Note that 
+        setupTaskChain() will implicitly define a task chain if it has 
+        not already been defined, or modify an existing one if it has, 
+        so in most cases there is no need to check this method 
+        first. &quot;&quot;&quot;</span>
+
+        <span class="s4">return </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">findTaskChain</span><span class="s2">(</span><span class="s1">chainName</span><span class="s2">) != </span><span class="s4">None</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setupTaskChain</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">chainName</span><span class="s2">, </span><span class="s1">numThreads </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">tickClock </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                       <span class="s1">threadPriority </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">frameBudget </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                       <span class="s1">frameSync </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">timeslicePriority </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Defines a new task chain.  Each task chain executes tasks 
+        potentially in parallel with all of the other task chains (if 
+        numThreads is more than zero).  When a new task is created, it 
+        may be associated with any of the task chains, by name (or you 
+        can move a task to another task chain with 
+        task.setTaskChain()).  You can have any number of task chains, 
+        but each must have a unique name. 
+ 
+        numThreads is the number of threads to allocate for this task 
+        chain.  If it is 1 or more, then the tasks on this task chain 
+        will execute in parallel with the tasks on other task chains. 
+        If it is greater than 1, then the tasks on this task chain may 
+        execute in parallel with themselves (within tasks of the same 
+        sort value). 
+ 
+        If tickClock is True, then this task chain will be responsible 
+        for ticking the global clock each frame (and thereby 
+        incrementing the frame counter).  There should be just one 
+        task chain responsible for ticking the clock, and usually it 
+        is the default, unnamed task chain. 
+ 
+        threadPriority specifies the priority level to assign to 
+        threads on this task chain.  It may be one of TPLow, TPNormal, 
+        TPHigh, or TPUrgent.  This is passed to the underlying 
+        threading system to control the way the threads are scheduled. 
+ 
+        frameBudget is the maximum amount of time (in seconds) to 
+        allow this task chain to run per frame.  Set it to -1 to mean 
+        no limit (the default).  It's not directly related to 
+        threadPriority. 
+ 
+        frameSync is true to force the task chain to sync to the 
+        clock.  When this flag is false, the default, the task chain 
+        will finish all of its tasks and then immediately start from 
+        the first task again, regardless of the clock frame.  When it 
+        is true, the task chain will finish all of its tasks and then 
+        wait for the clock to tick to the next frame before resuming 
+        the first task.  This only makes sense for threaded tasks 
+        chains; non-threaded task chains are automatically 
+        synchronous. 
+ 
+        timeslicePriority is False in the default mode, in which each 
+        task runs exactly once each frame, round-robin style, 
+        regardless of the task's priority value; or True to change the 
+        meaning of priority so that certain tasks are run less often, 
+        in proportion to their time used and to their priority value. 
+        See AsyncTaskManager.setTimeslicePriority() for more. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s1">chain </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">makeTaskChain</span><span class="s2">(</span><span class="s1">chainName</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">numThreads </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">chain</span><span class="s2">.</span><span class="s1">setNumThreads</span><span class="s2">(</span><span class="s1">numThreads</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">tickClock </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">chain</span><span class="s2">.</span><span class="s1">setTickClock</span><span class="s2">(</span><span class="s1">tickClock</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">threadPriority </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">chain</span><span class="s2">.</span><span class="s1">setThreadPriority</span><span class="s2">(</span><span class="s1">threadPriority</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">frameBudget </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">chain</span><span class="s2">.</span><span class="s1">setFrameBudget</span><span class="s2">(</span><span class="s1">frameBudget</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">frameSync </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">chain</span><span class="s2">.</span><span class="s1">setFrameSync</span><span class="s2">(</span><span class="s1">frameSync</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">timeslicePriority </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">chain</span><span class="s2">.</span><span class="s1">setTimeslicePriority</span><span class="s2">(</span><span class="s1">timeslicePriority</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">hasTaskNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskName</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns true if there is at least one task, active or 
+        sleeping, with the indicated name. &quot;&quot;&quot;</span>
+
+        <span class="s4">return </span><span class="s1">bool</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">findTask</span><span class="s2">(</span><span class="s1">taskName</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskName</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns a list of all tasks, active or sleeping, with the 
+        indicated name. &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__makeTaskList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">findTasks</span><span class="s2">(</span><span class="s1">taskName</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">getTasksMatching</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskPattern</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns a list of all tasks, active or sleeping, with a 
+        name that matches the pattern, which can include standard 
+        shell globbing characters like \\*, ?, and []. &quot;&quot;&quot;</span>
+
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__makeTaskList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">findTasksMatching</span><span class="s2">(</span><span class="s1">GlobPattern</span><span class="s2">(</span><span class="s1">taskPattern</span><span class="s2">)))</span>
+
+    <span class="s4">def </span><span class="s1">getAllTasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns list of all tasks, active and sleeping, in 
+        arbitrary order. &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__makeTaskList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">getTasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns list of all active tasks in arbitrary order. &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__makeTaskList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getActiveTasks</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">getDoLaters</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Returns list of all sleeping tasks in arbitrary order. &quot;&quot;&quot;</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__makeTaskList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getSleepingTasks</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">__makeTaskList</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskCollection</span><span class="s2">):</span>
+        <span class="s1">l </span><span class="s2">= []</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">taskCollection</span><span class="s2">.</span><span class="s1">getNumTasks</span><span class="s2">()):</span>
+            <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">taskCollection</span><span class="s2">.</span><span class="s1">getTask</span><span class="s2">(</span><span class="s1">i</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">l</span>
+
+    <span class="s4">def </span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">delayTime</span><span class="s2">, </span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">extraArgs </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                      <span class="s1">sort </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">priority </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">taskChain </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+                      <span class="s1">uponDeath </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">appendTask </span><span class="s2">= </span><span class="s4">False</span><span class="s2">, </span><span class="s1">owner </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+
+        <span class="s0">&quot;&quot;&quot;Adds a task to be performed at some time in the future. 
+        This is identical to `add()`, except that the specified 
+        delayTime is applied to the Task object first, which means 
+        that the task will not begin executing until at least the 
+        indicated delayTime (in seconds) has elapsed. 
+ 
+        After delayTime has elapsed, the task will become active, and 
+        will run in the soonest possible frame thereafter.  If you 
+        wish to specify a task that will run in the next frame, use a 
+        delayTime of 0. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">delayTime </span><span class="s2">&lt; </span><span class="s5">0</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">'doMethodLater: added task: %s with negative delay: %s' </span><span class="s2">% (</span><span class="s1">name</span><span class="s2">, </span><span class="s1">delayTime</span><span class="s2">))</span>
+
+        <span class="s1">task </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__setupTask</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">priority</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">taskChain</span><span class="s2">, </span><span class="s1">appendTask</span><span class="s2">, </span><span class="s1">owner</span><span class="s2">, </span><span class="s1">uponDeath</span><span class="s2">)</span>
+        <span class="s1">task</span><span class="s2">.</span><span class="s1">setDelay</span><span class="s2">(</span><span class="s1">delayTime</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s1">do_method_later </span><span class="s2">= </span><span class="s1">doMethodLater</span>
+
+    <span class="s4">def </span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s1">name </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">sort </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">extraArgs </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s1">priority </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">uponDeath </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">appendTask </span><span class="s2">= </span><span class="s4">False</span><span class="s2">,</span>
+            <span class="s1">taskChain </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">owner </span><span class="s2">= </span><span class="s4">None</span><span class="s2">, </span><span class="s1">delay </span><span class="s2">= </span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Add a new task to the taskMgr.  The task will begin executing 
+        immediately, or next frame if its sort value has already 
+        passed this frame. 
+ 
+        Parameters: 
+            funcOrTask: either an existing Task object (not already 
+                added to the task manager), or a callable function 
+                object. If this is a function, a new Task object will be 
+                created and returned. You may also pass in a coroutine 
+                object. 
+ 
+            name (str): the name to assign to the Task.  Required, 
+                unless you are passing in a Task object that already has 
+                a name. 
+ 
+            extraArgs (list): the list of arguments to pass to the task 
+                function.  If this is omitted, the list is just the task 
+                object itself. 
+ 
+            appendTask (bool): If this is true, then the task object 
+                itself will be appended to the end of the extraArgs list 
+                before calling the function. 
+ 
+            sort (int): the sort value to assign the task.  The default 
+                sort is 0.  Within a particular task chain, it is 
+                guaranteed that the tasks with a lower sort value will 
+                all run before tasks with a higher sort value run. 
+ 
+            priority (int): the priority at which to run the task.  The 
+                default priority is 0.  Higher priority tasks are run 
+                sooner, and/or more often.  For historical purposes, if 
+                you specify a priority without also specifying a sort, 
+                the priority value is understood to actually be a sort 
+                value. (Previously, there was no priority value, only a 
+                sort value, and it was called &quot;priority&quot;.) 
+ 
+            uponDeath (bool): a function to call when the task 
+                terminates, either because it has run to completion, or 
+                because it has been explicitly removed. 
+ 
+            taskChain (str): the name of the task chain to assign the 
+                task to. 
+ 
+            owner: an optional Python object that is declared as the 
+                &quot;owner&quot; of this task for maintenance purposes.  The 
+                owner must have two methods: 
+                ``owner._addTask(self, task)``, which is called when the 
+                task begins, and ``owner._clearTask(self, task)``, which 
+                is called when the task terminates.  This is all the 
+                ownermeans. 
+ 
+            delay: an optional amount of seconds to wait before starting 
+                the task (equivalent to doMethodLater). 
+ 
+        Returns: 
+            The new Task object that has been added, or the original 
+            Task object that was passed in. 
+        &quot;&quot;&quot;</span>
+
+        <span class="s1">task </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__setupTask</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">priority</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">taskChain</span><span class="s2">, </span><span class="s1">appendTask</span><span class="s2">, </span><span class="s1">owner</span><span class="s2">, </span><span class="s1">uponDeath</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">delay </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setDelay</span><span class="s2">(</span><span class="s1">delay</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">__setupTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">priority</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">taskChain</span><span class="s2">, </span><span class="s1">appendTask</span><span class="s2">, </span><span class="s1">owner</span><span class="s2">, </span><span class="s1">uponDeath</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s1">AsyncTask</span><span class="s2">):</span>
+            <span class="s1">task </span><span class="s2">= </span><span class="s1">funcOrTask</span>
+        <span class="s4">elif </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s3">'__call__'</span><span class="s2">):</span>
+            <span class="s1">task </span><span class="s2">= </span><span class="s1">PythonTask</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">name </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">name </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s3">'__qualname__'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+                       <span class="s1">getattr</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s3">'__name__'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s3">'cr_await'</span><span class="s2">) </span><span class="s4">or </span><span class="s1">type</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">GeneratorType</span><span class="s2">:</span>
+            <span class="s6"># It's a coroutine, or something emulating one.</span>
+            <span class="s1">task </span><span class="s2">= </span><span class="s1">PythonTask</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">name </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">name </span><span class="s2">= </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s3">'__qualname__'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+                       <span class="s1">getattr</span><span class="s2">(</span><span class="s1">funcOrTask</span><span class="s2">, </span><span class="s3">'__name__'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                <span class="s3">'add: Tried to add a task that was not a Task or a func'</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">hasattr</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s3">'setArgs'</span><span class="s2">):</span>
+            <span class="s6"># It will only accept arguments if it's a PythonTask.</span>
+            <span class="s4">if </span><span class="s1">extraArgs </span><span class="s4">is None</span><span class="s2">:</span>
+                <span class="s1">extraArgs </span><span class="s2">= []</span>
+                <span class="s1">appendTask </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setArgs</span><span class="s2">(</span><span class="s1">extraArgs</span><span class="s2">, </span><span class="s1">appendTask</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">extraArgs </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span>
+                <span class="s3">'Task %s does not accept arguments.' </span><span class="s2">% (</span><span class="s1">repr</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)))</span>
+
+        <span class="s4">if </span><span class="s1">name </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setName</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s4">assert </span><span class="s1">task</span><span class="s2">.</span><span class="s1">hasName</span><span class="s2">()</span>
+
+        <span class="s6"># For historical reasons, if priority is specified but not</span>
+        <span class="s6"># sort, it really means sort.</span>
+        <span class="s4">if </span><span class="s1">priority </span><span class="s4">is not None and </span><span class="s1">sort </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setSort</span><span class="s2">(</span><span class="s1">priority</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">if </span><span class="s1">priority </span><span class="s4">is not None</span><span class="s2">:</span>
+                <span class="s1">task</span><span class="s2">.</span><span class="s1">setPriority</span><span class="s2">(</span><span class="s1">priority</span><span class="s2">)</span>
+            <span class="s4">if </span><span class="s1">sort </span><span class="s4">is not None</span><span class="s2">:</span>
+                <span class="s1">task</span><span class="s2">.</span><span class="s1">setSort</span><span class="s2">(</span><span class="s1">sort</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">taskChain </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setTaskChain</span><span class="s2">(</span><span class="s1">taskChain</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">owner </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setOwner</span><span class="s2">(</span><span class="s1">owner</span><span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">uponDeath </span><span class="s4">is not None</span><span class="s2">:</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setUponDeath</span><span class="s2">(</span><span class="s1">uponDeath</span><span class="s2">)</span>
+
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">remove</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskOrName</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Removes a task from the task manager.  The task is stopped, 
+        almost as if it had returned task.done.  (But if the task is 
+        currently executing, it will finish out its current frame 
+        before being removed.)  You may specify either an explicit 
+        Task object, or the name of a task.  If you specify a name, 
+        all tasks with the indicated name are removed.  Returns the 
+        number of tasks removed. &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">taskOrName</span><span class="s2">, </span><span class="s1">AsyncTask</span><span class="s2">):</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">taskOrName</span><span class="s2">)</span>
+        <span class="s4">elif </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">taskOrName</span><span class="s2">, </span><span class="s1">list</span><span class="s2">):</span>
+            <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">taskOrName</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">task</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">tasks </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">findTasks</span><span class="s2">(</span><span class="s1">taskOrName</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">removeTasksMatching</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">taskPattern</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Removes all tasks whose names match the pattern, which can 
+        include standard shell globbing characters like \\*, ?, and []. 
+        See also :meth:`remove()`. 
+ 
+        Returns the number of tasks removed. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">tasks </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">findTasksMatching</span><span class="s2">(</span><span class="s1">GlobPattern</span><span class="s2">(</span><span class="s1">taskPattern</span><span class="s2">))</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">step</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Invokes the task manager for one frame, and then returns. 
+        Normally, this executes each task exactly once, though task 
+        chains that are in sub-threads or that have frame budgets 
+        might execute their tasks differently. &quot;&quot;&quot;</span>
+
+        <span class="s1">startFrameTime </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">()</span>
+
+        <span class="s6"># Replace keyboard interrupt handler during task list processing</span>
+        <span class="s6"># so we catch the keyboard interrupt but don't handle it until</span>
+        <span class="s6"># after task list processing is complete.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">fKeyboardInterrupt </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">interruptCount </span><span class="s2">= </span><span class="s5">0</span>
+
+        <span class="s4">if </span><span class="s1">signal</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__prevHandler </span><span class="s2">= </span><span class="s1">signal</span><span class="s2">.</span><span class="s1">signal</span><span class="s2">(</span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIGINT</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">keyboardInterruptHandler</span><span class="s2">)</span>
+
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">poll</span><span class="s2">()</span>
+
+            <span class="s6"># This is the spot for an internal yield function</span>
+            <span class="s1">nextTaskTime </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getNextWakeTime</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">doYield</span><span class="s2">(</span><span class="s1">startFrameTime</span><span class="s2">, </span><span class="s1">nextTaskTime</span><span class="s2">)</span>
+
+        <span class="s4">finally</span><span class="s2">:</span>
+            <span class="s6"># Restore previous interrupt handler</span>
+            <span class="s4">if </span><span class="s1">signal</span><span class="s2">:</span>
+                <span class="s1">signal</span><span class="s2">.</span><span class="s1">signal</span><span class="s2">(</span><span class="s1">signal</span><span class="s2">.</span><span class="s1">SIGINT</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__prevHandler</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__prevHandler </span><span class="s2">= </span><span class="s1">signal</span><span class="s2">.</span><span class="s1">default_int_handler</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">fKeyboardInterrupt</span><span class="s2">:</span>
+            <span class="s4">raise </span><span class="s1">KeyboardInterrupt</span>
+
+    <span class="s4">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;Starts the task manager running.  Does not return until an 
+        exception is encountered (including KeyboardInterrupt). &quot;&quot;&quot;</span>
+
+        <span class="s4">if </span><span class="s1">PandaSystem</span><span class="s2">.</span><span class="s1">getPlatform</span><span class="s2">() == </span><span class="s3">'emscripten'</span><span class="s2">:</span>
+            <span class="s4">return</span>
+
+        <span class="s6"># Set the clock to have last frame's time in case we were</span>
+        <span class="s6"># Paused at the prompt for a long time</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">timeDelta </span><span class="s2">= </span><span class="s1">t </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">setRealTime</span><span class="s2">(</span><span class="s1">t</span><span class="s2">)</span>
+        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s3">&quot;resetClock&quot;</span><span class="s2">, [</span><span class="s1">timeDelta</span><span class="s2">])</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">resumeFunc </span><span class="s2">!= </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">resumeFunc</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">stepping</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s4">while </span><span class="s1">self</span><span class="s2">.</span><span class="s1">running</span><span class="s2">:</span>
+                <span class="s4">try</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfileQueue</span><span class="s2">):</span>
+                        <span class="s1">numFrames</span><span class="s2">, </span><span class="s1">session</span><span class="s2">, </span><span class="s1">callback </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfileQueue</span><span class="s2">.</span><span class="s1">pop</span><span class="s2">(</span><span class="s5">0</span><span class="s2">)</span>
+                        <span class="s4">def </span><span class="s1">_profileFunc</span><span class="s2">(</span><span class="s1">numFrames</span><span class="s2">=</span><span class="s1">numFrames</span><span class="s2">):</span>
+                            <span class="s1">self</span><span class="s2">.</span><span class="s1">_doProfiledFrames</span><span class="s2">(</span><span class="s1">numFrames</span><span class="s2">)</span>
+                        <span class="s1">session</span><span class="s2">.</span><span class="s1">setFunc</span><span class="s2">(</span><span class="s1">_profileFunc</span><span class="s2">)</span>
+                        <span class="s1">session</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+                        <span class="s1">_profileFunc </span><span class="s2">= </span><span class="s4">None</span>
+                        <span class="s4">if </span><span class="s1">callback</span><span class="s2">:</span>
+                            <span class="s1">callback</span><span class="s2">()</span>
+                        <span class="s1">session</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+                <span class="s4">except </span><span class="s1">KeyboardInterrupt</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                <span class="s4">except </span><span class="s1">SystemExit</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                    <span class="s4">raise</span>
+                <span class="s4">except </span><span class="s1">IOError </span><span class="s4">as </span><span class="s1">ioError</span><span class="s2">:</span>
+                    <span class="s1">code</span><span class="s2">, </span><span class="s1">message </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_unpackIOError</span><span class="s2">(</span><span class="s1">ioError</span><span class="s2">)</span>
+                    <span class="s6"># Since upgrading to Python 2.4.1, pausing the execution</span>
+                    <span class="s6"># often gives this IOError during the sleep function:</span>
+                    <span class="s6">#     IOError: [Errno 4] Interrupted function call</span>
+                    <span class="s6"># So, let's just handle that specific exception and stop.</span>
+                    <span class="s6"># All other IOErrors should still get raised.</span>
+                    <span class="s6"># Only problem: legit IOError 4s will be obfuscated.</span>
+                    <span class="s4">if </span><span class="s1">code </span><span class="s2">== </span><span class="s5">4</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s4">raise</span>
+                <span class="s4">except </span><span class="s1">Exception </span><span class="s4">as </span><span class="s1">e</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extendedExceptions</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                        <span class="s1">print_exc_plus</span><span class="s2">()</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s4">if </span><span class="s2">(</span><span class="s1">ExceptionVarDump</span><span class="s2">.</span><span class="s1">wantStackDumpLog </span><span class="s4">and</span>
+                            <span class="s1">ExceptionVarDump</span><span class="s2">.</span><span class="s1">dumpOnExceptionInit</span><span class="s2">):</span>
+                            <span class="s1">ExceptionVarDump</span><span class="s2">.</span><span class="s1">_varDump__print</span><span class="s2">(</span><span class="s1">e</span><span class="s2">)</span>
+                        <span class="s4">raise</span>
+                <span class="s4">except</span><span class="s2">:</span>
+                    <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extendedExceptions</span><span class="s2">:</span>
+                        <span class="s1">self</span><span class="s2">.</span><span class="s1">stop</span><span class="s2">()</span>
+                        <span class="s1">print_exc_plus</span><span class="s2">()</span>
+                    <span class="s4">else</span><span class="s2">:</span>
+                        <span class="s4">raise</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">stopThreads</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">_unpackIOError</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">ioError</span><span class="s2">):</span>
+        <span class="s6"># IOError unpack from http://www.python.org/doc/essays/stdexceptions/</span>
+        <span class="s6"># this needs to be in its own method, exceptions that occur inside</span>
+        <span class="s6"># a nested try block are not caught by the inner try block's except</span>
+        <span class="s4">try</span><span class="s2">:</span>
+            <span class="s2">(</span><span class="s1">code</span><span class="s2">, </span><span class="s1">message</span><span class="s2">) = </span><span class="s1">ioError</span>
+        <span class="s4">except</span><span class="s2">:</span>
+            <span class="s1">code </span><span class="s2">= </span><span class="s5">0</span>
+            <span class="s1">message </span><span class="s2">= </span><span class="s1">ioError</span>
+        <span class="s4">return </span><span class="s1">code</span><span class="s2">, </span><span class="s1">message</span>
+
+    <span class="s4">def </span><span class="s1">stop</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Set a flag so we will stop before beginning next frame</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">running </span><span class="s2">= </span><span class="s4">False</span>
+
+    <span class="s4">def </span><span class="s1">__tryReplaceTaskMethod</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">, </span><span class="s1">oldMethod</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">):</span>
+        <span class="s4">if not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">PythonTask</span><span class="s2">):</span>
+            <span class="s4">return </span><span class="s5">0</span>
+
+        <span class="s1">method </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">getFunction</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">type</span><span class="s2">(</span><span class="s1">method</span><span class="s2">) == </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">):</span>
+            <span class="s1">function </span><span class="s2">= </span><span class="s1">method</span><span class="s2">.</span><span class="s1">__func__</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">function </span><span class="s2">= </span><span class="s1">method</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">function </span><span class="s2">== </span><span class="s1">oldMethod</span><span class="s2">):</span>
+            <span class="s4">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s5">3</span><span class="s2">, </span><span class="s5">0</span><span class="s2">):</span>
+                <span class="s1">newMethod </span><span class="s2">= </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                             <span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">)</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s1">newMethod </span><span class="s2">= </span><span class="s1">types</span><span class="s2">.</span><span class="s1">MethodType</span><span class="s2">(</span><span class="s1">newFunction</span><span class="s2">,</span>
+                                             <span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">,</span>
+                                             <span class="s1">method</span><span class="s2">.</span><span class="s1">__self__</span><span class="s2">.</span><span class="s1">__class__</span><span class="s2">)</span>
+            <span class="s1">task</span><span class="s2">.</span><span class="s1">setFunction</span><span class="s2">(</span><span class="s1">newMethod</span><span class="s2">)</span>
+            <span class="s6"># Found a match</span>
+            <span class="s4">return </span><span class="s5">1</span>
+        <span class="s4">return </span><span class="s5">0</span>
+
+    <span class="s4">def </span><span class="s1">replaceMethod</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">oldMethod</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">):</span>
+        <span class="s1">numFound </span><span class="s2">= </span><span class="s5">0</span>
+        <span class="s4">for </span><span class="s1">task </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getAllTasks</span><span class="s2">():</span>
+            <span class="s1">numFound </span><span class="s2">+= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__tryReplaceTaskMethod</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">oldMethod</span><span class="s2">, </span><span class="s1">newFunction</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">numFound</span>
+
+    <span class="s4">def </span><span class="s1">popupControls</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Don't use a regular import, to prevent ModuleFinder from picking</span>
+        <span class="s6"># it up as a dependency when building a .p3d package.</span>
+        <span class="s1">TaskManagerPanel </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.tkpanels.TaskManagerPanel'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">TaskManagerPanel</span><span class="s2">.</span><span class="s1">TaskManagerPanel</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getProfileSession</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s6"># call to get a profile session that you can modify before passing to profileFrames()</span>
+        <span class="s4">if </span><span class="s1">name </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">name </span><span class="s2">= </span><span class="s3">'taskMgrFrameProfile'</span>
+
+        <span class="s6"># Defer this import until we need it: some Python</span>
+        <span class="s6"># distributions don't provide the profile and pstats modules.</span>
+        <span class="s1">PS </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.showbase.ProfileSession'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">PS</span><span class="s2">.</span><span class="s1">ProfileSession</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">profileFrames</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">num</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">session</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">callback</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">num </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">num </span><span class="s2">= </span><span class="s5">1</span>
+        <span class="s4">if </span><span class="s1">session </span><span class="s4">is None</span><span class="s2">:</span>
+            <span class="s1">session </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getProfileSession</span><span class="s2">()</span>
+        <span class="s6"># make sure the profile session doesn't get destroyed before we're done with it</span>
+        <span class="s1">session</span><span class="s2">.</span><span class="s1">acquire</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfileQueue</span><span class="s2">.</span><span class="s1">append</span><span class="s2">((</span><span class="s1">num</span><span class="s2">, </span><span class="s1">session</span><span class="s2">, </span><span class="s1">callback</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">_doProfiledFrames</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">numFrames</span><span class="s2">):</span>
+        <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">numFrames</span><span class="s2">):</span>
+            <span class="s1">result </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+        <span class="s4">return </span><span class="s1">result</span>
+
+    <span class="s4">def </span><span class="s1">getProfileFrames</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_profileFrames</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getProfileFramesSV</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_profileFrames</span>
+
+    <span class="s4">def </span><span class="s1">setProfileFrames</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">profileFrames</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_profileFrames</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">profileFrames</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s4">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfiler</span><span class="s2">) </span><span class="s4">and </span><span class="s1">profileFrames</span><span class="s2">:</span>
+            <span class="s6"># import here due to import dependencies</span>
+            <span class="s1">FP </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.task.FrameProfiler'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_frameProfiler </span><span class="s2">= </span><span class="s1">FP</span><span class="s2">.</span><span class="s1">FrameProfiler</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getProfileTasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_profileTasks</span><span class="s2">.</span><span class="s1">get</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">getProfileTasksSV</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_profileTasks</span>
+
+    <span class="s4">def </span><span class="s1">setProfileTasks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">profileTasks</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_profileTasks</span><span class="s2">.</span><span class="s1">set</span><span class="s2">(</span><span class="s1">profileTasks</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s4">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler</span><span class="s2">) </span><span class="s4">and </span><span class="s1">profileTasks</span><span class="s2">:</span>
+            <span class="s6"># import here due to import dependencies</span>
+            <span class="s1">TP </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.task.TaskProfiler'</span><span class="s2">)</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler </span><span class="s2">= </span><span class="s1">TP</span><span class="s2">.</span><span class="s1">TaskProfiler</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">logTaskProfiles</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler</span><span class="s2">.</span><span class="s1">logProfiles</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">flushTaskProfiles</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">=</span><span class="s4">None</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfiler</span><span class="s2">.</span><span class="s1">flush</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">_setProfileTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo</span><span class="s2">.</span><span class="s1">session</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo</span><span class="s2">.</span><span class="s1">session</span><span class="s2">.</span><span class="s1">release</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo</span><span class="s2">.</span><span class="s1">session </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo </span><span class="s2">= </span><span class="s1">ScratchPad</span><span class="s2">(</span>
+            <span class="s1">taskFunc </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">getFunction</span><span class="s2">(),</span>
+            <span class="s1">taskArgs </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">getArgs</span><span class="s2">(),</span>
+            <span class="s1">task </span><span class="s2">= </span><span class="s1">task</span><span class="s2">,</span>
+            <span class="s1">profiled </span><span class="s2">= </span><span class="s4">False</span><span class="s2">,</span>
+            <span class="s1">session </span><span class="s2">= </span><span class="s4">None</span><span class="s2">,</span>
+            <span class="s2">)</span>
+
+        <span class="s6"># Temporarily replace the task's own function with our</span>
+        <span class="s6"># _profileTask method.</span>
+        <span class="s1">task</span><span class="s2">.</span><span class="s1">setFunction</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_profileTask</span><span class="s2">)</span>
+        <span class="s1">task</span><span class="s2">.</span><span class="s1">setArgs</span><span class="s2">([</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo</span><span class="s2">], </span><span class="s4">True</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">_profileTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">profileInfo</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s6"># This is called instead of the task function when we have</span>
+        <span class="s6"># decided to profile a task.</span>
+
+        <span class="s4">assert </span><span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">task </span><span class="s2">== </span><span class="s1">task</span>
+        <span class="s6"># don't profile the same task twice in a row</span>
+        <span class="s4">assert not </span><span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">profiled</span>
+
+        <span class="s6"># Restore the task's proper function for next time.</span>
+        <span class="s1">appendTask </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">taskArgs </span><span class="s2">= </span><span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">taskArgs</span>
+        <span class="s4">if </span><span class="s1">taskArgs </span><span class="s4">and </span><span class="s1">taskArgs</span><span class="s2">[-</span><span class="s5">1</span><span class="s2">] == </span><span class="s1">task</span><span class="s2">:</span>
+            <span class="s1">appendTask </span><span class="s2">= </span><span class="s4">True</span>
+            <span class="s1">taskArgs </span><span class="s2">= </span><span class="s1">taskArgs</span><span class="s2">[:-</span><span class="s5">1</span><span class="s2">]</span>
+        <span class="s1">task</span><span class="s2">.</span><span class="s1">setArgs</span><span class="s2">(</span><span class="s1">taskArgs</span><span class="s2">, </span><span class="s1">appendTask</span><span class="s2">)</span>
+        <span class="s1">task</span><span class="s2">.</span><span class="s1">setFunction</span><span class="s2">(</span><span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">taskFunc</span><span class="s2">)</span>
+
+        <span class="s6"># Defer this import until we need it: some Python</span>
+        <span class="s6"># distributions don't provide the profile and pstats modules.</span>
+        <span class="s1">PS </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.showbase.ProfileSession'</span><span class="s2">)</span>
+        <span class="s1">profileSession </span><span class="s2">= </span><span class="s1">PS</span><span class="s2">.</span><span class="s1">ProfileSession</span><span class="s2">(</span><span class="s3">'profiled-task-%s' </span><span class="s2">% </span><span class="s1">task</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+                                           <span class="s1">Functor</span><span class="s2">(</span><span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">taskFunc</span><span class="s2">, *</span><span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">taskArgs</span><span class="s2">))</span>
+        <span class="s1">ret </span><span class="s2">= </span><span class="s1">profileSession</span><span class="s2">.</span><span class="s1">run</span><span class="s2">()</span>
+
+        <span class="s6"># set these values *after* profiling in case we're profiling the TaskProfiler</span>
+        <span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">session </span><span class="s2">= </span><span class="s1">profileSession</span>
+        <span class="s1">profileInfo</span><span class="s2">.</span><span class="s1">profiled </span><span class="s2">= </span><span class="s4">True</span>
+
+        <span class="s4">return </span><span class="s1">ret</span>
+
+    <span class="s4">def </span><span class="s1">_hasProfiledDesignatedTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># have we run a profile of the designated task yet?</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo</span><span class="s2">.</span><span class="s1">profiled</span>
+
+    <span class="s4">def </span><span class="s1">_getLastTaskProfileSession</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskProfileInfo</span><span class="s2">.</span><span class="s1">session</span>
+
+    <span class="s4">def </span><span class="s1">_getRandomTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s6"># Figure out when the next frame is likely to expire, so we</span>
+        <span class="s6"># won't grab any tasks that are sleeping for a long time.</span>
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getFrameTime</span><span class="s2">()</span>
+        <span class="s1">avgFrameRate </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getAverageFrameRate</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">avgFrameRate </span><span class="s2">&lt; </span><span class="s5">.00001</span><span class="s2">:</span>
+            <span class="s1">avgFrameDur </span><span class="s2">= </span><span class="s5">0.</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">avgFrameDur </span><span class="s2">= (</span><span class="s5">1. </span><span class="s2">/ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getAverageFrameRate</span><span class="s2">())</span>
+        <span class="s1">next </span><span class="s2">= </span><span class="s1">now </span><span class="s2">+ </span><span class="s1">avgFrameDur</span>
+
+        <span class="s6"># Now grab a task at random, until we find one that we like.</span>
+        <span class="s1">tasks </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()</span>
+        <span class="s1">i </span><span class="s2">= </span><span class="s1">random</span><span class="s2">.</span><span class="s1">randrange</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">.</span><span class="s1">getNumTasks</span><span class="s2">())</span>
+        <span class="s1">task </span><span class="s2">= </span><span class="s1">tasks</span><span class="s2">.</span><span class="s1">getTask</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+        <span class="s4">while not </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">PythonTask</span><span class="s2">) </span><span class="s4">or </span><span class="s1">\</span>
+              <span class="s1">task</span><span class="s2">.</span><span class="s1">getWakeTime</span><span class="s2">() &gt; </span><span class="s1">next</span><span class="s2">:</span>
+            <span class="s1">tasks</span><span class="s2">.</span><span class="s1">removeTask</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+            <span class="s1">i </span><span class="s2">= </span><span class="s1">random</span><span class="s2">.</span><span class="s1">randrange</span><span class="s2">(</span><span class="s1">tasks</span><span class="s2">.</span><span class="s1">getNumTasks</span><span class="s2">())</span>
+            <span class="s1">task </span><span class="s2">= </span><span class="s1">tasks</span><span class="s2">.</span><span class="s1">getTask</span><span class="s2">(</span><span class="s1">i</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">task</span>
+
+    <span class="s4">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">str</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">mgr</span><span class="s2">)</span>
+
+    <span class="s6"># In the event we want to do frame time managment, this is the</span>
+    <span class="s6"># function to replace or overload.</span>
+    <span class="s4">def </span><span class="s1">doYield</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">frameStartTime</span><span class="s2">, </span><span class="s1">nextScheduledTaskTime</span><span class="s2">):</span>
+        <span class="s4">pass</span>
+
+    <span class="s3">&quot;&quot;&quot; 
+    def doYieldExample(self, frameStartTime, nextScheduledTaskTime): 
+        minFinTime = frameStartTime + self.MaxEpochSpeed 
+        if nextScheduledTaskTime &gt; 0 and nextScheduledTaskTime &lt; minFinTime: 
+            print ' Adjusting Time' 
+            minFinTime = nextScheduledTaskTime 
+        delta = minFinTime - self.globalClock.getRealTime() 
+        while(delta &gt; 0.002): 
+            print ' sleep %s'% (delta) 
+            time.sleep(delta) 
+            delta = minFinTime - self.globalClock.getRealTime() 
+    &quot;&quot;&quot;</span>
+
+    <span class="s4">if __debug__</span><span class="s2">:</span>
+        <span class="s6"># to catch memory leaks during the tests at the bottom of the file</span>
+        <span class="s4">def </span><span class="s1">_startTrackingMemLeaks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s4">pass</span>
+
+        <span class="s4">def </span><span class="s1">_stopTrackingMemLeaks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s4">pass</span>
+
+        <span class="s4">def </span><span class="s1">_checkMemLeaks</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+            <span class="s4">pass</span>
+
+    <span class="s4">def </span><span class="s1">_runTests</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s1">tm </span><span class="s2">= </span><span class="s1">TaskManager</span><span class="s2">()</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">setClock</span><span class="s2">(</span><span class="s1">ClockObject</span><span class="s2">())</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">setupTaskChain</span><span class="s2">(</span><span class="s3">&quot;default&quot;</span><span class="s2">, </span><span class="s1">tickClock </span><span class="s2">= </span><span class="s4">True</span><span class="s2">)</span>
+
+            <span class="s6"># check for memory leaks after every test</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_startTrackingMemLeaks</span><span class="s2">()</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># run-once task</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testDone</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testDone</span><span class="s2">, </span><span class="s3">'testDone'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s1">_testDone </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># remove by name</span>
+            <span class="s4">def </span><span class="s1">_testRemoveByName</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testRemoveByName</span><span class="s2">, </span><span class="s3">'testRemoveByName'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testRemoveByName'</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testRemoveByName'</span><span class="s2">) == </span><span class="s5">0</span>
+            <span class="s1">_testRemoveByName </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># duplicate named tasks</span>
+            <span class="s4">def </span><span class="s1">_testDupNamedTasks</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testDupNamedTasks</span><span class="s2">, </span><span class="s3">'testDupNamedTasks'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testDupNamedTasks</span><span class="s2">, </span><span class="s3">'testDupNamedTasks'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testRemoveByName'</span><span class="s2">) == </span><span class="s5">0</span>
+            <span class="s1">_testDupNamedTasks </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># continued task</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testCont</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l </span><span class="s2">= </span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testCont</span><span class="s2">, </span><span class="s3">'testCont'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testCont'</span><span class="s2">)</span>
+            <span class="s1">_testCont </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># continue until done task</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testContDone</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l </span><span class="s2">= </span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">if </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) &gt;= </span><span class="s5">2</span><span class="s2">:</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">else</span><span class="s2">:</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testContDone</span><span class="s2">, </span><span class="s3">'testContDone'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s4">assert not </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">hasTaskNamed</span><span class="s2">(</span><span class="s3">'testContDone'</span><span class="s2">)</span>
+            <span class="s1">_testContDone </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># hasTaskNamed</span>
+            <span class="s4">def </span><span class="s1">_testHasTaskNamed</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testHasTaskNamed</span><span class="s2">, </span><span class="s3">'testHasTaskNamed'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">hasTaskNamed</span><span class="s2">(</span><span class="s3">'testHasTaskNamed'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert not </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">hasTaskNamed</span><span class="s2">(</span><span class="s3">'testHasTaskNamed'</span><span class="s2">)</span>
+            <span class="s1">_testHasTaskNamed </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># task sort</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testPri1</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l </span><span class="s2">= </span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s4">def </span><span class="s1">_testPri2</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l </span><span class="s2">= </span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">2</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testPri1</span><span class="s2">, </span><span class="s3">'testPri1'</span><span class="s2">, </span><span class="s1">sort </span><span class="s2">= </span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testPri2</span><span class="s2">, </span><span class="s3">'testPri2'</span><span class="s2">, </span><span class="s1">sort </span><span class="s2">= </span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">1</span><span class="s2">, </span><span class="s5">2</span><span class="s2">,]</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">4</span>
+            <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">1</span><span class="s2">, </span><span class="s5">2</span><span class="s2">, </span><span class="s5">1</span><span class="s2">, </span><span class="s5">2</span><span class="s2">,]</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testPri1'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testPri2'</span><span class="s2">)</span>
+            <span class="s1">_testPri1 </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_testPri2 </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># task extraArgs</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testExtraArgs</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">arg2</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">arg2</span><span class="s2">,])</span>
+                <span class="s4">return </span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testExtraArgs</span><span class="s2">, </span><span class="s3">'testExtraArgs'</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">=[</span><span class="s5">4</span><span class="s2">,</span><span class="s5">5</span><span class="s2">])</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">4</span><span class="s2">, </span><span class="s5">5</span><span class="s2">,]</span>
+            <span class="s1">_testExtraArgs </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># task appendTask</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testAppendTask</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">arg2</span><span class="s2">, </span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">extend</span><span class="s2">([</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">arg2</span><span class="s2">,])</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testAppendTask</span><span class="s2">, </span><span class="s3">'_testAppendTask'</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">=[</span><span class="s5">4</span><span class="s2">,</span><span class="s5">5</span><span class="s2">], </span><span class="s1">appendTask</span><span class="s2">=</span><span class="s4">True</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">4</span><span class="s2">, </span><span class="s5">5</span><span class="s2">,]</span>
+            <span class="s1">_testAppendTask </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># task uponDeath</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_uponDeathFunc</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">task</span><span class="s2">.</span><span class="s1">name</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_testUponDeath</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testUponDeath</span><span class="s2">, </span><span class="s3">'testUponDeath'</span><span class="s2">, </span><span class="s1">uponDeath</span><span class="s2">=</span><span class="s1">_uponDeathFunc</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s3">'testUponDeath'</span><span class="s2">]</span>
+            <span class="s1">_testUponDeath </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_uponDeathFunc </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># task owner</span>
+            <span class="s4">class </span><span class="s1">_TaskOwner</span><span class="s2">:</span>
+                <span class="s4">def </span><span class="s1">_addTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">addedTaskName </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name</span>
+                <span class="s4">def </span><span class="s1">_clearTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">clearedTaskName </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name</span>
+            <span class="s1">to </span><span class="s2">= </span><span class="s1">_TaskOwner</span><span class="s2">()</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testOwner</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">done</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testOwner</span><span class="s2">, </span><span class="s3">'testOwner'</span><span class="s2">, </span><span class="s1">owner</span><span class="s2">=</span><span class="s1">to</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">to</span><span class="s2">, </span><span class="s3">'addedTaskName'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">) == </span><span class="s3">'testOwner'</span>
+            <span class="s4">assert </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">to</span><span class="s2">, </span><span class="s3">'clearedTaskName'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">) == </span><span class="s3">'testOwner'</span>
+            <span class="s1">_testOwner </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">del </span><span class="s1">to</span>
+            <span class="s1">_TaskOwner </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+
+            <span class="s1">doLaterTests </span><span class="s2">= [</span><span class="s5">0</span><span class="s2">,]</span>
+
+            <span class="s6"># doLater</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testDoLater1</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_testDoLater2</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_monitorDoLater</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">tm</span><span class="s2">=</span><span class="s1">tm</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">, </span><span class="s1">doLaterTests</span><span class="s2">=</span><span class="s1">doLaterTests</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt; </span><span class="s5">.03</span><span class="s2">:</span>
+                    <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">1</span><span class="s2">, </span><span class="s5">2</span><span class="s2">,]</span>
+                    <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] -= </span><span class="s5">1</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLater1</span><span class="s2">, </span><span class="s3">'testDoLater1'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.02</span><span class="s2">, </span><span class="s1">_testDoLater2</span><span class="s2">, </span><span class="s3">'testDoLater2'</span><span class="s2">)</span>
+            <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] += </span><span class="s5">1</span>
+            <span class="s6"># make sure we run this task after the doLaters if they all occur on the same frame</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_monitorDoLater</span><span class="s2">, </span><span class="s3">'monitorDoLater'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s1">_testDoLater1 </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_testDoLater2 </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_monitorDoLater </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># don't check until all the doLaters are finished</span>
+            <span class="s6">#tm._checkMemLeaks()</span>
+
+            <span class="s6"># doLater sort</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testDoLaterPri1</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_testDoLaterPri2</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_monitorDoLaterPri</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">tm</span><span class="s2">=</span><span class="s1">tm</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">, </span><span class="s1">doLaterTests</span><span class="s2">=</span><span class="s1">doLaterTests</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt; </span><span class="s5">.02</span><span class="s2">:</span>
+                    <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">1</span><span class="s2">, </span><span class="s5">2</span><span class="s2">,]</span>
+                    <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] -= </span><span class="s5">1</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLaterPri1</span><span class="s2">, </span><span class="s3">'testDoLaterPri1'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">1</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLaterPri2</span><span class="s2">, </span><span class="s3">'testDoLaterPri2'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">2</span><span class="s2">)</span>
+            <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] += </span><span class="s5">1</span>
+            <span class="s6"># make sure we run this task after the doLaters if they all occur on the same frame</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_monitorDoLaterPri</span><span class="s2">, </span><span class="s3">'monitorDoLaterPri'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s1">_testDoLaterPri1 </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_testDoLaterPri2 </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_monitorDoLaterPri </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># don't check until all the doLaters are finished</span>
+            <span class="s6">#tm._checkMemLeaks()</span>
+
+            <span class="s6"># doLater extraArgs</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testDoLaterExtraArgs</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_monitorDoLaterExtraArgs</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">tm</span><span class="s2">=</span><span class="s1">tm</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">, </span><span class="s1">doLaterTests</span><span class="s2">=</span><span class="s1">doLaterTests</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt; </span><span class="s5">.02</span><span class="s2">:</span>
+                    <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">3</span><span class="s2">,]</span>
+                    <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] -= </span><span class="s5">1</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLaterExtraArgs</span><span class="s2">, </span><span class="s3">'testDoLaterExtraArgs'</span><span class="s2">, </span><span class="s1">extraArgs</span><span class="s2">=[</span><span class="s5">3</span><span class="s2">,])</span>
+            <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] += </span><span class="s5">1</span>
+            <span class="s6"># make sure we run this task after the doLaters if they all occur on the same frame</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_monitorDoLaterExtraArgs</span><span class="s2">, </span><span class="s3">'monitorDoLaterExtraArgs'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s1">_testDoLaterExtraArgs </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_monitorDoLaterExtraArgs </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># don't check until all the doLaters are finished</span>
+            <span class="s6">#tm._checkMemLeaks()</span>
+
+            <span class="s6"># doLater appendTask</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testDoLaterAppendTask</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s4">assert </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'testDoLaterAppendTask'</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_monitorDoLaterAppendTask</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">tm</span><span class="s2">=</span><span class="s1">tm</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">, </span><span class="s1">doLaterTests</span><span class="s2">=</span><span class="s1">doLaterTests</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt; </span><span class="s5">.02</span><span class="s2">:</span>
+                    <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">4</span><span class="s2">,]</span>
+                    <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] -= </span><span class="s5">1</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLaterAppendTask</span><span class="s2">, </span><span class="s3">'testDoLaterAppendTask'</span><span class="s2">,</span>
+                             <span class="s1">extraArgs</span><span class="s2">=[</span><span class="s5">4</span><span class="s2">,], </span><span class="s1">appendTask</span><span class="s2">=</span><span class="s4">True</span><span class="s2">)</span>
+            <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] += </span><span class="s5">1</span>
+            <span class="s6"># make sure we run this task after the doLaters if they all occur on the same frame</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_monitorDoLaterAppendTask</span><span class="s2">, </span><span class="s3">'monitorDoLaterAppendTask'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s1">_testDoLaterAppendTask </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_monitorDoLaterAppendTask </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># don't check until all the doLaters are finished</span>
+            <span class="s6">#tm._checkMemLeaks()</span>
+
+            <span class="s6"># doLater uponDeath</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testUponDeathFunc</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s4">assert </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'testDoLaterUponDeath'</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s4">def </span><span class="s1">_testDoLaterUponDeath</span><span class="s2">(</span><span class="s1">arg1</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">done</span>
+            <span class="s4">def </span><span class="s1">_monitorDoLaterUponDeath</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">tm</span><span class="s2">=</span><span class="s1">tm</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">, </span><span class="s1">doLaterTests</span><span class="s2">=</span><span class="s1">doLaterTests</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt; </span><span class="s5">.02</span><span class="s2">:</span>
+                    <span class="s4">assert </span><span class="s1">l </span><span class="s2">== [</span><span class="s5">10</span><span class="s2">,]</span>
+                    <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] -= </span><span class="s5">1</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLaterUponDeath</span><span class="s2">, </span><span class="s3">'testDoLaterUponDeath'</span><span class="s2">,</span>
+                             <span class="s1">uponDeath</span><span class="s2">=</span><span class="s1">_testUponDeathFunc</span><span class="s2">)</span>
+            <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] += </span><span class="s5">1</span>
+            <span class="s6"># make sure we run this task after the doLaters if they all occur on the same frame</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_monitorDoLaterUponDeath</span><span class="s2">, </span><span class="s3">'monitorDoLaterUponDeath'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s1">_testUponDeathFunc </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_testDoLaterUponDeath </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_monitorDoLaterUponDeath </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># don't check until all the doLaters are finished</span>
+            <span class="s6">#tm._checkMemLeaks()</span>
+
+            <span class="s6"># doLater owner</span>
+            <span class="s4">class </span><span class="s1">_DoLaterOwner</span><span class="s2">:</span>
+                <span class="s4">def </span><span class="s1">_addTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">addedTaskName </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name</span>
+                <span class="s4">def </span><span class="s1">_clearTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">clearedTaskName </span><span class="s2">= </span><span class="s1">task</span><span class="s2">.</span><span class="s1">name</span>
+            <span class="s1">doLaterOwner </span><span class="s2">= </span><span class="s1">_DoLaterOwner</span><span class="s2">()</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testDoLaterOwner</span><span class="s2">(</span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s4">pass</span>
+            <span class="s4">def </span><span class="s1">_monitorDoLaterOwner</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">tm</span><span class="s2">=</span><span class="s1">tm</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">, </span><span class="s1">doLaterOwner</span><span class="s2">=</span><span class="s1">doLaterOwner</span><span class="s2">,</span>
+                                     <span class="s1">doLaterTests</span><span class="s2">=</span><span class="s1">doLaterTests</span><span class="s2">):</span>
+                <span class="s4">if </span><span class="s1">task</span><span class="s2">.</span><span class="s1">time </span><span class="s2">&gt; </span><span class="s5">.02</span><span class="s2">:</span>
+                    <span class="s4">assert </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">doLaterOwner</span><span class="s2">, </span><span class="s3">'addedTaskName'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">) == </span><span class="s3">'testDoLaterOwner'</span>
+                    <span class="s4">assert </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">doLaterOwner</span><span class="s2">, </span><span class="s3">'clearedTaskName'</span><span class="s2">, </span><span class="s4">None</span><span class="s2">) == </span><span class="s3">'testDoLaterOwner'</span>
+                    <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] -= </span><span class="s5">1</span>
+                    <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.01</span><span class="s2">, </span><span class="s1">_testDoLaterOwner</span><span class="s2">, </span><span class="s3">'testDoLaterOwner'</span><span class="s2">,</span>
+                             <span class="s1">owner</span><span class="s2">=</span><span class="s1">doLaterOwner</span><span class="s2">)</span>
+            <span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] += </span><span class="s5">1</span>
+            <span class="s6"># make sure we run this task after the doLaters if they all occur on the same frame</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_monitorDoLaterOwner</span><span class="s2">, </span><span class="s3">'monitorDoLaterOwner'</span><span class="s2">, </span><span class="s1">sort</span><span class="s2">=</span><span class="s5">10</span><span class="s2">)</span>
+            <span class="s1">_testDoLaterOwner </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">_monitorDoLaterOwner </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s4">del </span><span class="s1">doLaterOwner</span>
+            <span class="s1">_DoLaterOwner </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># don't check until all the doLaters are finished</span>
+            <span class="s6">#tm._checkMemLeaks()</span>
+
+            <span class="s6"># run the doLater tests</span>
+            <span class="s4">while </span><span class="s1">doLaterTests</span><span class="s2">[</span><span class="s5">0</span><span class="s2">] &gt; </span><span class="s5">0</span><span class="s2">:</span>
+                <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">del </span><span class="s1">doLaterTests</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># getTasks</span>
+            <span class="s4">def </span><span class="s1">_testGetTasks</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s6"># No doLaterProcessor in the new world.</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()) == </span><span class="s5">0</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testGetTasks</span><span class="s2">, </span><span class="s3">'testGetTasks1'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'testGetTasks1' </span><span class="s4">or</span>
+                    <span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()[</span><span class="s5">1</span><span class="s2">].</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'testGetTasks1'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testGetTasks</span><span class="s2">, </span><span class="s3">'testGetTasks2'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testGetTasks</span><span class="s2">, </span><span class="s3">'testGetTasks3'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()) == </span><span class="s5">3</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testGetTasks2'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()) == </span><span class="s5">2</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testGetTasks1'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testGetTasks3'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasks</span><span class="s2">()) == </span><span class="s5">0</span>
+            <span class="s1">_testGetTasks </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># getDoLaters</span>
+            <span class="s4">def </span><span class="s1">_testGetDoLaters</span><span class="s2">():</span>
+                <span class="s4">pass</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">0</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testGetDoLaters</span><span class="s2">, </span><span class="s3">'testDoLater1'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'testDoLater1'</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testGetDoLaters</span><span class="s2">, </span><span class="s3">'testDoLater2'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testGetDoLaters</span><span class="s2">, </span><span class="s3">'testDoLater3'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">3</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testDoLater2'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">2</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testDoLater1'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testDoLater3'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">0</span>
+            <span class="s1">_testGetDoLaters </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># duplicate named doLaters removed via taskMgr.remove</span>
+            <span class="s4">def </span><span class="s1">_testDupNameDoLaters</span><span class="s2">():</span>
+                <span class="s4">pass</span>
+            <span class="s6"># the doLaterProcessor is always running</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testDupNameDoLaters</span><span class="s2">, </span><span class="s3">'testDupNameDoLater'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testDupNameDoLaters</span><span class="s2">, </span><span class="s3">'testDupNameDoLater'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">2</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testDupNameDoLater'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">0</span>
+            <span class="s1">_testDupNameDoLaters </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># duplicate named doLaters removed via remove()</span>
+            <span class="s4">def </span><span class="s1">_testDupNameDoLatersRemove</span><span class="s2">():</span>
+                <span class="s4">pass</span>
+            <span class="s6"># the doLaterProcessor is always running</span>
+            <span class="s1">dl1 </span><span class="s2">= </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testDupNameDoLatersRemove</span><span class="s2">, </span><span class="s3">'testDupNameDoLaterRemove'</span><span class="s2">)</span>
+            <span class="s1">dl2 </span><span class="s2">= </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s5">.1</span><span class="s2">, </span><span class="s1">_testDupNameDoLatersRemove</span><span class="s2">, </span><span class="s3">'testDupNameDoLaterRemove'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">2</span>
+            <span class="s1">dl2</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">1</span>
+            <span class="s1">dl1</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getDoLaters</span><span class="s2">()) == </span><span class="s5">0</span>
+            <span class="s1">_testDupNameDoLatersRemove </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s6"># nameDict etc. isn't cleared out right away with task.remove()</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># getTasksNamed</span>
+            <span class="s4">def </span><span class="s1">_testGetTasksNamed</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testGetTasksNamed'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testGetTasksNamed</span><span class="s2">, </span><span class="s3">'testGetTasksNamed'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testGetTasksNamed'</span><span class="s2">)) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testGetTasksNamed'</span><span class="s2">)[</span><span class="s5">0</span><span class="s2">].</span><span class="s1">name </span><span class="s2">== </span><span class="s3">'testGetTasksNamed'</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testGetTasksNamed</span><span class="s2">, </span><span class="s3">'testGetTasksNamed'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testGetTasksNamed</span><span class="s2">, </span><span class="s3">'testGetTasksNamed'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testGetTasksNamed'</span><span class="s2">)) == </span><span class="s5">3</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testGetTasksNamed'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testGetTasksNamed'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s1">_testGetTasksNamed </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># removeTasksMatching</span>
+            <span class="s4">def </span><span class="s1">_testRemoveTasksMatching</span><span class="s2">(</span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testRemoveTasksMatching</span><span class="s2">, </span><span class="s3">'testRemoveTasksMatching'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching'</span><span class="s2">)) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">removeTasksMatching</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testRemoveTasksMatching</span><span class="s2">, </span><span class="s3">'testRemoveTasksMatching1'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testRemoveTasksMatching</span><span class="s2">, </span><span class="s3">'testRemoveTasksMatching2'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching1'</span><span class="s2">)) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching2'</span><span class="s2">)) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">removeTasksMatching</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching*'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching1'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching2'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testRemoveTasksMatching</span><span class="s2">, </span><span class="s3">'testRemoveTasksMatching1a'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">_testRemoveTasksMatching</span><span class="s2">, </span><span class="s3">'testRemoveTasksMatching2a'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching1a'</span><span class="s2">)) == </span><span class="s5">1</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching2a'</span><span class="s2">)) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">removeTasksMatching</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching?a'</span><span class="s2">)</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching1a'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">tm</span><span class="s2">.</span><span class="s1">getTasksNamed</span><span class="s2">(</span><span class="s3">'testRemoveTasksMatching2a'</span><span class="s2">)) == </span><span class="s5">0</span>
+            <span class="s1">_testRemoveTasksMatching </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># create Task object and add to mgr</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testTaskObj</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">(</span><span class="s1">_testTaskObj</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s3">'testTaskObj'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s3">'testTaskObj'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s1">_testTaskObj </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s6"># remove Task via task.remove()</span>
+            <span class="s1">l </span><span class="s2">= []</span>
+            <span class="s4">def </span><span class="s1">_testTaskObjRemove</span><span class="s2">(</span><span class="s1">task</span><span class="s2">, </span><span class="s1">l</span><span class="s2">=</span><span class="s1">l</span><span class="s2">):</span>
+                <span class="s1">l</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s4">None</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">cont</span>
+            <span class="s1">t </span><span class="s2">= </span><span class="s1">Task</span><span class="s2">(</span><span class="s1">_testTaskObjRemove</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">t</span><span class="s2">, </span><span class="s3">'testTaskObjRemove'</span><span class="s2">)</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">1</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s1">t</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">()</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+            <span class="s4">assert </span><span class="s1">len</span><span class="s2">(</span><span class="s1">l</span><span class="s2">) == </span><span class="s5">2</span>
+            <span class="s4">del </span><span class="s1">t</span>
+            <span class="s1">_testTaskObjRemove </span><span class="s2">= </span><span class="s4">None</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">_checkMemLeaks</span><span class="s2">()</span>
+
+            <span class="s3">&quot;&quot;&quot; 
+            # this test fails, and it's not clear what the correct behavior should be. 
+            # sort passed to Task.__init__ is always overridden by taskMgr.add() 
+            # even if no sort is specified, and calling Task.setSort() has no 
+            # effect on the taskMgr's behavior. 
+            # set/get Task sort 
+            l = [] 
+            def _testTaskObjSort(arg, task, l=l): 
+                l.append(arg) 
+                return task.cont 
+            t1 = Task(_testTaskObjSort, sort=1) 
+            t2 = Task(_testTaskObjSort, sort=2) 
+            tm.add(t1, 'testTaskObjSort1', extraArgs=['a',], appendTask=True) 
+            tm.add(t2, 'testTaskObjSort2', extraArgs=['b',], appendTask=True) 
+            tm.step() 
+            assert len(l) == 2 
+            assert l == ['a', 'b'] 
+            assert t1.getSort() == 1 
+            assert t2.getSort() == 2 
+            t1.setSort(3) 
+            assert t1.getSort() == 3 
+            tm.step() 
+            assert len(l) == 4 
+            assert l == ['a', 'b', 'b', 'a',] 
+            t1.remove() 
+            t2.remove() 
+            tm.step() 
+            assert len(l) == 4 
+            del t1 
+            del t2 
+            _testTaskObjSort = None 
+            tm._checkMemLeaks() 
+            &quot;&quot;&quot;</span>
+
+            <span class="s4">del </span><span class="s1">l</span>
+            <span class="s1">tm</span><span class="s2">.</span><span class="s1">destroy</span><span class="s2">()</span>
+            <span class="s4">del </span><span class="s1">tm</span>
+
+<span class="s4">if __debug__</span><span class="s2">:</span>
+    <span class="s4">def </span><span class="s1">checkLeak</span><span class="s2">():</span>
+        <span class="s4">import </span><span class="s1">sys</span>
+        <span class="s4">import </span><span class="s1">gc</span>
+        <span class="s1">gc</span><span class="s2">.</span><span class="s1">enable</span><span class="s2">()</span>
+        <span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+        <span class="s4">class </span><span class="s1">TestClass</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+            <span class="s4">def </span><span class="s1">doTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+                <span class="s4">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+        <span class="s1">obj </span><span class="s2">= </span><span class="s1">TestClass</span><span class="s2">()</span>
+        <span class="s1">startRefCount </span><span class="s2">= </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'sys.getrefcount(obj): %s' </span><span class="s2">% </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'** addTask'</span><span class="s2">)</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s1">obj</span><span class="s2">.</span><span class="s1">addTask</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">.</span><span class="s1">doTask</span><span class="s2">, </span><span class="s3">'test'</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'sys.getrefcount(obj): %s' </span><span class="s2">% </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'task.getRefCount(): %s' </span><span class="s2">% </span><span class="s1">t</span><span class="s2">.</span><span class="s1">getRefCount</span><span class="s2">())</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'** removeTask'</span><span class="s2">)</span>
+        <span class="s1">obj</span><span class="s2">.</span><span class="s1">removeTask</span><span class="s2">(</span><span class="s3">'test'</span><span class="s2">)</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'sys.getrefcount(obj): %s' </span><span class="s2">% </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'task.getRefCount(): %s' </span><span class="s2">% </span><span class="s1">t</span><span class="s2">.</span><span class="s1">getRefCount</span><span class="s2">())</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'** step'</span><span class="s2">)</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">step</span><span class="s2">()</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'sys.getrefcount(obj): %s' </span><span class="s2">% </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">))</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'task.getRefCount(): %s' </span><span class="s2">% </span><span class="s1">t</span><span class="s2">.</span><span class="s1">getRefCount</span><span class="s2">())</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'** task release'</span><span class="s2">)</span>
+        <span class="s1">t </span><span class="s2">= </span><span class="s4">None</span>
+        <span class="s1">print</span><span class="s2">(</span><span class="s3">'sys.getrefcount(obj): %s' </span><span class="s2">% </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">))</span>
+        <span class="s4">assert </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">getrefcount</span><span class="s2">(</span><span class="s1">obj</span><span class="s2">) == </span><span class="s1">startRefCount</span>
+</pre>
+</body>
+</html>

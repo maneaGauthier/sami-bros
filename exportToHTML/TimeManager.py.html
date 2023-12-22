@@ -1,0 +1,210 @@
+<html>
+<head>
+<title>TimeManager.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+TimeManager.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">panda3d</span><span class="s2">.</span><span class="s1">core </span><span class="s0">import </span><span class="s2">*</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">task </span><span class="s0">import </span><span class="s1">Task</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed </span><span class="s0">import </span><span class="s1">DistributedObject</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify </span><span class="s0">import </span><span class="s1">DirectNotifyGlobal</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">distributed</span><span class="s2">.</span><span class="s1">ClockDelta </span><span class="s0">import </span><span class="s1">globalClockDelta</span>
+
+<span class="s0">class </span><span class="s1">TimeManager</span><span class="s2">(</span><span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">DistributedObject</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot; 
+    This DistributedObject lives on the AI and on the client side, and 
+    serves to synchronize the time between them so they both agree, to 
+    within a few hundred milliseconds at least, what time it is. 
+ 
+    It uses a pull model where the client can request a 
+    synchronization check from time to time.  It also employs a 
+    round-trip measurement to minimize the effect of latency. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">DirectNotifyGlobal</span><span class="s2">.</span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;TimeManager&quot;</span><span class="s2">)</span>
+
+    <span class="s5"># The number of seconds to wait between automatic</span>
+    <span class="s5"># synchronizations.  Set to 0 to disable auto sync after</span>
+    <span class="s5"># startup.</span>
+    <span class="s1">updateFreq </span><span class="s2">= </span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s4">'time-manager-freq'</span><span class="s2">, </span><span class="s6">1800</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+
+    <span class="s5"># The minimum number of seconds to wait between two unrelated</span>
+    <span class="s5"># synchronization attempts.  Increasing this number cuts down</span>
+    <span class="s5"># on frivolous synchronizations.</span>
+    <span class="s1">minWait </span><span class="s2">= </span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s4">'time-manager-min-wait'</span><span class="s2">, </span><span class="s6">10</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+
+    <span class="s5"># The maximum number of seconds of uncertainty to tolerate in</span>
+    <span class="s5"># the clock delta without trying again.</span>
+    <span class="s1">maxUncertainty </span><span class="s2">= </span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s4">'time-manager-max-uncertainty'</span><span class="s2">, </span><span class="s6">1</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+
+    <span class="s5"># The maximum number of attempts to try to get a low-latency</span>
+    <span class="s5"># time measurement before giving up and accepting whatever we</span>
+    <span class="s5"># get.</span>
+    <span class="s1">maxAttempts </span><span class="s2">= </span><span class="s1">ConfigVariableInt</span><span class="s2">(</span><span class="s4">'time-manager-max-attempts'</span><span class="s2">, </span><span class="s6">5</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+
+    <span class="s5"># A simulated clock skew for debugging, in seconds.</span>
+    <span class="s1">extraSkew </span><span class="s2">= </span><span class="s1">ConfigVariableInt</span><span class="s2">(</span><span class="s4">'time-manager-extra-skew'</span><span class="s2">, </span><span class="s6">0</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+
+    <span class="s0">if </span><span class="s1">extraSkew </span><span class="s2">!= </span><span class="s6">0</span><span class="s2">:</span>
+        <span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Simulating clock skew of %0.3f s&quot; </span><span class="s2">% </span><span class="s1">extraSkew</span><span class="s2">)</span>
+
+    <span class="s1">reportFrameRateInterval </span><span class="s2">= </span><span class="s1">ConfigVariableDouble</span><span class="s2">(</span><span class="s4">'report-frame-rate-interval'</span><span class="s2">, </span><span class="s6">300.0</span><span class="s2">).</span><span class="s1">getValue</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cr</span><span class="s2">):</span>
+        <span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">cr</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">thisContext </span><span class="s2">= -</span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nextContext </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">attemptCount </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">start </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastAttempt </span><span class="s2">= -</span><span class="s1">self</span><span class="s2">.</span><span class="s1">minWait</span><span class="s2">*</span><span class="s6">2</span>
+
+    <span class="s5">### DistributedObject methods ###</span>
+
+    <span class="s0">def </span><span class="s1">generate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        This method is called when the DistributedObject is reintroduced 
+        to the world, either for the first time or from the cache. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">generate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'clock_error'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">handleClockError</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateFreq </span><span class="s2">&gt; </span><span class="s6">0</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">startTask</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">announceGenerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">announceGenerate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">timeManager </span><span class="s2">= </span><span class="s1">self</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">synchronize</span><span class="s2">(</span><span class="s4">&quot;TimeManager.announceGenerate&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">disable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        This method is called when the DistributedObject is removed from 
+        active duty and stored in a cache. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">ignore</span><span class="s2">(</span><span class="s4">'clock_error'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stopTask</span><span class="s2">()</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">'frameRateMonitor'</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">timeManager </span><span class="s0">is </span><span class="s1">self</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">timeManager </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">disable</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        This method is called when the DistributedObject is permanently 
+        removed from the world and deleted from the cache. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">DistributedObject</span><span class="s2">.</span><span class="s1">delete</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s5">### Task management methods ###</span>
+
+    <span class="s0">def </span><span class="s1">startTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">stopTask</span><span class="s2">()</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateFreq</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doUpdate</span><span class="s2">, </span><span class="s4">&quot;timeMgrTask&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">stopTask</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">remove</span><span class="s2">(</span><span class="s4">&quot;timeMgrTask&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">doUpdate</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">synchronize</span><span class="s2">(</span><span class="s4">&quot;timer&quot;</span><span class="s2">)</span>
+        <span class="s5"># Spawn the next one</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">updateFreq</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">doUpdate</span><span class="s2">, </span><span class="s4">&quot;timeMgrTask&quot;</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">Task</span><span class="s2">.</span><span class="s1">done</span>
+
+    <span class="s5">### Automatic clock error handling ###</span>
+
+    <span class="s0">def </span><span class="s1">handleClockError</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">synchronize</span><span class="s2">(</span><span class="s4">&quot;clock error&quot;</span><span class="s2">)</span>
+
+    <span class="s5">### Synchronization methods ###</span>
+
+    <span class="s0">def </span><span class="s1">synchronize</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">description</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;synchronize(self, string description) 
+ 
+        Call this function from time to time to synchronize watches 
+        with the server.  This initiates a round-trip transaction; 
+        when the transaction completes, the time will be synced. 
+ 
+        The description is the string that will be written to the log 
+        file regarding the reason for this synchronization attempt. 
+ 
+        The return value is true if the attempt is made, or false if 
+        it is too soon since the last attempt. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">now </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">now </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">lastAttempt </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">minWait</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">&quot;Not resyncing (too soon): %s&quot; </span><span class="s2">% (</span><span class="s1">description</span><span class="s2">))</span>
+            <span class="s0">return </span><span class="s6">0</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">talkResult </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">thisContext </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">nextContext</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">attemptCount </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">nextContext </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">nextContext </span><span class="s2">+ </span><span class="s6">1</span><span class="s2">) &amp; </span><span class="s6">255</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Clock sync: %s&quot; </span><span class="s2">% (</span><span class="s1">description</span><span class="s2">))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">start </span><span class="s2">= </span><span class="s1">now</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">lastAttempt </span><span class="s2">= </span><span class="s1">now</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s4">&quot;requestServerTime&quot;</span><span class="s2">, [</span><span class="s1">self</span><span class="s2">.</span><span class="s1">thisContext</span><span class="s2">])</span>
+
+        <span class="s0">return </span><span class="s6">1</span>
+
+
+    <span class="s0">def </span><span class="s1">serverTime</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">context</span><span class="s2">, </span><span class="s1">timestamp</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot;serverTime(self, int8 context, int32 timestamp) 
+ 
+        This message is sent from the AI to the client in response to 
+        a previous requestServerTime.  It contains the time as 
+        observed by the AI. 
+ 
+        The client should use this, in conjunction with the time 
+        measurement taken before calling requestServerTime (above), to 
+        determine the clock delta between the AI and the client 
+        machines. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">end </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">()</span>
+
+        <span class="s0">if </span><span class="s1">context </span><span class="s2">!= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">thisContext</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Ignoring TimeManager response for old context %d&quot; </span><span class="s2">% (</span><span class="s1">context</span><span class="s2">))</span>
+            <span class="s0">return</span>
+
+        <span class="s1">elapsed </span><span class="s2">= </span><span class="s1">end </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">start</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">attemptCount </span><span class="s2">+= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Clock sync roundtrip took %0.3f ms&quot; </span><span class="s2">% (</span><span class="s1">elapsed </span><span class="s2">* </span><span class="s6">1000.0</span><span class="s2">))</span>
+
+        <span class="s1">average </span><span class="s2">= (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">start </span><span class="s2">+ </span><span class="s1">end</span><span class="s2">) / </span><span class="s6">2.0 </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">extraSkew</span>
+        <span class="s1">uncertainty </span><span class="s2">= (</span><span class="s1">end </span><span class="s2">- </span><span class="s1">self</span><span class="s2">.</span><span class="s1">start</span><span class="s2">) / </span><span class="s6">2.0 </span><span class="s2">+ </span><span class="s1">abs</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">extraSkew</span><span class="s2">)</span>
+
+        <span class="s1">globalClockDelta</span><span class="s2">.</span><span class="s1">resynchronize</span><span class="s2">(</span><span class="s1">average</span><span class="s2">, </span><span class="s1">timestamp</span><span class="s2">, </span><span class="s1">uncertainty</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Local clock uncertainty +/- %.3f s&quot; </span><span class="s2">% (</span><span class="s1">globalClockDelta</span><span class="s2">.</span><span class="s1">getUncertainty</span><span class="s2">()))</span>
+
+        <span class="s0">if </span><span class="s1">globalClockDelta</span><span class="s2">.</span><span class="s1">getUncertainty</span><span class="s2">() &gt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxUncertainty</span><span class="s2">:</span>
+            <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">attemptCount </span><span class="s2">&lt; </span><span class="s1">self</span><span class="s2">.</span><span class="s1">maxAttempts</span><span class="s2">:</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Uncertainty is too high, trying again.&quot;</span><span class="s2">)</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">start </span><span class="s2">= </span><span class="s1">globalClock</span><span class="s2">.</span><span class="s1">getRealTime</span><span class="s2">()</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">sendUpdate</span><span class="s2">(</span><span class="s4">&quot;requestServerTime&quot;</span><span class="s2">, [</span><span class="s1">self</span><span class="s2">.</span><span class="s1">thisContext</span><span class="s2">])</span>
+                <span class="s0">return</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Giving up on uncertainty requirement.&quot;</span><span class="s2">)</span>
+
+        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s4">&quot;gotTimeSync&quot;</span><span class="s2">, </span><span class="s1">taskChain </span><span class="s2">= </span><span class="s4">'default'</span><span class="s2">)</span>
+        <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">uniqueName</span><span class="s2">(</span><span class="s4">&quot;gotTimeSync&quot;</span><span class="s2">), </span><span class="s1">taskChain </span><span class="s2">= </span><span class="s4">'default'</span><span class="s2">)</span>
+
+</pre>
+</body>
+</html>

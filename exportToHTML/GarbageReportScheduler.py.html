@@ -1,0 +1,66 @@
+<html>
+<head>
+<title>GarbageReportScheduler.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+GarbageReportScheduler.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">GarbageReport </span><span class="s0">import </span><span class="s1">GarbageReport</span>
+
+
+<span class="s0">class </span><span class="s1">GarbageReportScheduler</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot;Runs a garbage report every once in a while and logs the results.&quot;&quot;&quot;</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">waitBetween</span><span class="s2">=</span><span class="s0">None</span><span class="s2">, </span><span class="s1">waitScale</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s4"># waitBetween is in seconds</span>
+        <span class="s4"># waitScale is a multiplier for the waitBetween every time around</span>
+        <span class="s0">if </span><span class="s1">waitBetween </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">waitBetween </span><span class="s2">= </span><span class="s5">30</span><span class="s2">*</span><span class="s5">60</span>
+        <span class="s0">if </span><span class="s1">waitScale </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">waitScale </span><span class="s2">= </span><span class="s5">1.5</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_waitBetween </span><span class="s2">= </span><span class="s1">waitBetween</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_waitScale </span><span class="s2">= </span><span class="s1">waitScale</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskName </span><span class="s2">= </span><span class="s6">'startScheduledGarbageReport-%s' </span><span class="s2">% </span><span class="s1">serialNum</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_garbageReport </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_scheduleNextGarbageReport</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">getTaskName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_taskName</span>
+
+    <span class="s0">def </span><span class="s1">_scheduleNextGarbageReport</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">garbageReport</span><span class="s2">=</span><span class="s0">None</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">garbageReport</span><span class="s2">:</span>
+            <span class="s4"># this report finished, wait a bit then start another</span>
+            <span class="s0">assert </span><span class="s1">garbageReport </span><span class="s0">is </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_garbageReport</span>
+            <span class="s4"># garbagereport will clean itself up</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">_garbageReport </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s4"># run another garbagereport after a delay</span>
+        <span class="s1">taskMgr</span><span class="s2">.</span><span class="s1">doMethodLater</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_waitBetween</span><span class="s2">,</span>
+                              <span class="s1">self</span><span class="s2">.</span><span class="s1">_runGarbageReport</span><span class="s2">,</span>
+                              <span class="s1">self</span><span class="s2">.</span><span class="s1">_taskName</span><span class="s2">)</span>
+        <span class="s4"># and increase the delay every time around</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_waitBetween </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_waitBetween </span><span class="s2">* </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_waitScale</span>
+
+    <span class="s0">def </span><span class="s1">_runGarbageReport</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">task</span><span class="s2">):</span>
+        <span class="s4"># run a garbage report and schedule the next one after this one finishes</span>
+        <span class="s4"># give this job 3 times as many timeslices as normal-priority jobs</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">_garbageReport </span><span class="s2">= </span><span class="s1">GarbageReport</span><span class="s2">(</span><span class="s6">'ScheduledGarbageReport'</span><span class="s2">, </span><span class="s1">threaded</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+                                            <span class="s1">doneCallback</span><span class="s2">=</span><span class="s1">self</span><span class="s2">.</span><span class="s1">_scheduleNextGarbageReport</span><span class="s2">,</span>
+                                            <span class="s1">autoDestroy</span><span class="s2">=</span><span class="s0">True</span><span class="s2">,</span>
+                                            <span class="s1">priority</span><span class="s2">=</span><span class="s1">GarbageReport</span><span class="s2">.</span><span class="s1">Priorities</span><span class="s2">.</span><span class="s1">Normal </span><span class="s2">* </span><span class="s5">3</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">task</span><span class="s2">.</span><span class="s1">done</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,408 @@
+<html>
+<head>
+<title>ClassicFSM.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ClassicFSM.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;Finite State Machine module: contains the ClassicFSM class. 
+ 
+Note: 
+    This module and class exist only for backward compatibility with 
+    existing code.  New code should use the :mod:`.FSM` module instead. 
+&quot;&quot;&quot;</span>
+
+<span class="s1">__all__ </span><span class="s2">= [</span><span class="s3">'ClassicFSM'</span><span class="s2">]</span>
+
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s4">import </span><span class="s1">directNotify</span>
+<span class="s4">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s4">import </span><span class="s1">DirectObject</span>
+<span class="s4">import </span><span class="s1">weakref</span>
+
+<span class="s4">if __debug__</span><span class="s2">:</span>
+    <span class="s1">_debugFsms </span><span class="s2">= {}</span>
+
+    <span class="s4">def </span><span class="s1">printDebugFsmList</span><span class="s2">():</span>
+        <span class="s4">global </span><span class="s1">_debugFsms</span>
+        <span class="s4">for </span><span class="s1">k </span><span class="s4">in </span><span class="s1">sorted</span><span class="s2">(</span><span class="s1">_debugFsms</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">()):</span>
+            <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;%s %s&quot; </span><span class="s2">% (</span><span class="s1">k</span><span class="s2">, </span><span class="s1">_debugFsms</span><span class="s2">[</span><span class="s1">k</span><span class="s2">]()))</span>
+    <span class="s1">__builtins__</span><span class="s2">[</span><span class="s3">'debugFsmList'</span><span class="s2">] = </span><span class="s1">printDebugFsmList</span>
+
+
+<span class="s4">class </span><span class="s1">ClassicFSM</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">&quot;&quot;&quot; 
+    Finite State Machine class. 
+ 
+    This module and class exist only for backward compatibility with 
+    existing code.  New code should use the FSM class instead. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s5"># create ClassicFSM DirectNotify category</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s3">&quot;ClassicFSM&quot;</span><span class="s2">)</span>
+
+    <span class="s5"># special methods</span>
+
+    <span class="s5"># these are flags that tell the ClassicFSM what to do when an</span>
+    <span class="s5"># undefined transition is requested:</span>
+    <span class="s1">ALLOW </span><span class="s2">= </span><span class="s6">0            </span><span class="s5"># print a warning, and do the transition</span>
+    <span class="s1">DISALLOW </span><span class="s2">= </span><span class="s6">1         </span><span class="s5"># silently ignore the request (don't do the transition)</span>
+    <span class="s1">DISALLOW_VERBOSE </span><span class="s2">= </span><span class="s6">2 </span><span class="s5"># print a warning, and don't do the transition</span>
+    <span class="s1">ERROR </span><span class="s2">= </span><span class="s6">3            </span><span class="s5"># print an error message and raise an exception</span>
+
+    <span class="s4">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">, </span><span class="s1">states</span><span class="s2">=[], </span><span class="s1">initialStateName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">,</span>
+                 <span class="s1">finalStateName</span><span class="s2">=</span><span class="s4">None</span><span class="s2">, </span><span class="s1">onUndefTransition</span><span class="s2">=</span><span class="s1">DISALLOW_VERBOSE</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;__init__(self, string, State[], string, string, int) 
+ 
+        ClassicFSM constructor: takes name, list of states, initial state and 
+        final state as:: 
+ 
+            fsm = ClassicFSM.ClassicFSM('stopLight', 
+              [State.State('red', enterRed, exitRed, ['green']), 
+                State.State('yellow', enterYellow, exitYellow, ['red']), 
+                State.State('green', enterGreen, exitGreen, ['yellow'])], 
+              'red', 
+              'red') 
+ 
+        each state's last argument, a list of allowed state transitions, 
+        is optional; if left out (or explicitly specified to be 
+        State.State.Any) then any transition from the state is 'defined' 
+        and allowed 
+ 
+        'onUndefTransition' flag determines behavior when undefined 
+        transition is requested; see flag definitions above 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setName</span><span class="s2">(</span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setStates</span><span class="s2">(</span><span class="s1">states</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setInitialState</span><span class="s2">(</span><span class="s1">initialStateName</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setFinalState</span><span class="s2">(</span><span class="s1">finalStateName</span><span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">onUndefTransition </span><span class="s2">= </span><span class="s1">onUndefTransition</span>
+
+        <span class="s5"># Flag to see if we are inspecting</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">inspecting </span><span class="s2">= </span><span class="s6">0</span>
+
+        <span class="s5"># We do not enter the initial state to separate</span>
+        <span class="s5"># construction from activation</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">= </span><span class="s4">None</span>
+
+        <span class="s5"># We set this while we are modifying the state.  No one else</span>
+        <span class="s5"># should recursively attempt to modify the state while we are</span>
+        <span class="s5"># doing this.</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux </span><span class="s2">= </span><span class="s6">0</span>
+        <span class="s4">if __debug__</span><span class="s2">:</span>
+            <span class="s4">global </span><span class="s1">_debugFsms</span>
+            <span class="s1">_debugFsms</span><span class="s2">[</span><span class="s1">name</span><span class="s2">]=</span><span class="s1">weakref</span><span class="s2">.</span><span class="s1">ref</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s5"># I know this isn't how __repr__ is supposed to be used, but it</span>
+    <span class="s5"># is nice and convenient.</span>
+    <span class="s4">def </span><span class="s1">__repr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__str__</span><span class="s2">()</span>
+
+    <span class="s4">def </span><span class="s1">__str__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Print out something useful about the fsm 
+        &quot;&quot;&quot;</span>
+        <span class="s1">currentState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getCurrentState</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s1">currentState</span><span class="s2">:</span>
+            <span class="s1">str </span><span class="s2">= (</span><span class="s3">&quot;ClassicFSM &quot; </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">' in state &quot;' </span><span class="s2">+</span>
+                   <span class="s1">currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'&quot;'</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">str </span><span class="s2">= (</span><span class="s3">&quot;ClassicFSM &quot; </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">' not in any state'</span><span class="s2">)</span>
+        <span class="s4">return </span><span class="s1">str</span>
+
+    <span class="s4">def </span><span class="s1">enterInitialState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">=[]):</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__initialState</span><span class="s2">:</span>
+            <span class="s4">return</span>
+
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">== </span><span class="s4">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__initialState</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">)</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+
+    <span class="s5"># setters and getters</span>
+
+    <span class="s4">def </span><span class="s1">getName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setName</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__name </span><span class="s2">= </span><span class="s1">name</span>
+
+    <span class="s4">def </span><span class="s1">getStates</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">list</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__states</span><span class="s2">.</span><span class="s1">values</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">setStates</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">states</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot;setStates(self, State[])&quot;&quot;&quot;</span>
+        <span class="s5"># Make a dictionary from stateName -&gt; state</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__states </span><span class="s2">= {}</span>
+        <span class="s4">for </span><span class="s1">state </span><span class="s4">in </span><span class="s1">states</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__states</span><span class="s2">[</span><span class="s1">state</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()] = </span><span class="s1">state</span>
+
+    <span class="s4">def </span><span class="s1">addState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">state</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__states</span><span class="s2">[</span><span class="s1">state</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()] = </span><span class="s1">state</span>
+
+    <span class="s4">def </span><span class="s1">getInitialState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__initialState</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setInitialState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">initialStateName</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__initialState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getStateNamed</span><span class="s2">(</span><span class="s1">initialStateName</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">getFinalState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finalState</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">setFinalState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">finalStateName</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__finalState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getStateNamed</span><span class="s2">(</span><span class="s1">finalStateName</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">requestFinalState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getFinalState</span><span class="s2">().</span><span class="s1">getName</span><span class="s2">())</span>
+
+    <span class="s4">def </span><span class="s1">getCurrentState</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">)</span>
+
+
+    <span class="s5"># lookup funcs</span>
+
+    <span class="s4">def </span><span class="s1">getStateNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateName</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return the state with given name if found, issue warning otherwise 
+        &quot;&quot;&quot;</span>
+        <span class="s1">state </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__states</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">stateName</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">state</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">state</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;[%s]: getStateNamed: %s, no such state&quot; </span><span class="s2">%</span>
+                                      <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">stateName</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">hasStateNamed</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">stateName</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Return True if stateName is a valid state, False otherwise. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">result </span><span class="s2">= </span><span class="s4">False</span>
+        <span class="s1">state </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__states</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s1">stateName</span><span class="s2">)</span>
+        <span class="s4">if </span><span class="s1">state</span><span class="s2">:</span>
+            <span class="s1">result </span><span class="s2">= </span><span class="s4">True</span>
+        <span class="s4">return </span><span class="s1">result</span>
+
+    <span class="s5"># basic ClassicFSM functionality</span>
+
+    <span class="s4">def </span><span class="s1">__exitCurrent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Exit the current state 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+        <span class="s4">assert </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;[%s]: exiting %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()))</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">exit</span><span class="s2">(</span><span class="s1">argList</span><span class="s2">)</span>
+        <span class="s5"># Only send the state change event if we are inspecting it</span>
+        <span class="s5"># If this event turns out to be generally useful, we can</span>
+        <span class="s5"># turn it on all the time, but for now nobody else is using it</span>
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">inspecting</span><span class="s2">:</span>
+            <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'_' </span><span class="s2">+</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'_exited'</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">= </span><span class="s4">None</span>
+
+    <span class="s4">def </span><span class="s1">__enter</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aState</span><span class="s2">, </span><span class="s1">argList</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Enter a given state, if it exists 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+        <span class="s1">stateName </span><span class="s2">= </span><span class="s1">aState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+        <span class="s4">if </span><span class="s2">(</span><span class="s1">stateName </span><span class="s4">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__states</span><span class="s2">):</span>
+            <span class="s4">assert </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s3">&quot;[%s]: entering %s&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">stateName</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">= </span><span class="s1">aState</span>
+            <span class="s5"># Only send the state change event if we are inspecting it</span>
+            <span class="s5"># If this event turns out to be generally useful, we can</span>
+            <span class="s5"># turn it on all the time, but for now nobody else is using it</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">inspecting</span><span class="s2">:</span>
+                <span class="s1">messenger</span><span class="s2">.</span><span class="s1">send</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">() + </span><span class="s3">'_' </span><span class="s2">+ </span><span class="s1">stateName </span><span class="s2">+ </span><span class="s3">'_entered'</span><span class="s2">)</span>
+
+            <span class="s5"># Once we begin entering the new state, we're allow to</span>
+            <span class="s5"># recursively request a transition to another state.</span>
+            <span class="s5"># Indicate this by marking our internal state no longer in</span>
+            <span class="s5"># flux.</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">aState</span><span class="s2">.</span><span class="s1">enter</span><span class="s2">(</span><span class="s1">argList</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># notify.error is going to raise an exception; reset the</span>
+            <span class="s5"># flux flag first</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux </span><span class="s2">= </span><span class="s6">0</span>
+            <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">&quot;[%s]: enter: no such state&quot; </span><span class="s2">% (</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">))</span>
+
+    <span class="s4">def </span><span class="s1">__transition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aState</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">=[], </span><span class="s1">exitArgList</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Exit currentState and enter given one 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux </span><span class="s2">= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__exitCurrent</span><span class="s2">(</span><span class="s1">exitArgList</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__enter</span><span class="s2">(</span><span class="s1">aState</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">)</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+
+    <span class="s4">def </span><span class="s1">request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">=[], </span><span class="s1">exitArgList</span><span class="s2">=[],</span>
+                <span class="s1">force</span><span class="s2">=</span><span class="s6">0</span><span class="s2">):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        Attempt transition from currentState to given one. 
+        Return true is transition exists to given state, 
+        false otherwise. 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># If you trigger this assertion failure, you must have</span>
+        <span class="s5"># recursively requested a state transition from within the</span>
+        <span class="s5"># exitState() function for the previous state.  This is not</span>
+        <span class="s5"># supported because we're not fully transitioned into the new</span>
+        <span class="s5"># state yet.</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">:</span>
+            <span class="s5"># Make this a warning for now</span>
+            <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;[%s]: request: never entered initial state&quot; </span><span class="s2">%</span>
+                               <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__initialState</span>
+
+        <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">str</span><span class="s2">):</span>
+            <span class="s1">aState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getStateNamed</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Allow the caller to pass in a state in itself, not just</span>
+            <span class="s5"># the name of a state.</span>
+            <span class="s1">aState </span><span class="s2">= </span><span class="s1">aStateName</span>
+            <span class="s1">aStateName </span><span class="s2">= </span><span class="s1">aState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">aState </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">&quot;[%s]: request: %s, no such state&quot; </span><span class="s2">%</span>
+                             <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">))</span>
+
+        <span class="s5"># is the transition defined? if it isn't, should we allow it?</span>
+        <span class="s1">transitionDefined </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">isTransitionDefined</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">)</span>
+        <span class="s1">transitionAllowed </span><span class="s2">= </span><span class="s1">transitionDefined</span>
+
+        <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onUndefTransition </span><span class="s2">== </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">ALLOW</span><span class="s2">:</span>
+            <span class="s1">transitionAllowed </span><span class="s2">= </span><span class="s6">1</span>
+            <span class="s4">if not </span><span class="s1">transitionDefined</span><span class="s2">:</span>
+                <span class="s5"># the transition is not defined, but we're going to do it</span>
+                <span class="s5"># anyway. print a warning.</span>
+                <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                    <span class="s3">&quot;[%s]: performing undefined transition from %s to %s&quot; </span><span class="s2">%</span>
+                    <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">,</span>
+                     <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+                     <span class="s1">aStateName</span><span class="s2">))</span>
+
+        <span class="s4">if </span><span class="s1">transitionAllowed </span><span class="s4">or </span><span class="s1">force</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__transition</span><span class="s2">(</span><span class="s1">aState</span><span class="s2">,</span>
+                              <span class="s1">enterArgList</span><span class="s2">,</span>
+                              <span class="s1">exitArgList</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s6">1</span>
+        <span class="s5"># We can implicitly always transition to our final state.</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">aStateName </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finalState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()):</span>
+            <span class="s4">if </span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__finalState</span><span class="s2">):</span>
+                <span class="s5"># Do not do the transition if we are already in the</span>
+                <span class="s5"># final state</span>
+                <span class="s4">assert </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                    <span class="s3">&quot;[%s]: already in final state: %s&quot; </span><span class="s2">%</span>
+                    <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">))</span>
+                <span class="s4">return </span><span class="s6">1</span>
+            <span class="s4">else</span><span class="s2">:</span>
+                <span class="s5"># Force a transition to allow for cleanup</span>
+                <span class="s4">assert </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                    <span class="s3">&quot;[%s]: implicit transition to final state: %s&quot; </span><span class="s2">%</span>
+                    <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">))</span>
+                <span class="s1">self</span><span class="s2">.</span><span class="s1">__transition</span><span class="s2">(</span><span class="s1">aState</span><span class="s2">,</span>
+                                  <span class="s1">enterArgList</span><span class="s2">,</span>
+                                  <span class="s1">exitArgList</span><span class="s2">)</span>
+                <span class="s4">return </span><span class="s6">1</span>
+        <span class="s5"># are we already in this state?</span>
+        <span class="s4">elif </span><span class="s2">(</span><span class="s1">aStateName </span><span class="s2">== </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()):</span>
+            <span class="s4">assert </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                <span class="s3">&quot;[%s]: already in state %s and no self transition&quot; </span><span class="s2">%</span>
+                <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">))</span>
+            <span class="s4">return </span><span class="s6">0</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">msg </span><span class="s2">= (</span><span class="s3">&quot;[%s]: no transition exists from %s to %s&quot; </span><span class="s2">%</span>
+                   <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">,</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+                    <span class="s1">aStateName</span><span class="s2">))</span>
+            <span class="s4">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onUndefTransition </span><span class="s2">== </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">ERROR</span><span class="s2">:</span>
+                <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s1">msg</span><span class="s2">)</span>
+            <span class="s4">elif </span><span class="s1">self</span><span class="s2">.</span><span class="s1">onUndefTransition </span><span class="s2">== </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">DISALLOW_VERBOSE</span><span class="s2">:</span>
+                <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s1">msg</span><span class="s2">)</span>
+            <span class="s4">return </span><span class="s6">0</span>
+
+
+    <span class="s4">def </span><span class="s1">forceTransition</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">=[], </span><span class="s1">exitArgList</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        force a transition -- for debugging ONLY 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">, </span><span class="s1">exitArgList</span><span class="s2">, </span><span class="s1">force</span><span class="s2">=</span><span class="s6">1</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">conditional_request</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">=[], </span><span class="s1">exitArgList</span><span class="s2">=[]):</span>
+        <span class="s0">&quot;&quot;&quot; 
+        'if this transition is defined, do it' 
+        Attempt transition from currentState to given one, if it exists. 
+        Return true if transition exists to given state, false otherwise. 
+        It is NOT an error/warning to attempt a cond_request if the 
+        transition doesn't exist.  This lets people be sloppy about 
+        ClassicFSM transitions, letting the same fn be used for different 
+        states that may not have the same out transitions. 
+        &quot;&quot;&quot;</span>
+        <span class="s4">assert not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+        <span class="s4">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">:</span>
+            <span class="s5"># Make this a warning for now</span>
+            <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span><span class="s3">&quot;[%s]: request: never entered initial state&quot; </span><span class="s2">%</span>
+                               <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">))</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__initialState</span>
+
+        <span class="s4">if </span><span class="s1">isinstance</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">str</span><span class="s2">):</span>
+            <span class="s1">aState </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">getStateNamed</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s5"># Allow the caller to pass in a state in itself, not just</span>
+            <span class="s5"># the name of a state.</span>
+            <span class="s1">aState </span><span class="s2">= </span><span class="s1">aStateName</span>
+            <span class="s1">aStateName </span><span class="s2">= </span><span class="s1">aState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()</span>
+
+        <span class="s4">if </span><span class="s1">aState </span><span class="s2">== </span><span class="s4">None</span><span class="s2">:</span>
+            <span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">error</span><span class="s2">(</span><span class="s3">&quot;[%s]: request: %s, no such state&quot; </span><span class="s2">%</span>
+                                <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">))</span>
+
+        <span class="s1">transitionDefined </span><span class="s2">= (</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">isTransitionDefined</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">) </span><span class="s4">or</span>
+            <span class="s1">aStateName </span><span class="s4">in </span><span class="s2">[</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__currentState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">(),</span>
+                           <span class="s1">self</span><span class="s2">.</span><span class="s1">__finalState</span><span class="s2">.</span><span class="s1">getName</span><span class="s2">()]</span>
+            <span class="s2">)</span>
+
+        <span class="s4">if </span><span class="s1">transitionDefined</span><span class="s2">:</span>
+            <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">request</span><span class="s2">(</span><span class="s1">aStateName</span><span class="s2">, </span><span class="s1">enterArgList</span><span class="s2">, </span><span class="s1">exitArgList</span><span class="s2">)</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s4">assert </span><span class="s1">ClassicFSM</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span>
+                <span class="s3">&quot;[%s]: condition_request: %s, transition doesnt exist&quot; </span><span class="s2">%</span>
+                <span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__name</span><span class="s2">, </span><span class="s1">aStateName</span><span class="s2">))</span>
+            <span class="s4">return </span><span class="s6">0</span>
+
+    <span class="s4">def </span><span class="s1">view</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># Don't use a regular import, to prevent ModuleFinder from picking</span>
+        <span class="s5"># it up as a dependency when building a .p3d package.</span>
+        <span class="s4">import </span><span class="s1">importlib</span>
+        <span class="s1">FSMInspector </span><span class="s2">= </span><span class="s1">importlib</span><span class="s2">.</span><span class="s1">import_module</span><span class="s2">(</span><span class="s3">'direct.tkpanels.FSMInspector'</span><span class="s2">)</span>
+        <span class="s1">FSMInspector</span><span class="s2">.</span><span class="s1">FSMInspector</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s4">def </span><span class="s1">isInternalStateInFlux</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s4">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">__internalStateInFlux</span>
+
+
+
+
+
+
+
+
+</pre>
+</body>
+</html>

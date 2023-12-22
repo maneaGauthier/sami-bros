@@ -1,0 +1,141 @@
+<html>
+<head>
+<title>MessengerLeakDetector.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MessengerLeakDetector.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">directnotify</span><span class="s2">.</span><span class="s1">DirectNotifyGlobal </span><span class="s0">import </span><span class="s1">directNotify</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">DirectObject </span><span class="s0">import </span><span class="s1">DirectObject</span>
+<span class="s0">from </span><span class="s1">direct</span><span class="s2">.</span><span class="s1">showbase</span><span class="s2">.</span><span class="s1">Job </span><span class="s0">import </span><span class="s1">Job</span>
+<span class="s0">import </span><span class="s1">gc</span><span class="s2">, </span><span class="s1">sys</span>
+
+<span class="s0">if </span><span class="s1">sys</span><span class="s2">.</span><span class="s1">version_info </span><span class="s2">&gt;= (</span><span class="s3">3</span><span class="s2">, </span><span class="s3">0</span><span class="s2">):</span>
+    <span class="s0">import </span><span class="s1">builtins</span>
+<span class="s0">else</span><span class="s2">:</span>
+    <span class="s0">import </span><span class="s1">__builtin__ </span><span class="s0">as </span><span class="s1">builtins</span>
+
+
+<span class="s0">class </span><span class="s1">MessengerLeakObject</span><span class="s2">(</span><span class="s1">DirectObject</span><span class="s2">):</span>
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">accept</span><span class="s2">(</span><span class="s4">'leakEvent'</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_handleEvent</span><span class="s2">)</span>
+    <span class="s0">def </span><span class="s1">_handleEvent</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">pass</span>
+
+<span class="s0">def </span><span class="s1">_leakMessengerObject</span><span class="s2">():</span>
+    <span class="s1">leakObject </span><span class="s2">= </span><span class="s1">MessengerLeakObject</span><span class="s2">()</span>
+
+<span class="s0">class </span><span class="s1">MessengerLeakDetector</span><span class="s2">(</span><span class="s1">Job</span><span class="s2">):</span>
+    <span class="s5"># check for objects that are only referenced by the messenger</span>
+    <span class="s5"># and would otherwise be garbage collected</span>
+    <span class="s1">notify </span><span class="s2">= </span><span class="s1">directNotify</span><span class="s2">.</span><span class="s1">newCategory</span><span class="s2">(</span><span class="s4">&quot;MessengerLeakDetector&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s1">Job</span><span class="s2">.</span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setPriority</span><span class="s2">(</span><span class="s1">Job</span><span class="s2">.</span><span class="s1">Priorities</span><span class="s2">.</span><span class="s1">Normal</span><span class="s2">*</span><span class="s3">2</span><span class="s2">)</span>
+        <span class="s1">jobMgr</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s5"># set of ids of objects that we know are always attached to builtin;</span>
+        <span class="s5"># if an object is attached to one of these, it's attached to builtin</span>
+        <span class="s5"># this cuts down on the amount of searching that needs to be done</span>
+        <span class="s1">builtinIds </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+        <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">builtins</span><span class="s2">.</span><span class="s1">__dict__</span><span class="s2">))</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">base</span><span class="s2">))</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">))</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">base</span><span class="s2">.</span><span class="s1">cr</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">))</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">simbase</span><span class="s2">))</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">simbase</span><span class="s2">.</span><span class="s1">air</span><span class="s2">))</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">simbase</span><span class="s2">.</span><span class="s1">air</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">))</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">uber</span><span class="s2">))</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">uber</span><span class="s2">.</span><span class="s1">air</span><span class="s2">))</span>
+            <span class="s1">builtinIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">uber</span><span class="s2">.</span><span class="s1">air</span><span class="s2">.</span><span class="s1">doId2do</span><span class="s2">))</span>
+        <span class="s0">except</span><span class="s2">:</span>
+            <span class="s0">pass</span>
+
+        <span class="s0">while True</span><span class="s2">:</span>
+            <span class="s0">yield None</span>
+            <span class="s1">objects </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">_Messenger__objectEvents</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+            <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'%s objects in the messenger' </span><span class="s2">% </span><span class="s1">len</span><span class="s2">(</span><span class="s1">objects</span><span class="s2">))</span>
+            <span class="s0">for </span><span class="s1">object </span><span class="s0">in </span><span class="s1">objects</span><span class="s2">:</span>
+                <span class="s0">yield None</span>
+                <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'---&gt; new object: %s' </span><span class="s2">% </span><span class="s1">itype</span><span class="s2">(</span><span class="s1">object</span><span class="s2">))</span>
+                <span class="s5"># try to find a path to builtin that doesn't involve the messenger</span>
+                <span class="s5"># lists of objects for breadth-first search</span>
+                <span class="s5"># iterate through one list while populating other list</span>
+                <span class="s1">objList1 </span><span class="s2">= []</span>
+                <span class="s1">objList2 </span><span class="s2">= []</span>
+                <span class="s1">curObjList </span><span class="s2">= </span><span class="s1">objList1</span>
+                <span class="s1">nextObjList </span><span class="s2">= </span><span class="s1">objList2</span>
+                <span class="s1">visitedObjIds </span><span class="s2">= </span><span class="s1">set</span><span class="s2">()</span>
+
+                <span class="s5"># add the id of the object, and the messenger containers so that</span>
+                <span class="s5"># the search for builtin will stop at the messenger; we're looking</span>
+                <span class="s5"># for any path to builtin that don't involve the messenger</span>
+                <span class="s1">visitedObjIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">object</span><span class="s2">))</span>
+                <span class="s1">visitedObjIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">_Messenger__objectEvents</span><span class="s2">))</span>
+                <span class="s1">visitedObjIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">messenger</span><span class="s2">.</span><span class="s1">_Messenger__callbacks</span><span class="s2">))</span>
+
+                <span class="s1">nextObjList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)</span>
+                <span class="s1">foundBuiltin </span><span class="s2">= </span><span class="s0">False</span>
+
+                <span class="s5"># breadth-first search, go until you run out of new objects or you find __builtin__</span>
+                <span class="s0">while </span><span class="s1">len</span><span class="s2">(</span><span class="s1">nextObjList</span><span class="s2">):</span>
+                    <span class="s0">if </span><span class="s1">foundBuiltin</span><span class="s2">:</span>
+                        <span class="s0">break</span>
+                    <span class="s5"># swap the lists, prepare for the next pass</span>
+                    <span class="s1">curObjList </span><span class="s2">= </span><span class="s1">nextObjList</span>
+                    <span class="s1">nextObjList </span><span class="s2">= []</span>
+                    <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'next search iteration, num objects: %s' </span><span class="s2">% </span><span class="s1">len</span><span class="s2">(</span><span class="s1">curObjList</span><span class="s2">))</span>
+                    <span class="s0">for </span><span class="s1">curObj </span><span class="s0">in </span><span class="s1">curObjList</span><span class="s2">:</span>
+                        <span class="s0">if </span><span class="s1">foundBuiltin</span><span class="s2">:</span>
+                            <span class="s0">break</span>
+                        <span class="s0">yield None</span>
+                        <span class="s1">referrers </span><span class="s2">= </span><span class="s1">gc</span><span class="s2">.</span><span class="s1">get_referrers</span><span class="s2">(</span><span class="s1">curObj</span><span class="s2">)</span>
+                        <span class="s0">assert </span><span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">debug</span><span class="s2">(</span><span class="s4">'curObj: %s @ %s, %s referrers, repr=%s' </span><span class="s2">% (</span>
+                            <span class="s1">itype</span><span class="s2">(</span><span class="s1">curObj</span><span class="s2">), </span><span class="s1">hex</span><span class="s2">(</span><span class="s1">id</span><span class="s2">(</span><span class="s1">curObj</span><span class="s2">)), </span><span class="s1">len</span><span class="s2">(</span><span class="s1">referrers</span><span class="s2">), </span><span class="s1">fastRepr</span><span class="s2">(</span><span class="s1">curObj</span><span class="s2">, </span><span class="s1">maxLen</span><span class="s2">=</span><span class="s3">2</span><span class="s2">)))</span>
+                        <span class="s0">for </span><span class="s1">referrer </span><span class="s0">in </span><span class="s1">referrers</span><span class="s2">:</span>
+                            <span class="s5">#assert self.notify.debug('referrer: %s' % itype(curObj))</span>
+                            <span class="s0">yield None</span>
+                            <span class="s1">refId </span><span class="s2">= </span><span class="s1">id</span><span class="s2">(</span><span class="s1">referrer</span><span class="s2">)</span>
+                            <span class="s5"># don't go in a loop</span>
+                            <span class="s0">if </span><span class="s1">refId </span><span class="s0">in </span><span class="s1">visitedObjIds</span><span class="s2">:</span>
+                                <span class="s5">#assert self.notify.debug('already visited')</span>
+                                <span class="s0">continue</span>
+                            <span class="s5"># don't self-reference</span>
+                            <span class="s0">if </span><span class="s1">referrer </span><span class="s0">is </span><span class="s1">curObjList </span><span class="s0">or </span><span class="s1">referrer </span><span class="s0">is </span><span class="s1">nextObjList</span><span class="s2">:</span>
+                                <span class="s0">continue</span>
+                            <span class="s0">if </span><span class="s1">refId </span><span class="s0">in </span><span class="s1">builtinIds</span><span class="s2">:</span>
+                                <span class="s5"># not a leak, there is a path to builtin that does not involve the messenger</span>
+                                <span class="s5">#assert self.notify.debug('object has another path to __builtin__, it\'s not a messenger leak')</span>
+                                <span class="s1">foundBuiltin </span><span class="s2">= </span><span class="s0">True</span>
+                                <span class="s0">break</span>
+                            <span class="s0">else</span><span class="s2">:</span>
+                                <span class="s1">visitedObjIds</span><span class="s2">.</span><span class="s1">add</span><span class="s2">(</span><span class="s1">refId</span><span class="s2">)</span>
+                                <span class="s1">nextObjList</span><span class="s2">.</span><span class="s1">append</span><span class="s2">(</span><span class="s1">referrer</span><span class="s2">)</span>
+
+                <span class="s0">if not </span><span class="s1">foundBuiltin</span><span class="s2">:</span>
+                    <span class="s1">self</span><span class="s2">.</span><span class="s1">notify</span><span class="s2">.</span><span class="s1">warning</span><span class="s2">(</span>
+                        <span class="s4">'%s is referenced only by the messenger' </span><span class="s2">% (</span><span class="s1">itype</span><span class="s2">(</span><span class="s1">object</span><span class="s2">)))</span>
+</pre>
+</body>
+</html>
